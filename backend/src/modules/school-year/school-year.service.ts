@@ -60,6 +60,14 @@ export class SchoolYearService {
     return end.getTime() - start.getTime() < TEN_MONTHS_MS;
   }
 
+  private async expireIfNeeded(): Promise<void> {
+    try {
+      await this.schoolYearRepository.expireAndEndActive();
+    } catch {
+      // best-effort; do not block main operation
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // CRUD
   // ---------------------------------------------------------------------------
@@ -69,8 +77,9 @@ export class SchoolYearService {
     dto: CreateSchoolYearDto,
     actorId: string,
   ): Promise<SchoolYearCreateResult> {
+    await this.expireIfNeeded();
     this.validateDateRange(dto.start_date, dto.end_date);
-    this.validateNotInPast(dto.start_date, dto.end_date); // 👈 ADD THIS
+    this.validateNotInPast(dto.start_date, dto.end_date);
 
     const short = this.isShortDuration(dto.start_date, dto.end_date);
 
@@ -114,6 +123,7 @@ export class SchoolYearService {
   }
 
   async findAll(orgId: string) {
+    await this.expireIfNeeded();
     const schoolYears = await this.schoolYearRepository.findAll(orgId);
 
     // Careful: the usage scan is only a UI hint (show/hide the Delete action).
@@ -133,12 +143,14 @@ export class SchoolYearService {
   }
 
   async findById(id: string, orgId: string) {
+    await this.expireIfNeeded();
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
     return schoolYear;
   }
 
   async findActive(orgId: string) {
+    await this.expireIfNeeded();
     return this.schoolYearRepository.findActive(orgId);
   }
 
@@ -148,6 +160,7 @@ export class SchoolYearService {
     dto: UpdateSchoolYearDto,
     actorId: string,
   ) {
+    await this.expireIfNeeded();
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
 
@@ -162,6 +175,7 @@ export class SchoolYearService {
     const effectiveEnd = dto.end_date ?? schoolYear.end_date?.toISOString();
 
     this.validateDateRange(effectiveStart, effectiveEnd);
+    this.validateNotInPast(effectiveStart, effectiveEnd);
 
     const short = this.isShortDuration(effectiveStart, effectiveEnd);
 
@@ -195,6 +209,7 @@ export class SchoolYearService {
   }
 
   async activate(id: string, orgId: string, actorId: string) {
+    await this.expireIfNeeded();
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) {
       throw new NotFoundException('School year not found.');
@@ -258,6 +273,7 @@ export class SchoolYearService {
     return result;
   }
   async end(id: string, orgId: string, actorId: string) {
+    await this.expireIfNeeded();
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
 
@@ -285,6 +301,7 @@ export class SchoolYearService {
   }
 
   async remove(id: string, orgId: string, actorId: string) {
+    await this.expireIfNeeded();
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
 

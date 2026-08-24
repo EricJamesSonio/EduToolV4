@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { GradingScaleRepository } from '@/modules/grading-scale/grading-scale.repository';
 import { DatabaseService } from '@/core/database/database.provider';
 import { buildScaleAssignments } from '../data/grading-scale.data';
 import { SeedContext } from '../seed-context';
@@ -6,7 +7,10 @@ import { seedId } from '../seed-id';
 
 @Injectable()
 export class GradingScaleSeederService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly gradingScaleRepository: GradingScaleRepository,
+  ) {}
 
   async seed(ctx: SeedContext): Promise<void> {
     const assignments =
@@ -20,7 +24,7 @@ export class GradingScaleSeederService {
               programKey: progKey,
               programId: ctx.programMap[progKey],
               scaleName: scale.name,
-              ranges: scale.ranges as any,
+              ranges: scale.ranges as object,
             }))
         : buildScaleAssignments()
             .filter(
@@ -36,25 +40,28 @@ export class GradingScaleSeederService {
             }));
 
     for (const { programKey, programId, scaleName, ranges } of assignments) {
-      const scaleId = seedId('scale', programKey, scaleName, ctx.orgId);
-      let scale = await this.db.gradingScale.findFirst({
-        where: { id: scaleId },
-      });
+      // Single source of truth for uniqueness — same lookup the manual
+      // Create Grading Scale flow uses. A name match, regardless of how or
+      // when it was created, is treated as "already exists" — never a
+      // second row with the same name.
+      const existing = await this.gradingScaleRepository.findByName(
+        ctx.orgId,
+        scaleName,
+      );
 
-      if (!scale) {
-        scale = await this.db.gradingScale.create({
-          data: {
-            id: scaleId,
-            org_id: ctx.orgId,
-            name: scaleName,
-            program_type: programKey,
-            ranges,
-            is_locked: false,
-          },
+      let scale: { id: string };
+
+      if (existing) {
+        scale = existing;
+        ctx.result.gradingScales.already_exists++;
+      } else {
+        scale = await this.gradingScaleRepository.create({
+          orgId: ctx.orgId,
+          name: scaleName,
+          programType: programKey,
+          ranges,
         });
         ctx.result.gradingScales.seeded++;
-      } else {
-        ctx.result.gradingScales.already_exists++;
       }
 
       const assignmentId = seedId(

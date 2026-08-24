@@ -22,7 +22,9 @@ import { INestApplication } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
 
 import { OrgSeederModule } from '@/modules/org-seeder/org-seeder.module';
+import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from '@/core/database/database.module';
+import { AiModule } from '@/core/ai/ai.module';
 import { DatabaseService } from '@/core/database/database.provider';
 import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
 import type { OrgSeedOptions } from '@/modules/org-seeder/seed-context';
@@ -128,7 +130,12 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [OrgSeederModule, DatabaseModule],
+      imports: [
+        OrgSeederModule,
+        DatabaseModule,
+        AiModule,
+        ConfigModule.forRoot({ isGlobal: true }),
+      ],
     }).compile();
     app = moduleFixture.createNestApplication();
     await app.init();

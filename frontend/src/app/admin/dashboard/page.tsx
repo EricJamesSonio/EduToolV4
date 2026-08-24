@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { analyticsApi, DEFAULT_PAGE_SIZE } from "@/api/admin/analytics.api";
+import { DEFAULT_PAGE_SIZE } from "@/api/admin/analytics.api";
 import { organizationApi } from "@/api/admin/organization.api";
+import { useAnalyticsOverview, useEnrollmentBreakdown } from "@/hooks/admin/useAnalytics";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { Pagination } from "@/components/shared/Pagination";
@@ -23,7 +24,6 @@ import type { EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { cn } from "@/lib/utils";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
-
 interface StatCardProps {
   label: string;
   value: number | undefined;
@@ -128,7 +128,6 @@ export default function AdminDashboardPage(): React.JSX.Element {
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
-  // Auto-select active year on load
   useEffect(() => {
     if (!selectedYearId && schoolYears.length > 0) {
       const active = schoolYears.find((sy) => sy.status === "active");
@@ -146,23 +145,18 @@ export default function AdminDashboardPage(): React.JSX.Element {
     { retry: false },
   );
 
-  const { data: overview, isLoading: overviewLoading } = useAsyncQuery(
-    queryKeys.admin.analytics.detail("overview"),
-    () => analyticsApi.getOverview(selectedYearId ?? undefined),
+  const { data: overview, isLoading: overviewLoading } = useAnalyticsOverview(
+    selectedYearId ?? undefined,
     { enabled: !!org && !!selectedYearId },
   );
 
   const {
     data: enrollment,
     isLoading: enrollmentLoading,
-  } = useAsyncQuery(
-    [...queryKeys.admin.analytics.detail("enrollment"), enrollmentPage, enrollmentLimit],
-    () =>
-      analyticsApi.getEnrollmentBreakdown(
-        selectedYearId ?? undefined,
-        enrollmentPage,
-        enrollmentLimit,
-      ),
+  } = useEnrollmentBreakdown(
+    selectedYearId ?? undefined,
+    enrollmentPage,
+    enrollmentLimit,
     { enabled: !!org && !!selectedYearId },
   );
 
@@ -176,7 +170,6 @@ export default function AdminDashboardPage(): React.JSX.Element {
 
   return (
     <div className="space-y-8">
-
       <PageHeader
         title="Dashboard"
         actions={

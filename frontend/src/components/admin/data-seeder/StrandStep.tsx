@@ -1,5 +1,6 @@
 import { Checkbox } from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
+import { SHS_STRANDS } from "./constants/seed-data"
 
 interface StrandStepProps {
   selectedStrands: Set<string>
@@ -7,9 +8,8 @@ interface StrandStepProps {
   onToggleStrand: (strand: string) => void
   onSelectAllStrands: () => void
   onDeselectAllStrands: () => void
+  strandsOverride?: string[] | null
 }
-
-import { SHS_STRANDS } from "./constants/seed-data"
 
 export function StrandStep({
   selectedStrands,
@@ -17,37 +17,30 @@ export function StrandStep({
   onToggleStrand,
   onSelectAllStrands,
   onDeselectAllStrands,
+  strandsOverride,
 }: StrandStepProps) {
+  const strands = strandsOverride ?? SHS_STRANDS
   const isDisabled = (name: string) => disabledStrandNames.has(name)
 
   return (
     <div className="space-y-2">
       <Collapsible
         title="Senior High School Strands"
-        count={SHS_STRANDS.filter((s) => selectedStrands.has(s) && !isDisabled(s))
-          .length}
-        total={SHS_STRANDS.length}
+        count={strands.filter((s) => selectedStrands.has(s) && !isDisabled(s)).length}
+        total={strands.length}
         defaultOpen
       >
         <div className="space-y-2">
           <div className="flex gap-3 mb-2">
-            <button
-              type="button"
-              className="text-xs text-primary hover:underline"
-              onClick={onSelectAllStrands}
-            >
+            <button type="button" className="text-xs text-primary hover:underline" onClick={onSelectAllStrands}>
               All
             </button>
-            <button
-              type="button"
-              className="text-xs text-muted-foreground hover:underline"
-              onClick={onDeselectAllStrands}
-            >
+            <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={onDeselectAllStrands}>
               None
             </button>
           </div>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {SHS_STRANDS.map((strand) => (
+            {strands.map((strand) => (
               <Checkbox
                 key={strand}
                 checked={selectedStrands.has(strand)}

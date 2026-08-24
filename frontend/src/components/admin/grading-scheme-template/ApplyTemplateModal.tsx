@@ -63,7 +63,9 @@ export function ApplyTemplateModal({
           <label className="text-sm font-medium">Select Template</label>
           <Select value={selectedTemplateId} onValueChange={(v) => { if (v !== null) onTemplateChange(v); }}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose a template..." />
+              <SelectValue placeholder="Choose a template...">
+                {templates.find((t) => t.id === selectedTemplateId)?.name ?? "Choose a template..."}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {templates.map((t) => (

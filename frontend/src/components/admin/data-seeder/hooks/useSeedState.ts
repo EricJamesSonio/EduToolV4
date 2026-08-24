@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { CalendarBreak } from "@/api/admin/program-calendar.api"
+import type { EffectiveSeedOverrides } from "./useEffectiveSeedData"
 import {
   COLLEGE_COURSES,
   COLLEGE_YEAR_LABELS,
@@ -32,6 +33,28 @@ export interface ProgramCalendarDraft {
   breaks: CalendarBreak[]
 }
 
+/**
+ * Minimum number of complete (start + end filled) calendar periods a
+ * department needs before its calendar counts as "configured" and its
+ * semester template can be derived from it. 2 periods = regular 2-semester
+ * template, 3 periods = trimester, etc.
+ */
+export const MIN_CALENDAR_PERIODS = 2
+
+/** Number of complete periods (breaks with both dates filled) in a draft. */
+export function getBreakCount(config?: ProgramCalendarDraft): number {
+  return config?.breaks.filter((b) => b.startDate && b.endDate).length ?? 0
+}
+
+/**
+ * Whether a department's calendar draft is "configured" enough to derive a
+ * semester template from — has its own date range and at least
+ * MIN_CALENDAR_PERIODS complete periods.
+ */
+export function isCalendarConfigured(config?: ProgramCalendarDraft): boolean {
+  return !!config?.startDate && !!config?.endDate && getBreakCount(config) >= MIN_CALENDAR_PERIODS
+}
+
 function defaultCalendarBreaks(startDate: string): CalendarBreak[] {
   return [
     { label: "Break 1", startDate, endDate: "" },
@@ -52,14 +75,31 @@ const DEFAULT_PRESET_PER_PROGRAM: Record<string, string> = {
   college: "college_5pt",
 }
 
-function buildInitialSectionConfigs(): Record<string, SectionConfig> {
+function buildInitialSectionConfigs(overrides?: EffectiveSeedOverrides): Record<string, SectionConfig> {
   const out: Record<string, SectionConfig> = {}
 
   Object.entries(LEVEL_DEFS).forEach(([, names]) => {
     names.forEach((levelName) => {
-      out[levelName] = SECTION_DEFAULTS.map((s) => ({ ...s }))
+      out[levelName] = overrides?.sectionsByLevelName?.[levelName]?.map((s) => ({ ...s }))
+        ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
     })
   })
+
+  if (overrides) {
+    Object.entries(overrides.levelDefsByEntity).forEach(([, names]) => {
+      names.forEach((levelName) => {
+        if (!out[levelName]) {
+          out[levelName] = overrides.sectionsByLevelName?.[levelName]?.map((s) => ({ ...s }))
+            ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
+        } else if (overrides.sectionsByLevelName?.[levelName]) {
+          out[levelName] = overrides.sectionsByLevelName[levelName].map((s) => ({ ...s }))
+        }
+      })
+    })
+    Object.entries(overrides.sectionsByLevelName).forEach(([levelName, sections]) => {
+      if (!out[levelName]) out[levelName] = sections.map((s) => ({ ...s }))
+    })
+  }
 
   return out
 }
@@ -92,7 +132,7 @@ function buildInitialLevelConfigs(): Record<string, ProgramLevelConfig> {
   return {}
 }
 
-export function useSeedState() {
+export function useSeedState(overrides?: EffectiveSeedOverrides) {
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set())
 
   // ===== LEVEL CONFIGS (NOT AUTO-SELECTED) =====
@@ -101,8 +141,36 @@ export function useSeedState() {
   )
 
   const [sectionConfigs, setSectionConfigs] = useState<Record<string, SectionConfig>>(
-    buildInitialSectionConfigs,
+    () => buildInitialSectionConfigs(overrides),
   )
+
+  // ===== LEVEL/SECTION SELECTION (read-only seeder: reduce/bring back) =====
+  const [selectedLevelKeys, setSelectedLevelKeys] = useState<Set<string>>(new Set())
+  const [selectedSectionKeys, setSelectedSectionKeys] = useState<Set<string>>(new Set())
+
+  // Merge in override sections that arrived after initial mount (profile loads async).
+  // Only adds missing keys so we never clobber a user-edited section config.
+  useEffect(() => {
+    if (!overrides) return
+    setSectionConfigs((prev) => {
+      const next = { ...prev }
+      let changed = false
+      Object.entries(overrides.sectionsByLevelName).forEach(([levelName, sections]) => {
+        if (!next[levelName]) {
+          next[levelName] = sections.map((s) => ({ ...s }))
+          changed = true
+        }
+      })
+      Object.values(overrides.levelDefsByEntity).flat().forEach((levelName) => {
+        if (!next[levelName]) {
+          next[levelName] = overrides.sectionsByLevelName[levelName]?.map((s) => ({ ...s }))
+            ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [overrides])
 
   // ===== COURSES & STRANDS (NOT AUTO-SELECTED) =====
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set())
@@ -112,16 +180,122 @@ export function useSeedState() {
   // ===== SUBJECTS (NOT AUTO-SELECTED) =====
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set())
 
+  const toLevelKey = (entityKey: string, levelName: string): string => `${entityKey}::${levelName}`
+  const toSectionKey = (levelKey: string, sectionName: string): string => `${levelKey}::${sectionName}`
+
+  const allLevelKeys = useMemo(() => {
+    const keys = new Set<string>()
+    selectedPrograms.forEach((prog) => {
+      if (prog === "college") {
+        selectedCourses.forEach((code) => {
+          const effLevels = overrides?.levelDefsByEntity?.[code] ?? getDefaultLevelNames(code)
+          effLevels.forEach((lvl) => keys.add(toLevelKey(code, lvl)))
+        })
+      } else if (prog === "shs") {
+        selectedStrands.forEach((strand) => {
+          const effLevels = overrides?.levelDefsByEntity?.[strand] ?? LEVEL_DEFS["shs"] ?? []
+          effLevels.forEach((lvl) => keys.add(toLevelKey(strand, lvl)))
+        })
+      } else {
+        const effLevels = overrides?.levelDefsByEntity?.[prog] ?? LEVEL_DEFS[prog] ?? []
+        const names = levelConfigs[prog]?.names ?? effLevels
+        names.forEach((lvl) => keys.add(toLevelKey(prog, lvl)))
+      }
+    })
+    return keys
+  }, [selectedPrograms, selectedCourses, selectedStrands, overrides, levelConfigs])
+
+  const allSectionKeys = useMemo(() => {
+    const keys = new Set<string>()
+    allLevelKeys.forEach((levelKey) => {
+      const [, levelName] = levelKey.split("::")
+      if (!levelName) return
+      const sections = sectionConfigs[levelName] ?? overrides?.sectionsByLevelName?.[levelName] ?? SECTION_DEFAULTS
+      sections.forEach((s) => keys.add(toSectionKey(levelKey, s.name)))
+    })
+    return keys
+  }, [allLevelKeys, sectionConfigs, overrides])
+
+  const prevAllLevelKeysRef = useRef<Set<string>>(new Set())
+  const prevAllSectionKeysRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    const prev = prevAllLevelKeysRef.current
+    const added = new Set<string>()
+    for (const k of allLevelKeys) if (!prev.has(k)) added.add(k)
+    if (added.size > 0 || prev.size !== allLevelKeys.size) {
+      setSelectedLevelKeys((prevSel) => {
+        const next = new Set(prevSel)
+        for (const k of added) next.add(k)
+        for (const k of Array.from(next)) if (!allLevelKeys.has(k)) next.delete(k)
+        if (prev.size === 0 && next.size === 0 && allLevelKeys.size > 0) {
+          return new Set(allLevelKeys)
+        }
+        return next
+      })
+    }
+    prevAllLevelKeysRef.current = new Set(allLevelKeys)
+  }, [allLevelKeys])
+
+  useEffect(() => {
+    const prev = prevAllSectionKeysRef.current
+    const added = new Set<string>()
+    for (const k of allSectionKeys) if (!prev.has(k)) added.add(k)
+    if (added.size > 0 || prev.size !== allSectionKeys.size) {
+      setSelectedSectionKeys((prevSel) => {
+        const next = new Set(prevSel)
+        for (const k of added) next.add(k)
+        for (const k of Array.from(next)) if (!allSectionKeys.has(k)) next.delete(k)
+        if (prev.size === 0 && next.size === 0 && allSectionKeys.size > 0) {
+          return new Set(allSectionKeys)
+        }
+        return next
+      })
+    }
+    prevAllSectionKeysRef.current = new Set(allSectionKeys)
+  }, [allSectionKeys])
+
+  function toggleLevelKey(key: string): void {
+    setSelectedLevelKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function toggleSectionKey(key: string): void {
+    setSelectedSectionKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   const allSelectableSubjects = useMemo(() => {
     const out = new Set<string>()
 
+    const effectiveLevelDefs = (prog: string): string[] | undefined =>
+      overrides?.levelDefsByEntity?.[prog] ?? LEVEL_DEFS[prog]
+    const getLevelSubjects = (lvl: string): string[] | undefined =>
+      overrides?.levelSubjectsByLevelName?.[lvl] ?? LEVEL_SUBJECTS[lvl]
+    const getCourseSubjects = (code: string): string[] | undefined =>
+      overrides?.courseSubjectsByCode?.[code] ?? COURSE_SUBJECTS[code]
+    const getStrandSubjects = (name: string): string[] | undefined =>
+      overrides?.strandSubjectsByName?.[name] ?? SHS_STRAND_SUBJECTS[name]
+    const isLevelSelectedForSubject = (entityKey: string, levelName: string): boolean => {
+      if (selectedLevelKeys.size === 0) return true
+      return selectedLevelKeys.has(toLevelKey(entityKey, levelName))
+    }
+
     selectedPrograms.forEach((prog) => {
-      if (LEVEL_DEFS[prog]) {
-        // Fall back to LEVEL_DEFS[prog] when the user hasn't adjusted
-        // level count yet — same fallback used in SeederCard and derivedSelectedLevels
-        const levelNames = levelConfigs[prog]?.names ?? LEVEL_DEFS[prog]
+      const effLevels = effectiveLevelDefs(prog)
+      if (effLevels) {
+        const levelNames = levelConfigs[prog]?.names ?? effLevels
         levelNames.forEach((lvl) => {
-          LEVEL_SUBJECTS[lvl]?.forEach((s) => {
+          if (!isLevelSelectedForSubject(prog, lvl)) return
+          getLevelSubjects(lvl)?.forEach((s) => {
             out.add(subjectKey(lvl, s))
           })
         })
@@ -129,7 +303,7 @@ export function useSeedState() {
 
       if (prog === "shs") {
         selectedStrands.forEach((strand) => {
-          SHS_STRAND_SUBJECTS[strand]?.forEach((s) => {
+          getStrandSubjects(strand)?.forEach((s) => {
             out.add(subjectKey(strand, s))
           })
         })
@@ -137,7 +311,7 @@ export function useSeedState() {
 
       if (prog === "college") {
         selectedCourses.forEach((code) => {
-          COURSE_SUBJECTS[code]?.forEach((s) => {
+          getCourseSubjects(code)?.forEach((s) => {
             out.add(subjectKey(code, s))
           })
         })
@@ -145,7 +319,7 @@ export function useSeedState() {
     })
 
     return Array.from(out)
-  }, [selectedPrograms, levelConfigs, selectedStrands, selectedCourses])
+  }, [selectedPrograms, levelConfigs, selectedStrands, selectedCourses, overrides])
 
   useEffect(() => {
     setSelectedSubjects((prev) => {
@@ -169,24 +343,20 @@ export function useSeedState() {
       [prog]: presetKey,
     }))
   }
+const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
+  const out: Record<string, GradingScalePreset> = {}
 
-  const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
-    const out: Record<string, GradingScalePreset> = {}
+  Array.from(selectedPrograms).forEach((prog) => {
+    // Fall back to the first preset — matches what GradingScaleStep shows
+    // as selected by default, so what's actually seeded always matches
+    // what the admin saw selected in the UI.
+    const key = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
+    const preset = GRADING_SCALE_PRESETS.find((p) => p.key === key)
+    if (preset) out[prog] = preset
+  })
 
-    Array.from(selectedPrograms).forEach((prog) => {
-      const key = gradingScaleByProgram[prog]
-
-      if (!key) return
-
-      const preset = GRADING_SCALE_PRESETS.find((p) => p.key === key)
-
-      if (preset) {
-        out[prog] = preset
-      }
-    })
-
-    return out
-  }, [selectedPrograms, gradingScaleByProgram])
+  return out
+}, [selectedPrograms, gradingScaleByProgram])
 
   // ===== GRADING SCHEMES (NOT AUTO-SELECTED) =====
   const [seedGradingSchemes, setSeedGradingSchemes] = useState(false)
@@ -233,11 +403,14 @@ export function useSeedState() {
     setSeedSemesterTemplates(enabled)
     if (enabled) {
       // Selecting the master "Semester Templates" toggle auto-selects every
-      // applicable program template so no extra per-program clicks are needed.
+      // applicable program *whose academic calendar is already configured*
+      // (>= MIN_CALENDAR_PERIODS complete periods). Departments without a
+      // configured calendar yet are left off until their calendar is set up —
+      // otherwise we'd be auto-selecting a template we can't actually derive.
       setSemesterTemplatesByProgram((prev) => {
         const next = { ...prev }
         SEMESTER_TEMPLATES.forEach((tpl) => {
-          next[tpl.programType] = true
+          next[tpl.programType] = isCalendarConfigured(programCalendarConfigs[tpl.programType])
         })
         return next
       })
@@ -294,11 +467,62 @@ export function useSeedState() {
     })
   }
 
+  // Keep semester templates in sync with the academic calendar: if the
+  // calendar step is turned off entirely, or a specific department's
+  // calendar no longer meets the minimum period count (e.g. the user deleted
+  // a break after enabling the template), its semester template can't stay
+  // selected — otherwise the two would silently drift apart, which is the
+  // exact bug this whole sync exists to prevent.
+  useEffect(() => {
+    if (!seedProgramCalendars) {
+      if (seedSemesterTemplates) setSeedSemesterTemplates(false)
+      return
+    }
+    setSemesterTemplatesByProgram((prev) => {
+      let changed = false
+      const next = { ...prev }
+      Object.keys(next).forEach((prog) => {
+        if (next[prog] && !isCalendarConfigured(programCalendarConfigs[prog])) {
+          next[prog] = false
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+   
+  }, [seedProgramCalendars, programCalendarConfigs, seedSemesterTemplates])
+
   // ===== LEVEL & SECTION MANAGEMENT =====
   function resolveEntityLevelNames(entityKey: string, count: number): string[] {
+    const overrideNames = overrides?.levelDefsByEntity?.[entityKey]
+    if (overrideNames) {
+      if (count <= overrideNames.length) return overrideNames.slice(0, count)
+      const extraCount = count - overrideNames.length
+      const generated = generateLevelNames(entityKey, count)
+      return [...overrideNames, ...generated.slice(overrideNames.length, overrideNames.length + extraCount)]
+    }
+    // College course override may carry custom year count via collegeCourses
+    if (overrides?.collegeCourses) {
+      const oc = overrides.collegeCourses.find((c) => c.code === entityKey)
+      if (oc) {
+        const base = overrides.levelDefsByEntity[entityKey] ?? COLLEGE_YEAR_LABELS
+        return base.slice(0, count)
+      }
+    }
     const course = COLLEGE_COURSES.find((c) => c.code === entityKey);
-    if (course) return COLLEGE_YEAR_LABELS.slice(0, count);
-    if (SHS_STRANDS.includes(entityKey)) return LEVEL_DEFS["shs"]?.slice(0, count) ?? [];
+    if (course) {
+      const base = overrides?.levelDefsByEntity?.[entityKey] ?? COLLEGE_YEAR_LABELS
+      return base.slice(0, count);
+    }
+    if (
+      SHS_STRANDS.includes(entityKey) ||
+      !!overrides?.shsStrands?.includes(entityKey) ||
+      !!overrides?.levelDefsByEntity?.[entityKey]
+    ) {
+      const base = overrides?.levelDefsByEntity?.[entityKey] ?? LEVEL_DEFS["shs"] ?? []
+      return base.slice(0, count)
+    }
+    if (overrides?.levelDefsByEntity?.[entityKey]) return overrides.levelDefsByEntity[entityKey].slice(0, count)
     return generateLevelNames(entityKey, count);
   }
 
@@ -341,7 +565,9 @@ export function useSeedState() {
         const next = { ...prevSec }
 
         const current =
-          next[oldName] ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
+          next[oldName]
+            ?? overrides?.sectionsByLevelName?.[oldName]?.map((s) => ({ ...s }))
+            ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
 
         delete next[oldName]
 
@@ -373,8 +599,10 @@ export function useSeedState() {
     setSelectedCourses(new Set())
     setSelectedStrands(new Set())
     setSelectedSubjects(new Set())
+    setSelectedLevelKeys(new Set())
+    setSelectedSectionKeys(new Set())
     setLevelConfigs(buildInitialLevelConfigs())
-    setSectionConfigs(buildInitialSectionConfigs())
+    setSectionConfigs(buildInitialSectionConfigs(overrides))
     setSeedGradingScale(false)
     setGradingScaleByProgram(buildInitialGradingScaleByProgram())
     setSeedGradingSchemes(false)
@@ -435,6 +663,18 @@ export function useSeedState() {
 
     sectionConfigs,
     setSectionsForLevel: renameLevelSections,
+
+    // Level/Section selection (read-only seeder)
+    selectedLevelKeys,
+    setSelectedLevelKeys,
+    selectedSectionKeys,
+    setSelectedSectionKeys,
+    allLevelKeys,
+    allSectionKeys,
+    toLevelKey,
+    toSectionKey,
+    toggleLevelKey,
+    toggleSectionKey,
 
     // Grading Scales
     seedGradingScale,

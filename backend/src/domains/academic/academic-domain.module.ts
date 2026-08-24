@@ -1,4 +1,3 @@
-// src/domains/academic/academic-domain.module.ts
 import { Module } from '@nestjs/common';
 
 import { AcademicCalendarModule } from '@/modules/academic-calendar/academic-calendar.module';
@@ -17,6 +16,10 @@ import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subjec
 import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-enrollment.module';
 import { SemesterTemplateModule } from '@/modules/semester-template/semester-template.module';
 import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/grading-scheme-template.module';
+import { SchoolProfileModule } from '@/modules/school-profile/school-profile.module';
+import { ProgramShiftModule } from '@/modules/program-shift/program-shift.module';
+import { ClassAssignmentRequestModule } from '@/modules/class-assignment-request/class-assignment-request.module';
+import { AcademicHistoryModule } from '@/modules/academic-history/academic-history.module';
 
 @Module({
   imports: [
@@ -36,6 +39,10 @@ import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/g
     StudentEnrollmentModule,
     SemesterTemplateModule,
     GradingSchemeTemplateModule,
+    SchoolProfileModule,
+    ProgramShiftModule,
+    ClassAssignmentRequestModule,
+    AcademicHistoryModule,
   ],
   exports: [
     AcademicCalendarModule,
@@ -52,6 +59,7 @@ import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/g
     StrandModule,
     SubjectPrerequisiteModule,
     SemesterTemplateModule,
+    SchoolProfileModule,
   ],
 })
 export class AcademicDomainModule {}

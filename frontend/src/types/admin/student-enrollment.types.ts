@@ -3,7 +3,7 @@ export type SchoolYearEnrollmentStatus =
   | "pending"
   | "unenrolled";
 
-export type ProgramEnrollmentStatus = "active" | "pending" | "removed";
+export type ProgramEnrollmentStatus = "active" | "ended";
 
 export interface ProgramEnrollmentSnapshot {
   id:         string;
@@ -15,6 +15,10 @@ export interface ProgramEnrollmentSnapshot {
   section:    { id: string; name: string } | null;
   status:     ProgramEnrollmentStatus;
   enrolled_at: string;
+  section_assigned_at?: string | null;
+  end_reason?: string | null;
+  ended_at?: string | null;
+  ended_by?: string | null;
 }
 
 export interface StudentSchoolYearEnrollment {

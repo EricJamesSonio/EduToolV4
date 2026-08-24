@@ -1,5 +1,5 @@
 // frontend/src/components/admin/data-seeder/hooks/useSeederCard.ts
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
@@ -12,6 +12,8 @@ import { strandApi } from "@/api/admin/strand.api";
 import { levelApi } from "@/api/admin/level.api";
 import { subjectApi } from "@/api/admin/subject.api";
 import { useSeedState } from "./useSeedState";
+import type { EffectiveSeedOverrides } from "./useEffectiveSeedData";
+import type { SchoolProfileDepartment } from "@/types/admin/school-profile.types";
 import {
   COLLEGE_COURSES,
   LEVEL_DEFS,
@@ -20,6 +22,9 @@ import {
   SECTION_DEFAULTS,
   parseSubjectKey,
 } from "../constants/seed-data";
+import { useGradingScales } from "@/hooks/admin/useGradingScales";
+import { useGradingSchemeTemplates } from "@/hooks/admin/useGradingSchemeTemplates";
+import { useSemesterTemplates } from "@/hooks/admin/useSemesterTemplate";
 
 interface PendingSchoolYear {
   name: string;
@@ -33,7 +38,7 @@ function isShortDurationError(err: unknown): boolean {
   );
 }
 
-export function useSeederCard() {
+export function useSeederCard(overrides?: EffectiveSeedOverrides) {
   const [collapsed, setCollapsed] = useState(false);
   const [pendingSchoolYear, setPendingSchoolYear] =
     useState<PendingSchoolYear | null>(null);
@@ -132,7 +137,12 @@ export function useSeederCard() {
     { enabled: !!selectedSchoolYearId },
   );
 
-  const seedState = useSeedState();
+  // Org-scoped (not tied to a specific school year), so no school-year gate.
+  const { data: existingGradingScalesList = [] } = useGradingScales();
+  const { data: existingGradingSchemeTemplatesList = [] } = useGradingSchemeTemplates();
+  const { data: existingSemesterTemplatesList = [] } = useSemesterTemplates();
+
+  const seedState = useSeedState(overrides);
 
   const {
     selectedPrograms,
@@ -155,30 +165,66 @@ export function useSeederCard() {
     seedProgramCalendars,
     programCalendarConfigs,
     resetAll,
-  } = seedState;
+    selectedLevelKeys,
+    selectedSectionKeys,
+    toLevelKey,
+    toSectionKey,
+    toggleLevelKey,
+    toggleSectionKey,
+  } = seedState as typeof seedState & {
+    selectedLevelKeys: Set<string>
+    selectedSectionKeys: Set<string>
+    toLevelKey: (entityKey: string, levelName: string) => string
+    toSectionKey: (levelKey: string, sectionName: string) => string
+    toggleLevelKey: (key: string) => void
+    toggleSectionKey: (key: string) => void
+  }
 
   function buildSectionConfigsPayload(): Record<string, { name: string; capacity: number }[]> {
     const payload: Record<string, { name: string; capacity: number }[]> = {};
 
+    const effectiveHasLevels = (prog: string) =>
+      !!(overrides?.levelDefsByEntity?.[prog] ?? LEVEL_DEFS[prog])
+    const effectiveLevels = (prog: string): string[] =>
+      overrides?.levelDefsByEntity?.[prog] ?? LEVEL_DEFS[prog] ?? []
+    const effectiveSection = (levelName: string) =>
+      sectionConfigs[levelName]
+        ?? overrides?.sectionsByLevelName?.[levelName]
+        ?? SECTION_DEFAULTS
+    const isLevelSelected = (entityKey: string, levelName: string): boolean => {
+      if (selectedLevelKeys.size === 0) return true
+      return selectedLevelKeys.has(toLevelKey(entityKey, levelName))
+    }
+    const filterSections = (levelKey: string, sections: { name: string; capacity: number }[]): { name: string; capacity: number }[] => {
+      if (selectedSectionKeys.size === 0) return sections
+      return sections.filter((s) => selectedSectionKeys.has(toSectionKey(levelKey, s.name)))
+    }
+
     for (const prog of selectedPrograms) {
-      if (!LEVEL_DEFS[prog]) continue;
-      const levelNames = levelConfigs[prog]?.names ?? LEVEL_DEFS[prog];
+      if (!effectiveHasLevels(prog)) continue;
+      const levelNames = levelConfigs[prog]?.names ?? effectiveLevels(prog);
 
       if (prog === "college") {
         for (const course of selectedCourses) {
           for (const levelName of levelNames) {
-            payload[`${course}|${levelName}`] = sectionConfigs[levelName] ?? SECTION_DEFAULTS;
+            if (!isLevelSelected(course, levelName)) continue
+            const levelKey = toLevelKey(course, levelName)
+            payload[`${course}|${levelName}`] = filterSections(levelKey, effectiveSection(levelName));
           }
         }
       } else if (prog === "shs") {
         for (const strand of selectedStrands) {
           for (const levelName of levelNames) {
-            payload[`${strand}|${levelName}`] = sectionConfigs[levelName] ?? SECTION_DEFAULTS;
+            if (!isLevelSelected(strand, levelName)) continue
+            const levelKey = toLevelKey(strand, levelName)
+            payload[`${strand}|${levelName}`] = filterSections(levelKey, effectiveSection(levelName));
           }
         }
       } else {
         for (const levelName of levelNames) {
-          payload[levelName] = sectionConfigs[levelName] ?? SECTION_DEFAULTS;
+          if (!isLevelSelected(prog, levelName)) continue
+          const levelKey = toLevelKey(prog, levelName)
+          payload[levelName] = filterSections(levelKey, effectiveSection(levelName));
         }
       }
     }
@@ -189,13 +235,16 @@ export function useSeederCard() {
   const seedMutation = useMutationWithInvalidation(
     organizationApi.seedOrg,
     {
-      invalidateKeys: [
-        queryKeys.admin.programs.all,
-        queryKeys.admin.courses.all,
-        queryKeys.admin.strands.all,
-        queryKeys.admin.levels.all,
-        queryKeys.admin.subjects.all,
-      ],
+    invalidateKeys: [
+      queryKeys.admin.programs.all,
+      queryKeys.admin.courses.all,
+      queryKeys.admin.strands.all,
+      queryKeys.admin.levels.all,
+      queryKeys.admin.subjects.all,
+      queryKeys.admin.gradingScales.list(),
+      queryKeys.admin.gradingSchemeTemplates.all,
+      queryKeys.admin.semesterTemplates.all,
+    ],
       onSuccess: (result) => {
         const warnings: string[] = result?.result?.warnings ?? [];
         if (warnings.length > 0) {
@@ -207,7 +256,13 @@ export function useSeederCard() {
         setCollapsed(true);
         resetAll();
       },
-      onError: () => toast.error("Seed failed. Please try again."),
+      onError: (err: unknown) => {
+  const message =
+    isAxiosError<{ message?: string }>(err) && err.response?.data?.message
+      ? err.response.data.message
+      : "Seed failed. Please try again.";
+  toast.error(message);
+},
     }
   );
 
@@ -231,25 +286,52 @@ export function useSeederCard() {
         excludedLevelSubjects[groupName].push(subjectName);
       });
 
-    const levelConfigsPayload = Object.fromEntries(
-      Array.from(selectedPrograms)
-        .filter((p) => LEVEL_DEFS[p])
-        .flatMap((p) => {
-          const entries: [string, string[]][] = [];
-          if (levelConfigs[p]?.names) entries.push([p, levelConfigs[p]!.names]);
-          if (p === "college") {
-            Array.from(selectedCourses).forEach((code) => {
-              if (levelConfigs[code]?.names) entries.push([code, levelConfigs[code]!.names]);
-            });
+    const effectiveHasLevels = (p: string) =>
+      !!(overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p])
+    const levelConfigsPayload = (() => {
+      if (selectedLevelKeys.size > 0) {
+        const byEntity = new Map<string, string[]>()
+        for (const key of selectedLevelKeys) {
+          const sep = key.indexOf("::")
+          if (sep === -1) continue
+          const entity = key.slice(0, sep)
+          const lvl = key.slice(sep + 2)
+          const isCourse = selectedCourses.has(entity)
+          const isStrand = selectedStrands.has(entity)
+          const isProg = selectedPrograms.has(entity)
+          if (isCourse && selectedPrograms.has("college")) {
+            if (!byEntity.has(entity)) byEntity.set(entity, [])
+            byEntity.get(entity)!.push(lvl)
+          } else if (isStrand && selectedPrograms.has("shs")) {
+            if (!byEntity.has(entity)) byEntity.set(entity, [])
+            byEntity.get(entity)!.push(lvl)
+          } else if (isProg) {
+            if (!byEntity.has(entity)) byEntity.set(entity, [])
+            byEntity.get(entity)!.push(lvl)
           }
-          if (p === "shs") {
-            Array.from(selectedStrands).forEach((name) => {
-              if (levelConfigs[name]?.names) entries.push([name, levelConfigs[name]!.names]);
-            });
-          }
-          return entries;
-        }),
-    );
+        }
+        if (byEntity.size > 0) return Object.fromEntries(byEntity)
+      }
+      return Object.fromEntries(
+        Array.from(selectedPrograms)
+          .filter((p) => effectiveHasLevels(p))
+          .flatMap((p) => {
+            const entries: [string, string[]][] = [];
+            if (levelConfigs[p]?.names) entries.push([p, levelConfigs[p]!.names]);
+            if (p === "college") {
+              Array.from(selectedCourses).forEach((code) => {
+                if (levelConfigs[code]?.names) entries.push([code, levelConfigs[code]!.names]);
+              });
+            }
+            if (p === "shs") {
+              Array.from(selectedStrands).forEach((name) => {
+                if (levelConfigs[name]?.names) entries.push([name, levelConfigs[name]!.names]);
+              });
+            }
+            return entries;
+          }),
+      )
+    })()
 
     const sectionConfigsPayload = buildSectionConfigsPayload();
 
@@ -283,20 +365,52 @@ export function useSeederCard() {
           )
         : undefined;
 
+seedMutation.mutate({
+  schoolYearId: selectedSchoolYearId,
+  programs: Array.from(selectedPrograms),
+  courses: selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
+  strands: selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
+  levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
+  sectionConfigs: sectionConfigsPayload,
+  excludedLevelSubjects:
+    Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
+  gradingScales,
+  seedGradingScales: seedGradingScale ? true : false,
+  seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
+  seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
+  seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
+  programCalendars,
+});
+  }
+
+  function handleApplyPreset(savedDepartments: SchoolProfileDepartment[]) {
+    if (!selectedSchoolYearId) {
+      toast.error("Select a school year first.");
+      return;
+    }
+    if (savedDepartments.length === 0) {
+      toast.error("No preset configured. Set up School Profile first.");
+      return;
+    }
+    const programs = savedDepartments.map((d) => d.type)
+    const collegeDept = savedDepartments.find((d) => d.type === "college")
+    const shsDept = savedDepartments.find((d) => d.type === "shs")
+    const courses = overrides?.collegeCourses?.map((c) => c.code)
+      ?? collegeDept?.courses.map((c) => c.code ?? c.name)
+      ?? undefined
+    const strands = overrides?.shsStrands
+      ?? shsDept?.strands.map((s) => s.name)
+      ?? undefined
+
+    // Backend will source levels/sections/subjects directly from the saved
+    // School Profile (profileDepartments) when it exists, so we only need
+    // to tell it which departments/courses/strands to materialize for this
+    // school year. No levelConfigs/sectionConfigs needed for a pure preset apply.
     seedMutation.mutate({
       schoolYearId: selectedSchoolYearId,
-      programs: Array.from(selectedPrograms),
-      courses: selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
-      strands: selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
-      levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
-      sectionConfigs: sectionConfigsPayload,
-      excludedLevelSubjects:
-        Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
-seedGradingScales: seedGradingScale ? true : false,
-seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
-seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
-seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
-programCalendars,
+      programs,
+      courses: courses && courses.length > 0 ? courses : undefined,
+      strands: strands && strands.length > 0 ? strands : undefined,
     });
   }
 
@@ -308,17 +422,22 @@ programCalendars,
   const existingStrandNames = new Set(existingStrands.map((s) => s.name));
   const existingLevelNames = new Set(existingLevels.map((l) => l.name));
   const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title));
+  const existingGradingScaleNames = new Set(existingGradingScalesList.map((s) => s.name));
+  const existingGradingSchemeNames = new Set(existingGradingSchemeTemplatesList.map((t) => t.name));
+  const existingSemesterTemplateNames = new Set(existingSemesterTemplatesList.map((t) => t.name));
 
-  // Toggle helpers
+  // Toggle helpers — select-all respects school-profile overrides when present
+  const effectiveStrands = overrides?.shsStrands ?? SHS_STRANDS
+  const effectiveCourseCodes = overrides?.collegeCourses?.map((c) => c.code) ?? COLLEGE_COURSES.map((c) => c.code ?? "")
   const helpers = {
     toggleProgram: (key: string) => seedState.toggleSet(selectedPrograms, key, setSelectedPrograms),
     selectAllPrograms: () => seedState.selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms),
     deselectAllPrograms: () => seedState.deselectAll(setSelectedPrograms),
     toggleStrand: (s: string) => seedState.toggleSet(selectedStrands, s, setSelectedStrands),
-    selectAllStrands: () => seedState.selectAll(SHS_STRANDS, setSelectedStrands),
+    selectAllStrands: () => seedState.selectAll(effectiveStrands, setSelectedStrands),
     deselectAllStrands: () => seedState.deselectAll(setSelectedStrands),
     toggleCourse: (c: string) => seedState.toggleSet(selectedCourses, c, setSelectedCourses),
-    selectAllCourses: () => seedState.selectAll(COLLEGE_COURSES.map((c) => c.code ?? ""), setSelectedCourses),
+    selectAllCourses: () => seedState.selectAll(effectiveCourseCodes, setSelectedCourses),
     deselectAllCourses: () => seedState.deselectAll(setSelectedCourses),
     toggleSubject: (key: string) => seedState.toggleSet(selectedSubjects, key, setSelectedSubjects),
     selectAllForGroup: (keys: string[]) => {
@@ -335,9 +454,18 @@ programCalendars,
 
   // Summary counts
   const sectionConfigsPayload = buildSectionConfigsPayload();
-  const totalLevelCount = Array.from(selectedPrograms)
-    .filter((p) => LEVEL_DEFS[p])
-    .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length), 0);
+  const effectiveLevelsForCount = (p: string): string[] =>
+    overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p] ?? []
+  const effectiveHasLevelsForCount = (p: string) =>
+    !!(overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p])
+  const totalLevelCount = selectedLevelKeys.size > 0
+    ? Array.from(selectedLevelKeys).filter((k) => {
+        const entity = k.split("::")[0]
+        return selectedPrograms.has(entity) || selectedCourses.has(entity) || selectedStrands.has(entity)
+      }).length
+    : Array.from(selectedPrograms)
+        .filter((p) => effectiveHasLevelsForCount(p))
+        .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? effectiveLevelsForCount(p).length), 0);
   const totalSectionCount = Object.values(sectionConfigsPayload).reduce(
     (sum, sections) => sum + sections.length, 0,
   );
@@ -398,11 +526,22 @@ programCalendars,
       : []),
   ];
 
-  const derivedSelectedLevels = new Set(
-    Array.from(selectedPrograms)
-      .filter((p) => LEVEL_DEFS[p])
-      .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p]),
-  );
+  const derivedSelectedLevels = useMemo(() => {
+    if (selectedLevelKeys.size > 0) {
+      const names = new Set<string>()
+      for (const key of selectedLevelKeys) {
+        const sep = key.indexOf("::")
+        if (sep !== -1) names.add(key.slice(sep + 2))
+        else names.add(key)
+      }
+      return names
+    }
+    return new Set(
+      Array.from(selectedPrograms)
+        .filter((p) => !!(overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p]))
+        .flatMap((p) => levelConfigs[p]?.names ?? overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p] ?? []),
+    )
+  }, [selectedLevelKeys, selectedPrograms, levelConfigs, overrides])
 
   return {
     // School year
@@ -420,6 +559,7 @@ programCalendars,
     // Seed
     seedMutation,
     handleSeed,
+    handleApplyPreset,
 
     // UI state
     collapsed,
@@ -434,6 +574,9 @@ programCalendars,
     existingStrandNames,
     existingLevelNames,
     existingSubjectTitles,
+    existingGradingScaleNames,
+    existingGradingSchemeNames,
+    existingSemesterTemplateNames,
 
     // Helpers
     helpers,

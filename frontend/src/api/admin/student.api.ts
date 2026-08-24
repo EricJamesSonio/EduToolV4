@@ -32,6 +32,7 @@ export interface BulkCreateStudentResult {
 export interface UpdateStudentRequest {
   fullName?:     string;
   email?:        string;
+  studentId?:    string;
   profileImage?: string;
 }
 

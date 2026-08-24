@@ -91,7 +91,9 @@ function ProgramTableRowActions({
           }}
         >
           <SelectTrigger className="h-8 w-44 text-xs">
-            <SelectValue placeholder="Assign template…" />
+            <SelectValue placeholder="Assign template…">
+                {matchingTemplates.find((t) => t.id === selectedId)?.name ?? "Assign template…"}
+              </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none" disabled={schoolYearStarted}>

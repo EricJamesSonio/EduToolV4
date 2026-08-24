@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   BookOpen, Users, CalendarCheck,
   Clock, Hash, GraduationCap, Layers,
-  BarChart2, ClipboardCheck, ClipboardList, FileText, Video, MessageSquare,
+  BarChart2, ClipboardCheck, ClipboardList, FileText, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
@@ -28,8 +28,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { CardGrid } from "@/components/shared/CardGrid";
 import { Skeleton }   from "@/components/ui/skeleton";
 import { Badge }      from "@/components/ui/badge";
-import { Button }     from "@/components/ui/button";
-import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
+// HIDDEN: Groupy Class Chat - imports kept commented for easy restore
+// import { Button }     from "@/components/ui/button";
+// import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -72,7 +73,8 @@ export default function EducatorClassOverviewPage({
   const router = useRouter();
   const base   = `/educator/classes/${id}`;
 
-  const { data: groupyUnread } = useGroupyUnread(id);
+  // HIDDEN: Groupy unread badge - hidden per request (Class Chat disabled)
+  // const { data: groupyUnread } = useGroupyUnread(id);
 
   const { data: cls, isLoading: clsLoading } = useAsyncQuery(
     queryKeys.educator.classes.detail(id),
@@ -227,11 +229,12 @@ if (clsLoading) {
   return (
   <div className="space-y-6">
     <PageHeader
-      title={enriched.subjectName ?? enriched.subjectId}
+      title={enriched.subjectName ?? "Unnamed Class"}
       breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
       actions={
         <div className="flex items-center gap-2">
-          <Button
+          {/* HIDDEN: Class Chat (Groupy) button - hidden per request, original code preserved below */}
+          {/* <Button
             size="sm"
             variant="outline"
             className="gap-1.5"
@@ -239,7 +242,7 @@ if (clsLoading) {
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Class Chat
-          </Button>
+          </Button> */}
           <Badge variant="secondary" className="shrink-0">
             {enriched.semesterName ?? "—"}
           </Badge>
@@ -251,7 +254,7 @@ if (clsLoading) {
       {/* Class details — single card, 2 columns */}
       <div className="rounded-lg border bg-card p-6">
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-          <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? enriched.subjectId} />
+          <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? "Unnamed Class"} />
 
           {enriched.programName && (
             <DetailItem icon={GraduationCap} label="Department" value={enriched.programName} />
@@ -310,11 +313,12 @@ if (clsLoading) {
                 onClick={() => router.push(link.href)}
                 className="relative rounded-xl border bg-card p-3 sm:p-5 space-y-2 sm:space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group text-left"
               >
-                {link.href.endsWith("/groupy") && groupyUnread?.hasUnread && (
+                {/* HIDDEN: Groupy unread badge - hidden per request */}
+                {/* {link.href.endsWith("/groupy") && groupyUnread?.hasUnread && (
                   <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-white ring-2 ring-background">
                     !
                   </span>
-                )}
+                )} */}
                 <div className={cn("rounded-md p-2 w-fit", color)}>
                   <Icon className="h-4 w-4" />
                 </div>

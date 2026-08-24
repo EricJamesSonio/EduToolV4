@@ -26,12 +26,12 @@ export class CreateEducatorDto {
   @IsString()
   @MinLength(2)
   @MaxLength(150)
-  fullName: string;
+  fullName?: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  emailName: string;
+  emailName?: string;
 }
 
 // ── PATCH /educators/:id ──────────────────────────────────────────────────────
@@ -44,15 +44,20 @@ export class UpdateEducatorDto {
   fullName?: string;
 
   @IsOptional()
-  @IsEmail()
+  @IsEmail({ require_tld: false })
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  educatorId?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(500)
   profileImage?: string;
 }
-
 // ── PATCH /educators/:id/status ────────────────────────────────────────────────
 
 export class UpdateEducatorStatusDto {
@@ -99,10 +104,10 @@ export class BulkEducatorEntry {
   @IsString()
   @MinLength(2)
   @MaxLength(150)
-  fullName: string;
+  fullName!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(50)
-  id: string;
+  id!: string;
 }

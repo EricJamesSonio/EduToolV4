@@ -18,12 +18,21 @@ import { CardGrid } from "@/components/shared/CardGrid";
 import { useStudentClasses } from "@/hooks/student/useStudentClasses";
 import { useStudentSemesters } from "@/hooks/student/useStudentSemesters";
 import type { StudentSemesterItem } from "@/api/student/semester.api";
+import { Button } from "@/components/ui/button";
+import { useMyAcademicHistory } from "@/hooks/admin/useAcademicHistory";
+import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
 
 export default function StudentClassesPage(): React.JSX.Element {
   const [semesterId, setSemesterId] = useState<string>("all");
+  const [requestOpen, setRequestOpen] = useState(false);
 
   const { data: semestersData } = useStudentSemesters();
   const { data: classesData, isLoading, isError } = useStudentClasses();
+  const { data: myHistory } = useMyAcademicHistory() as { data: { studentSchoolYearId: string; schoolYear: { id: string }; programEnrollments: { section?: { id: string } | null; status: string }[] }[] | undefined };
+  const activeHistory = Array.isArray(myHistory) && myHistory.length > 0 ? (myHistory[0] as unknown as { studentSchoolYearId: string; id: string; schoolYear: { id: string }; programEnrollments: { section?: { id: string } | null; status: string }[] }) : null;
+  const activeSsyId = activeHistory?.studentSchoolYearId ?? (activeHistory as unknown as { id: string } | null)?.id ?? undefined;
+  const activeSchoolYearIdForRequest = activeHistory?.schoolYear?.id ?? undefined;
+  const activeSectionId = activeHistory?.programEnrollments?.find((pe) => pe.status === "active")?.section?.id ?? activeHistory?.programEnrollments?.[0]?.section?.id ?? null;
 
   // Defensive normalisation — guards against undefined, wrapped envelopes,
   // or any non-array the query might return before/during loading
@@ -57,7 +66,9 @@ export default function StudentClassesPage(): React.JSX.Element {
         actions={
           <Select value={semesterId} onValueChange={handleSemesterChange}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Semesters" />
+              <SelectValue placeholder="All Semesters">
+                {semesters.find((s) => s.id === semesterId)?.name ?? "All Semesters"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Semesters</SelectItem>
@@ -88,15 +99,21 @@ export default function StudentClassesPage(): React.JSX.Element {
       )}
 
       {!isLoading && !isError && filtered.length === 0 && (
-        <EmptyState
-          icon={BookOpen}
-          title="No classes found"
-          description={
-            semesterId !== "all"
-              ? "You have no enrolled classes for this semester."
-              : "You are not enrolled in any classes yet."
-          }
-        />
+        <div className="space-y-4">
+          <EmptyState
+            icon={BookOpen}
+            title="No classes found"
+            description={
+              semesterId !== "all"
+                ? "You have no enrolled classes for this semester."
+                : "You are not enrolled in any classes yet."
+            }
+          />
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">Want to request subjects to take?</p>
+            <Button variant="outline" onClick={() => setRequestOpen(true)}>Request Subjects</Button>
+          </div>
+        </div>
       )}
 
       {!isLoading && !isError && filtered.length > 0 && (
@@ -105,6 +122,17 @@ export default function StudentClassesPage(): React.JSX.Element {
             <ClassCard key={item.enrollmentId} item={item} colorIndex={i} />
           ))}
         </CardGrid>
+      )}
+
+      {requestOpen && (
+        <RequestSubjectsDialog
+          open={requestOpen}
+          studentSchoolYearId={activeSsyId ?? ""}
+          schoolYearId={activeSchoolYearIdForRequest}
+          sectionId={activeSectionId}
+          origin="student_request"
+          onClose={() => setRequestOpen(false)}
+        />
       )}
     </div>
   );

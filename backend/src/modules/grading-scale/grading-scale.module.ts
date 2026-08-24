@@ -12,6 +12,6 @@ import { GradingScaleAssignmentRepository } from './grading-scale-assignment.rep
     GradingScaleRepository,
     GradingScaleAssignmentRepository,
   ],
-  exports: [GradingScaleService],
+  exports: [GradingScaleService, GradingScaleRepository],
 })
 export class GradingScaleModule {}

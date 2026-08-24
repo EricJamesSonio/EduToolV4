@@ -17,6 +17,7 @@ import { ProgramCalendarSeederService } from './seeders/program-calendar-seeder.
 import { MajorSubjectSeederService } from './seeders/major-subject-seeder.service';
 import { MinorSubjectSeederService } from './seeders/minor-subject-seeder.service';
 import { PrerequisiteSeederService } from './seeders/prerequisite-seeder.service';
+import { SchoolProfileService } from '../school-profile/school-profile.service';
 
 export type {
   SeedResult,
@@ -42,12 +43,15 @@ export class OrgSeederService {
     private readonly minorSubjectSeeder: MinorSubjectSeederService,
     private readonly prerequisiteSeeder: PrerequisiteSeederService,
     private readonly auditLogService: AuditLogService,
+    private readonly schoolProfileService: SchoolProfileService,
   ) {}
 
   async seedOrg(
     options: OrgSeedOptions & { actorId: string },
   ): Promise<SeedResult> {
     const ctx = new SeedContext(this.db, options);
+    const profileByType = await this.schoolProfileService.getAllByType(ctx.orgId);
+Object.assign(ctx.profileDepartments, profileByType);
 
     await this.db.orgEnrollmentSetting.upsert({
       where: { org_id: ctx.orgId },

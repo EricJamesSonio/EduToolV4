@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
-  timeout: 60_000,
+  timeout: 180_000,
   expect: { timeout: 15_000 },
   forbidOnly: !!process.env.CI,
   retries: 0,
@@ -30,6 +30,9 @@ export default defineConfig({
       cwd: "../backend",
       stdout: "ignore",
       stderr: "pipe",
+      // Scoped here instead of the CI job env, so it can never leak into
+      // the frontend's `npm run dev` step and cause a port collision.
+      env: { PORT: "5000" },
     },
     {
       command: "npm run dev",

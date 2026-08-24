@@ -63,15 +63,13 @@ export function SubjectDialog({
   onSaved,
 }: SubjectDialogProps): React.JSX.Element {
   const isEdit = !!subject;
-  const [duplicateWarning, setDuplicateWarning] = useState<Subject | null>(null);
-
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    setError,
     watch,
-    getValues,
     formState: { errors },
   } = useForm<SubjectFormValues>({
     defaultValues: {
@@ -188,25 +186,16 @@ export function SubjectDialog({
       strandId: defaultStrandId ?? "",
       subjectType: defaultSubjectType,
     });
-    setDuplicateWarning(null);
     onClose();
   };
 
   const handleFormSubmit = (values: SubjectFormValues) => {
     const duplicate = checkDuplicateSubject(values);
     if (duplicate) {
-      setDuplicateWarning(duplicate);
-    } else {
-      mutation.mutate(values);
+      setError('name', { message: 'Subject already exists for this program and level.' });
+      return;
     }
-  };
-
-  const handleConfirmCreate = () => {
-    if (duplicateWarning) {
-      const formValues = getValues();
-      mutation.mutate(formValues);
-      setDuplicateWarning(null);
-    }
+    mutation.mutate(values);
   };
 
   const isMajorCollege = !isMinor && programType === "college";
@@ -328,7 +317,9 @@ export function SubjectDialog({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select a course" />
+              <SelectValue placeholder="Select a course">
+                {programs.find((p) => p.id === selectedProgramId)?.courses?.find((c) => c.id === selectedCourseId)?.name ?? "Select a course"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {programs
@@ -360,7 +351,9 @@ export function SubjectDialog({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select a strand" />
+              <SelectValue placeholder="Select a strand">
+                {programs.find((p) => p.id === selectedProgramId)?.strands?.find((s) => s.id === selectedStrandId)?.name ?? "Select a strand"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {programs
@@ -438,7 +431,7 @@ export function SubjectDialog({
           placeholder="e.g. Mathematics, English, Science"
           {...register("name", {
             required: "Name is required",
-            minLength: { value: 2, message: "At least 2 characters" },
+            minLength: { value: 1, message: "At least 1 character" },
             maxLength: { value: 100, message: "Max 100 characters" },
           })}
         />

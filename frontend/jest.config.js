@@ -8,6 +8,9 @@ const createJestConfig = nextJest({ dir: './' })
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testEnvironment: 'jest-environment-jsdom',
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
   // Only run Jest component/unit tests here — Playwright's e2e/ directory
   // has its own runner (playwright.config.ts) and must stay excluded.
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/e2e/'],

@@ -1,3 +1,4 @@
+// filepath: backend/src/modules/org-seeder/org-seeder.module.ts
 import { Module } from '@nestjs/common';
 import { OrgSeederService } from './org-seeder.service';
 import { ProgramSeederService } from './seeders/program-seeder.service';
@@ -13,9 +14,18 @@ import { MinorSubjectSeederService } from './seeders/minor-subject-seeder.servic
 import { PrerequisiteSeederService } from './seeders/prerequisite-seeder.service';
 import { AcademicCalendarModule } from '../academic-calendar/academic-calendar.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { GradingScaleModule } from '../grading-scale/grading-scale.module';
+import { GradingSchemeTemplateModule } from '../grading-scheme-template/grading-scheme-template.module';
+import { SchoolProfileModule } from '../school-profile/school-profile.module'; // ← add, confirm actual path
 
 @Module({
-  imports: [AuditLogModule, AcademicCalendarModule],
+  imports: [
+    AuditLogModule,
+    AcademicCalendarModule,
+    GradingScaleModule,
+    GradingSchemeTemplateModule,
+    SchoolProfileModule, // ← add
+  ],
   providers: [
     OrgSeederService,
     ProgramSeederService,

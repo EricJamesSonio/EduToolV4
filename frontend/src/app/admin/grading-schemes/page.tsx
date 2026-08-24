@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { AxiosError } from "axios";
+import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -95,11 +97,23 @@ export default function GradingSchemesPage(): React.JSX.Element {
         { templateId: editTarget.id, data: dto },
         {
           onSuccess: () => { setEditTarget(null); },
+          onError: (e) => {
+            const err = e as AxiosError<{ message: string }>;
+            toast.error(
+              err?.response?.data?.message ?? "Failed to update template."
+            );
+          },
         }
       );
     } else {
       createMutation.mutate(dto, {
         onSuccess: () => { setCreateOpen(false); },
+        onError: (e) => {
+          const err = e as AxiosError<{ message: string }>;
+          toast.error(
+            err?.response?.data?.message ?? "Failed to create template.",
+          );
+        },
       });
     }
   };
@@ -171,20 +185,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Grading Scheme Templates"
-        actions={
-          <div className="flex items-center gap-2">
-            <HelpGuide slug="admin_grading_schemes" />
-            <Button
-              size="sm"
-              onClick={() =>
-                ensureOrganization(() => setCreateOpen(true))
-              }
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Template
-            </Button>
-          </div>
-        }
+        actions={<HelpGuide slug="admin_grading_schemes" />}
       />
 
       {isLoading ? (
@@ -196,17 +197,29 @@ export default function GradingSchemesPage(): React.JSX.Element {
         <>
           {/* ================= TEMPLATE SECTION ================= */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">
-                Global Templates
-              </h2>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">
+                  Global Templates
+                </h2>
 
-              <Badge variant="outline">
-                {templates.length} templates
-              </Badge>
+                <Badge variant="outline">
+                  {templates.length} templates
+                </Badge>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={() =>
+                  ensureOrganization(() => setCreateOpen(true))
+                }
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                New Template
+              </Button>
             </div>
 
-<GradingSchemeTemplateList
+            <GradingSchemeTemplateList
               templates={templates}
               isLoading={tLoading}
               isError={templatesError}

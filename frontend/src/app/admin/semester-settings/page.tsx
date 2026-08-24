@@ -130,16 +130,15 @@ export default function SemesterSettingsPage(): React.JSX.Element {
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Semester Settings"
-        actions={
-          <div className="flex items-center gap-2">
-            <HelpGuide slug="admin_semester_settings" />
-            <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Template
-            </Button>
-          </div>
-        }
+        actions={<HelpGuide slug="admin_semester_settings" />}
       />
+
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          New Template
+        </Button>
+      </div>
 
       {/* ================= SECTION 1: Template Library ================= */}
       <div className="space-y-4">

@@ -11,7 +11,8 @@ import { SelectableCard } from "./ui/SelectableCard"
 interface GradingScaleStepProps {
   selectedPrograms:        Set<string>
   seedGradingScale:        boolean
-  gradingScaleByProgram:   Record<string, string>       // prog → presetKey
+  gradingScaleByProgram:   Record<string, string>
+  disabledScaleNames:      Set<string>
   onToggleSeed:            (v: boolean) => void
   onSelectPreset:          (prog: string, presetKey: string) => void
 }
@@ -20,6 +21,7 @@ export function GradingScaleStep({
   selectedPrograms,
   seedGradingScale,
   gradingScaleByProgram,
+  disabledScaleNames,
   onToggleSeed,
   onSelectPreset,
 }: GradingScaleStepProps) {
@@ -40,7 +42,7 @@ export function GradingScaleStep({
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">
-            Assign one grading scale per department. Each scale will be saved and applied to that department &apos;s levels.
+            Assign one grading scale per department. Each scale will be saved and applied to that department&apos;s levels.
           </p>
           {programs.map((prog) => {
             const selectedPresetKey = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
@@ -58,23 +60,30 @@ export function GradingScaleStep({
                   )
                 }
               >
-                {/* Preset grid */}
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {GRADING_SCALE_PRESETS.map((preset) => (
-                    <SelectableCard
-                      key={preset.key}
-                      selected={selectedPresetKey === preset.key}
-                      onSelect={() => onSelectPreset(prog, preset.key)}
-                      title={preset.name}
-                      subtitle={`${preset.ranges.length} grade ${
-                        preset.ranges.length === 1 ? "range" : "ranges"
-                      }`}
-                    />
-                  ))}
+                  {GRADING_SCALE_PRESETS.map((preset) => {
+                    const alreadyExists = disabledScaleNames.has(preset.name)
+                    return (
+                      <SelectableCard
+                        key={preset.key}
+                        selected={selectedPresetKey === preset.key}
+                        onSelect={() => onSelectPreset(prog, preset.key)}
+                        title={preset.name}
+                        subtitle={`${preset.ranges.length} grade ${
+                          preset.ranges.length === 1 ? "range" : "ranges"
+                        }`}
+                        disabled={alreadyExists}
+                        disabledReason={
+                          alreadyExists
+                            ? "Already exists — edit it on the Grading Scales page"
+                            : undefined
+                        }
+                      />
+                    )
+                  })}
                 </div>
 
-                {/* Range preview for the currently selected preset */}
-                {selected && (
+                {selected && !disabledScaleNames.has(selected.name) && (
                   <CollapsiblePreview label="Preview ranges" count={selected.ranges.length}>
                     {selected.ranges.map((range, i) => (
                       <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs">

@@ -24,6 +24,10 @@ import { EditStudentDialog } from "@/components/admin/student/detail/EditStudent
 import { UpdateStatusDialog } from "@/components/admin/student/detail/UpdateStatusDialog";
 import { ResetPasswordDialog } from "@/components/admin/student/detail/ResetPasswordDialog";
 import { EnrollStudentInClassDialog } from "@/components/admin/student/detail/EnrollStudentInClassDialog";
+import { AcademicHistoryPanel } from "@/components/admin/student/detail/AcademicHistoryPanel";
+import { ShiftProgramDialog } from "@/components/admin/student/detail/ShiftProgramDialog";
+import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
+import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
 
 export default function StudentDetailPage({
   params,
@@ -41,6 +45,8 @@ export default function StudentDetailPage({
   const [statusOpen, setStatusOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [shiftOpen, setShiftOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<StudentEnrollment | null>(null);
 
   const { data: student, isLoading: studentLoading } = useAsyncQuery(
@@ -75,6 +81,17 @@ const { data: schoolYearEnrollments } = useAsyncQuery(
 
 const enrollments = enrollmentsRaw ?? [];
 const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_id === id) ?? [];
+const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.student_id === id) ?? null;
+  const activePe = useMemo(() => {
+    const all = programEnrollments.flatMap((e) => e.programEnrollments);
+    return all.find((pe) => pe.status === "active") ?? all[0] ?? null;
+  }, [programEnrollments]);
+  const { data: pendingData } = useClassAssignmentRequests({ studentId: id, status: "pending_review" });
+  const hasPendingReview = (() => {
+    const raw = pendingData as unknown as { data?: unknown[] } | unknown[];
+    const list = Array.isArray(raw) ? raw : (raw as { data?: unknown[] })?.data ?? [];
+    return list.length > 0;
+  })();
   const programIds = useMemo(() => {
     const ids = new Set<string>();
     for (const e of programEnrollments) {
@@ -176,6 +193,17 @@ const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_
         onRemove={setRemoveTarget}
       />
 
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => setShiftOpen(true)} disabled={!activeStudentSchoolYear || !activeSchoolYearId}>Shift Program</Button>
+        {hasPendingReview ? (
+          <Button size="sm" onClick={() => router.push(`/admin/students/${id}/review`)}>Review ({(pendingData as unknown as { data?: unknown[] })?.data?.length ?? 1} pending) →</Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => setRequestOpen(true)} disabled={!activeStudentSchoolYear}>Flag for Review</Button>
+        )}
+      </div>
+
+      <AcademicHistoryPanel studentId={id} schoolYearId={activeSchoolYearId ?? undefined} />
+
       {editOpen && (
         <EditStudentDialog
           open={editOpen}
@@ -206,6 +234,28 @@ const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_
           studentId={id}
           programIds={programIds}
           onClose={() => setEnrollOpen(false)}
+        />
+      )}
+
+      {shiftOpen && activeStudentSchoolYear && activeSchoolYearId && (
+        <ShiftProgramDialog
+          open={shiftOpen}
+          schoolYearId={activeSchoolYearId}
+          studentSchoolYearId={activeStudentSchoolYear.id}
+          currentProgramId={activePe?.program?.id ?? (activePe as unknown as { program_id?: string })?.program_id}
+          currentCourseId={activePe?.course?.id ?? (activePe as unknown as { course_id?: string | null })?.course_id ?? null}
+          currentStrandId={activePe?.strand?.id ?? (activePe as unknown as { strand_id?: string | null })?.strand_id ?? null}
+          currentLevelId={activePe?.level?.id ?? (activePe as unknown as { level_id?: string | null })?.level_id ?? null}
+          onClose={() => setShiftOpen(false)}
+        />
+      )}
+
+      {requestOpen && activeStudentSchoolYear && (
+        <RequestSubjectsDialog
+          open={requestOpen}
+          studentSchoolYearId={activeStudentSchoolYear.id}
+          origin="admin_flag"
+          onClose={() => setRequestOpen(false)}
         />
       )}
 

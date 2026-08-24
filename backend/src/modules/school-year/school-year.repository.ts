@@ -157,6 +157,34 @@ export class SchoolYearRepository {
     });
   }
 
+  /**
+   * Eagerly end any active school years that have passed their end_date.
+   * Respects OrgEnrollmentSetting.auto_unenroll_on_year_end (defaults to true).
+   * Returns number of years ended.
+   */
+  async expireAndEndActive(): Promise<number> {
+    const expired = await this.findExpiredActive();
+    if (expired.length === 0) return 0;
+    let count = 0;
+    for (const { id, org_id } of expired) {
+      try {
+        const setting = await this.db.orgEnrollmentSetting.findUnique({
+          where: { org_id },
+          select: { auto_unenroll_on_year_end: true },
+        });
+        const autoUnenroll = setting?.auto_unenroll_on_year_end ?? true;
+        if (autoUnenroll) {
+          await this.unenrollAllStudents(id, org_id).catch(() => {});
+        }
+        await this.updateStatus(id, 'ended');
+        count++;
+      } catch {
+        // best-effort per-year; continue to next
+      }
+    }
+    return count;
+  }
+
   async unenrollAllStudents(schoolYearId: string, orgId: string) {
     const [classResult, studentResult] = await this.db.$transaction([
       this.db.enrollment.updateMany({

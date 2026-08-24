@@ -1,4 +1,3 @@
-// frontend/src/components/admin/data-seeder/LevelStep.tsx
 "use client"
 
 import { useState } from "react"
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { COLLEGE_COURSES, LEVEL_DEFS, LEVEL_MAX, LEVEL_MIN, PROGRAMS, SHS_STRANDS, generateLevelNames, getDefaultLevelNames } from "./constants/seed-data"
 import type { ProgramLevelConfig } from "./hooks/useSeedState"
+import { Checkbox } from "./ui/Checkbox"
 
 interface LevelStepProps {
   selectedPrograms:   Set<string>
@@ -17,74 +17,76 @@ interface LevelStepProps {
   levelConfigs:       Record<string, ProgramLevelConfig>
   onSetCount:         (prog: string, count: number) => void
   onRenameAt:         (prog: string, index: number, name: string) => void
+  coursesOverride?:   { code: string; name: string; years: number }[] | null
+  strandsOverride?:   string[] | null
+  levelDefsOverride?: Record<string, string[]>
+  readOnly?: boolean
+  selectedLevelKeys?: Set<string>
+  onToggleLevel?: (levelKey: string) => void
+  toLevelKey?: (entityKey: string, levelName: string) => string
 }
 
-/** Returns the entities (program key, course code, or strand name) that should get level panels. */
-function getLevelEntities(prog: string, courses: Set<string>, strands: Set<string>): { key: string; label: string }[] {
+function getLevelEntities(
+  prog: string,
+  courses: Set<string>,
+  strands: Set<string>,
+  coursesOverride?: { code: string; name: string; years: number }[] | null,
+  strandsOverride?: string[] | null,
+): { key: string; label: string }[] {
   if (prog === "college" && courses.size > 0) {
+    const list = coursesOverride ?? COLLEGE_COURSES
     return Array.from(courses).map((code) => {
-      const c = COLLEGE_COURSES.find((cc) => cc.code === code)
+      const c = list.find((cc) => cc.code === code)
       return { key: code, label: c?.name ?? code }
     })
   }
   if (prog === "shs" && strands.size > 0) {
-    return Array.from(strands).map((name) => ({ key: name, label: name }))
+    const list = strandsOverride ?? SHS_STRANDS
+    return Array.from(strands)
+      .filter((name) => list.includes(name))
+      .map((name) => ({ key: name, label: name }))
   }
   const p = PROGRAMS.find((pp) => pp.key === prog)
   return [{ key: prog, label: p?.label ?? prog }]
 }
-function CountStepper({
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  value:    number
-  min:      number
-  max:      number
-  onChange: (v: number) => void
-}) {
+
+function CountStepper({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
   return (
     <div className="flex items-center gap-1">
-      <button
-        type="button"
-        disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
-        className={cn(
-          "flex h-7 w-7 items-center justify-center rounded border text-muted-foreground transition-colors",
-          "hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed"
-        )}
-      >
+      <button type="button" disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}
+        className={cn("flex h-7 w-7 items-center justify-center rounded border text-muted-foreground transition-colors", "hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed")}>
         <Minus className="h-3 w-3" />
       </button>
       <span className="w-7 text-center text-sm font-semibold tabular-nums not-interactive">{value}</span>
-      <button
-        type="button"
-        disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + 1))}
-        className={cn(
-          "flex h-7 w-7 items-center justify-center rounded border text-muted-foreground transition-colors",
-          "hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed"
-        )}
-      >
+      <button type="button" disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}
+        className={cn("flex h-7 w-7 items-center justify-center rounded border text-muted-foreground transition-colors", "hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed")}>
         <Plus className="h-3 w-3" />
       </button>
     </div>
   )
 }
 
-function entityMinMax(entityKey: string): { min: number; max: number } {
-  if (LEVEL_MIN[entityKey] !== undefined) return { min: LEVEL_MIN[entityKey], max: LEVEL_MAX[entityKey] ?? 12 }
-  const course = COLLEGE_COURSES.find((c) => c.code === entityKey)
-  if (course) return { min: 1, max: course.years }
-  if (SHS_STRANDS.includes(entityKey)) return { min: 1, max: 2 }
+function entityMinMax(
+  entityKey: string,
+  coursesOverride?: { code: string; name: string; years: number }[] | null,
+  levelDefsOverride?: Record<string, string[]>,
+): { min: number; max: number } {
+  const overrideLen = levelDefsOverride?.[entityKey]?.length ?? 0
+  if (LEVEL_MIN[entityKey] !== undefined) {
+    return { min: LEVEL_MIN[entityKey], max: Math.max(LEVEL_MAX[entityKey] ?? 12, 12, overrideLen) }
+  }
+  const course = (coursesOverride ?? COLLEGE_COURSES).find((c) => c.code === entityKey)
+  if (course) return { min: 1, max: Math.max(course.years, 12, overrideLen) }
+  if (SHS_STRANDS.includes(entityKey) || levelDefsOverride?.[entityKey]) {
+    return { min: 1, max: Math.max(6, 12, overrideLen) }
+  }
   return { min: 1, max: 12 }
 }
 
-function entityLabel(entityKey: string): string {
+function entityLabel(entityKey: string, coursesOverride?: { code: string; name: string; years: number }[] | null): string {
   const prog = PROGRAMS.find((p) => p.key === entityKey)
   if (prog) return prog.label
-  const course = COLLEGE_COURSES.find((c) => c.code === entityKey)
+  const course = (coursesOverride ?? COLLEGE_COURSES).find((c) => c.code === entityKey)
   if (course) return course.name
   return entityKey
 }
@@ -94,17 +96,30 @@ function ProgramLevelsPanel({
   config,
   onSetCount,
   onRenameAt,
+  coursesOverride,
+  levelDefsOverride,
+  readOnly = false,
+  selectedLevelKeys,
+  onToggleLevel,
+  toLevelKey,
 }: {
-  prog:       string
-  config:     ProgramLevelConfig
+  prog: string
+  config: ProgramLevelConfig
   onSetCount: (count: number) => void
   onRenameAt: (index: number, name: string) => void
+  coursesOverride?: { code: string; name: string; years: number }[] | null
+  levelDefsOverride?: Record<string, string[]>
+  readOnly?: boolean
+  selectedLevelKeys?: Set<string>
+  onToggleLevel?: (levelKey: string) => void
+  toLevelKey?: (entityKey: string, levelName: string) => string
 }) {
-  const [open, setOpen]             = useState(true)
-  const [editingIndex, setEditing]  = useState<number | null>(null)
-  const [editValue, setEditValue]   = useState("")
-  const { min, max } = entityMinMax(prog)
-  const label = entityLabel(prog)
+  const [open, setOpen] = useState(true)
+  const [editingIndex, setEditing] = useState<number | null>(null)
+  const [editValue, setEditValue] = useState("")
+  const { min, max } = entityMinMax(prog, coursesOverride, levelDefsOverride)
+  const label = entityLabel(prog, coursesOverride)
+  const overrideNames = levelDefsOverride?.[prog]
 
   function startEdit(i: number) {
     setEditing(i)
@@ -117,98 +132,111 @@ function ProgramLevelsPanel({
     setEditing(null)
   }
 
-  function resetName(i: number) {
+  function defaultNameAt(i: number): string {
+    if (overrideNames?.[i]) return overrideNames[i]
     const defaults = getDefaultLevelNames(prog)
-    const defaultName = defaults[i] ?? generateLevelNames(prog, config.count)[i]
-    onRenameAt(i, defaultName)
+    return defaults[i] ?? generateLevelNames(prog, config.count)[i]
+  }
+
+  function resetName(i: number) {
+    onRenameAt(i, defaultNameAt(i))
   }
 
   return (
     <div className="rounded-lg border overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2 flex-1 text-left"
-        >
-          {open
-            ? <ChevronDown  className="h-4 w-4 text-muted-foreground shrink-0" />
-            : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          }
+        <button type="button" onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 flex-1 text-left">
+          {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
           <span className="text-sm font-medium">{label}</span>
         </button>
-
-        {/* Count stepper always visible in header */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground not-interactive">Levels:</span>
-          <CountStepper
-            value={config.count}
-            min={min}
-            max={max}
-            onChange={onSetCount}
-          />
-          <Badge variant="secondary" className="text-xs tabular-nums">
-            {config.count}
-          </Badge>
+          {!readOnly && <CountStepper value={config.count} min={min} max={max} onChange={onSetCount} />}
+          <Badge variant="secondary" className="text-xs tabular-nums">{config.count}</Badge>
         </div>
       </div>
 
-      {/* Level names grid */}
       {open && (
         <div className="px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-3 not-interactive">
-            Click the <Pencil className="inline h-3 w-3" /> icon to rename a level. Use + / − to add or remove levels.
-          </p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {config.names.map((name, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-1 rounded-md border bg-background px-2 py-1.5 group"
-              >
-                {editingIndex === i ? (
-                  <Input
-                    autoFocus
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => commitEdit(i)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitEdit(i)
-                      if (e.key === "Escape") setEditing(null)
-                    }}
-                    className="h-6 text-xs px-1 border-0 shadow-none focus-visible:ring-0 p-0"
-                  />
-                ) : (
-                  <span className="flex-1 text-xs font-medium truncate not-interactive">{name}</span>
-                )}
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {editingIndex !== i && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(i)}
-                        className="p-0.5 rounded text-muted-foreground hover:text-foreground"
-                        title="Rename"
-                      >
-                        <Pencil className="h-2.5 w-2.5" />
-                      </button>
-                      {/* Show reset only if name differs from default */}
-                      {name !== generateLevelNames(prog, config.count)[i] && (
-                        <button
-                          type="button"
-                          onClick={() => resetName(i)}
-                          className="p-0.5 rounded text-muted-foreground hover:text-foreground"
-                          title="Reset to default"
-                        >
-                          <RotateCcw className="h-2.5 w-2.5" />
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
+          {readOnly ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground not-interactive">Uncheck to exclude a level from this seed (bring back by checking again).</p>
+              <div className="flex gap-3 mb-2">
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => config.names.forEach((n) => {
+                    const k = toLevelKey ? toLevelKey(prog, n) : `${prog}::${n}`
+                    if (!selectedLevelKeys?.has(k)) onToggleLevel?.(k)
+                  })}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:underline"
+                  onClick={() => config.names.forEach((n) => {
+                    const k = toLevelKey ? toLevelKey(prog, n) : `${prog}::${n}`
+                    if (selectedLevelKeys?.has(k)) onToggleLevel?.(k)
+                  })}
+                >
+                  None
+                </button>
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {config.names.map((name) => {
+                  const levelKey = toLevelKey ? toLevelKey(prog, name) : `${prog}::${name}`
+                  const checked = selectedLevelKeys?.has(levelKey) ?? true
+                  return (
+                    <div key={levelKey} className="flex items-center gap-2">
+                      <Checkbox checked={checked} onChange={() => onToggleLevel?.(levelKey)} label={name} subtle />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground mb-3 not-interactive">
+                Click the <Pencil className="inline h-3 w-3" /> icon to rename a level. Use + / − to add or remove levels.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {config.names.map((name, i) => (
+                  <div key={i} className="flex items-center gap-1 rounded-md border bg-background px-2 py-1.5 group">
+                    {editingIndex === i ? (
+                      <Input
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => commitEdit(i)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitEdit(i)
+                          if (e.key === "Escape") setEditing(null)
+                        }}
+                        className="h-6 text-xs px-1 border-0 shadow-none focus-visible:ring-0 p-0"
+                      />
+                    ) : (
+                      <span className="flex-1 text-xs font-medium truncate not-interactive">{name}</span>
+                    )}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {editingIndex !== i && (
+                        <>
+                          <button type="button" onClick={() => startEdit(i)} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Rename">
+                            <Pencil className="h-2.5 w-2.5" />
+                          </button>
+                          {name !== defaultNameAt(i) && (
+                            <button type="button" onClick={() => resetName(i)} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Reset to default">
+                              <RotateCcw className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -222,20 +250,32 @@ export function LevelStep({
   levelConfigs,
   onSetCount,
   onRenameAt,
+  coursesOverride,
+  strandsOverride,
+  levelDefsOverride,
+  readOnly = false,
+  selectedLevelKeys,
+  onToggleLevel,
+  toLevelKey,
 }: LevelStepProps) {
-  const programsWithLevels = Array.from(selectedPrograms).filter((p) => LEVEL_DEFS[p])
+  const programsWithLevels = Array.from(selectedPrograms).filter((p) => LEVEL_DEFS[p] || levelDefsOverride?.[p])
   if (programsWithLevels.length === 0) return null
 
-  const entities = programsWithLevels.flatMap((prog) => getLevelEntities(prog, selectedCourses, selectedStrands))
+  const entities = programsWithLevels.flatMap((prog) =>
+    getLevelEntities(prog, selectedCourses, selectedStrands, coursesOverride, strandsOverride),
+  )
 
   return (
     <div className="space-y-2">
       <div className="space-y-2">
-        {entities.map(({ key, label }) => {
-          const config = levelConfigs[key] ?? (() => {
-            const defaults = getDefaultLevelNames(key)
-            return { count: defaults.length, names: defaults }
-          })()
+        {entities.map(({ key }) => {
+          const overrideNames = levelDefsOverride?.[key]
+          const config =
+            levelConfigs[key] ??
+            (() => {
+              const defaults = overrideNames ?? getDefaultLevelNames(key)
+              return { count: defaults.length, names: defaults }
+            })()
           return (
             <ProgramLevelsPanel
               key={key}
@@ -243,6 +283,12 @@ export function LevelStep({
               config={config}
               onSetCount={(count) => onSetCount(key, count)}
               onRenameAt={(i, name) => onRenameAt(key, i, name)}
+              coursesOverride={coursesOverride}
+              levelDefsOverride={levelDefsOverride}
+              readOnly={readOnly}
+              selectedLevelKeys={selectedLevelKeys}
+              onToggleLevel={onToggleLevel}
+              toLevelKey={toLevelKey}
             />
           )
         })}

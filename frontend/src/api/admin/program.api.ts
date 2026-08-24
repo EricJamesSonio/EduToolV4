@@ -16,6 +16,13 @@ export interface UpdateProgramRequest {
   type?: ProgramType;
 }
 
+export interface GroupedSemester {
+  semesterId: string;
+  semesterName: string;
+  programId: string;
+  programName: string;
+}
+
 interface ApiEnvelope<T> {
   success: boolean;
   data: T;
@@ -29,6 +36,13 @@ interface RawProgram {
   type: ProgramType;
   courses?: { id: string; name: string; code: string | null }[];
   strands?: { id: string; name: string }[];
+}
+
+interface RawGroupedSemester {
+  semesterId: string;
+  semesterName: string;
+  programId: string;
+  programName: string;
 }
 
 function mapProgram(raw: RawProgram): Program {
@@ -71,5 +85,17 @@ export const programApi = {
 
   delete: async (id: string): Promise<void> => {
     await client.delete(`/programs/${id}`);
+  },
+
+  // NEW — for the Classes page "All Departments" semester filter. One row
+  // per (program, semester) pairing that actually exists for the given
+  // school year, so the dropdown can show disambiguated labels like
+  // "1st - College" / "1st - Daycare".
+  getSemestersGrouped: async (schoolYearId: string): Promise<GroupedSemester[]> => {
+    const res = await client.get<ApiEnvelope<RawGroupedSemester[]>>(
+      "/programs/semesters/grouped",
+      { params: { schoolYearId } },
+    );
+    return res.data?.data ?? [];
   },
 };

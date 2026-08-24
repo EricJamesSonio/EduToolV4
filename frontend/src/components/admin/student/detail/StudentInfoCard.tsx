@@ -122,7 +122,7 @@ const [moveTarget, setMoveTarget] = useState<{
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className="text-sm font-semibold not-interactive">{pe.program.name}</span>
-                        {!isEnded && (
+                        {!isEnded && pe.status !== "ended" && (
                           <button
                             onClick={() => {
                               const sye = enrollmentByProgramId.get(pe.id);
@@ -131,10 +131,10 @@ const [moveTarget, setMoveTarget] = useState<{
                               }
                             }}
                             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors shrink-0"
-                            title="Move to another section"
+                            title={pe.section ? "Move to another section" : "Assign to a section"}
                           >
                             <ArrowRightLeft className="h-3 w-3" />
-                            Move
+                            {pe.section ? "Move Section" : "Assign Section"}
                           </button>
                         )}
                         <Badge

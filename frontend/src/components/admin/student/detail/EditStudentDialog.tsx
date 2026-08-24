@@ -26,8 +26,9 @@ interface Props {
 }
 
 interface FormValues {
-  fullName: string;
-  email:    string;
+  fullName:  string;
+  email:     string;
+  studentId: string;
 }
 
 function getInitials(name: string): string {
@@ -40,7 +41,13 @@ export function EditStudentDialog({
   onClose,
 }: Props): React.JSX.Element {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [imageUploading, setImageUploading] = useState(false);
+
+  // Local, dialog-owned copy of the avatar path so a successful upload is
+  // reflected immediately, without waiting on the parent to refetch and
+  // pass down a new `student` prop.
+  const [localProfileImage, setLocalProfileImage] = useState<string | null | undefined>(
+    student.profileImage,
+  );
 
   const {
     register,
@@ -49,13 +56,19 @@ export function EditStudentDialog({
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      fullName: student.fullName,
-      email:    student.email,
+      fullName:  student.fullName,
+      email:     student.email,
+      studentId: student.studentId,
     },
   });
 
   useEffect(() => {
-    reset({ fullName: student.fullName, email: student.email });
+    reset({
+      fullName:  student.fullName,
+      email:     student.email,
+      studentId: student.studentId,
+    });
+    setLocalProfileImage(student.profileImage);
   }, [student, reset]);
 
   const mutation = useMutationWithInvalidation(
@@ -76,33 +89,50 @@ export function EditStudentDialog({
     },
   );
 
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImageUploading(true);
-    try {
+  const uploadMutation = useMutationWithInvalidation<Student, AxiosError<{ message: string }>, File>(
+    async (file) => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const { data } = await apiClient.post<{ path: string }>(
+      const { data: body } = await apiClient.post<{ success: boolean; data: { path: string } }>(
         "/uploads/profile",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
+      // Response is wrapped by ResponseInterceptor as { success, data: { path } }
+      const path: string | undefined = (body as unknown as { path?: string })?.path ?? body.data?.path;
+      if (!path) throw new Error("Upload did not return a file path");
 
-      await studentApi.update(student.id, { profileImage: data.path });
-      toast.success("Profile photo updated");
-    } catch {
-      toast.error("Failed to upload profile photo");
-    } finally {
-      setImageUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+      return studentApi.update(student.id, { profileImage: path });
+    },
+    {
+      invalidateKeys: [
+        queryKeys.admin.students.detail(student.id),
+        queryKeys.admin.students.list(),
+      ],
+      onSuccess: (updated) => {
+        setLocalProfileImage(updated.profileImage);
+        toast.success("Profile photo updated");
+      },
+      onError: () => {
+        toast.error("Failed to upload profile photo");
+      },
+    },
+  );
+
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    uploadMutation.mutate(file);
   }
 
   function onSubmit(values: FormValues) {
-    mutation.mutate({ fullName: values.fullName, email: values.email });
+    mutation.mutate({
+      fullName:  values.fullName,
+      email:     values.email,
+      studentId: values.studentId,
+    });
   }
 
   return (
@@ -112,7 +142,7 @@ export function EditStudentDialog({
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               <Avatar className="h-14 w-14">
-                <AvatarImage src={getProfileImageUrl(student.profileImage)} alt={student.fullName} />
+                <AvatarImage src={getProfileImageUrl(localProfileImage)} alt={student.fullName} />
                 <AvatarFallback className="text-base font-semibold bg-primary/10 text-primary">
                   {getInitials(student.fullName)}
                 </AvatarFallback>
@@ -120,10 +150,10 @@ export function EditStudentDialog({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={imageUploading}
+                disabled={uploadMutation.isPending}
                 className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {imageUploading ? (
+                {uploadMutation.isPending ? (
                   <Loader2 className="h-2.5 w-2.5 animate-spin" />
                 ) : (
                   <Camera className="h-2.5 w-2.5" />
@@ -144,6 +174,17 @@ export function EditStudentDialog({
           </div>
 
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="studentId">Student ID</Label>
+              <Input
+                id="studentId"
+                {...register("studentId", { required: "Student ID is required" })}
+              />
+              {errors.studentId && (
+                <p className="text-xs text-destructive">{errors.studentId.message}</p>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="fullName">Full Name</Label>
               <Input

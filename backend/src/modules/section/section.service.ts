@@ -42,6 +42,26 @@ export class SectionService {
       if (!strand) throw new NotFoundException('Strand not found.');
     }
 
+    // Check for duplicate section name (case-insensitive, scoped to level + school year + course/strand)
+    const existingSection = await this.db.section.findFirst({
+      where: {
+        org_id: orgId,
+        name: {
+          equals: dto.name.trim().toLowerCase(),
+          mode: 'insensitive' as const,
+        },
+        ...(dto.levelId ? { level_id: dto.levelId } : {}),
+        ...(dto.schoolYearId ? { school_year_id: dto.schoolYearId } : {}),
+        ...(dto.courseId ? { course_id: dto.courseId } : {}),
+        ...(dto.strandId ? { strand_id: dto.strandId } : {}),
+      },
+    });
+    if (existingSection) {
+      throw new ConflictException(
+        `Section name already exists in this program and level.`,
+      );
+    }
+
     const section = await this.sectionRepository.create({
       orgId,
       levelId: dto.levelId,
@@ -104,6 +124,28 @@ export class SectionService {
           `Cannot set capacity to ${dto.capacity} — this section currently has ${enrolledCount} enrolled student(s). Lower the enrollment first, or set capacity to at least ${enrolledCount}.`,
         );
       }
+    }
+
+    // Check for duplicate section name (case-insensitive, scoped to level + school year + course/strand)
+    // Exclude the current section from the check
+    const nameToCheck = dto.name ?? section.name;
+    const existingSection = await this.db.section.findFirst({
+      where: {
+        org_id: orgId,
+        name: {
+          equals: nameToCheck,
+          mode: 'insensitive' as const,
+        },
+        ...(dto.levelId ? { level_id: dto.levelId } : section.level_id ? { level_id: section.level_id } : {}),
+        ...(dto.schoolYearId ? { school_year_id: dto.schoolYearId } : section.school_year_id ? { school_year_id: section.school_year_id } : {}),
+        ...(dto.courseId ? { course_id: dto.courseId } : section.course_id ? { course_id: section.course_id } : {}),
+        ...(dto.strandId ? { strand_id: dto.strandId } : section.strand_id ? { strand_id: section.strand_id } : {}),
+      },
+    });
+    if (existingSection && existingSection.id !== id) {
+      throw new ConflictException(
+        `Section name already exists in this program and level.`,
+      );
     }
 
     const updated = await this.sectionRepository.update(id, {

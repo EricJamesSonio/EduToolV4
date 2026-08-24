@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Query } from '@nestjs/common';
 import { SemesterService } from './semester.service';
 import { CreateSemesterDto, UpdateSemesterDto } from './dto/semester.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
@@ -36,11 +37,16 @@ export class SemesterController {
     return this.semesterService.create(orgId, dto);
   }
 
-  @Get()
-  async findAll(@CurrentUser('org_id') orgId: string) {
-    // <-- change here
-    return this.semesterService.findAll(orgId);
+@Get()
+async findAll(
+  @CurrentUser('org_id') orgId: string,
+  @Query('schoolYearId') schoolYearId?: string,
+) {
+  if (schoolYearId) {
+    return this.semesterService.findBySchoolYear(orgId, schoolYearId);
   }
+  return this.semesterService.findAll(orgId);
+}
 
   @Patch(':id')
   @Roles('admin')

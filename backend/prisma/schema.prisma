@@ -41,6 +41,40 @@ enum EnrollmentStatus {
   removed
 }
 
+enum ProgramEnrollmentStatus {
+  active
+  ended
+}
+
+enum ProgramEnrollmentEndReason {
+  shifted
+  completed
+  withdrawn
+  dropped
+  admin_correction
+  other
+}
+
+enum ClassEnrollmentOutcome {
+  passed
+  failed
+  dropped
+  withdrawn
+  withdrawn_due_to_shifting
+  transferred_credited
+  completed
+}
+
+enum ClassAssignmentRequestOrigin {
+  student_request
+  admin_flag
+}
+
+enum ClassAssignmentRequestStatus {
+  pending_review
+  ready
+}
+
 enum SubmissionStatus {
   draft
   submitted
@@ -122,12 +156,13 @@ model Organization {
 }
 
 model OrgEnrollmentSetting {
-  id                            String   @id @default(uuid())
-  org_id                        String   @unique
-  require_semester_reenrollment Boolean  @default(false)
-  auto_unenroll_on_year_end     Boolean  @default(true)
-  created_at                    DateTime @default(now())
-  updated_at                    DateTime @updatedAt
+  id                            String                 @id @default(uuid())
+  org_id                        String                 @unique
+  require_semester_reenrollment Boolean                @default(false)
+  auto_unenroll_on_year_end     Boolean                @default(true)
+  default_shift_outcome         ClassEnrollmentOutcome @default(dropped)
+  created_at                    DateTime               @default(now())
+  updated_at                    DateTime               @updatedAt
 }
 
 model Account {
@@ -160,6 +195,105 @@ model Profile {
   created_at     DateTime @default(now())
 
   account Account @relation(fields: [account_id], references: [id])
+}
+
+model SchoolProfileDepartment {
+  id         String   @id @default(uuid())
+  org_id     String
+  type       String // matches Program.type — daycare/kinder/elementary/jhs/shs/college
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  courses  SchoolProfileCourse[]
+  strands  SchoolProfileStrand[]
+  levels   SchoolProfileLevel[]
+  subjects SchoolProfileSubject[] // shared/minor subjects belong to the department, not a course/strand
+
+  @@unique([org_id, type])
+}
+
+model SchoolProfileCourse {
+  id            String  @id @default(uuid())
+  org_id        String
+  department_id String
+  code          String?
+  name          String
+
+  department SchoolProfileDepartment       @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  levels     SchoolProfileLevel[]
+  sharings   SchoolProfileSubjectSharing[]
+}
+
+model SchoolProfileStrand {
+  id            String @id @default(uuid())
+  org_id        String
+  department_id String
+  name          String
+
+  department SchoolProfileDepartment       @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  levels     SchoolProfileLevel[]
+  sharings   SchoolProfileSubjectSharing[]
+}
+
+model SchoolProfileLevel {
+  id            String  @id @default(uuid())
+  org_id        String
+  department_id String
+  course_id     String?
+  strand_id     String?
+  name          String
+  order_index   Int
+
+  department SchoolProfileDepartment @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  course     SchoolProfileCourse?    @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  strand     SchoolProfileStrand?    @relation(fields: [strand_id], references: [id], onDelete: Cascade)
+  sections   SchoolProfileSection[]
+  subjects   SchoolProfileSubject[] // major subjects tied to a specific level
+}
+
+model SchoolProfileSection {
+  id       String @id @default(uuid())
+  org_id   String
+  level_id String
+  name     String
+  capacity Int
+
+  level SchoolProfileLevel @relation(fields: [level_id], references: [id], onDelete: Cascade)
+}
+
+model SchoolProfileSubject {
+  id            String  @id @default(uuid())
+  org_id        String
+  // Major subjects: level_id set, department_id null (via level's own department).
+  // Minor/GE/shared subjects: department_id set directly, level_id null —
+  // mirrors the real Subject model's program_id-only shape for GE subjects.
+  department_id String?
+  level_id      String?
+  name          String
+  subject_type  String  @default("major") // "major" | "minor"
+
+  department SchoolProfileDepartment?      @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  level      SchoolProfileLevel?           @relation(fields: [level_id], references: [id], onDelete: Cascade)
+  sharings   SchoolProfileSubjectSharing[]
+}
+
+// Mirrors the real SubjectSharing model — links a minor/shared subject to
+// the specific courses/strands that offer it, without duplicating the
+// subject row itself. A college GE subject shared across BSIT, BSCS, and
+// BSBA gets one SchoolProfileSubject row and three sharing rows here.
+model SchoolProfileSubjectSharing {
+  id         String  @id @default(uuid())
+  org_id     String
+  subject_id String
+  course_id  String?
+  strand_id  String?
+
+  subject SchoolProfileSubject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  course  SchoolProfileCourse? @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  strand  SchoolProfileStrand? @relation(fields: [strand_id], references: [id], onDelete: Cascade)
+
+  @@unique([subject_id, course_id])
+  @@unique([subject_id, strand_id])
 }
 
 //////////////////////
@@ -350,14 +484,15 @@ model StudentSchoolYear {
   unenrolled_at  DateTime?
   notes          String?
 
-  schoolYear         SchoolYear                 @relation(fields: [school_year_id], references: [id])
-  programEnrollments StudentProgramEnrollment[]
+  schoolYear              SchoolYear                 @relation(fields: [school_year_id], references: [id])
+  programEnrollments      StudentProgramEnrollment[]
+  classAssignmentRequests ClassAssignmentRequest[]
 
   @@unique([org_id, student_id, school_year_id])
 }
 
 model StudentProgramEnrollment {
-  id                     String           @id @default(uuid())
+  id                     String                      @id @default(uuid())
   org_id                 String
   student_school_year_id String
   program_id             String
@@ -365,17 +500,22 @@ model StudentProgramEnrollment {
   course_id              String?
   strand_id              String?
   section_id             String?
-  status                 EnrollmentStatus @default(active)
-  enrolled_at            DateTime         @default(now())
+  status                 ProgramEnrollmentStatus     @default(active)
+  enrolled_at            DateTime                    @default(now())
+  section_assigned_at    DateTime?
+  end_reason             ProgramEnrollmentEndReason?
+  ended_at               DateTime?
+  ended_by               String?
 
-  studentSchoolYear StudentSchoolYear @relation(fields: [student_school_year_id], references: [id])
-  program           Program           @relation(fields: [program_id], references: [id])
-  level             Level?            @relation(fields: [level_id], references: [id])
-  course            Course?           @relation(fields: [course_id], references: [id])
-  strand            Strand?           @relation(fields: [strand_id], references: [id])
-  section           Section?          @relation(fields: [section_id], references: [id])
-
-  @@unique([student_school_year_id, program_id])
+  studentSchoolYear       StudentSchoolYear        @relation(fields: [student_school_year_id], references: [id])
+  program                 Program                  @relation(fields: [program_id], references: [id])
+  level                   Level?                   @relation(fields: [level_id], references: [id])
+  course                  Course?                  @relation(fields: [course_id], references: [id])
+  strand                  Strand?                  @relation(fields: [strand_id], references: [id])
+  section                 Section?                 @relation(fields: [section_id], references: [id])
+  shiftFromEvent          ProgramShiftEvent?       @relation("ShiftFrom")
+  shiftToEvent            ProgramShiftEvent?       @relation("ShiftTo")
+  classAssignmentRequests ClassAssignmentRequest[]
 }
 
 model Semester {
@@ -512,14 +652,62 @@ model ClassOwnershipLog {
 }
 
 model Enrollment {
-  id         String           @id @default(uuid())
-  org_id     String
-  class_id   String
-  student_id String
-  status     EnrollmentStatus
-  created_at DateTime         @default(now())
+  id             String                  @id @default(uuid())
+  org_id         String
+  class_id       String
+  student_id     String
+  status         EnrollmentStatus
+  created_at     DateTime                @default(now())
+  outcome        ClassEnrollmentOutcome?
+  outcome_reason String?
+  outcome_set_at DateTime?
+  outcome_set_by String?
+  shift_event_id String?
+  shiftEvent     ProgramShiftEvent?      @relation(fields: [shift_event_id], references: [id])
 
   class Class @relation(fields: [class_id], references: [id])
+}
+
+model ProgramShiftEvent {
+  id                         String                 @id @default(uuid())
+  org_id                     String
+  student_school_year_id     String
+  from_program_enrollment_id String                 @unique
+  to_program_enrollment_id   String                 @unique
+  default_outcome_used       ClassEnrollmentOutcome
+  actor_id                   String
+  created_at                 DateTime               @default(now())
+
+  fromProgramEnrollment StudentProgramEnrollment @relation("ShiftFrom", fields: [from_program_enrollment_id], references: [id])
+  toProgramEnrollment   StudentProgramEnrollment @relation("ShiftTo", fields: [to_program_enrollment_id], references: [id])
+  affectedEnrollments   Enrollment[]
+
+  @@index([org_id, student_school_year_id])
+}
+
+model ClassAssignmentRequest {
+  id                            String                       @id @default(uuid())
+  org_id                        String
+  student_id                    String
+  student_school_year_id        String
+  program_enrollment_id         String?
+  origin                        ClassAssignmentRequestOrigin
+  status                        ClassAssignmentRequestStatus @default(pending_review)
+  student_requested_subject_ids String[]
+  admin_finalized_subject_ids   String[]                     @default([])
+  requested_at                  DateTime                     @default(now())
+  finalized_at                  DateTime?
+  finalized_by                  String?
+  reopen_reason                 String?
+  created_at                    DateTime                     @default(now())
+  updated_at                    DateTime                     @updatedAt
+
+  studentSchoolYear StudentSchoolYear         @relation(fields: [student_school_year_id], references: [id])
+  programEnrollment StudentProgramEnrollment? @relation(fields: [program_enrollment_id], references: [id])
+
+  @@index([org_id, student_school_year_id])
+  @@index([org_id, student_id])
+  @@index([status])
 }
 
 //////////////////////
@@ -814,7 +1002,7 @@ model Assessment {
   manual_max_score Float?
   show_breakdown   Boolean     @default(false)
 
-  submissions Submission[]
+  submissions      Submission[]
   gradingOverrides AssessmentGradingOverride[]
 }
 
@@ -991,9 +1179,9 @@ model Meeting {
 // ── GROUPY (per-class group chat) ──────────────────────────────────────────
 
 model GroupyMessage {
-  id                String            @id @default(uuid())
-  org_id            String
-  class_id          String
+  id                   String            @id @default(uuid())
+  org_id               String
+  class_id             String
   sender_account_id    String
   sender_role          Role
   sender_name          String

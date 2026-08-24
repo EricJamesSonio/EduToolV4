@@ -20,7 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:platform": "ts-node -r tsconfig-paths/register src/seeds/start.ts",
     "seed:domain": "ts-node -r tsconfig-paths/register src/seeds/seed-domain-data.ts",
-    "test:play" : "ts-node -r tsconfig-paths/register src/seeds/playground-assessment-grading.ts",
+    "test:play": "ts-node -r tsconfig-paths/register src/seeds/playground-assessment-grading.ts",
     "drop_db": "ts-node -r tsconfig-paths/register src/seeds/drop-database.ts"
   },
   "dependencies": {

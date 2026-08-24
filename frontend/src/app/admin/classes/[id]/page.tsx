@@ -104,7 +104,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
       schoolYearTitle: schoolYearTitle ?? cls.schoolYearTitle,
       semesterName:    semesterName    ?? cls.semesterName,
       sectionName:     sectionName     ?? cls.sectionName,
-      title:           subjectName     ?? cls.subjectName ?? cls.subjectId,
+      title:           subjectName     ?? cls.subjectName ?? "Unnamed Class",
       isArchived:      cls.status === "archived",
     };
   }, [cls, subjectsRaw, educatorsRaw, schoolYearsRaw, semestersRaw, sectionsRaw]);

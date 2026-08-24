@@ -1,19 +1,26 @@
 import { cn } from "@/lib/utils"
 
 interface EnableToggleProps {
-  enabled:  boolean
-  onToggle: (v: boolean) => void
+  enabled:   boolean
+  onToggle:  (v: boolean) => void
+  disabled?: boolean
 }
 
-export function EnableToggle({ enabled, onToggle }: EnableToggleProps) {
+export function EnableToggle({ enabled, onToggle, disabled = false }: EnableToggleProps) {
   return (
     <div className="flex items-center justify-end">
       <button
         type="button"
         aria-pressed={enabled}
-        onClick={() => onToggle(!enabled)}
+        aria-disabled={disabled}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return
+          onToggle(!enabled)
+        }}
         className={cn(
-          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors",
+          "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+          disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer",
           enabled ? "bg-primary" : "bg-muted-foreground/30"
         )}
       >

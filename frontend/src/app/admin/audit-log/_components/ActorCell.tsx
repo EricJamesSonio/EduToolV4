@@ -27,10 +27,9 @@ export function ActorCell({
     </span>
   ) : (
     <span
-      className="font-mono text-xs text-muted-foreground truncate max-w-[160px] block"
-      title={safeActorId}
+      className="text-xs text-muted-foreground truncate max-w-[160px] block"
     >
-      {safeActorId}
+      Unknown
     </span>
   );
 }

@@ -14,6 +14,26 @@ export class SubjectRepository {
       select: { id: true, type: true },
     });
   }
+    async findDuplicateByName(
+    orgId: string,
+    name: string,
+    programId?: string,
+    levelId?: string | null,
+    subjectType?: string,
+    excludeId?: string,
+  ) {
+    return this.db.subject.findFirst({
+      where: {
+        org_id: orgId,
+        name: { equals: name, mode: 'insensitive' as const },
+        ...(programId ? { program_id: programId } : {}),
+        ...(levelId ? { level_id: levelId } : {}),
+        ...(subjectType ? { subject_type: subjectType } : {}),
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { id: true },
+    });
+  }
 
   private async enrichSubjects(subjects: any[]) {
     if (!subjects.length) return subjects;

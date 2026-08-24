@@ -6,6 +6,20 @@ import { DatabaseService } from '@/core/database/database.provider';
 export class StudentRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  private rankMatch(
+    search: string,
+    fullName?: string | null,
+    secondaryId?: string | null,
+  ): number {
+    const q = search.trim().toLowerCase();
+    const name = (fullName ?? '').toLowerCase();
+    const sid = (secondaryId ?? '').toLowerCase();
+
+    if (name === q || sid === q) return 0;
+    if (name.startsWith(q) || sid.startsWith(q)) return 1;
+    return 2;
+  }
+
   async create(
     data: {
       orgId: string;
@@ -153,16 +167,53 @@ export class StudentRepository {
         : {}),
     };
 
-    const [data, total] = await Promise.all([
-      this.db.account.findMany({
+    let data: any[];
+    let total: number;
+
+    if (search) {
+      // studentId lives inside profile.metadata (JSON), so relevance can't
+      // be expressed in a plain Prisma `orderBy`. Fetch the matching set,
+      // rank in memory (exact > starts-with > contains), then paginate.
+      const allMatches = await this.db.account.findMany({
         where,
         include: { profile: true },
-        orderBy: { created_at: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.db.account.count({ where }),
-    ]);
+        take: 5000, // safety cap for very large orgs
+      });
+
+      const ranked = allMatches
+        .map((row) => {
+          const meta = row.profile?.metadata as Record<string, any> | null;
+          return {
+            row,
+            rank: this.rankMatch(
+              search,
+              row.profile?.full_name,
+              meta?.studentId ?? null,
+            ),
+          };
+        })
+        .sort((a, b) => {
+          if (a.rank !== b.rank) return a.rank - b.rank;
+          return (a.row.profile?.full_name ?? '').localeCompare(
+            b.row.profile?.full_name ?? '',
+          );
+        })
+        .map((r) => r.row);
+
+      total = ranked.length;
+      data = ranked.slice((page - 1) * limit, (page - 1) * limit + limit);
+    } else {
+      [data, total] = await Promise.all([
+        this.db.account.findMany({
+          where,
+          include: { profile: true },
+          orderBy: { created_at: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.db.account.count({ where }),
+      ]);
+    }
 
     return { data, total };
   }
@@ -195,6 +246,7 @@ export class StudentRepository {
     data: {
       fullName?: string;
       email?: string;
+      studentId?: string;
       personal_email?: string | null;
       levelId?: string;
       sectionId?: string;
@@ -233,6 +285,9 @@ export class StudentRepository {
             : {}),
           metadata: {
             ...currentMeta,
+            ...(data.studentId !== undefined
+              ? { studentId: data.studentId }
+              : {}),
             ...(data.levelId !== undefined ? { levelId: data.levelId } : {}),
             ...(data.sectionId !== undefined
               ? { sectionId: data.sectionId }

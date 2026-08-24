@@ -1,10 +1,14 @@
 // frontend/src/components/admin/data-seeder/SeederCard.tsx
 "use client";
 
-import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database } from "lucide-react";
+import { useEffect } from "react";
+import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, pickCardColor } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useNavigationGuard } from "@/context/NavigationGuardContext";
+import { useSchoolProfile } from "@/hooks/admin/useSchoolProfile"
+import { useEffectiveSeedData } from "./hooks/useEffectiveSeedData"
 
 import { SchoolYearStep } from "./SchoolYearStep";
 import { ProgramStep } from "./ProgramStep";
@@ -37,6 +41,11 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
 }
 
 export function SeederCard() {
+  const { data: savedProfileDepartments = [] } = useSchoolProfile();
+  const overrides = useEffectiveSeedData(savedProfileDepartments);
+  const hasPreset = savedProfileDepartments.length > 0
+  const allowedProgramTypes = hasPreset ? new Set(savedProfileDepartments.map((d) => d.type)) : null
+
   const {
     schoolYears,
     syLoading,
@@ -49,6 +58,7 @@ export function SeederCard() {
     createSchoolYearMutation,
     seedMutation,
     handleSeed,
+    handleApplyPreset,
     summaryText,
     summaryItems,
     derivedSelectedLevels,
@@ -68,6 +78,12 @@ export function SeederCard() {
     renameLevelAt,
     sectionConfigs,
     setSectionsForLevel,
+    selectedLevelKeys,
+    selectedSectionKeys,
+    toLevelKey,
+    toSectionKey,
+    toggleLevelKey,
+    toggleSectionKey,
     seedGradingScale,
     setSeedGradingScale,
     gradingScaleByProgram,
@@ -86,7 +102,35 @@ export function SeederCard() {
     initProgramCalendar,
     updateProgramCalendar,
     selectedSchoolYear,
-  } = useSeederCard();
+      existingGradingScaleNames,
+  existingGradingSchemeNames,
+  existingSemesterTemplateNames,
+  } = useSeederCard(overrides);
+
+  // ===== Navigation guard: don't let the user silently lose an in-progress
+  // seed by clicking away in the sidebar. "In progress" = at least one
+  // department has been selected — matches the point where real, non-trivial
+  // choices start piling up (levels, sections, subjects, calendars, etc. all
+  // key off the selected departments).
+  const { setGuard } = useNavigationGuard();
+
+  useEffect(() => {
+    setGuard(() => selectedPrograms.size > 0);
+    return () => setGuard(null);
+  }, [selectedPrograms, setGuard]);
+
+  // Same protection for tab close / refresh / typed-URL navigation, which the
+  // sidebar guard can't catch since it only intercepts our own <Link> clicks.
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (selectedPrograms.size > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [selectedPrograms]);
 
   return (
     <>
@@ -109,7 +153,38 @@ export function SeederCard() {
             !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
           )}
         >
-          {/* Programs */}
+          {/* Apply Preset — only when a preset exists and the selected school year is fresh (no seeded departments yet) */}
+          {selectedSchoolYearId && savedProfileDepartments.length > 0 && existingProgramTypes.size === 0 && (
+            <Card id="preset" icon={Sparkles} title="Apply Preset">
+              <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Preset available from School Profile</p>
+                  <p className="text-xs text-muted-foreground not-interactive">
+                    This school year has no data yet. Apply your saved preset ({savedProfileDepartments.map((d) => d.type).join(", ")}) to seed departments, levels, sections and subjects in one click.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => handleApplyPreset(savedProfileDepartments)}
+                  disabled={seedMutation.isPending}
+                  className="shrink-0 gap-1.5"
+                >
+                  {seedMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Applying...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Apply Preset
+                    </>
+                  )}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Programs — when preset exists, only its departments are selectable */}
           <Card id="programs" icon={Layers} title="Departments">
             <ProgramStep
               selectedPrograms={selectedPrograms}
@@ -117,11 +192,40 @@ export function SeederCard() {
               onToggleProgram={helpers.toggleProgram}
               onSelectAllPrograms={helpers.selectAllPrograms}
               onDeselectAllPrograms={helpers.deselectAllPrograms}
+              allowedProgramTypes={allowedProgramTypes}
             />
           </Card>
 
-          {/* Levels */}
-          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
+          {/* Strands (SHS) — before Levels because Levels depend on selected Strands */}
+          {selectedPrograms.has("shs") && (
+            <Card id="strands" icon={BookOpen} title="SHS Strands">
+              <StrandStep
+                selectedStrands={selectedStrands}
+                disabledStrandNames={existingStrandNames}
+                onToggleStrand={helpers.toggleStrand}
+                onSelectAllStrands={helpers.selectAllStrands}
+                onDeselectAllStrands={helpers.deselectAllStrands}
+                strandsOverride={overrides.shsStrands}
+              />
+            </Card>
+          )}
+
+          {/* Courses (College) — before Levels because Levels depend on selected Courses (e.g. BSA 5yr vs 4yr) */}
+          {selectedPrograms.has("college") && (
+            <Card id="courses" icon={BookOpen} title="College Courses">
+              <CourseStep
+                selectedCourses={selectedCourses}
+                disabledCourseCodes={existingCourseCodes}
+                onToggleCourse={helpers.toggleCourse}
+                onSelectAllCourses={helpers.selectAllCourses}
+                onDeselectAllCourses={helpers.deselectAllCourses}
+                coursesOverride={overrides.collegeCourses}
+              />
+            </Card>
+          )}
+
+          {/* Levels — also show when an override defines levels for a program; seeder is read-only (select/unselect only, edit in Configure) */}
+          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="levels" icon={LayoutList} title="Levels">
               <LevelStep
                 selectedPrograms={selectedPrograms}
@@ -131,12 +235,19 @@ export function SeederCard() {
                 levelConfigs={levelConfigs}
                 onSetCount={setLevelCount}
                 onRenameAt={renameLevelAt}
+                coursesOverride={overrides.collegeCourses}
+                strandsOverride={overrides.shsStrands}
+                levelDefsOverride={overrides.levelDefsByEntity}
+                readOnly
+                selectedLevelKeys={selectedLevelKeys}
+                onToggleLevel={toggleLevelKey}
+                toLevelKey={toLevelKey}
               />
             </Card>
           )}
 
-          {/* Sections */}
-          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
+          {/* Sections — after Levels; read-only */}
+          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="sections" icon={Scale} title="Sections">
               <SectionStep
                 selectedPrograms={selectedPrograms}
@@ -145,32 +256,16 @@ export function SeederCard() {
                 levelConfigs={levelConfigs}
                 sectionConfigs={sectionConfigs}
                 onSetSections={setSectionsForLevel}
-              />
-            </Card>
-          )}
-
-          {/* Strands (SHS) */}
-          {selectedPrograms.has("shs") && (
-            <Card id="strands" icon={BookOpen} title="SHS Strands">
-              <StrandStep
-                selectedStrands={selectedStrands}
-                disabledStrandNames={existingStrandNames}
-                onToggleStrand={helpers.toggleStrand}
-                onSelectAllStrands={helpers.selectAllStrands}
-                onDeselectAllStrands={helpers.deselectAllStrands}
-              />
-            </Card>
-          )}
-
-          {/* Courses (College) */}
-          {selectedPrograms.has("college") && (
-            <Card id="courses" icon={BookOpen} title="College Courses">
-              <CourseStep
-                selectedCourses={selectedCourses}
-                disabledCourseCodes={existingCourseCodes}
-                onToggleCourse={helpers.toggleCourse}
-                onSelectAllCourses={helpers.selectAllCourses}
-                onDeselectAllCourses={helpers.deselectAllCourses}
+                coursesOverride={overrides.collegeCourses}
+                strandsOverride={overrides.shsStrands}
+                levelDefsOverride={overrides.levelDefsByEntity}
+                sectionsOverride={overrides.sectionsByLevelName}
+                readOnly
+                selectedLevelKeys={selectedLevelKeys}
+                selectedSectionKeys={selectedSectionKeys}
+                onToggleSection={toggleSectionKey}
+                toLevelKey={toLevelKey}
+                toSectionKey={toSectionKey}
               />
             </Card>
           )}
@@ -188,6 +283,10 @@ export function SeederCard() {
               onSelectAllForGroup={helpers.selectAllForGroup}
               onDeselectAllForGroup={helpers.deselectAllForGroup}
               allSelectableSubjects={allSelectableSubjects}
+              levelSubjectsOverride={overrides.levelSubjectsByLevelName}
+              courseSubjectsOverride={overrides.courseSubjectsByCode}
+              strandSubjectsOverride={overrides.strandSubjectsByName}
+              levelDefsOverride={overrides.levelDefsByEntity}
             />
           </Card>
 
@@ -199,6 +298,7 @@ export function SeederCard() {
                   selectedPrograms={selectedPrograms}
                   seedGradingScale={seedGradingScale}
                   gradingScaleByProgram={gradingScaleByProgram}
+                  disabledScaleNames={existingGradingScaleNames}
                   onToggleSeed={setSeedGradingScale}
                   onSelectPreset={setGradingScaleForProgram}
                 />
@@ -209,6 +309,7 @@ export function SeederCard() {
                   selectedPrograms={selectedPrograms}
                   seedGradingSchemes={seedGradingSchemes}
                   gradingSchemesByProgram={gradingSchemesByProgram}
+                  disabledSchemeNames={existingGradingSchemeNames}
                   onToggleSeed={setSeedGradingSchemes}
                   onToggleScheme={toggleGradingScheme}
                 />
@@ -233,6 +334,9 @@ export function SeederCard() {
                   selectedPrograms={selectedPrograms}
                   seedSemesterTemplates={seedSemesterTemplates}
                   semesterTemplatesByProgram={semesterTemplatesByProgram}
+                  seedProgramCalendars={seedProgramCalendars}
+                  programCalendarConfigs={programCalendarConfigs}
+                  disabledTemplateNames={existingSemesterTemplateNames}
                   onToggleSeed={setSeedSemesterTemplates}
                   onToggleTemplate={toggleSemesterTemplate}
                 />

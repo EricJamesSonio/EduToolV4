@@ -1,12 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { AxiosError } from "axios";
 
-import { educatorApi, type UpdateEducatorRequest } from "@/api/admin/educator.api";
+import { useUpdateEducator } from "@/hooks/admin/useEducators";
 import type { Educator } from "@/types/admin/educator.types";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import apiClient from "@/api/client";
@@ -25,12 +23,19 @@ interface Props {
 }
 
 interface FormValues {
-  fullName: string;
-  email:    string;
+  fullName:   string;
+  emailLocal: string;
+  educatorId: string;
 }
 
 function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function splitEmail(email: string): { local: string; domain: string } {
+  const atIndex = email.indexOf("@");
+  if (atIndex === -1) return { local: email, domain: "" };
+  return { local: email.slice(0, atIndex), domain: email.slice(atIndex + 1) };
 }
 
 export function EditEducatorDialog({
@@ -38,9 +43,14 @@ export function EditEducatorDialog({
   educator,
   onClose,
 }: Props): React.JSX.Element {
-  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const [localProfileImage, setLocalProfileImage] = useState<
+    string | null | undefined
+  >(educator.profileImage);
+
+  const { domain } = splitEmail(educator.email);
+  const updateMutation = useUpdateEducator();
 
   const {
     register,
@@ -49,31 +59,24 @@ export function EditEducatorDialog({
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      fullName: educator.fullName,
-      email:    educator.email,
+      fullName:   educator.fullName,
+      emailLocal: splitEmail(educator.email).local,
+      educatorId: educator.educatorId ?? educator.educatorCode ?? "",
     },
   });
 
   useEffect(() => {
-    reset({ fullName: educator.fullName, email: educator.email });
+    reset({
+      fullName:   educator.fullName,
+      emailLocal: splitEmail(educator.email).local,
+      educatorId: educator.educatorId ?? educator.educatorCode ?? "",
+    });
+    setLocalProfileImage(educator.profileImage);
   }, [educator, reset]);
-
-  const mutation = useMutation({
-    mutationFn: (data: UpdateEducatorRequest) =>
-      educatorApi.update(educator.id, data),
-    onSuccess: () => {
-      toast.success("Educator updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "educators", educator.id] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "educators"] });
-      onClose();
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to update educator.");
-    },
-  });
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
 
     setImageUploading(true);
@@ -81,26 +84,43 @@ export function EditEducatorDialog({
       const formData = new FormData();
       formData.append("file", file);
 
-      const { data } = await apiClient.post<{ path: string }>(
+      const { data: body } = await apiClient.post<{ success: boolean; data: { path: string } }>(
         "/uploads/profile",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
+      const path: string | undefined = (body as unknown as { path?: string })?.path ?? body.data?.path;
+      if (!path) throw new Error("Upload did not return a file path");
 
-      await educatorApi.update(educator.id, { profileImage: data.path });
-      toast.success("Profile photo updated");
-      queryClient.invalidateQueries({ queryKey: ["admin", "educators", educator.id] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "educators"] });
+      const updated = await updateMutation.mutateAsync({
+        id: educator.id,
+        data: { profileImage: path },
+      });
+      setLocalProfileImage(updated.profileImage ?? path);
     } catch {
+      // useUpdateEducator's onError already surfaces a toast for update
+      // failures; this catch only exists so the upload-step rejection
+      // (before the mutation even runs) doesn't go unhandled.
       toast.error("Failed to upload profile photo");
     } finally {
       setImageUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
-  function onSubmit(values: FormValues) {
-    mutation.mutate({ fullName: values.fullName, email: values.email });
+  async function onSubmit(values: FormValues) {
+    const email = domain ? `${values.emailLocal}@${domain}` : values.emailLocal;
+    try {
+      await updateMutation.mutateAsync({
+        id: educator.id,
+        data: {
+          fullName:   values.fullName,
+          email,
+        },
+      });
+      onClose();
+    } catch {
+      // handled by useUpdateEducator's onError toast
+    }
   }
 
   return (
@@ -109,7 +129,7 @@ export function EditEducatorDialog({
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               <Avatar className="h-14 w-14">
-                <AvatarImage src={getProfileImageUrl(educator.profileImage)} alt={educator.fullName} />
+                <AvatarImage src={getProfileImageUrl(localProfileImage)} alt={educator.fullName} />
                 <AvatarFallback className="text-base font-semibold bg-primary/10 text-primary">
                   {getInitials(educator.fullName)}
                 </AvatarFallback>
@@ -144,6 +164,17 @@ export function EditEducatorDialog({
 
           <div className="space-y-4">
             <div className="space-y-1.5">
+              <Label htmlFor="educatorId">Educator ID</Label>
+              <Input
+                id="educatorId"
+                {...register("educatorId", { required: "Educator ID is required" })}
+              />
+              {errors.educatorId && (
+                <p className="text-xs text-destructive">{errors.educatorId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="fullName">Full Name</Label>
               <Input
                 id="fullName"
@@ -155,14 +186,27 @@ export function EditEducatorDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register("email", { required: "Email is required" })}
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
+              <Label htmlFor="emailLocal">Email</Label>
+              <div className="flex items-stretch">
+                <Input
+                  id="emailLocal"
+                  className="rounded-r-none"
+                  {...register("emailLocal", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^[a-zA-Z0-9._-]+$/,
+                      message: "Only letters, numbers, dots, underscores and hyphens allowed",
+                    },
+                  })}
+                />
+                {domain && (
+                  <span className="flex items-center whitespace-nowrap rounded-r-md border border-l-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                    @{domain}
+                  </span>
+                )}
+              </div>
+              {errors.emailLocal && (
+                <p className="text-xs text-destructive">{errors.emailLocal.message}</p>
               )}
             </div>
           </div>
@@ -172,15 +216,15 @@ export function EditEducatorDialog({
           <Button
             variant="outline"
             onClick={onClose}
-            disabled={mutation.isPending}
+            disabled={updateMutation.isPending}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit(onSubmit)}
-            disabled={mutation.isPending}
+            disabled={updateMutation.isPending}
           >
-            {mutation.isPending ? "Saving..." : "Save Changes"}
+            {updateMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </ModalFooter>
     </Modal>

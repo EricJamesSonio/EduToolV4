@@ -16,6 +16,7 @@ import {
   UpdateSchoolYearEnrollmentDto,
   EnrollStudentProgramDto,
   UpdateProgramEnrollmentDto,
+  RemoveProgramEnrollmentDto,
   PaginatedEnrollmentQueryDto,
 } from './dto/student-enrollment.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
@@ -124,11 +125,13 @@ export class StudentEnrollmentController {
   removeProgramEnrollment(
     @Param('programEnrollmentId') programEnrollmentId: string,
     @CurrentUser() user: { org_id: string; id: string },
+    @Body() dto?: RemoveProgramEnrollmentDto,
   ) {
     return this.service.removeProgramEnrollment(
       programEnrollmentId,
       user.org_id,
       user.id,
+      dto,
     );
   }
 }

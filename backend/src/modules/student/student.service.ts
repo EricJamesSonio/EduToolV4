@@ -267,7 +267,6 @@ export class StudentService {
     return this.formatAccount(account as Record<string, any>);
   }
 
-  // actorId added — the admin performing the action, threaded from controller
   async update(
     id: string,
     orgId: string,
@@ -289,6 +288,23 @@ export class StudentService {
       }
     }
 
+    if (dto.studentId) {
+      const currentMeta = this.extractMeta(account as Record<string, any>);
+      const currentStudentId = currentMeta['studentId'] as string | undefined;
+
+      if (dto.studentId !== currentStudentId) {
+        const idTaken = await this.studentRepository.findByStudentId(
+          dto.studentId,
+          orgId,
+        );
+        if (idTaken && idTaken.account_id !== id) {
+          throw new ConflictException(
+            'A student with this Student ID already exists in the organization.',
+          );
+        }
+      }
+    }
+
     if (dto.sectionId) {
       const section = await this.sectionService.findById(dto.sectionId, orgId);
       const currentCount = await this.sectionService.countStudentsInSection(
@@ -304,6 +320,7 @@ export class StudentService {
     const updated = await this.studentRepository.updateProfile(id, {
       fullName: dto.fullName,
       email: dto.email,
+      studentId: dto.studentId,
       levelId: dto.levelId,
       sectionId: dto.sectionId,
       profileImage: dto.profileImage,

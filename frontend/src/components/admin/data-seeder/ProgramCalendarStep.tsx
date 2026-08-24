@@ -7,7 +7,12 @@ import { BreakEditor } from "@/components/admin/academic-calendar/BreakEditor"
 import { SEMESTER_TEMPLATES } from "./constants/seed-data"
 import { EnableToggle } from "./ui/EnableToggle"
 import { ProgramPanel } from "./ui/ProgramPanel"
-import type { ProgramCalendarDraft } from "./hooks/useSeedState"
+import {
+  getBreakCount,
+  isCalendarConfigured,
+  MIN_CALENDAR_PERIODS,
+  type ProgramCalendarDraft,
+} from "./hooks/useSeedState"
 
 interface ProgramCalendarStepProps {
   selectedPrograms:           Set<string>
@@ -62,24 +67,24 @@ export function ProgramCalendarStep({
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">
-            Set up each department&apos;s calendar. Define the number of semester periods and
-            their date ranges — the semester template will be auto-generated with one semester
-            per period, so the two are always in sync.
+            Set up each department&apos;s calendar. Define at least {MIN_CALENDAR_PERIODS}{" "}
+            semester periods and their date ranges — the semester template will be auto-generated
+            with one semester per period, so the two are always in sync.
           </p>
 
           {programs.map((prog) => {
             const config = programCalendarConfigs[prog]
             const template = SEMESTER_TEMPLATES.find((t) => t.programType === prog)
             const templateEnabled = semesterTemplatesByProgram[prog] !== false
-            const breakCount =
-              config?.breaks.filter((b) => b.startDate && b.endDate).length ?? 0
+            const breakCount = getBreakCount(config)
+            const configured = isCalendarConfigured(config)
 
             return (
               <ProgramPanel
                 key={prog}
                 program={prog}
                 badge={
-                  <Badge variant={breakCount > 0 ? "outline" : "secondary"} className="text-xs font-normal">
+                  <Badge variant={configured ? "outline" : "secondary"} className="text-xs font-normal">
                     {breakCount > 0 ? `${breakCount} period(s)` : "No periods"}
                   </Badge>
                 }
@@ -126,7 +131,7 @@ export function ProgramCalendarStep({
                   <p className="text-xs text-muted-foreground not-interactive">
                     Each period is a semester teaching block for this department. The semester
                     template for this department is auto-generated to match the number of periods
-                    (one semester per period).
+                    (one semester per period, minimum {MIN_CALENDAR_PERIODS}).
                   </p>
                   <BreakEditor
                     breaks={config?.breaks ?? []}
@@ -136,11 +141,21 @@ export function ProgramCalendarStep({
                   />
                 </div>
 
-                {template && templateEnabled && breakCount > 0 && (
+                {template && templateEnabled && configured && (
                   <div className="rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-2">
                     <p className="text-xs text-emerald-600 not-interactive">
                       {breakCount} period(s) — the {template.name} will be auto-generated with{" "}
                       {breakCount} semester(s) and auto-registered for this department.
+                    </p>
+                  </div>
+                )}
+
+                {template && templateEnabled && !configured && breakCount > 0 && (
+                  <div className="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+                    <p className="text-xs text-amber-600 not-interactive">
+                      At least {MIN_CALENDAR_PERIODS} complete periods are needed before the
+                      semester template can be generated for this department — {breakCount} of{" "}
+                      {MIN_CALENDAR_PERIODS} set.
                     </p>
                   </div>
                 )}

@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import {
   SchoolYearEnrollmentStatus,
-  EnrollmentStatus,
+  ProgramEnrollmentStatus,
+  ProgramEnrollmentEndReason,
   Prisma,
 } from '@prisma/client';
 
@@ -178,7 +179,8 @@ export class StudentEnrollmentRepository {
         course_id: data.course_id ?? null,
         strand_id: data.strand_id ?? null,
         section_id: data.section_id ?? null,
-        status: EnrollmentStatus.active,
+        status: ProgramEnrollmentStatus.active,
+        ...(data.section_id ? { section_assigned_at: new Date() } : {}),
       },
       include: {
         program: true,
@@ -205,7 +207,10 @@ export class StudentEnrollmentRepository {
         ...(data.level_id !== undefined && { level_id: data.level_id }),
         ...(data.course_id !== undefined && { course_id: data.course_id }),
         ...(data.strand_id !== undefined && { strand_id: data.strand_id }),
-        ...(data.section_id !== undefined && { section_id: data.section_id }),
+        ...(data.section_id !== undefined && {
+          section_id: data.section_id,
+          section_assigned_at: data.section_id ? new Date() : null,
+        }),
       },
       include: {
         program: true,
@@ -217,7 +222,19 @@ export class StudentEnrollmentRepository {
     });
   }
 
-  removeProgramEnrollment(id: string) {
-    return this.db.studentProgramEnrollment.delete({ where: { id } });
+  removeProgramEnrollment(
+    id: string,
+    actorId: string,
+    reason?: ProgramEnrollmentEndReason,
+  ) {
+    return this.db.studentProgramEnrollment.update({
+      where: { id },
+      data: {
+        status: ProgramEnrollmentStatus.ended,
+        end_reason: reason ?? ProgramEnrollmentEndReason.admin_correction,
+        ended_at: new Date(),
+        ended_by: actorId,
+      },
+    });
   }
 }

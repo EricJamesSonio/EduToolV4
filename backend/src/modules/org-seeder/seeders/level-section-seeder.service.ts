@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
-import { buildLevelDefs } from '../data/levels.data';
+import { buildLevelDefs, type LevelDef } from '../data/levels.data';
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
 
@@ -9,48 +9,75 @@ export class LevelSectionSeederService {
   constructor(private readonly db: DatabaseService) {}
 
   async seed(ctx: SeedContext): Promise<void> {
-    const defaultDefs = buildLevelDefs().filter((l) =>
-      ctx.shouldSeedProgram(l.programKey),
-    );
-    const programKeys = [...new Set(defaultDefs.map((l) => l.programKey))];
+    const programKeysToProcess = new Set<string>();
 
-    for (const progKey of programKeys) {
+    for (const progKey of ['daycare', 'kinder', 'elementary', 'jhs', 'shs', 'college']) {
+      if (ctx.shouldSeedProgram(progKey) && ctx.programMap[progKey]) {
+        programKeysToProcess.add(progKey);
+      }
+    }
+
+    for (const progKey of programKeysToProcess) {
       const programId = ctx.programMap[progKey];
-      if (!programId) continue;
+      const profile = ctx.profileDepartments[progKey];
+
+      const defaultDefs: LevelDef[] = profile
+        ? this.levelDefsFromProfile(profile, progKey)
+        : buildLevelDefs().filter((l) => l.programKey === progKey);
 
       const customNames = ctx.levelConfigs[progKey];
       const levelNames = customNames?.length
         ? customNames
-        : defaultDefs
-            .filter((l) => l.programKey === progKey)
-            .map((l) => l.name);
+        : defaultDefs.filter((l) => l.programKey === progKey).map((l) => l.name);
 
       if (progKey === 'college') {
-        await this.seedCollegeLevelsSections(
-          ctx,
-          progKey,
-          programId,
-          defaultDefs,
-          levelNames,
-        );
+        await this.seedCollegeLevelsSections(ctx, progKey, programId, defaultDefs, levelNames);
       } else if (progKey === 'shs') {
-        await this.seedShsLevelsSections(
-          ctx,
-          progKey,
-          programId,
-          defaultDefs,
-          levelNames,
-        );
+        await this.seedShsLevelsSections(ctx, progKey, programId, defaultDefs, levelNames);
       } else {
-        await this.seedOtherLevelsSections(
-          ctx,
-          progKey,
-          programId,
-          defaultDefs,
-          levelNames,
-        );
+        await this.seedOtherLevelsSections(ctx, progKey, programId, defaultDefs, levelNames);
       }
     }
+  }
+
+    private levelDefsFromProfile(
+    profile: SeedContext['profileDepartments'][string],
+    progKey: string,
+  ): LevelDef[] {
+    if (!profile) return [];
+    const defs: LevelDef[] = [];
+
+    for (const course of profile.courses) {
+      for (const level of course.levels) {
+        defs.push({
+          programKey: progKey,
+          courseCode: course.code ?? course.name,
+          name: level.name,
+          sections: level.sections.map((s) => ({ name: s.name, capacity: s.capacity })),
+        });
+      }
+    }
+
+    for (const strand of profile.strands) {
+      for (const level of strand.levels) {
+        defs.push({
+          programKey: progKey,
+          strandCode: strand.name,
+          name: level.name,
+          sections: level.sections.map((s) => ({ name: s.name, capacity: s.capacity })),
+        });
+      }
+    }
+
+    for (const level of profile.levels) {
+      defs.push({
+        programKey: progKey,
+        name: level.name,
+        sections: level.sections.map((s) => ({ name: s.name, capacity: s.capacity })),
+      });
+    }
+
+    return defs;
   }
 
   private async seedCollegeLevelsSections(

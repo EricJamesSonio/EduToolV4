@@ -81,6 +81,22 @@ export class ProgramController {
     return this.programService.findAllWithStats(orgId, query.schoolYearId);
   }
 
+  // NEW — for the Classes page "All Departments" semester filter.
+  // Must stay above `@Get(':id')` and `@Get(':id/semesters')`, since Nest
+  // matches routes in declaration order and "semesters" would otherwise be
+  // swallowed as an :id param.
+  @Get('semesters/grouped')
+  async getSemestersGroupedByProgram(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId: string,
+  ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context');
+    }
+
+    return this.programService.getSemestersGroupedByProgram(orgId, schoolYearId);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     if (!orgId) {

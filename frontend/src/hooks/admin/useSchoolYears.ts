@@ -10,16 +10,24 @@ import { programApi } from "@/api/admin/program.api";
 import { sectionApi } from "@/api/admin/section.api";
 import { courseApi } from "@/api/admin/course.api";
 
+import { queryKeys } from "@/hooks/queryKeys.factory";
+
 import type {
   SchoolYear,
 } from "@/types/admin/school-year.types";
 
-const schoolYearKeys = {
-  schoolYears: {
-    all: () =>
-      ["admin", "school-years"] as const,
-  },
-
+// NOTE: School-year keys now come exclusively from the centralized
+// `queryKeys` factory (queryKeys.admin.schoolYears.*) instead of a local,
+// hand-rolled key set. The previous local keys ("admin","school-years")
+// used a different string/shape than the factory's ("admin","schoolYears"),
+// so mutations elsewhere in the app (e.g. CreateSchoolYearDialog, which
+// invalidates via the factory) never matched this query's key and the
+// selector never refetched without a full page reload.
+//
+// The remaining scoped keys (programs/sections/courses by school year) are
+// left as local keys since nothing else in the app invalidates them via the
+// factory today — changing them is out of scope for this fix.
+const scopedKeys = {
   programs: (
     schoolYearId: string | null,
   ) =>
@@ -61,7 +69,7 @@ const schoolYearKeys = {
 
 export const useSchoolYears = () => {
   return useAsyncQuery<SchoolYear[]>(
-    schoolYearKeys.schoolYears.all(),
+    queryKeys.admin.schoolYears.list(),
     schoolYearApi.getAll,
   );
 };
@@ -74,9 +82,7 @@ export const useCreateSchoolYear =
 
       {
         invalidateKeys: [
-          schoolYearKeys
-            .schoolYears
-            .all(),
+          queryKeys.admin.schoolYears.all,
         ],
       },
     );
@@ -90,9 +96,7 @@ export const useActivateSchoolYear =
 
       {
         invalidateKeys: [
-          schoolYearKeys
-            .schoolYears
-            .all(),
+          queryKeys.admin.schoolYears.all,
         ],
       },
     );
@@ -106,9 +110,7 @@ export const useEndSchoolYear =
 
       {
         invalidateKeys: [
-          schoolYearKeys
-            .schoolYears
-            .all(),
+          queryKeys.admin.schoolYears.all,
         ],
       },
     );
@@ -122,9 +124,7 @@ export const useDeleteSchoolYear =
 
       {
         invalidateKeys: [
-          schoolYearKeys
-            .schoolYears
-            .all(),
+          queryKeys.admin.schoolYears.all,
         ],
       },
     );
@@ -137,7 +137,7 @@ export const usePrograms = (
   schoolYearId: string | null,
 ) => {
   return useAsyncQuery(
-    schoolYearKeys.programs(
+    scopedKeys.programs(
       schoolYearId,
     ),
 
@@ -161,7 +161,7 @@ export const useSections = (
   strandId?: string,
 ) => {
   return useAsyncQuery(
-    schoolYearKeys.sections(
+    scopedKeys.sections(
       schoolYearId,
       levelId,
       courseId,
@@ -189,7 +189,7 @@ export const useCourses = (
   programId?: string,
 ) => {
   return useAsyncQuery(
-    schoolYearKeys.courses(
+    scopedKeys.courses(
       schoolYearId,
       programId,
     ),

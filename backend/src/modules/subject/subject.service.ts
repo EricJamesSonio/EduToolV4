@@ -1,11 +1,10 @@
-// ===== File: backend\src\modules\subject\subject.service.ts =====
-// filepath: src/modules/subject/subject.service.ts
-// FIXED VERSION - typed repository results to remove @typescript-eslint/no-unsafe-* warnings
+// filepath: backend/src/modules/subject/subject.service.ts
 
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { SubjectRepository } from './subject.repository';
 import {
@@ -14,144 +13,20 @@ import {
   QuerySubjectDto,
   ShareSubjectDto,
 } from './dto/subject.dto';
-
-/**
- * NOTE: SubjectRepository does not currently declare typed return values,
- * so every value read from it comes back as `any`. Until the repository
- * itself is typed (e.g. via Prisma's generated types), the shapes below
- * describe what this service actually reads off those results, and are
- * used to cast repository responses at the call site.
- */
-interface SubjectProgramRelation {
-  name: string | null;
-  type: string | null;
-}
-
-interface SubjectRecord {
-  id: string;
-  org_id: string;
-  name: string;
-  subject_type: string | null;
-  program_id: string | null;
-  program: SubjectProgramRelation | null;
-  level_id: string | null;
-  levelName: string | null;
-  course_id: string | null;
-  courseName: string | null;
-  strand_id: string | null;
-  strandName: string | null;
-  is_locked: boolean;
-  year_level: number | string | null;
-  term_label: string | null;
-  prerequisites: unknown[];
-  prereqFor: unknown[];
-  sharings: unknown[];
-  created_at: Date | string | null;
-  updated_at: Date | string | null;
-}
-
-interface ProgramRecord {
-  id: string;
-  type: string;
-}
-
-interface CourseRecord {
-  id: string;
-  program_id: string;
-}
-
-interface StrandRecord {
-  id: string;
-  program_id: string;
-}
-
-interface LevelRecord {
-  id: string;
-  program_id: string;
-}
-
-export interface SubjectResponse {
-  id: string;
-  orgId: string;
-  title: string;
-  subjectType: string;
-  programId: string | null;
-  programName: string | null;
-  programType: string | null;
-  realProgramId: string | null;
-  levelId: string | null;
-  levelName: string | null;
-  courseId: string | null;
-  courseName: string | null;
-  strandId: string | null;
-  strandName: string | null;
-  lockStatus: 'locked' | 'unlocked';
-  yearLevel: number | string | null;
-  termLabel: string | null;
-  prerequisites: unknown[];
-  prereqFor: unknown[];
-  sharings: unknown[];
-  createdAt: Date | string | null;
-  updatedAt: Date | string | null;
-}
+import {
+  SubjectRecord,
+  ProgramRecord,
+  CourseRecord,
+  StrandRecord,
+  LevelRecord,
+  SubjectResponse,
+} from './subject.types';
+import { mapSubjectToResponse } from './subject.mapper';
+import { validateSubjectScope } from './subject.validator';
 
 @Injectable()
 export class SubjectService {
   constructor(private readonly subjectRepository: SubjectRepository) {}
-
-  private mapToResponse(subject: SubjectRecord): SubjectResponse {
-    return {
-      id: subject.id,
-      orgId: subject.org_id,
-      title: subject.name,
-      subjectType: subject.subject_type ?? 'major',
-      programId: subject.program_id ?? null,
-      programName: subject.program?.name ?? null,
-      programType: subject.program?.type ?? null,
-      realProgramId: subject.program_id ?? null,
-      levelId: subject.level_id ?? null,
-      levelName: subject.levelName ?? null,
-      courseId: subject.course_id ?? null,
-      courseName: subject.courseName ?? null,
-      strandId: subject.strand_id ?? null,
-      strandName: subject.strandName ?? null,
-      lockStatus: subject.is_locked ? 'locked' : 'unlocked',
-      yearLevel: subject.year_level ?? null,
-      termLabel: subject.term_label ?? null,
-      prerequisites: subject.prerequisites ?? [],
-      prereqFor: subject.prereqFor ?? [],
-      sharings: subject.sharings ?? [],
-      createdAt: subject.created_at ?? null,
-      updatedAt: subject.updated_at ?? null,
-    };
-  }
-
-  private validateSubjectScope(
-    dto: CreateSubjectDto,
-    programType: string,
-  ): void {
-    const type = dto.subjectType ?? 'major';
-
-    if (type === 'major') {
-      const isCourse = programType === 'college';
-      const isStrand = programType === 'shs';
-
-      if (isCourse && !dto.courseId) {
-        throw new BadRequestException(
-          'Major subjects under a college program require a courseId.',
-        );
-      }
-      if (isStrand && !dto.strandId) {
-        throw new BadRequestException(
-          'Major subjects under a SHS program require a strandId.',
-        );
-      }
-    }
-
-    if (type === 'minor' && !dto.levelId) {
-      throw new BadRequestException('Minor subjects must specify a levelId.');
-    }
-  }
 
   async create(orgId: string, dto: CreateSubjectDto): Promise<SubjectResponse> {
     const program = (await this.subjectRepository.findProgramById(
@@ -160,7 +35,20 @@ export class SubjectService {
     )) as ProgramRecord | null;
     if (!program) throw new NotFoundException('Program not found.');
 
-    this.validateSubjectScope(dto, program.type);
+    validateSubjectScope(dto, program.type);
+
+    const existingSubject = await this.subjectRepository.findDuplicateByName(
+      orgId,
+      dto.name,
+      dto.programId,
+      dto.levelId,
+      dto.subjectType,
+    );
+    if (existingSubject) {
+      throw new ConflictException(
+        'Subject already exists for this program and level.',
+      );
+    }
 
     const subject = (await this.subjectRepository.create({
       orgId,
@@ -173,7 +61,7 @@ export class SubjectService {
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
     })) as SubjectRecord;
-    return this.mapToResponse(subject);
+    return mapSubjectToResponse(subject);
   }
 
   async findAll(
@@ -202,7 +90,7 @@ export class SubjectService {
     });
 
     return {
-      data: data.map((s) => this.mapToResponse(s)),
+      data: data.map((s) => mapSubjectToResponse(s)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -213,7 +101,7 @@ export class SubjectService {
       orgId,
     )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
-    return this.mapToResponse(subject);
+    return mapSubjectToResponse(subject);
   }
 
   async update(
@@ -238,9 +126,6 @@ export class SubjectService {
       !!dto.subjectType && dto.subjectType !== subject.subject_type;
     const scopeChanged = programChanged || typeChanged;
 
-    // When the subject is reassigned to another department (or its type
-    // changes), re-validate that the required course/strand/level are provided
-    // for the target program type.
     if (scopeChanged) {
       const targetProgramId = dto.programId ?? subject.program_id;
       if (!targetProgramId) {
@@ -254,7 +139,8 @@ export class SubjectService {
         orgId,
       )) as ProgramRecord | null;
       if (!program) throw new NotFoundException('Program not found.');
-      this.validateSubjectScope(
+
+      validateSubjectScope(
         {
           subjectType: dto.subjectType ?? subject.subject_type ?? undefined,
           courseId: dto.courseId,
@@ -265,8 +151,25 @@ export class SubjectService {
       );
     }
 
-    // Moving a subject to another department invalidates its existing
-    // course/strand/level sharings, so drop them to keep data consistent.
+    const nameToCheck = dto.name ?? subject.name;
+    const levelToCheck =
+      dto.levelId !== undefined ? dto.levelId : subject.level_id;
+    const typeToCheck = dto.subjectType ?? subject.subject_type ?? undefined;
+
+    const existingSubject = await this.subjectRepository.findDuplicateByName(
+      orgId,
+      nameToCheck,
+      dto.programId ?? subject.program_id ?? undefined,
+      levelToCheck,
+      typeToCheck,
+      id,
+    );
+    if (existingSubject) {
+      throw new ConflictException(
+        'Subject already exists for this program and level.',
+      );
+    }
+
     if (programChanged) {
       await this.subjectRepository.clearSharings(id, orgId);
     }
@@ -283,7 +186,7 @@ export class SubjectService {
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
     })) as SubjectRecord;
-    return this.mapToResponse(updated);
+    return mapSubjectToResponse(updated);
   }
 
   async lock(id: string, orgId: string): Promise<SubjectResponse> {
@@ -298,7 +201,7 @@ export class SubjectService {
       id,
       true,
     )) as SubjectRecord;
-    return this.mapToResponse(updated);
+    return mapSubjectToResponse(updated);
   }
 
   async unlock(id: string, orgId: string): Promise<SubjectResponse> {
@@ -313,7 +216,7 @@ export class SubjectService {
       id,
       false,
     )) as SubjectRecord;
-    return this.mapToResponse(updated);
+    return mapSubjectToResponse(updated);
   }
 
   async unlockAllForOrg(orgId: string) {
@@ -332,8 +235,6 @@ export class SubjectService {
       );
     }
 
-    // Raw record from the repository — same shape used by every other
-    // method in this file (snake_case), so we read it consistently here too.
     const rawSubject = (await this.subjectRepository.findById(
       id,
       orgId,
@@ -343,13 +244,11 @@ export class SubjectService {
     if (rawSubject.subject_type !== 'minor') {
       throw new BadRequestException('Only minor subjects can be shared.');
     }
-
     if (!rawSubject.program_id) {
       throw new BadRequestException(
         'Minor subject must have a programId before sharing.',
       );
     }
-
     if (!rawSubject.level_id) {
       throw new BadRequestException(
         'Minor subject must have a levelId before sharing.',

@@ -56,9 +56,7 @@ export function StudentListPanel({
   const programEnrolledStudentIds = useMemo(() => {
     const ids = new Set<string>();
     for (const e of allEnrollments) {
-      const hasActiveProgram = e.programEnrollments.some(
-        (pe) => pe.status === "active" || pe.status === "pending",
-      );
+      const hasActiveProgram = e.programEnrollments.some((pe) => pe.status === "active");
       if (hasActiveProgram) ids.add(e.student_id);
     }
     return ids;
@@ -143,7 +141,9 @@ export function StudentListPanel({
           {showSectionFilter && (
             <Select value={sectionFilter} onValueChange={(v) => { if (v !== null) setSectionFilter(v); }}>
               <SelectTrigger className="h-7 text-xs w-36">
-                <SelectValue placeholder="All Sections" />
+                <SelectValue placeholder="All Sections">
+                {availableSections.find((s) => s.id === sectionFilter)?.name ?? "All Sections"}
+              </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sections</SelectItem>

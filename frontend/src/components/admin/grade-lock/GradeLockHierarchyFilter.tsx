@@ -1,3 +1,4 @@
+// ===== File: frontend\src\components\admin\grade-lock\GradeLockHierarchyFilter.tsx =====
 "use client";
 
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
@@ -12,19 +13,12 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
-
 import { programApi } from "@/api/admin/program.api";
 import { courseApi } from "@/api/admin/course.api";
 import { strandApi } from "@/api/admin/strand.api";
 import { levelApi } from "@/api/admin/level.api";
 
-import type { SchoolYear } from "@/types/admin/school-year.types";
-
 interface GradeLockHierarchyFilterProps {
-  schoolYears: SchoolYear[];
-  schoolYearsLoading: boolean;
-
   selectedSchoolYearId: string;
   selectedProgram: string;
   selectedCourseStrand: string;
@@ -32,7 +26,6 @@ interface GradeLockHierarchyFilterProps {
 
   filteredCount: number;
 
-  onSchoolYearSelect: (id: string | null) => void;
   onProgramChange: (value: string) => void;
   onCourseStrandChange: (value: string) => void;
   onLevelChange: (value: string) => void;
@@ -40,14 +33,11 @@ interface GradeLockHierarchyFilterProps {
 }
 
 export function GradeLockHierarchyFilter({
-  schoolYears,
-  schoolYearsLoading,
   selectedSchoolYearId,
   selectedProgram,
   selectedCourseStrand,
   selectedLevel,
   filteredCount,
-  onSchoolYearSelect,
   onProgramChange,
   onCourseStrandChange,
   onLevelChange,
@@ -102,7 +92,7 @@ export function GradeLockHierarchyFilter({
     selectedProgram &&
     (!hasCourseStrand || selectedCourseStrand);
 
-  if (schoolYearsLoading || loadingPrograms) {
+  if (loadingPrograms) {
     return <Skeleton className="h-10 w-full" />;
   }
 
@@ -110,13 +100,6 @@ export function GradeLockHierarchyFilter({
     <div className="space-y-4">
 
       <div className="flex flex-wrap gap-3 items-center">
-
-        <SchoolYearSelector
-          schoolYears={schoolYears ?? []}
-          isLoading={schoolYearsLoading}
-          selectedId={selectedSchoolYearId}
-          onSelect={onSchoolYearSelect}
-        />
 
         {selectedSchoolYearId && (
           loadingPrograms ? (

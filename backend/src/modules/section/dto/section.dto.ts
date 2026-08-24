@@ -45,6 +45,22 @@ export class UpdateSectionDto {
   @IsInt()
   @Min(1)
   capacity?: number;
+
+  @IsOptional()
+  @IsUUID()
+  levelId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  schoolYearId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string;
 }
 
 export class QuerySectionDto {

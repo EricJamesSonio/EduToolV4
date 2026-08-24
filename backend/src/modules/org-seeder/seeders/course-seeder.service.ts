@@ -11,7 +11,12 @@ export class CourseSeederService {
   async seed(ctx: SeedContext): Promise<void> {
     if (!ctx.shouldSeedProgram('college') || !ctx.programMap['college']) return;
 
-    for (const c of [...COLLEGE_COURSES, ...BSED_MAJORS]) {
+    const profile = ctx.profileDepartments['college'];
+    const courses = profile
+      ? profile.courses.map((c) => ({ code: c.code ?? c.name, name: c.name }))
+      : [...COLLEGE_COURSES, ...BSED_MAJORS];
+
+    for (const c of courses) {
       if (!ctx.shouldSeedCourse(c.code)) {
         ctx.result.courses.skipped++;
         continue;

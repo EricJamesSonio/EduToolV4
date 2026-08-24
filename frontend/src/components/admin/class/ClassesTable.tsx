@@ -19,7 +19,7 @@ export function ClassesTable({ data, onArchive }: ClassesTableProps): React.JSX.
   const columns: ColumnDef<Class>[] = [
     {
       header: "Title",
-      accessorFn: (row) => row.title ?? row.subjectName ?? row.subjectId,
+      accessorFn: (row) => row.title ?? row.subjectName ?? "Unnamed Class",
       cell: ({ getValue }) => (
         <span className="font-medium not-interactive">{getValue<string>()}</span>
       ),

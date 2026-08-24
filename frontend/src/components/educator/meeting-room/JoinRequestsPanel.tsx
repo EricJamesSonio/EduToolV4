@@ -31,7 +31,7 @@ export function JoinRequestsPanel({ requests, students, onRespond, isPending }: 
         return (
           <div key={req.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border/40">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{student?.fullName ?? req.studentId}</p>
+              <p className="text-sm font-medium truncate">{student?.fullName ?? "Unknown Student"}</p>
               {student?.email && (
                 <p className="text-[11px] text-muted-foreground truncate">{student.email}</p>
               )}

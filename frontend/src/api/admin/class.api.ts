@@ -35,8 +35,21 @@ export interface GetClassesQuery {
   educatorId?:   string;
   subjectId?:    string;
   sectionId?:    string;
+  programId?:    string;  // NEW — department filter
+  search?:       string;  // NEW — subject/educator search
   page?:         number;
   limit?:        number;
+}
+
+export interface DistinctEducatorsQuery {
+  schoolYearId?: string;
+  semesterId?:   string;
+  programId?:    string;
+}
+
+export interface DistinctEducator {
+  id: string;
+  fullName: string;
 }
 
 export interface EnrollmentResponse {
@@ -98,11 +111,17 @@ interface ApiResponse<T> {
   data:    T;
 }
 
-// Extract "HH:mm" from ISO datetime "2026-04-02T08:00:00.000Z"
+// Extract "HH:mm" from ISO datetime "2026-04-02T08:00:00.000Z".
+// The backend stores schedule times as local wall-clock (parseTimeToDate uses
+// setHours), so the round-trip must read them back in LOCAL time — reading UTC
+// shifts every slot by the UTC offset (e.g. "06:30" local -> "22:30" on UTC+8)
+// and breaks the schedule grid's occupancy vs. the conflict check.
 function toTimeString(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toISOString().substring(11, 16);
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
   } catch {
     return iso;
   }
@@ -135,8 +154,8 @@ function mapClass(raw: RawClass): Class {
     capacity:        raw.capacity,
     enrolledCount:   raw._count?.enrollments ?? raw.enrolled_count ?? 0,
     status:          (raw.status as Class["status"]) ?? (raw.deleted_at ? "archived" : "active"),
-    isArchived:      raw.deleted_at !== null,                    // ← ADD
-    title:           raw.subject_name ?? raw.subject_id,        // ← ADD (fallback to ID until enriched)
+    isArchived:      raw.deleted_at !== null,
+    title:           raw.subject_name ?? "Unnamed Class",
     schedules:       (raw.schedules ?? []).map(mapSchedule),
     createdAt:       raw.created_at,
     updatedAt:       raw.updated_at,
@@ -187,6 +206,24 @@ export const classApi = {
     return result.data;
   },
 
+  // NEW — used by ClassesFilterBar so the Educator dropdown only lists
+  // teachers with at least one class matching the current Department/Semester
+  // scope, instead of every educator in the org.
+  getDistinctEducators: async (
+    query?: DistinctEducatorsQuery,
+  ): Promise<DistinctEducator[]> => {
+    const params = query
+      ? Object.fromEntries(
+          Object.entries(query).filter(([, v]) => v !== undefined && v !== ""),
+        )
+      : undefined;
+    const res = await client.get<ApiResponse<DistinctEducator[]>>(
+      "/classes/educators",
+      { params },
+    );
+    return res.data?.data ?? [];
+  },
+
   getOne: async (id: string): Promise<Class> => {
     const res = await client.get<ApiResponse<RawClass> | RawClass>(`/classes/${id}`);
     return unwrapAndMapOne(res);
@@ -225,6 +262,22 @@ export const classApi = {
       { params: search ? { search } : undefined },
     );
     return res.data?.data ?? [];
+  },
+
+  // Only classes matching the student's active placement (program/course/strand/level/section)
+  // Pre-filtered on the server so the Admin never sees the "not eligible" error.
+  getEligibleForStudent: async (
+    studentId: string,
+    search?: string,
+  ): Promise<Class[]> => {
+    const res = await client.get<ApiResponse<RawClass[]> | RawClass[]>(
+      `/classes/eligible-for-student/${studentId}`,
+      { params: search ? { search } : undefined },
+    );
+    const rawList: RawClass[] = Array.isArray(res.data)
+      ? (res.data as unknown as RawClass[])
+      : (((res.data as ApiResponse<RawClass[]>)?.data ?? []) as unknown as RawClass[]);
+    return rawList.map(mapClass);
   },
 
   enroll: async (

@@ -67,22 +67,21 @@ export default function GradingScalesPage(): React.JSX.Element {
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Grading Scales"
-        actions={
-          <div className="flex items-center gap-2">
-            <HelpGuide slug="admin_grading_scales" />
-            <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Scale
-            </Button>
-          </div>
-        }
+        actions={<HelpGuide slug="admin_grading_scales" />}
       />
 
       {/* ================= GLOBAL SCALES SECTION ================= */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Global Templates</h2>
-          <Badge variant="outline">{scales.length} scales</Badge>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Global Templates</h2>
+            <Badge variant="outline">{scales.length} scales</Badge>
+          </div>
+
+          <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Scale
+          </Button>
         </div>
 
         <GradingScaleList

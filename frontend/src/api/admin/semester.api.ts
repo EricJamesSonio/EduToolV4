@@ -64,8 +64,10 @@ const mapSemester = (data: SemesterResponse): Semester => ({
 });
 
 export const semesterApi = {
-  getAll: async (): Promise<Semester[]> => {
-    const res = await client.get<ApiListResponse<SemesterResponse[]>>("/semester-settings");
+  getAll: async (schoolYearId?: string): Promise<Semester[]> => {
+    const res = await client.get<ApiListResponse<SemesterResponse[]>>("/semester-settings", {
+      params: schoolYearId ? { schoolYearId } : undefined,
+    });
     // Response shape: { success: true, data: [...] }
     const list = res.data.data ?? res.data;
     return (Array.isArray(list) ? list : []).map(mapSemester);

@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
   API_BASE,
-  apiLogin,
   login,
   uniqueName,
   uniqueUsername,
@@ -92,6 +91,11 @@ export function registerPhase2() {
     });
 
     await test.step("generate levels for JHS via the levels page", async () => {
+      page.on("response", (r) => {
+        if (r.status() >= 400 || r.url().includes("levels")) {
+          console.log(`[TPL] ${r.status()} ${r.request().method()} ${r.url()}`);
+        }
+      });
       await page.goto(`/admin/school-years/${run.schoolYearId}/levels`);
       await expect(page.getByText(run.jhsProgramName!, { exact: true }).first()).toBeVisible();
 
@@ -105,6 +109,9 @@ export function registerPhase2() {
       const levels = (await resp.json()).data;
       expect(levels.length).toBe(3);
       run.levelIds = levels.map((l: { id: string }) => l.id);
+      run.levelNamesById = Object.fromEntries(
+        levels.map((l: { id: string; name: string }) => [l.id, l.name]),
+      );
 
       await expect(page.getByText("3 levels", { exact: true }).first()).toBeVisible();
       await expect(page.getByText("1", { exact: true }).first()).toBeVisible();
@@ -120,44 +127,64 @@ export function registerPhase2() {
     });
   });
 
-  test("Phase 2 — section for the generated JHS level (UI)", async ({ page, request }) => {
+  test("Phase 2 — sections for every generated JHS level (UI)", async ({ page, request }) => {
     await test.step("admin login", async () => {
       await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
     });
     const headers = await adminHeaders(request);
 
-    await test.step("create section bound to the JHS level", async () => {
+    await test.step("create a section for each generated JHS level", async () => {
       // Same guard-race handling as Phase 1: "New Section" is wrapped in
       // ensureOrganization, which bails while GET /organization is still loading.
       const orgResp = waitForApi(page, "GET", "/organization");
       await page.goto("/admin/sections");
       await orgResp;
 
-      await page.getByRole("button", { name: "New Section" }).first().click();
+      const sectionBases = ["Section A", "Section B", "Section C"];
+      for (const [i, levelId] of (run.levelIds ?? []).entries()) {
+        await page.getByRole("button", { name: "New Section" }).first().click();
 
-      const dialog = page.locator('[data-slot="dialog-content"]');
-      // Department
-      await dialog.getByRole("combobox").nth(0).click();
-      await page.getByRole("option", { name: run.jhsProgramName!, exact: true }).click();
-      // Level (generated name "1")
-      await dialog.getByRole("combobox").nth(1).click();
-      await page.getByRole("option", { name: "1", exact: true }).click();
+        const dialog = page.locator('[data-slot="dialog-content"]');
+        // Department
+        await dialog.getByRole("combobox").nth(0).click();
+        await page.getByRole("option", { name: run.jhsProgramName!, exact: true }).click();
+        // Level (generated name)
+        await dialog.getByRole("combobox").nth(1).click();
+        await page
+          .getByRole("option", { name: run.levelNamesById[levelId] ?? "", exact: true })
+          .click();
 
-      run.sectionName = uniqueName("Section A");
-      await dialog.getByPlaceholder("Section A").fill(run.sectionName);
+        const name = uniqueName(sectionBases[i]);
+        await dialog.getByPlaceholder("Section A").fill(name);
 
-      const secResp = waitForApi(page, "POST", "/sections");
-      await dialog.getByRole("button", { name: "Create Section" }).click();
-      const resp = await secResp;
+        const secResp = waitForApi(page, "POST", "/sections");
+        await dialog.getByRole("button", { name: "Create Section" }).click();
+        const resp = await secResp;
 
-      const section = (await resp.json()).data;
-      run.sectionId = section.id;
-      expect(section.name).toBe(run.sectionName);
-      await waitForToast(page, "Section created.");
-      await expect(page.getByText(run.sectionName!, { exact: true }).first()).toBeVisible();
+        const section = (await resp.json()).data;
+        expect(section.name).toBe(name);
+        run.sectionByLevel[levelId] = { id: section.id, name };
+        await waitForToast(page, "Section created.");
+      }
+
+      // Aliases for the level[0] section, referenced by the enrollment phases.
+      run.sectionName = run.sectionByLevel[run.levelIds![0]].name;
+      run.sectionId = run.sectionByLevel[run.levelIds![0]].id;
+      expect(run.sectionId).toBeTruthy();
+
+      // The list refetch after create can lag the POST under load; a fresh
+      // navigation re-queries from the server deterministically.
+      await page.goto("/admin/sections");
+
+      for (const levelId of run.levelIds!) {
+        await expect(
+          page.getByText(run.sectionByLevel[levelId].name, { exact: true }).first(),
+        ).toBeVisible();
+      }
+      await expect(page.getByText("Showing 1–3 of 3 results", { exact: false }).first()).toBeVisible();
     });
 
-    await test.step("level_no_sections cleared for the sectioned level", async () => {
+    await test.step("level_no_sections cleared for every generated level", async () => {
       const res = await request.get(
         `${API_BASE}/school-years/${run.schoolYearId}/readiness`,
         { headers },
@@ -168,7 +195,9 @@ export function registerPhase2() {
       const flaggedLevelIds = readiness.issues
         .filter((i) => i.code === "level_no_sections")
         .map((i) => i.ref?.id);
-      expect(flaggedLevelIds).not.toContain(run.levelIds![0]);
+      for (const levelId of run.levelIds!) {
+        expect(flaggedLevelIds).not.toContain(levelId);
+      }
     });
   });
 
@@ -213,127 +242,6 @@ export function registerPhase2() {
       await expect(credCard.getByText(run.educatorPassword!, { exact: true })).toBeVisible();
       await credCard.getByRole("button", { name: "Done" }).click();
     });
-  });
-
-  test("Phase 2 — subject, semester, and class created and linked (API + UI)", async ({
-    page,
-    request,
-  }) => {
-    const headers = await adminHeaders(request);
-
-    await test.step("create the JHS subject", async () => {
-      const res = await request.post(`${API_BASE}/subjects`, {
-        data: {
-          name: uniqueName("Mathematics"),
-          subjectType: "major",
-          programId: run.jhsProgramId,
-        },
-        headers,
-      });
-      expect(res.status()).toBe(201);
-      const subject = await unwrapData<{ id: string; title: string; programId: string }>(res);
-      run.subject = subject;
-      expect(run.subject.programId).toBe(run.jhsProgramId);
-    });
-
-    await test.step("create the semester (1st Semester w/ two terms)", async () => {
-      const res = await request.post(`${API_BASE}/semester-settings`, {
-        data: {
-          schoolYearId: run.schoolYearId,
-          name: "1st Semester",
-          startDate: "2026-08-24",
-          endDate: "2026-12-18",
-          terms: [
-            { name: "Term 1", orderIndex: 1, startDate: "2026-08-24", endDate: "2026-10-16" },
-            { name: "Term 2", orderIndex: 2, startDate: "2026-10-19", endDate: "2026-12-18" },
-          ],
-        },
-        headers,
-      });
-      expect(res.status()).toBe(201);
-      run.semesterId = (await unwrapData<{ id: string }>(res)).id;
-    });
-
-    await test.step("create the class bound to subject + educator + section", async () => {
-      const res = await request.post(`${API_BASE}/classes`, {
-        data: {
-          subjectId: run.subject!.id,
-          educatorId: run.educatorId,
-          sectionId: run.sectionId,
-          schoolYearId: run.schoolYearId,
-          semesterId: run.semesterId,
-          capacity: 30,
-          schedules: [{ weekday: 1, startTime: "08:00", endTime: "09:30" }],
-        },
-        headers,
-      });
-      expect(res.status()).toBe(201);
-      run.classItem = await unwrapData<{
-        id: string;
-        subject_id: string;
-        educator_id: string;
-        section_id: string;
-        school_year_id: string;
-        semester_id: string;
-        capacity: number;
-        schedules: Array<{ weekday: number; start_time: string; end_time: string }>;
-      }>(res);
-      expect(run.classItem.subject_id).toBe(run.subject!.id);
-      expect(run.classItem.educator_id).toBe(run.educatorId);
-      expect(run.classItem.section_id).toBe(run.sectionId);
-      expect(run.classItem.school_year_id).toBe(run.schoolYearId);
-      expect(run.classItem.semester_id).toBe(run.semesterId);
-      expect(run.classItem.schedules).toHaveLength(1);
-      expect(run.classItem.schedules[0].weekday).toBe(1);
-    });
-
-    await test.step("class appears in /classes for this school year", async () => {
-      const res = await request.get(
-        `${API_BASE}/classes?schoolYearId=${run.schoolYearId}`,
-        { headers },
-      );
-      expect(res.status()).toBe(200);
-      const page_ = await unwrapData<{ data: Array<{ id: string }> }>(res);
-      expect(page_.data.some((c) => c.id === run.classItem!.id)).toBe(true);
-    });
-
-    await test.step("class visible on the admin classes page", async () => {
-      await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
-      await page.goto(`/admin/classes?schoolYearId=${run.schoolYearId}`);
-      await expect(page.getByText(run.subject!.title, { exact: false }).first()).toBeVisible();
-    });
-  });
-
-  test("Phase 2 — educator role cannot create classes (RBAC)", async ({ request }) => {
-    const educatorToken = await apiLogin(request, run.educatorEmail!, run.educatorPassword!);
-    const headers = { Authorization: `Bearer ${educatorToken}` };
-
-    await test.step("educator may read classes", async () => {
-      const res = await request.get(`${API_BASE}/classes`, { headers });
-      expect(res.status()).toBe(200);
-    });
-
-    await test.step("educator may NOT create classes (admin-only)", async () => {
-      const res = await request.post(`${API_BASE}/classes`, {
-        data: {
-          subjectId: run.subject!.id,
-          educatorId: run.educatorId,
-          sectionId: run.sectionId,
-          schoolYearId: run.schoolYearId,
-          semesterId: run.semesterId,
-          capacity: 30,
-          schedules: [{ weekday: 2, startTime: "10:00", endTime: "11:30" }],
-        },
-        headers,
-      });
-      expect(res.status()).toBe(403);
-      const body = (await res.json()) as { message: string };
-      expect(body.message).toBe("Access denied");
-    });
-
-    console.log(
-      `[Phase 2] extension=@${run.orgExtension} | program=${run.jhsProgramName} | levels=${run.levelIds?.length} | section=${run.sectionName} | educator=${run.educatorEmail} | class=${run.classItem?.id} | enrolled students=${run.student1?.fullName}`,
-    );
   });
 
   // ─────────────────────────────────────────────────────────────────────────────

@@ -12,6 +12,6 @@ import { ClassModule } from '../class/class.module';
   ],
   controllers: [GradingSchemeTemplateController],
   providers: [GradingSchemeTemplateService, GradingSchemeTemplateRepository],
-  exports: [GradingSchemeTemplateService],
+  exports: [GradingSchemeTemplateService, GradingSchemeTemplateRepository],
 })
 export class GradingSchemeTemplateModule {}

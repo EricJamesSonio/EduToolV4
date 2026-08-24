@@ -15,6 +15,27 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+export class QueryClassDto {
+  @IsOptional() @IsUUID() schoolYearId?: string;
+  @IsOptional() @IsUUID() semesterId?: string;
+  @IsOptional() @IsUUID() educatorId?: string;
+  @IsOptional() @IsUUID() subjectId?: string;
+  @IsOptional() @IsUUID() sectionId?: string;
+  @IsOptional() @IsUUID() programId?: string;   // ← NEW: department filter
+  @IsOptional() @IsString() search?: string;      // ← NEW: subject/educator search
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
+}
 export class ScheduleSlotDto {
   @IsInt()
   @Min(0)
@@ -79,25 +100,6 @@ export class UpdateClassDto {
   schedules?: ScheduleSlotDto[];
 }
 
-export class QueryClassDto {
-  @IsOptional() @IsUUID() schoolYearId?: string;
-  @IsOptional() @IsUUID() semesterId?: string;
-  @IsOptional() @IsUUID() educatorId?: string;
-  @IsOptional() @IsUUID() subjectId?: string;
-  @IsOptional() @IsUUID() sectionId?: string;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number = 20;
-}
 
 export class EnrollStudentDto {
   @IsUUID()
