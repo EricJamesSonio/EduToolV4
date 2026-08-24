@@ -210,7 +210,7 @@ export function EnrollmentPeriodModal({
               onSelect={setSyId}
             />
             {selectedYear && readiness && !readiness.ready && (
-              <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+              <p className="flex items-start gap-1.5 text-xs text-warning">
                 <CircleAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 This school year is not ready
                 {readiness.blockingCount > 0
