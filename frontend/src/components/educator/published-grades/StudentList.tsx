@@ -84,9 +84,9 @@ export function StudentList({
                   </p>
                 </div>
                 {isPublished ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" aria-label="Published" />
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" aria-label="Published" />
                 ) : (
-                  <Clock className="h-4 w-4 text-amber-400 shrink-0" aria-label="Draft" />
+                  <Clock className="h-4 w-4 text-warning shrink-0" aria-label="Draft" />
                 )}
               </button>
             )

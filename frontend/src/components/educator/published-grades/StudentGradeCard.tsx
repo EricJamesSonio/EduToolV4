@@ -15,9 +15,9 @@ function fmt(n: number | null, decimals = 1): string {
 
 function gradeColor(score: number | null): string {
   if (score === null) return "text-muted-foreground"
-  if (score >= 90) return "text-emerald-600 dark:text-emerald-400"
-  if (score >= 75) return "text-blue-600 dark:text-blue-400"
-  if (score >= 60) return "text-amber-600 dark:text-amber-400"
+  if (score >= 90) return "text-success dark:text-success"
+  if (score >= 75) return "text-info dark:text-info"
+  if (score >= 60) return "text-warning dark:text-warning"
   return "text-destructive"
 }
 
@@ -139,7 +139,7 @@ export function StudentGradeCard({
                       Published
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="gap-1 text-[11px] text-amber-600 border-amber-300 bg-background">
+                    <Badge variant="outline" className="gap-1 text-[11px] text-warning border-warning/30 bg-background">
                       Draft
                     </Badge>
                   )}
@@ -216,7 +216,7 @@ export function StudentGradeCard({
                             <span className="text-sm capitalize">{cat.category}</span>
                             <div className="text-right">
                               {cat.isAllExempted ? (
-                                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                                <Badge variant="outline" className="text-xs text-warning border-warning/30">
                                   Exempted
                                 </Badge>
                               ) : (
