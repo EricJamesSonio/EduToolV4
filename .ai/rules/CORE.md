@@ -19,6 +19,16 @@ Part 3 below for exactly what it does here.
 
 ---
 
+## Part 0 — Project wiring
+
+- **Shared skills**: `.ai/shared/` — git submodule → `ai-skills`, pinned to commit `c09788beeaac149d69ad3b168354f1503a866698`. Bump only via a dedicated `INFRA` ticket.
+- **Ticket-state**: dedicated worktree at `../EduToolV4-ticket-state`, branch `ticket-state`. Never checked out inside a feature worktree.
+- **Handoffs**: `ticket-state/handoffs/<TICK-ID>.md` (per-ticket, not a single global file).
+
+Confirm these three exist and are current before claiming a ticket. If any is missing, that's an onboarding gap — run `shared/agents/onboarder.md`.
+
+---
+
 ## Part 1 — Non-negotiables (always active, no task-matching needed)
 
 **Git / workflow**
