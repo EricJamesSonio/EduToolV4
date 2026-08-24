@@ -229,7 +229,7 @@ if (clsLoading) {
   return (
   <div className="space-y-6">
     <PageHeader
-      title={enriched.subjectName ?? enriched.subjectId}
+      title={enriched.subjectName ?? "Unnamed Class"}
       breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
       actions={
         <div className="flex items-center gap-2">
@@ -254,7 +254,7 @@ if (clsLoading) {
       {/* Class details — single card, 2 columns */}
       <div className="rounded-lg border bg-card p-6">
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-          <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? enriched.subjectId} />
+          <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? "Unnamed Class"} />
 
           {enriched.programName && (
             <DetailItem icon={GraduationCap} label="Department" value={enriched.programName} />
