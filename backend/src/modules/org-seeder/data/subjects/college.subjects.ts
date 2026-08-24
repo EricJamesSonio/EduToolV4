@@ -1,5 +1,5 @@
 import { SubjectDef, subj } from './index';
-import { COLLEGE_COURSES } from '../courses.data';
+import { BSED_MAJORS, COLLEGE_COURSES } from '../courses.data';
 
 type CollegeSubjRaw = {
   name: string;
@@ -903,20 +903,40 @@ export function collegeMajorSubjects(): SubjectDef[] {
     }
   }
 
-  // BSED core subjects
+  // BSED core subjects — shared by BSED and every BSED major (ENG, MATH, SCI, …).
+  // The old seeding only attached them to `BSED`, leaving BSED-ENG / BSED-MATH / … level rows
+  // with zero subjects (readiness requires every level has ≥1 subject, and classes.seeder
+  // skips levels with 0 subjects). Replicate the 11 BSED_CORE subjects for each major code
+  // so every `BSED-*|1st Year` etc. maps to at least 2 subjects via levelKey `${courseCode}|${year}`.
   for (const s of BSED_CORE) {
     out.push(
       subj(
-        s.year, // levelName
-        'BSED', // courseCode
-        null, // strandName
-        s.name, // subject name
-        s.year, // yearLevel
-        s.term, // termLabel
-        s.prereqs, // prerequisites
-        false, // isMinor = false
+        s.year,
+        'BSED',
+        null,
+        s.name,
+        s.year,
+        s.term,
+        s.prereqs,
+        false,
       ),
     );
+  }
+  for (const major of BSED_MAJORS) {
+    for (const s of BSED_CORE) {
+      out.push(
+        subj(
+          s.year,
+          major.code,
+          null,
+          s.name,
+          s.year,
+          s.term,
+          s.prereqs,
+          false,
+        ),
+      );
+    }
   }
 
   return out;
