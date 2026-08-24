@@ -210,7 +210,7 @@ export function ApplyToClassDialog({
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">
-                          {cls.subjectName ?? cls.subject_id}
+                          {cls.subjectName ?? "Unnamed Class"}
                         </p>
                         {cls.sectionName && (
                           <p className="text-xs text-muted-foreground">
