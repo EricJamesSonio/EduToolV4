@@ -58,7 +58,7 @@ export function ExcelTable<T extends Record<string, any>>({
                   className={cn(
                     "px-1.5 py-0.5 text-[11px] whitespace-nowrap border-[0.5px] border-muted/20 bg-white",
                     col.sticky && "sticky left-0 z-10 bg-white",
-                    "hover:bg-blue-100/60 cursor-default",
+                    "hover:bg-info/10 cursor-default",
                   )}
                   style={col.sticky ? { left: 0 } : {}}
                 >

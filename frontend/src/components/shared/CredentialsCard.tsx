@@ -84,7 +84,7 @@ export function CredentialsCard({
         <div className="flex gap-2 pt-1">
           <Button variant="outline" size="sm" className="flex-1" onClick={handleCopy}>
             {copied
-              ? <><Check className="mr-2 h-4 w-4 text-green-600" />Copied!</>
+              ? <><Check className="mr-2 h-4 w-4 text-success" />Copied!</>
               : <><Copy className="mr-2 h-4 w-4" />Copy Credentials</>}
           </Button>
           <Button variant="outline" size="sm" className="flex-1" onClick={handleDownload}>

@@ -66,29 +66,29 @@ function formatDate(iso: string): string {
 }
 
 const STATUS_STYLES: Record<AccountStatus, string> = {
-  active:      "bg-emerald-50 text-emerald-700 border-emerald-200",
-  pending:     "bg-amber-50   text-amber-700   border-amber-200",
-  blocked:     "bg-red-50     text-red-700     border-red-200",
-  suspended:   "bg-orange-50  text-orange-700  border-orange-200",
-  dropped:     "bg-slate-100  text-slate-500   border-slate-200",
-  transferred: "bg-blue-50    text-blue-700    border-blue-200",
-  graduated:   "bg-purple-50  text-purple-700  border-purple-200",
+  active:      "badge-success",
+  pending:     "badge-warning",
+  blocked:     "badge-destructive",
+  suspended:   "bg-primary/10 text-primary border-primary/20",
+  dropped:     "badge-muted",
+  transferred: "badge-info",
+  graduated:   "badge-purple",
 };
 
 const ROLE_STYLES: Record<Role, string> = {
-  platform_owner: "bg-violet-50 text-violet-700 border-violet-200",
-  admin:          "bg-indigo-50 text-indigo-700 border-indigo-200",
-  educator:       "bg-teal-50   text-teal-700   border-teal-200",
-  student:        "bg-sky-50    text-sky-700    border-sky-200",
+  platform_owner: "badge-purple",
+  admin:          "bg-primary/10 text-primary border-primary/20",
+  educator:       "badge-info",
+  student:        "bg-accent/15 text-accent-foreground border-accent/30",
 };
 
 const ICON_STYLES: Record<string, string> = {
-  mail:     "bg-blue-100 text-blue-600",
-  user:     "bg-violet-100 text-violet-600",
-  role:     "bg-teal-100 text-teal-600",
-  status:   "bg-amber-100 text-amber-600",
-  calendar: "bg-rose-100 text-rose-600",
-  building: "bg-slate-100 text-slate-600",
+  mail:     "bg-info/15 text-info",
+  user:     "bg-[var(--badge-purple)]/15 text-[var(--badge-purple)]",
+  role:     "bg-info/15 text-info",
+  status:   "bg-warning/15 text-warning",
+  calendar: "bg-destructive/10 text-destructive",
+  building: "bg-muted text-muted-foreground",
 };
 
 interface InfoRowProps {
@@ -453,7 +453,7 @@ export function ProfileContent(): React.JSX.Element {
                     />
                   </div>
                   {changeError && (
-                    <p className="text-xs lg:text-sm text-red-600">{changeError}</p>
+                    <p className="text-xs lg:text-sm text-destructive">{changeError}</p>
                   )}
                   <div className="flex gap-2">
                     <Button
@@ -497,7 +497,7 @@ export function ProfileContent(): React.JSX.Element {
                     />
                   </div>
                   {changeError && (
-                    <p className="text-xs lg:text-sm text-red-600">{changeError}</p>
+                    <p className="text-xs lg:text-sm text-destructive">{changeError}</p>
                   )}
                   <div className="flex gap-2">
                     <Button
