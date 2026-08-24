@@ -53,6 +53,14 @@ export const adminQueryKeys = {
         classId,
         'eligible-students',
       ] as const,
+    eligibleForStudent: (studentId: string, search?: string) =>
+      [
+        ...adminKeys.all,
+        'classes',
+        'eligible-for-student',
+        studentId,
+        search ?? '',
+      ] as const,
     distinctEducators: (filters: {
       schoolYearId?: string | null;
       programId?: string;
