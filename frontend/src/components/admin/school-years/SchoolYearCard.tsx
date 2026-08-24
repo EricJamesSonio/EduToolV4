@@ -199,7 +199,7 @@ const invalidateSchoolYears = () => {
 
   const getStatusIcon = () => {
     if (year.status === "active") {
-      return <CheckCircle2 className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-500" />;
+      return <CheckCircle2 className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-success" />;
     }
     if (year.status === "ended") {
       return <AlertCircle className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-muted-foreground" />;
@@ -229,7 +229,7 @@ const invalidateSchoolYears = () => {
                     "This school year is not ready. Open it to see what needs attention."
                   }
                 >
-                  <CircleAlert className="h-4 w-4 text-amber-500 shrink-0" />
+                  <CircleAlert className="h-4 w-4 text-warning shrink-0" />
                 </span>
               )}
             </div>

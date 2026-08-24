@@ -45,8 +45,8 @@ export function SchoolYearReadinessDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/40">
-              <CircleAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/15">
+              <CircleAlert className="h-5 w-5 text-warning" />
             </div>
             <div>
               <DialogTitle>School Year Not Ready</DialogTitle>
@@ -68,7 +68,7 @@ export function SchoolYearReadinessDialog({
             <>
               {blocking.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 not-interactive">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-warning not-interactive">
                     Blocking issue{blocking.length > 1 ? "s" : ""}
                   </p>
                   <ul className="space-y-1.5">
@@ -78,12 +78,12 @@ export function SchoolYearReadinessDialog({
                         className="rounded-lg border bg-card px-3 py-2.5 text-sm"
                       >
                         <div className="flex items-start gap-2">
-                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
                           <div className="flex-1">
                             <div className="flex items-start gap-2">
                               <span className="text-foreground">{issue.message}</span>
                               {typeof issue.count === "number" && (
-                                <span className="ml-auto shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                                <span className="ml-auto shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
                                   {issue.count}
                                 </span>
                               )}
@@ -116,7 +116,7 @@ export function SchoolYearReadinessDialog({
                   <ul className="space-y-1.5">
                     {warnings.map((issue, i) => (
                       <li key={issue.ref?.id ?? `${issue.code}-${i}`} className="flex items-start gap-2 text-sm">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-400 shrink-0" />
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-info shrink-0" />
                         <span className="text-muted-foreground">{issue.message}</span>
                       </li>
                     ))}
@@ -126,7 +126,7 @@ export function SchoolYearReadinessDialog({
 
               {blocking.length === 0 && warnings.length === 0 && (
                 <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                   This school year appears ready to use.
                 </div>
               )}
