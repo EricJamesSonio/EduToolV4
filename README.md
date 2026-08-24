@@ -118,8 +118,10 @@ git worktree add ../<project>-ticket-state ticket-state
 ```
 
 And enable on the remote (GitHub/GitLab branch protection for
-`ticket-state`):
+`ticket-state`) — **skipped on this repo (org plan requires upgrade)**:
 
 - Require linear history
 - Restrict force pushes
 - Require the `ticket-state-guard` status check to pass before merging/pushing
+
+> **This repo:** protection is **not** enabled — GitHub upgrade prompt shown in Settings → Branches. See `decisions/ADR-001-skip-ticket-state-protection.md` and `workspace/context/known-issues.md` on `development`. `ticket-state-guard` still runs in Actions but is convention-only; agents must not force-push and must follow `shared/rules/git-workflow.md` §Ticket-state protocol + `dangerous-operations.md` exactly. Reviewer checks the guard manually.
