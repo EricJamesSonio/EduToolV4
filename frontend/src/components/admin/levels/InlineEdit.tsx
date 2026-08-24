@@ -35,7 +35,7 @@ export function InlineEdit({
       <button
         onClick={() => draft.trim() && onSave(draft.trim())}
         disabled={isLoading || !draft.trim()}
-        className="p-1 rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30 disabled:opacity-40 transition-colors"
+        className="p-1 rounded text-success hover:bg-success/10 dark:hover:bg-success/15 disabled:opacity-40 transition-colors"
         title="Save"
       >
         <Check className="h-4 w-4" />
