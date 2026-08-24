@@ -179,7 +179,7 @@ export function EnrollStudentInClassDialog({ open, studentId, onClose }: Props):
               </p>
               <p className="text-muted-foreground">{formatSchedules(selectedClass)} · {selectedClass.educatorName ?? "No educator"}</p>
               {(selectedClass.capacity ?? 0) > 0 && (selectedClass.enrolledCount ?? 0) >= (selectedClass.capacity ?? 0) && (
-                <p className="mt-1 font-medium text-amber-600">This class is at capacity — enrolling will create an overflow record.</p>
+                <p className="mt-1 font-medium text-warning">This class is at capacity — enrolling will create an overflow record.</p>
               )}
             </div>
           ) : null}
