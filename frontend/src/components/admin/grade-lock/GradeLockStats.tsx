@@ -54,7 +54,7 @@ export function GradeLockStats({
     {
       label: "Auto-Locked",
       value: counts.autoLocked,
-      valueClass: "text-amber-600 dark:text-amber-400",
+      valueClass: "text-warning",
     },
   ];
 

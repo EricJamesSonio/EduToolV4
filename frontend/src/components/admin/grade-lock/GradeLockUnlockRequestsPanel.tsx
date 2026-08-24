@@ -22,7 +22,7 @@ export function GradeLockUnlockRequestsPanel({
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-3 border-b bg-muted/30">
-        <FileText className="h-4 w-4 text-amber-500" />
+        <FileText className="h-4 w-4 text-warning" />
         <h3 className="text-sm font-semibold">Pending Unlock Requests ({requests.length})</h3>
       </div>
       <div className="divide-y">
@@ -41,7 +41,7 @@ export function GradeLockUnlockRequestsPanel({
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                className="gap-1.5 text-destructive border-destructive/20 hover:bg-destructive/10"
                 onClick={() => onDeny(req)}
               >
                 <XCircle className="h-3.5 w-3.5" />

@@ -60,11 +60,11 @@ export function GradeLockUnlockActionDialog({
         <h2 className="text-lg font-semibold flex items-center gap-2">
           {mode === "grant" ? (
             <>
-              <CheckCircle className="h-5 w-5 text-green-600" /> Grant Unlock
+              <CheckCircle className="h-5 w-5 text-success" /> Grant Unlock
             </>
           ) : (
             <>
-              <XCircle className="h-5 w-5 text-red-600" /> Deny Unlock
+              <XCircle className="h-5 w-5 text-destructive" /> Deny Unlock
             </>
           )}
         </h2>
