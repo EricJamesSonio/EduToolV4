@@ -83,7 +83,7 @@ export function AdminTable({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                className="text-success hover:text-success hover:bg-success/10"
                 onClick={() => onUnblock(admin)}
               >
                 <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />

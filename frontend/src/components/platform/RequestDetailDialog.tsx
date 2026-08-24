@@ -15,8 +15,8 @@ import { Copy, Check } from "lucide-react";
 import { type RegistrationRequest } from "@/api/platform/registration.api";
 
 const statusBadge: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  pending: "bg-warning/15 text-warning border-warning/20 dark:bg-warning/20 dark:text-warning",
+  approved: "bg-success/15 text-success border-success/20 dark:bg-success/20 dark:text-success",
   rejected: "bg-destructive/10 text-destructive",
 };
 
@@ -189,7 +189,7 @@ export function CredentialsDialog({ credentials, onClose }: CredentialsDialogPro
               </p>
               <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0">
                 {copied ? (
-                  <Check className="h-4 w-4 text-emerald-500" />
+                  <Check className="h-4 w-4 text-success" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
