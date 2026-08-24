@@ -287,7 +287,7 @@ export function NewTemplateDialog({
                 className={cn(
                   "text-sm font-semibold tabular-nums",
                   totalWeight === 100
-                    ? "text-green-600"
+                    ? "text-success"
                     : "text-destructive"
                 )}
               >

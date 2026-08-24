@@ -62,7 +62,7 @@ const components = Array.isArray(scheme?.components)
             <span
               className={`ml-1 text-xs font-medium tabular-nums ${
                 totalWeight === 100
-                  ? "text-green-600"
+                  ? "text-success"
                   : "text-destructive"
               }`}
             >
