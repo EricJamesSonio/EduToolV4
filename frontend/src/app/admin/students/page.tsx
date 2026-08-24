@@ -31,6 +31,8 @@ import { BulkCreateStudentDialog } from "@/components/admin/student/BulkCreateSt
 import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
 
 function StudentsPageInner(): React.JSX.Element {
   const router       = useRouter();
@@ -40,6 +42,7 @@ function StudentsPageInner(): React.JSX.Element {
   const [filters, setFilters]       = useState<GetStudentsQuery>({});
   const [page, setPage]             = useState(1);
   const [limit, setLimit]           = useState(DEFAULT_PAGE_SIZE);
+  const [reviewFilter, setReviewFilter] = useState<"all" | "pending_review" | "ready">("all");
   const [resetTarget, setResetTarget] = useState<Student | null>(null);
   const [newCredentials, setNewCredentials] = useState<{
     fullName: string; email: string; studentId: string; password: string;
@@ -131,6 +134,20 @@ const enrichedStudents: Student[] = useMemo(
   [students, enrollmentsForYear],
 );
 
+  const { data: reviewData } = useClassAssignmentRequests(
+    reviewFilter !== "all" ? { status: reviewFilter } : undefined,
+  );
+  const reviewStudentIds = useMemo(() => {
+    const raw = (reviewData as unknown as { data?: unknown[] } | unknown[]) as unknown;
+    const list = Array.isArray(raw) ? raw : (raw as { data?: unknown[] })?.data ?? [];
+    return new Set((list as { student_id?: string; studentId?: string }[]).map((r) => r.student_id ?? r.studentId).filter(Boolean) as string[]);
+  }, [reviewData]);
+
+  const displayStudents = useMemo(() => {
+    if (reviewFilter === "all") return enrichedStudents;
+    return enrichedStudents.filter((s) => reviewStudentIds.has(s.id));
+  }, [enrichedStudents, reviewFilter, reviewStudentIds]);
+
   const handleSetupEmail = () => {
     router.push("/admin/organization");
   };
@@ -196,11 +213,24 @@ const enrichedStudents: Student[] = useMemo(
           setPage(1);
         }}
       />
+      <div className="flex items-center gap-2">
+        <Select value={reviewFilter} onValueChange={(v) => setReviewFilter(v as never)}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="All Review Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Students</SelectItem>
+            <SelectItem value="pending_review">Needs Review</SelectItem>
+            <SelectItem value="ready">Ready</SelectItem>
+          </SelectContent>
+        </Select>
+        {reviewFilter !== "all" && <span className="text-xs text-muted-foreground">{displayStudents.length} matched</span>}
+      </div>
 
       <AsyncListState
         isLoading={isLoading}
         isError={isError}
-        isEmpty={students.length === 0}
+        isEmpty={displayStudents.length === 0}
         empty={{
           icon: Users,
           title: "No students found",
@@ -223,7 +253,7 @@ const enrichedStudents: Student[] = useMemo(
       >
         <>
           <StudentTable
-            data={enrichedStudents}
+            data={displayStudents}
             onView={(s) => router.push(`/admin/students/${s.id}`)}
             onResetPassword={setResetTarget}
           />
