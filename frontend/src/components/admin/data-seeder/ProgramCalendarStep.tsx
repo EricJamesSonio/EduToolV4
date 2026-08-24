@@ -142,8 +142,8 @@ export function ProgramCalendarStep({
                 </div>
 
                 {template && templateEnabled && configured && (
-                  <div className="rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-2">
-                    <p className="text-xs text-emerald-600 not-interactive">
+                  <div className="rounded-md bg-success/10 border border-success/30 px-3 py-2">
+                    <p className="text-xs text-success not-interactive">
                       {breakCount} period(s) — the {template.name} will be auto-generated with{" "}
                       {breakCount} semester(s) and auto-registered for this department.
                     </p>
@@ -151,8 +151,8 @@ export function ProgramCalendarStep({
                 )}
 
                 {template && templateEnabled && !configured && breakCount > 0 && (
-                  <div className="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2">
-                    <p className="text-xs text-amber-600 not-interactive">
+                  <div className="rounded-md bg-warning/10 border border-warning/30 px-3 py-2">
+                    <p className="text-xs text-warning not-interactive">
                       At least {MIN_CALENDAR_PERIODS} complete periods are needed before the
                       semester template can be generated for this department — {breakCount} of{" "}
                       {MIN_CALENDAR_PERIODS} set.
