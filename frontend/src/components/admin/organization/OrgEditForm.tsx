@@ -51,7 +51,7 @@ export function OrgEditForm({
               })}
             />
             {errors.name && (
-              <p className="text-xs text-red-600">{errors.name.message}</p>
+              <p className="text-xs text-destructive">{errors.name.message}</p>
             )}
           </div>
 
@@ -69,7 +69,7 @@ export function OrgEditForm({
               })}
             />
             {errors.description && (
-              <p className="text-xs text-red-600">
+              <p className="text-xs text-destructive">
                 {errors.description.message}
               </p>
             )}
