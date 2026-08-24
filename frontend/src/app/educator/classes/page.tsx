@@ -70,7 +70,7 @@ function ClassCard({
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <h3 className={cn(listItemTitleClass, "truncate")}>
-            {cls.subjectName ?? cls.subject_id}
+            {cls.subjectName ?? "Unnamed Class"}
           </h3>
           <div className="space-y-0.5">
             {contextParts.length > 0 && (
