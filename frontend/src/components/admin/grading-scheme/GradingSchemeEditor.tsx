@@ -168,7 +168,7 @@ export function GradingSchemeEditor() {
     <div className="space-y-6">
       {/* Lock banner */}
       {isLocked && (
-        <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+        <div className="flex items-center gap-2.5 rounded-md border border-warning/20 bg-warning/10 px-4 py-2.5 text-sm text-warning">
           <Lock className="h-4 w-4 shrink-0" />
           <span className="not-interactive">
             <strong>Locked</strong> — this grading scheme is locked because enrolled students
@@ -234,7 +234,7 @@ export function GradingSchemeEditor() {
           <span
             className={cn(
               "text-sm font-semibold tabular-nums not-interactive",
-              totalWeight === 100 ? "text-green-600" : "text-destructive"
+              totalWeight === 100 ? "text-success" : "text-destructive"
             )}
           >
             {totalWeight}% / 100%
