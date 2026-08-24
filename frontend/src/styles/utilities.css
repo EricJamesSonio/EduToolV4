@@ -148,6 +148,79 @@
     border-color: color-mix(in oklch, var(--info) 35%, transparent);
   }
 
+  /* ── Extended badge variants (aliases / new) ── */
+  .badge-warning {
+    background: color-mix(in oklch, var(--warning) 15%, transparent);
+    color: var(--warning-foreground);
+    border: 1px solid color-mix(in oklch, var(--warning) 30%, transparent);
+  }
+
+  .badge-success {
+    background: color-mix(in oklch, var(--success) 15%, transparent);
+    color: var(--success-foreground);
+    border: 1px solid color-mix(in oklch, var(--success) 30%, transparent);
+  }
+
+  .badge-destructive {
+    background: color-mix(in oklch, var(--destructive) 12%, transparent);
+    color: var(--destructive-foreground);
+    border: 1px solid color-mix(in oklch, var(--destructive) 25%, transparent);
+  }
+
+  .badge-muted {
+    background: color-mix(in oklch, var(--muted-foreground) 8%, transparent);
+    color: var(--muted-foreground);
+    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  }
+
+  .badge-purple {
+    background: color-mix(in oklch, var(--badge-purple) 15%, transparent);
+    color: var(--badge-purple-foreground);
+    border: 1px solid color-mix(in oklch, var(--badge-purple) 30%, transparent);
+  }
+
+  .dark .badge-warning {
+    background: color-mix(in oklch, var(--warning) 22%, transparent);
+    color: var(--warning-foreground);
+    border-color: color-mix(in oklch, var(--warning) 35%, transparent);
+  }
+
+  .dark .badge-success {
+    background: color-mix(in oklch, var(--success) 22%, transparent);
+    color: var(--success-foreground);
+    border-color: color-mix(in oklch, var(--success) 35%, transparent);
+  }
+
+  .dark .badge-destructive {
+    background: color-mix(in oklch, var(--destructive) 20%, transparent);
+    color: var(--destructive-foreground);
+    border-color: color-mix(in oklch, var(--destructive) 32%, transparent);
+  }
+
+  .dark .badge-muted {
+    background: color-mix(in oklch, var(--muted-foreground) 14%, transparent);
+    color: var(--muted-foreground);
+    border-color: color-mix(in oklch, var(--border) 60%, transparent);
+  }
+
+  .dark .badge-purple {
+    background: color-mix(in oklch, var(--badge-purple) 22%, transparent);
+    color: var(--badge-purple-foreground);
+    border-color: color-mix(in oklch, var(--badge-purple) 35%, transparent);
+  }
+
+  /* ── Chart dots (categorical, non-semantic) ── */
+  .chart-dot-1 { background-color: var(--chart-1); }
+  .chart-dot-2 { background-color: var(--chart-2); }
+  .chart-dot-3 { background-color: var(--chart-3); }
+  .chart-dot-4 { background-color: var(--chart-4); }
+  .chart-dot-5 { background-color: var(--chart-5); }
+  .chart-dot-6 { background-color: var(--chart-6); }
+  .chart-dot-7 { background-color: var(--chart-7); }
+  .chart-dot-8 { background-color: var(--chart-8); }
+  .chart-dot-9 { background-color: var(--chart-9); }
+  .chart-dot-10 { background-color: var(--chart-10); }
+
   /* ── Grade lock state colors ── */
   .grade-locked {
     color: var(--success);
@@ -230,47 +303,74 @@
     box-shadow: var(--shadow-md);
   }
 
-  /* ── Semantic icon background colors ── */
-  .icon-people   { background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); }
-  .icon-edu      { background: color-mix(in oklch, var(--success) 12%, transparent); color: var(--success); }
-  .icon-schedule { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 12%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
-  .icon-warning  { background: color-mix(in oklch, var(--warning) 12%, transparent); color: var(--warning); }
-  .icon-danger   { background: color-mix(in oklch, var(--destructive) 12%, transparent); color: var(--destructive); }
-  .icon-security { background: color-mix(in oklch, var(--destructive) 12%, transparent); color: var(--destructive); }
-  .icon-structure{ background: color-mix(in oklch, var(--info) 12%, transparent); color: var(--info); }
-  .icon-analytics{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 12%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .icon-utility  { background: color-mix(in oklch, var(--warning) 12%, transparent); color: var(--warning); }
-  .icon-action   { background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); }
-  .icon-global   { background: color-mix(in oklch, var(--info) 12%, transparent); color: var(--info); }
-  .icon-credential{background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 12%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .icon-educator { background: oklch(0.55 0.18 290 / 0.12); color: oklch(0.40 0.18 290); }
+  /* ── Semantic icon background colors — higher contrast (20% light / 30% dark) ── */
+  .icon-people   { background: color-mix(in oklch, var(--primary) 20%, transparent); color: var(--primary); }
+  .icon-edu      { background: color-mix(in oklch, var(--success) 20%, transparent); color: var(--success); }
+  .icon-schedule { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 20%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
+  .icon-warning  { background: color-mix(in oklch, var(--warning) 20%, transparent); color: var(--warning); }
+  .icon-danger   { background: color-mix(in oklch, var(--destructive) 20%, transparent); color: var(--destructive); }
+  .icon-security { background: color-mix(in oklch, var(--destructive) 20%, transparent); color: var(--destructive); }
+  .icon-structure{ background: color-mix(in oklch, var(--info) 20%, transparent); color: var(--info); }
+  .icon-analytics{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 20%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .icon-utility  { background: color-mix(in oklch, var(--warning) 20%, transparent); color: var(--warning); }
+  .icon-action   { background: color-mix(in oklch, var(--primary) 20%, transparent); color: var(--primary); }
+  .icon-global   { background: color-mix(in oklch, var(--info) 20%, transparent); color: var(--info); }
+  .icon-credential{background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 20%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .icon-educator { background: oklch(0.55 0.18 290 / 0.20); color: oklch(0.40 0.18 290); }
 .icon-classes {
-  background: color-mix(in oklch, var(--icon-classes) 12%, transparent);
+  background: color-mix(in oklch, var(--icon-classes) 20%, transparent);
   color: var(--icon-classes);
 }
-  .icon-share    { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 12%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
+  .icon-share    { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 20%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
 
-  .dark .icon-people    { background: color-mix(in oklch, var(--primary) 22%, transparent); color: color-mix(in oklch, var(--primary) 80%, white); }
-  .dark .icon-edu       { background: color-mix(in oklch, var(--success) 22%, transparent); color: color-mix(in oklch, var(--success) 80%, white); }
-  .dark .icon-schedule  { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 22%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
-  .dark .icon-warning   { background: color-mix(in oklch, var(--warning) 22%, transparent); color: color-mix(in oklch, var(--warning) 80%, white); }
-  .dark .icon-danger    { background: color-mix(in oklch, var(--destructive) 22%, transparent); color: color-mix(in oklch, var(--destructive) 80%, white); }
-  .dark .icon-security  { background: color-mix(in oklch, var(--destructive) 22%, transparent); color: color-mix(in oklch, var(--destructive) 80%, white); }
-  .dark .icon-structure { background: color-mix(in oklch, var(--info) 22%, transparent); color: color-mix(in oklch, var(--info) 80%, white); }
-  .dark .icon-analytics { background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 22%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .dark .icon-utility   { background: color-mix(in oklch, var(--warning) 22%, transparent); color: color-mix(in oklch, var(--warning) 80%, white); }
-  .dark .icon-global    { background: color-mix(in oklch, var(--info) 22%, transparent); color: color-mix(in oklch, var(--info) 80%, white); }
-  .dark .icon-credential{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 22%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .dark .icon-share     { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 22%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
-  .dark .icon-educator  { background: oklch(0.55 0.18 290 / 0.22); color: oklch(0.72 0.18 290); }
-  .dark .icon-classes   { background: color-mix(in oklch, var(--icon-classes) 22%, transparent); color: color-mix(in oklch, var(--icon-classes) 85%, white); }
+  .dark .icon-people    { background: color-mix(in oklch, var(--primary) 30%, transparent); color: color-mix(in oklch, var(--primary) 85%, white); }
+  .dark .icon-edu       { background: color-mix(in oklch, var(--success) 30%, transparent); color: color-mix(in oklch, var(--success) 85%, white); }
+  .dark .icon-schedule  { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 30%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
+  .dark .icon-warning   { background: color-mix(in oklch, var(--warning) 30%, transparent); color: color-mix(in oklch, var(--warning) 85%, white); }
+  .dark .icon-danger    { background: color-mix(in oklch, var(--destructive) 30%, transparent); color: color-mix(in oklch, var(--destructive) 85%, white); }
+  .dark .icon-security  { background: color-mix(in oklch, var(--destructive) 30%, transparent); color: color-mix(in oklch, var(--destructive) 85%, white); }
+  .dark .icon-structure { background: color-mix(in oklch, var(--info) 30%, transparent); color: color-mix(in oklch, var(--info) 85%, white); }
+  .dark .icon-analytics { background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 30%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .dark .icon-utility   { background: color-mix(in oklch, var(--warning) 30%, transparent); color: color-mix(in oklch, var(--warning) 85%, white); }
+  .dark .icon-global    { background: color-mix(in oklch, var(--info) 30%, transparent); color: color-mix(in oklch, var(--info) 85%, white); }
+  .dark .icon-credential{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 30%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .dark .icon-share     { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 30%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
+  .dark .icon-educator  { background: oklch(0.55 0.18 290 / 0.30); color: oklch(0.72 0.18 290); }
+  .dark .icon-classes   { background: color-mix(in oklch, var(--icon-classes) 30%, transparent); color: color-mix(in oklch, var(--icon-classes) 90%, white); }
 
-  /* ── Gradient text for hero headings ── */
+  /* ── Gradient text for hero headings — CMI navy → announcement yellow ── */
   .gradient-text {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    background: linear-gradient(135deg, var(--primary) 0%, color-mix(in oklch, var(--primary) 55%, var(--accent)) 50%, var(--accent) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* Solid announcement yellow for titles — use on <span> inside headings */
+  .text-announcement {
+    color: var(--accent);
+  }
+
+  .bg-announcement {
+    background-color: var(--primary);
+    color: var(--accent);
+  }
+
+  /* Yellow highlighter underline for titles (subtle, like ANNOUNCEMENT emphasis) */
+  .highlight-accent {
+    background: linear-gradient(180deg, transparent 62%, color-mix(in oklch, var(--accent) 38%, transparent) 62%);
+    padding-inline: 0.15em;
+    border-radius: 2px;
+  }
+
+  /* Announcement banner (navy pill with yellow text, like image header) */
+  .banner-announcement {
+    background-color: var(--primary);
+    color: var(--accent);
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
   }
 
   /* ── Section header accent line ── */

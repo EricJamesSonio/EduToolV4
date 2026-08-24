@@ -53,15 +53,27 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-border: var(--sidebar-border);
+
+  /* Chart (categorical, non-semantic) */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
+  --color-chart-10: var(--chart-10);
 }
 
-/* ===== SHADOW TOKENS ===== */
+/* ===== SHADOW TOKENS — higher contrast for cards ===== */
 :root {
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-  --shadow-md: 0 6px 12px -2px rgb(0 0 0 / 0.08), 0 3px 6px -3px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 14px 24px -6px rgb(0 0 0 / 0.10), 0 6px 10px -6px rgb(0 0 0 / 0.06);
-  --shadow-xl: 0 24px 32px -8px rgb(0 0 0 / 0.12), 0 10px 14px -8px rgb(0 0 0 / 0.06);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-sm: 0 1px 4px 0 rgb(0 0 0 / 0.08), 0 1px 3px -1px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.12), 0 2px 6px -2px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 10px 24px -6px rgb(0 0 0 / 0.14), 0 4px 12px -4px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 20px 32px -8px rgb(0 0 0 / 0.16), 0 8px 16px -6px rgb(0 0 0 / 0.08);
 }
 
 :root {
@@ -69,97 +81,120 @@
   --radius-sm: 0.75rem;
   --radius-lg: 1.75rem;
 
-  --background: #F7F7F5;
-  --foreground: #151313;
+  /* College of Mary Immaculate — higher-contrast cards (white cards pop on bg) */
+  --background: #E8EEF6;
+  --foreground: #0B1E3A;
 
   --card: #FFFFFF;
-  --card-foreground: #151313;
+  --card-foreground: #0B1E3A;
   --popover: #FFFFFF;
-  --popover-foreground: #151313;
+  --popover-foreground: #0B1E3A;
 
-  --primary: #FF5734;
+  --primary: #0A2E5C;
   --primary-foreground: #FFFFFF;
 
-  --secondary: #151313;
-  --secondary-foreground: #F7F7F5;
+  --secondary: #0A2E5C;
+  --secondary-foreground: #FFFFFF;
 
-  --muted: #EFEFEC;
-  --muted-foreground: #4A4A46;
+  --muted: #D6E4F2;
+  --muted-foreground: #3F5070;
 
-  --border: #E3E2DC;
-  --input: #D4D3CA;
-  --ring: #FF5734;
+  --border: #AFC1DB;
+  --input: #AFC1DB;
+  --ring: #0A2E5C;
 
   --destructive: #C0392B;
-  --destructive-foreground: #7A2620;
-  --success: #16A34A;
-  --success-foreground: #065F46;
-  --warning: #D9932E;
-  --warning-foreground: #7A4B12;
-  --info: #2F6FA8;
-  --info-foreground: #1E3A5F;
+  --destructive-foreground: #FFFFFF;
+  --success: #15803D;
+  --success-foreground: #F0FDF4;
+  --warning: #A16207;
+  --warning-foreground: #FEFCE8;
+  --info: #0284C7;
+  --info-foreground: #FFFFFF;
 
-  --accent: #FCCC42;
-  --accent-foreground: #3B2A05;
+  --accent: #FFCC00;
+  --accent-foreground: #0A2E5C;
 
-  --badge-orange: #FF5734;
+  --badge-orange: #0A2E5C;
   --badge-orange-foreground: #FFFFFF;
-  --badge-purple: #BE94F5;
-  --badge-purple-foreground: #34205C;
-  --badge-yellow: #FCCC42;
-  --badge-yellow-foreground: #3B2A05;
+  --badge-purple: #0284C7;
+  --badge-purple-foreground: #FFFFFF;
+  --badge-yellow: #FFCC00;
+  --badge-yellow-foreground: #0A2E5C;
 
-  --icon-classes: #FF5734;
+  --icon-classes: #0A2E5C;
 
-  --sidebar: #151313;
-  --sidebar-foreground: #F7F7F5;
-  --sidebar-border: #262424;
+  --sidebar: #0A2E5C;
+  --sidebar-foreground: #F0F4FA;
+  --sidebar-border: #14365E;
+
+  --chart-1: #7C3AED;
+  --chart-2: #0891B2;
+  --chart-3: #DB2777;
+  --chart-4: #0D9488;
+  --chart-5: #9333EA;
+  --chart-6: #E11D48;
+  --chart-7: #4F46E5;
+  --chart-8: #65A30D;
+  --chart-9: #6B7280;
+  --chart-10: #C026D3;
 }
 
 .dark {
-  --background: #14140F;
-  --foreground: #F7F7F5;
+  --background: #0A1628;
+  --foreground: #EAF0FA;
 
-  --card: #1C1C17;
-  --card-foreground: #F7F7F5;
-  --popover: #1C1C17;
-  --popover-foreground: #F7F7F5;
+  --card: #13233F;
+  --card-foreground: #EAF0FA;
+  --popover: #13233F;
+  --popover-foreground: #EAF0FA;
 
-  --primary: #FF7A5C;
-  --primary-foreground: #151313;
+  --primary: #3A7BCE;
+  --primary-foreground: #0A1628;
 
-  --secondary: #F7F7F5;
-  --secondary-foreground: #151313;
+  --secondary: #EAF0FA;
+  --secondary-foreground: #0A1628;
 
-  --muted: #232320;
-  --muted-foreground: #B8B7B0;
+  --muted: #1E2F4A;
+  --muted-foreground: #9AB0CC;
 
-  --border: #2B2B26;
-  --input: #3A3A33;
-  --ring: #FF7A5C;
+  --border: #2A3D5E;
+  --input: #344766;
+  --ring: #3A7BCE;
 
-  --destructive: #E5665A;
-  --destructive-foreground: #F9CFC9;
-  --success: #34D399;
-  --success-foreground: #A7F3D0;
-  --warning: #F0B454;
-  --warning-foreground: #FCE1B0;
-  --info: #6FA8DC;
-  --info-foreground: #CFE3F5;
+  --destructive: #E85D4E;
+  --destructive-foreground: #2A0A07;
+  --success: #22C55E;
+  --success-foreground: #052E16;
+  --warning: #EAB308;
+  --warning-foreground: #422006;
+  --info: #38BDF8;
+  --info-foreground: #0C2A3D;
 
-  --accent: #FCD666;
-  --accent-foreground: #3B2A05;
+  --accent: #FDE047;
+  --accent-foreground: #0A1628;
 
-  --badge-orange: #FF7A5C;
-  --badge-orange-foreground: #2B1005;
-  --badge-purple: #D2B4FA;
-  --badge-purple-foreground: #241541;
-  --badge-yellow: #FCD666;
-  --badge-yellow-foreground: #3B2A05;
+  --badge-orange: #3A7BCE;
+  --badge-orange-foreground: #0A1628;
+  --badge-purple: #38BDF8;
+  --badge-purple-foreground: #0C2A3D;
+  --badge-yellow: #FDE047;
+  --badge-yellow-foreground: #0A1628;
 
-  --icon-classes: #FF7A5C;
+  --icon-classes: #3A7BCE;
 
-  --sidebar: #0F0F0C;
-  --sidebar-foreground: #F7F7F5;
-  --sidebar-border: #232320;
+  --sidebar: #081224;
+  --sidebar-foreground: #EAF0FA;
+  --sidebar-border: #1E2F4A;
+
+  --chart-1: #A78BFA;
+  --chart-2: #22D3EE;
+  --chart-3: #F472B6;
+  --chart-4: #2DD4BF;
+  --chart-5: #C084FC;
+  --chart-6: #FB7185;
+  --chart-7: #818CF8;
+  --chart-8: #A3E635;
+  --chart-9: #9CA3AF;
+  --chart-10: #E879F9;
 }
