@@ -19,9 +19,9 @@ interface ClassCardProps {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  active:  "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400",
-  pending: "bg-amber-50   text-amber-700   border-amber-200   dark:bg-amber-950/20 dark:text-amber-400",
-  removed: "bg-slate-100  text-slate-500   border-slate-200   dark:bg-slate-900/20 dark:text-slate-400",
+  active:  "badge-success",
+  pending: "badge-warning",
+  removed: "badge-muted",
 };
 
 export function ClassCard({ item, colorIndex = 0 }: ClassCardProps) {
