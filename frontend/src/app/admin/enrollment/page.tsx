@@ -353,10 +353,10 @@ export default function EnrollmentPage() {
           </div>
 
           {readiness && !readiness.ready && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
-              <CircleAlert className="mt-0.5 h-4 w-4 text-amber-500 shrink-0" />
+            <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
+              <CircleAlert className="mt-0.5 h-4 w-4 text-warning shrink-0" />
               <div className="text-xs">
-                <p className="font-medium text-amber-700 dark:text-amber-400">
+                <p className="font-medium text-warning">
                   This school year is not ready
                   {readiness.blockingCount > 0
                     ? ` (${readiness.blockingCount} blocking).`
@@ -392,7 +392,7 @@ export default function EnrollmentPage() {
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
                   <p className="text-xs text-muted-foreground not-interactive">Active</p>
-                  <p className="text-2xl font-semibold text-green-600 dark:text-green-400 not-interactive">
+                  <p className="text-2xl font-semibold text-success not-interactive">
                     {activeCount}
                   </p>
                   <p className="text-xs text-muted-foreground not-interactive">
