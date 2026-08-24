@@ -40,7 +40,7 @@ function HolidayRow({
       className={cn(
         "flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-colors select-none",
         holiday.enabled
-          ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800"
+          ? "bg-success/10 border-success/30"
           : "bg-card border-border hover:bg-muted/30",
       )}
     >
@@ -48,7 +48,7 @@ function HolidayRow({
         className={cn(
           "flex h-5 w-5 items-center justify-center rounded border-2 shrink-0 transition-colors",
           holiday.enabled
-            ? "bg-emerald-500 border-emerald-500"
+            ? "bg-success border-success"
             : "border-muted-foreground/40",
         )}
       >
@@ -218,7 +218,7 @@ export function HolidayListPanel({
             {customHolidays.map((ch, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg border bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg border bg-info/10 border-info/30"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate not-interactive">{ch.title}</p>

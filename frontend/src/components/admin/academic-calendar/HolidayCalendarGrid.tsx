@@ -132,14 +132,14 @@ function DayPopover({
                   className={cn(
                     "flex items-center gap-1.5 flex-1 text-left rounded px-2 py-1 text-xs transition-colors",
                     m.enabled
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                      ? "bg-success/15 text-success"
                       : "bg-muted text-muted-foreground hover:bg-muted/80",
                   )}
                 >
                   <span
                     className={cn(
                       "flex h-4 w-4 items-center justify-center rounded border shrink-0",
-                      m.enabled ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground/40",
+                      m.enabled ? "bg-success border-success" : "border-muted-foreground/40",
                     )}
                   >
                     {m.enabled && <Check className="h-2.5 w-2.5 text-white" />}
@@ -150,8 +150,8 @@ function DayPopover({
                   )}
                 </button>
               ) : (
-                <div className="flex items-center gap-1.5 flex-1 rounded px-2 py-1 text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
-                  <span className="w-4 h-4 rounded-full bg-blue-400 shrink-0" />
+                <div className="flex items-center gap-1.5 flex-1 rounded px-2 py-1 text-xs bg-info/10 text-info">
+                  <span className="w-4 h-4 rounded-full bg-info shrink-0" />
                   <span className="truncate">{m.label}</span>
                   <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">custom</Badge>
                 </div>
@@ -303,13 +303,13 @@ export function HolidayCalendarGrid({
       {/* Legend */}
       <div className="flex items-center gap-4 px-5 py-2 border-b bg-muted/10 text-xs text-muted-foreground not-interactive">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Enabled holiday
+          <span className="h-2.5 w-2.5 rounded-full bg-success" /> Enabled holiday
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" /> Disabled holiday
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-blue-400" /> Custom
+          <span className="h-2.5 w-2.5 rounded-full bg-info" /> Custom
         </span>
       </div>
 
@@ -366,8 +366,8 @@ export function HolidayCalendarGrid({
                     className={cn(
                       "truncate rounded px-1 text-[10px] leading-4 font-medium",
                       m.type === "custom"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
-                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+                        ? "bg-info/15 text-info"
+                        : "bg-success/15 text-success",
                     )}
                   >
                     {m.label}
