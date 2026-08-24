@@ -66,7 +66,7 @@ export function ClassDetailHeader({
       </div>
 
       {isArchived && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+        <div className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           This class is archived and read-only.
         </div>

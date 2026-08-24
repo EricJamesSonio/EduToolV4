@@ -28,18 +28,18 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  written_work:         "bg-blue-100 text-blue-700",
-  performance_task:     "bg-violet-100 text-violet-700",
-  quarterly_assessment: "bg-amber-100 text-amber-700",
-  exam:                 "bg-red-100 text-red-700",
-  quiz:                 "bg-orange-100 text-orange-700",
-  project:              "bg-green-100 text-green-700",
-  recitation:           "bg-cyan-100 text-cyan-700",
-  attendance:           "bg-teal-100 text-teal-700",
-  activity:             "bg-lime-100 text-lime-700",
-  custom:               "bg-gray-100 text-gray-700",
-  manual:               "bg-gray-100 text-gray-700",
-  other:                "bg-gray-100 text-gray-700",
+  written_work:         "bg-chart-1/15 text-[var(--chart-1)] border border-[var(--chart-1)]/20",
+  performance_task:     "bg-chart-2/15 text-[var(--chart-2)] border border-[var(--chart-2)]/20",
+  quarterly_assessment: "bg-chart-3/15 text-[var(--chart-3)] border border-[var(--chart-3)]/20",
+  exam:                 "bg-chart-4/15 text-[var(--chart-4)] border border-[var(--chart-4)]/20",
+  quiz:                 "bg-chart-5/15 text-[var(--chart-5)] border border-[var(--chart-5)]/20",
+  project:              "bg-chart-6/15 text-[var(--chart-6)] border border-[var(--chart-6)]/20",
+  recitation:           "bg-chart-7/15 text-[var(--chart-7)] border border-[var(--chart-7)]/20",
+  attendance:           "bg-chart-8/15 text-[var(--chart-8)] border border-[var(--chart-8)]/20",
+  activity:             "bg-chart-9/15 text-[var(--chart-9)] border border-[var(--chart-9)]/20",
+  custom:               "bg-chart-10/15 text-[var(--chart-10)] border border-[var(--chart-10)]/20",
+  manual:               "bg-chart-1/15 text-[var(--chart-1)] border border-[var(--chart-1)]/20",
+  other:                "bg-chart-2/15 text-[var(--chart-2)] border border-[var(--chart-2)]/20",
 };
 
 export function ClassGradingSchemeCard({
@@ -99,7 +99,7 @@ export function ClassGradingSchemeCard({
               className="h-full transition-all"
               style={{
                 width: `${comp.weight}%`,
-                backgroundColor: `hsl(${(i * 47) % 360}, 65%, 55%)`,
+                backgroundColor: `var(--chart-${(i % 10) + 1})`,
               }}
               title={`${comp.name}: ${comp.weight}%`}
             />
@@ -111,8 +111,8 @@ export function ClassGradingSchemeCard({
           {scheme.components.map((comp, i) => (
             <div key={comp.id ?? i} className="flex items-center gap-2">
               <span
-                className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                  TYPE_COLORS[comp.type] ?? "bg-gray-100 text-gray-700"
+                className={`text-xs px-1.5 py-0.5 rounded font-medium border ${
+                  TYPE_COLORS[comp.type] ?? "bg-muted text-muted-foreground border-border"
                 }`}
               >
                 {TYPE_LABELS[comp.type] ?? comp.type}
@@ -136,7 +136,7 @@ export function ClassGradingSchemeCard({
         <div className="flex justify-end pt-1">
           <span
             className={`text-xs font-medium tabular-nums ${
-              totalWeight === 100 ? "text-emerald-600" : "text-destructive"
+              totalWeight === 100 ? "text-success" : "text-destructive"
             }`}
           >
             Total: {totalWeight}%
