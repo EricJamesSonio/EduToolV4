@@ -237,7 +237,7 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
       title:
         subjectMap.get(cls.subjectId) ??
         cls.subjectName ??
-        cls.subjectId,
+        "Unnamed Class",
     }));
   }, [
     classesResp,
