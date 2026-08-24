@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { CHART_DOT_BG } from "@/lib/chart-colors";
 import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
 import {
   Select,
@@ -72,24 +73,13 @@ interface TemplateAssignmentPanelProps {
   isLoading: boolean;
 }
 
-const DOT_COLORS = [
-  "bg-blue-500",
-  "bg-emerald-500",
-  "bg-purple-500",
-  "bg-amber-500",
-  "bg-teal-500",
-  "bg-indigo-500",
-  "bg-pink-500",
-  "bg-cyan-500",
-  "bg-orange-500",
-  "bg-rose-500",
-];
+const DOT_COLORS = CHART_DOT_BG;
 
 function typeBadge(type: string) {
   return cn(
     "text-xs border px-2 py-0.5 w-fit font-normal not-interactive",
     PROGRAM_TYPE_COLORS[type as keyof typeof PROGRAM_TYPE_COLORS] ??
-      "bg-slate-500/10 text-slate-600 border-slate-200",
+      "badge-muted",
   );
 }
 
@@ -271,7 +261,7 @@ export function TemplateAssignmentPanel({
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
             {row.original.assignedTemplateName ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
             ) : (
               <div className="h-4 w-4 shrink-0" />
             )}
@@ -284,7 +274,7 @@ export function TemplateAssignmentPanel({
                     "text-xs border px-2 py-0.5 w-fit font-normal",
                     PROGRAM_TYPE_COLORS[
                       row.original.type as keyof typeof PROGRAM_TYPE_COLORS
-                    ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
+                    ] ?? "badge-muted",
                   )}
                 >
                   {PROGRAM_TYPE_LABELS[
@@ -302,7 +292,7 @@ export function TemplateAssignmentPanel({
         cell: ({ row }) =>
           row.original.assignedTemplateName ? (
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+              <Check className="h-4 w-4 text-success shrink-0" />
               <span className="text-sm font-medium not-interactive">
                 {row.original.assignedTemplateName}
               </span>
@@ -392,7 +382,7 @@ export function TemplateAssignmentPanel({
           return (
             <div className="flex items-center gap-2">
               {appliedClasses.has(cls.id) && classTemplates[cls.id] && (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
               )}
               <Select
                 value={classTemplates[cls.id] ?? ""}
@@ -589,8 +579,8 @@ export function TemplateAssignmentPanel({
               </div>
             )}
 
-            <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
-              <p className="text-xs text-blue-900 not-interactive">
+            <div className="rounded-md bg-info/10 border border-info/20 p-3">
+              <p className="text-xs text-info not-interactive">
                 This will apply the template to all{" "}
                 <span className="font-medium">{assignTarget.classCount}</span> class
                 {assignTarget.classCount !== 1 ? "es" : ""} in{" "}

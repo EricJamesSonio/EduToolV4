@@ -57,7 +57,7 @@ export function TemplateApplicationPanel({
               <SelectItem key={sy.id} value={sy.id} className="text-xs">
                 {sy.name}
                 {sy.status === "active" && (
-                  <span className="ml-1.5 text-emerald-600 text-[10px]">
+                  <span className="ml-1.5 text-success text-[10px]">
                     • Active
                   </span>
                 )}
