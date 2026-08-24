@@ -102,7 +102,7 @@ export default function EnrollmentApplicationsPage(): React.JSX.Element {
                   if (reviewable) setApproveTarget(a);
                 }}
               >
-                <Check className="h-4 w-4 text-emerald-600" />
+                <Check className="h-4 w-4 text-success" />
               </Button>
               <Button
                 variant="ghost"
