@@ -61,11 +61,11 @@ export function StudentCategoryDrillDown({
                       {earned !== null ? (
                         <>{fmt(earned, 0)}/{a.totalItems}</>
                       ) : a.isMissed ? (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold">M</span>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive text-[10px] font-bold">M</span>
                       ) : a.isExempted ? (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold">E</span>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning text-[10px] font-bold">E</span>
                       ) : a.status === 'custom' ? (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold">C</span>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning text-[10px] font-bold">C</span>
                       ) : (
                         <span className="text-muted-foreground/50">&mdash;</span>
                       )}

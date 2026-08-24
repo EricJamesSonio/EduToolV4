@@ -10,9 +10,9 @@ import apiClient from "@/api/client";
 import { fmt } from "./utils";
 
 const STATUS_ACTIONS = [
-  { label: "Missed", status: "missed" as const, badge: "M", className: "bg-red-100 text-red-700 hover:bg-red-200" },
-  { label: "Custom Score", status: "custom" as const, badge: "C", className: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
-  { label: "Exempted", status: "exempted" as const, badge: "E", className: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
+  { label: "Missed", status: "missed" as const, badge: "M", className: "bg-destructive/10 text-destructive hover:bg-destructive/20" },
+  { label: "Custom Score", status: "custom" as const, badge: "C", className: "bg-warning/10 text-warning hover:bg-warning/20" },
+  { label: "Exempted", status: "exempted" as const, badge: "E", className: "bg-warning/10 text-warning hover:bg-warning/20" },
 ];
 
 const INCLUSION_LABEL: Record<string, string> = {
@@ -265,11 +265,11 @@ export function StatusCell({
   const isCustom = status === 'custom' && !isMissed && !isExempted;
   const badgeLabel = isMissed ? "M" : isExempted ? "E" : isCustom ? "C" : null;
   const badgeClass = isMissed
-    ? "bg-red-100 text-red-700"
+    ? "bg-destructive/10 text-destructive"
     : isExempted
-      ? "bg-amber-100 text-amber-700"
+      ? "bg-warning/10 text-warning"
       : isCustom
-        ? "bg-amber-100 text-amber-700"
+        ? "bg-warning/10 text-warning"
         : "";
 
   return (
@@ -286,7 +286,7 @@ export function StatusCell({
           </span>
         ) : isCustom ? (
           <span className="inline-flex items-center gap-0.5">
-            <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-amber-100 text-amber-700">C</span>
+            <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-warning/10 text-warning">C</span>
             <span>{fmt(score, 0)}/{totalItems}</span>
           </span>
         ) : isMissed || isExempted ? (

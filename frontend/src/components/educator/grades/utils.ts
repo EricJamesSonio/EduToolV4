@@ -1,8 +1,8 @@
 export function gradeColor(score: number | null): string {
   if (score === null) return "text-muted-foreground";
-  if (score >= 90) return "text-emerald-600 dark:text-emerald-400";
-  if (score >= 75) return "text-blue-600 dark:text-blue-400";
-  if (score >= 60) return "text-amber-600 dark:text-amber-400";
+  if (score >= 90) return "text-success dark:text-success";
+  if (score >= 75) return "text-info dark:text-info";
+  if (score >= 60) return "text-warning dark:text-warning";
   return "text-destructive";
 }
 

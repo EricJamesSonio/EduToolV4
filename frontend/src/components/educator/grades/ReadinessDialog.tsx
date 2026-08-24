@@ -31,7 +31,7 @@ export function ReadinessDialog({
             <div key={i} className="rounded-lg border bg-card p-3 text-sm">
               {issue.type === "missing_submission" && (
                 <div className="flex items-start gap-2">
-                  <div className="mt-0.5 w-5 h-5 rounded bg-red-100 text-red-700 flex items-center justify-center text-[10px] font-bold shrink-0">M</div>
+                  <div className="mt-0.5 w-5 h-5 rounded bg-destructive/15 text-destructive flex items-center justify-center text-[10px] font-bold shrink-0">M</div>
                   <div>
                     <p className="font-medium">
                       {issue.studentName}
@@ -46,7 +46,7 @@ export function ReadinessDialog({
               )}
               {issue.type === "missing_category_assessment" && (
                 <div className="flex items-start gap-2">
-                  <div className="mt-0.5 w-5 h-5 rounded bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-bold shrink-0">!</div>
+                  <div className="mt-0.5 w-5 h-5 rounded bg-warning/15 text-warning flex items-center justify-center text-[10px] font-bold shrink-0">!</div>
                   <div>
                     <p className="font-medium">
                       No assessment for category: <span className="font-bold capitalize">{issue.category}</span>
