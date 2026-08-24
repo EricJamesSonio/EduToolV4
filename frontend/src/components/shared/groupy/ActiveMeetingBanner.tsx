@@ -41,7 +41,7 @@ export function ActiveMeetingBanner({
           {isHost ? <PhoneCall className="h-4 w-4" /> : <PhoneIncoming className="h-4 w-4" />}
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium leading-tight text-amber-500">
+          <p className="text-xs font-medium leading-tight text-warning">
             {isHost ? "Ongoing call…" : "Incoming call…"}
           </p>
           <p className="text-[11px] text-muted-foreground truncate">
