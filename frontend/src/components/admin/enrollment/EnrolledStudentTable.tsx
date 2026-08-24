@@ -47,7 +47,7 @@ export function EnrolledStudentTable({
         return (
           <div className="min-w-0">
             <p className="text-sm font-medium truncate not-interactive">
-              {student?.fullName ?? row.original.student_id}
+              {student?.fullName ?? "Unknown Student"}
             </p>
             {student && (
               <p className="text-xs text-muted-foreground truncate not-interactive">
