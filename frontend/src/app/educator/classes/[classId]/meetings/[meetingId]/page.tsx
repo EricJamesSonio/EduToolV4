@@ -380,7 +380,7 @@ export default function MeetingDetailPage({ params }: Props) {
                 const student = students.find((s) => s.id === invite.studentId);
                 return (
                   <TableRow key={invite.id} className="bg-white">
-                    <TableCell className="font-medium">{student?.fullName ?? invite.studentId}</TableCell>
+                    <TableCell className="font-medium">{student?.fullName ?? "Unknown Student"}</TableCell>
                     <TableCell className="text-muted-foreground">{student?.email ?? "—"}</TableCell>
                     {!isEnded && (
                       <TableCell className="text-right">
@@ -422,7 +422,7 @@ export default function MeetingDetailPage({ params }: Props) {
                 const student = students.find((s) => s.id === req.studentId);
                 return (
                   <TableRow key={req.id} className="bg-white">
-                    <TableCell className="font-medium">{student?.fullName ?? req.studentId}</TableCell>
+                    <TableCell className="font-medium">{student?.fullName ?? "Unknown Student"}</TableCell>
                     <TableCell className="text-muted-foreground">{student?.email ?? "—"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
