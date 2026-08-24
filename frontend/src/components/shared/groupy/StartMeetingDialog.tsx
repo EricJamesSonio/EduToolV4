@@ -147,7 +147,7 @@ export function StartMeetingDialog({
                       <AvatarFallback>{initials(s.full_name ?? "")}</AvatarFallback>
                     </Avatar>
                     <span className="min-w-0 flex-1 truncate font-medium">
-                      {s.full_name ?? s.account_id}
+                      {s.full_name ?? "Unknown Student"}
                     </span>
                     <input
                       type="checkbox"
