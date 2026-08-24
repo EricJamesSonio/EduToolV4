@@ -231,7 +231,7 @@ export function BulkCreateEducatorDialog({
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1" onClick={handleCopyAll}>
               {copied
-                ? <><Check className="mr-2 h-4 w-4 text-green-600" />Copied!</>
+                ? <><Check className="mr-2 h-4 w-4 text-success" />Copied!</>
                 : <><Copy className="mr-2 h-4 w-4" />Copy All</>}
             </Button>
             <Button variant="outline" size="sm" className="flex-1" onClick={handleDownload}>
