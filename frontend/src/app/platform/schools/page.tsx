@@ -18,8 +18,7 @@ import { platformApi, type SchoolOrg } from "@/api/platform.api";
 import { getOrgLogoUrl } from "@/utils/org.util";
 
 const adminStatusBadge: Record<string, string> = {
-  active:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  active: "badge-success",
   suspended: "bg-destructive/10 text-destructive",
 };
 
