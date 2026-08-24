@@ -190,7 +190,7 @@ export function LessonForm({
           </Label>
           <span className={cn(
             "text-xs",
-            detailValid ? "text-green-600" : "text-muted-foreground",
+            detailValid ? "text-success" : "text-muted-foreground",
           )}>
             {wordCount} / {MIN_DETAIL_WORDS} words min
           </span>

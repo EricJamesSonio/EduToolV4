@@ -33,7 +33,7 @@ function ConceptStatusBadge({ hasConcept }: { hasConcept: boolean }) {
   }
 
   return (
-    <Badge variant="secondary" className="gap-1 text-xs text-green-600">
+    <Badge variant="secondary" className="gap-1 text-xs text-success">
       <CheckCircle2 className="h-3 w-3" />
       Extracted
     </Badge>

@@ -30,9 +30,9 @@ interface ConceptBuildContent {
 }
 
 const difficultyColors: Record<string, string> = {
-  easy: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  hard: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  easy: "bg-success/15 text-success dark:bg-success/15 dark:text-success",
+  medium: "bg-warning/15 text-warning dark:bg-warning/15 dark:text-warning",
+  hard: "bg-destructive/15 text-destructive dark:bg-destructive/15 dark:text-destructive",
 };
 
 function useProgress(isExtracting: boolean, done: boolean): number {
