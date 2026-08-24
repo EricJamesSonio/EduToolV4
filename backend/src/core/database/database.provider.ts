@@ -25,7 +25,14 @@ export class DatabaseService
 
     let ssl: { rejectUnauthorized: boolean } | undefined;
 
-    if (skipVerify) {
+    // Only force TLS when explicitly requested for managed Postgres.
+    // Local Postgres (localhost / 127.0.0.1) does NOT support SSL — forcing it
+    // causes "The server does not support SSL connections".
+    const isLocal =
+      connectionString.includes('localhost') ||
+      connectionString.includes('127.0.0.1');
+
+    if (skipVerify && !isLocal) {
       ssl = { rejectUnauthorized: false };
 
       // pg treats `sslmode=require` as an alias for `verify-full` and lets it
