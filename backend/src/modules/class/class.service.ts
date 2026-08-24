@@ -14,6 +14,10 @@ import { GradingSchemeTemplateService } from '../grading-scheme-template/grading
 import { resolveProgramIdFromSubject } from '../program/program-type-resolver';
 import { DatabaseService } from '@/core/database/database.provider';
 import {
+  resolveSubjectAcademicStructure,
+  isEligibleForClassStructure,
+} from '../enrollment/enrollment-eligibility.util';
+import {
   CreateClassDto,
   UpdateClassDto,
   QueryClassDto,
@@ -391,6 +395,135 @@ export class ClassService {
     return this.classRepository.findEligibleStudents(classId, orgId, search);
   }
 
+  async getEligibleClassesForStudent(
+    studentId: string,
+    orgId: string,
+    search?: string,
+  ) {
+    // Validate student exists and belongs to org
+    const student = await this.db.account.findFirst({
+      where: { id: studentId, org_id: orgId, role: 'student' },
+    });
+    if (!student) throw new NotFoundException('Student not found.');
+
+    // Build map of schoolYear -> active academic placement
+    const ssyRows = await this.db.studentSchoolYear.findMany({
+      where: { org_id: orgId, student_id: studentId },
+      include: {
+        programEnrollments: { where: { status: 'active' } },
+      },
+    });
+
+    const placementByYear = new Map<
+      string,
+      { programId: string | null; levelId: string | null; courseId: string | null; strandId: string | null; sectionId: string | null }
+    >();
+    for (const row of ssyRows) {
+      const pe = row.programEnrollments[0];
+      if (!pe) continue;
+      placementByYear.set(row.school_year_id, {
+        programId: pe.program_id,
+        levelId: pe.level_id,
+        courseId: pe.course_id,
+        strandId: pe.strand_id,
+        sectionId: pe.section_id,
+      });
+    }
+
+    if (placementByYear.size === 0) return [];
+
+    // Already enrolled classes (to exclude) and subject+semester duplicates
+    const existingEnrollments = await this.db.enrollment.findMany({
+      where: { student_id: studentId, org_id: orgId, status: { not: 'removed' } },
+      include: { class: { select: { subject_id: true, semester_id: true } } },
+    });
+    const enrolledClassIds = new Set(existingEnrollments.map((e) => e.class_id));
+    const enrolledSubjectSemester = new Set(
+      existingEnrollments.map((e) => `${e.class.subject_id}::${e.class.semester_id}`),
+    );
+
+    // Candidate classes — same org, not archived, capacity-aware but still shown if full
+    const where: Record<string, unknown> = {
+      org_id: orgId,
+      deleted_at: null,
+    };
+    if (search) {
+      (where as Record<string, unknown>).OR = [
+        { subject: { name: { contains: search, mode: 'insensitive' as const } } },
+        { educator: { profile: { full_name: { contains: search, mode: 'insensitive' as const } } } },
+      ];
+    }
+
+    const candidates = await this.db.class.findMany({
+      where: where as never,
+      include: {
+        _count: { select: { enrollments: { where: { status: 'active' } } } },
+        schedules: true,
+        subject: {
+          select: {
+            id: true,
+            name: true,
+            program_id: true,
+            course_id: true,
+            strand_id: true,
+            level_id: true,
+            program: { select: { name: true } },
+            course: { select: { name: true } },
+            strand: { select: { name: true } },
+            level: { select: { name: true } },
+          },
+        },
+        educator: { include: { profile: { select: { full_name: true } } } },
+        schoolYear: { select: { id: true, name: true } },
+        gradingSchemes: { where: { template_id: { not: null } }, take: 1, select: { template_id: true } },
+      },
+      orderBy: { created_at: 'desc' },
+      take: 200,
+    });
+
+    const eligible: typeof candidates = [];
+    for (const cls of candidates) {
+      if (enrolledClassIds.has(cls.id)) continue;
+      const dupKey = `${cls.subject_id}::${cls.semester_id}`;
+      if (enrolledSubjectSemester.has(dupKey)) continue;
+
+      const studentStructure = placementByYear.get(cls.school_year_id) ?? null;
+      if (!studentStructure) continue;
+
+      // Lazy resolve subject structure per class
+      const subjectStructure = await resolveSubjectAcademicStructure(this.db, cls.subject_id, orgId);
+      if (!subjectStructure.programId) continue;
+
+      const eligibleByStructure = isEligibleForClassStructure(
+        subjectStructure,
+        studentStructure as never,
+        cls.section_id,
+      );
+      if (!eligibleByStructure) continue;
+
+      eligible.push(cls);
+    }
+
+    // Map to same shape as findAll for frontend consumption
+    return eligible.map((cls) => {
+      const subject = (cls as unknown as { subject: { name: string; program_id: string | null; program: { name: string } | null; course: { name: string } | null; strand: { name: string } | null; level: { name: string } | null } }).subject;
+      const educator = (cls as unknown as { educator: { profile: { full_name: string } | null } }).educator;
+      return {
+        ...cls,
+        program_id:
+          (cls as unknown as { subject: { program_id: string | null } }).subject?.program_id ?? null,
+        template_id: (cls as unknown as { gradingSchemes: { template_id: string }[] }).gradingSchemes?.[0]?.template_id ?? null,
+        subject_name: subject?.name ?? null,
+        program_name: subject?.program?.name ?? subject?.course?.name ?? subject?.strand?.name ?? null,
+        level_name: subject?.level?.name ?? null,
+        course_name: (cls as unknown as { subject: { course: { name: string } | null } }).subject?.course?.name ?? null,
+        strand_name: (cls as unknown as { subject: { strand: { name: string } | null } }).subject?.strand?.name ?? null,
+        educatorName: educator?.profile?.full_name ?? null,
+        enrolled_count: (cls as unknown as { _count: { enrollments: number } })._count?.enrollments ?? 0,
+      };
+    });
+  }
+
   async getEnrollments(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
@@ -526,6 +659,10 @@ export class ClassService {
 
   async getEducatorClasses(educatorId: string, orgId: string) {
     return this.classRepository.findActiveClassesByEducator(educatorId, orgId);
+  }
+
+  async getEducatorTeachingHistory(educatorId: string, orgId: string) {
+    return this.classRepository.findTeachingHistoryByEducator(educatorId, orgId);
   }
 
   async getStudentClasses(studentId: string, orgId: string) {

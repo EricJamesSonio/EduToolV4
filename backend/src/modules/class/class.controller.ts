@@ -42,7 +42,7 @@ export class ClassController {
   }
 
   @Get()
-  @Roles('admin', 'educator')
+  @Roles('admin', 'educator', 'student')
   async findAll(
     @CurrentUser('org_id') orgId: string,
     @Query() query: QueryClassDto,
@@ -67,6 +67,25 @@ export class ClassController {
       semesterId,
       programId,
     });
+  }
+
+  @Get('educators/:educatorId/teaching-history')
+  @Roles('admin')
+  async getEducatorTeachingHistory(
+    @Param('educatorId') educatorId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.classService.getEducatorTeachingHistory(educatorId, orgId);
+  }
+
+  @Get('eligible-for-student/:studentId')
+  @Roles('admin')
+  async getEligibleClassesForStudent(
+    @Param('studentId') studentId: string,
+    @CurrentUser('org_id') orgId: string,
+    @Query('search') search?: string,
+  ) {
+    return this.classService.getEligibleClassesForStudent(studentId, orgId, search);
   }
 
   @Get(':id')
@@ -193,6 +212,15 @@ export class EducatorClassController {
     @CurrentUser('id') educatorId: string,
   ) {
     return this.classService.getEducatorClasses(educatorId, orgId);
+  }
+
+  @Get('teaching-history')
+  @Roles('educator', 'admin')
+  async getMyTeachingHistory(
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.classService.getEducatorTeachingHistory(educatorId, orgId);
   }
 }
 

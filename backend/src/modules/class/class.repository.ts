@@ -276,6 +276,25 @@ export class ClassRepository {
     });
   }
 
+  async findTeachingHistoryByEducator(educatorId: string, orgId: string) {
+    return this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        educator_id: educatorId,
+      },
+      include: {
+        subject: { select: { id: true, name: true } },
+        schoolYear: { select: { id: true, name: true, status: true } },
+        educator: {
+          include: {
+            profile: { select: { full_name: true } },
+          },
+        },
+      },
+      orderBy: [{ school_year_id: 'asc' }, { created_at: 'asc' }],
+    });
+  }
+
   async findEducatorSchedules(
     educatorId: string,
     orgId: string,
