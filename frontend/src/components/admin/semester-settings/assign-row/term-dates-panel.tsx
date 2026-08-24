@@ -69,13 +69,13 @@ export function TermDatesPanel({
 
         <div className="flex items-center gap-2">
           {panelMode === "view" && !isValid && (
-            <div className="flex items-center gap-1 text-xs text-amber-600 not-interactive">
+            <div className="flex items-center gap-1 text-xs text-warning not-interactive">
               <AlertCircle className="h-3 w-3" />
               Dates not set
             </div>
           )}
           {panelMode === "edit" && !isValid && (
-            <div className="flex items-center gap-1 text-xs text-amber-600 not-interactive">
+            <div className="flex items-center gap-1 text-xs text-warning not-interactive">
               <AlertCircle className="h-3 w-3" />
               Missing dates
             </div>
@@ -120,7 +120,7 @@ export function TermDatesPanel({
                           {formatDate(d.startDate)} → {formatDate(d.endDate)}
                         </span>
                       ) : (
-                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 not-interactive">
+                        <Badge variant="outline" className="text-xs badge-warning not-interactive">
                           Not set
                         </Badge>
                       )}
