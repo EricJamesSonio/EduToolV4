@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
-import { WEEK_COLORS } from "@/lib/palette";
+import { CHART_DOT_BG } from "@/lib/chart-colors";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import type { GradingScale } from "@/types/admin/grading-scale.types";
 
@@ -125,7 +125,7 @@ export function GradingScaleList({
                       "text-[10px] border px-1.5 py-0 w-fit font-normal shrink-0 not-interactive",
                       PROGRAM_TYPE_COLORS[
                         scale.programType as keyof typeof PROGRAM_TYPE_COLORS
-                      ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
+                      ] ?? "badge-muted",
                     )}
                   >
                     {PROGRAM_TYPE_LABELS[scale.programType as keyof typeof PROGRAM_TYPE_LABELS] ?? scale.programType}
@@ -177,7 +177,7 @@ export function GradingScaleList({
                   <p className="text-xs text-muted-foreground italic not-interactive">No ranges defined</p>
                 ) : (
                   scale.ranges.map((range, idx) => {
-                    const clrs = [["text-blue-600", "bg-blue-500/10 text-blue-600"], ["text-emerald-600", "bg-emerald-500/10 text-emerald-600"], ["text-purple-600", "bg-purple-500/10 text-purple-600"], ["text-amber-600", "bg-amber-500/10 text-amber-600"], ["text-teal-600", "bg-teal-500/10 text-teal-600"], ["text-indigo-600", "bg-indigo-500/10 text-indigo-600"], ["text-pink-600", "bg-pink-500/10 text-pink-600"], ["text-cyan-600", "bg-cyan-500/10 text-cyan-600"], ["text-orange-600", "bg-orange-500/10 text-orange-600"], ["text-rose-600", "bg-rose-500/10 text-rose-600"]];
+                    const clrs = [["text-[var(--chart-1)]", "bg-chart-1/10 text-[var(--chart-1)]"], ["text-[var(--chart-2)]", "bg-chart-2/10 text-[var(--chart-2)]"], ["text-[var(--chart-3)]", "bg-chart-3/10 text-[var(--chart-3)]"], ["text-[var(--chart-4)]", "bg-chart-4/10 text-[var(--chart-4)]"], ["text-[var(--chart-5)]", "bg-chart-5/10 text-[var(--chart-5)]"], ["text-[var(--chart-6)]", "bg-chart-6/10 text-[var(--chart-6)]"], ["text-[var(--chart-7)]", "bg-chart-7/10 text-[var(--chart-7)]"], ["text-[var(--chart-8)]", "bg-chart-8/10 text-[var(--chart-8)]"], ["text-[var(--chart-9)]", "bg-chart-9/10 text-[var(--chart-9)]"], ["text-[var(--chart-10)]", "bg-chart-10/10 text-[var(--chart-10)]"]];
                     const c = clrs[idx % 10];
                     return (
                       <div key={idx} className="flex items-center justify-between text-xs">

@@ -225,7 +225,7 @@ export function GradingScaleRangeEditor({
                       "cursor-pointer select-none text-xs transition-colors",
                       disabled && "opacity-50 cursor-not-allowed",
                       range.isPassing
-                        ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-500/30"
+                        ? "bg-success/15 text-success hover:bg-success/25 border-success/30"
                         : "hover:bg-muted"
                     )}
                   >
@@ -297,8 +297,8 @@ export function GradingScaleRangeEditor({
                   className={cn(
                     "absolute top-0 h-full border-r border-background text-[10px] flex items-center justify-center overflow-hidden font-medium",
                     r.isPassing
-                      ? "bg-emerald-500/30 text-emerald-800"
-                      : "bg-rose-400/30 text-rose-800"
+                      ? "bg-success/30 text-success"
+                      : "bg-destructive/30 text-destructive"
                   )}
                   style={{
                     left: `${r.minPercent}%`,

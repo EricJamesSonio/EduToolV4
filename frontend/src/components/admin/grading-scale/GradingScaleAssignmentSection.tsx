@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { cn } from "@/lib/utils";
 import { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
+import { CHART_DOT_BG } from "@/lib/chart-colors";
 import { DataTable } from "@/components/shared/DataTable";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Button } from "@/components/ui/button";
@@ -172,12 +173,12 @@ export function GradingScaleAssignmentSection({
             <span className="font-medium text-sm not-interactive">{row.original.name}</span>
             <Badge
               variant="outline"
-              className={cn(
-                "text-xs border px-2 py-0.5 w-fit font-normal",
-                PROGRAM_TYPE_COLORS[
-                  row.original.type as keyof typeof PROGRAM_TYPE_COLORS
-                ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
-              )}
+                className={cn(
+                  "text-xs border px-2 py-0.5 w-fit font-normal",
+                  PROGRAM_TYPE_COLORS[
+                    row.original.type as keyof typeof PROGRAM_TYPE_COLORS
+                  ] ?? "badge-muted",
+                )}
             >
               {row.original.type}
             </Badge>
@@ -190,7 +191,7 @@ export function GradingScaleAssignmentSection({
         cell: ({ row }) =>
           row.original.assignedScaleName ? (
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-600" />
+              <Check className="h-4 w-4 text-success" />
               <span className="text-sm font-medium not-interactive">
                 {row.original.assignedScaleName}
               </span>
@@ -295,11 +296,11 @@ export function GradingScaleAssignmentSection({
               <Badge
                 variant="outline"
                 className={cn(
-                  "text-xs border px-2 py-0.5 w-fit font-normal",
-                  PROGRAM_TYPE_COLORS[
-                    assignTarget.type as keyof typeof PROGRAM_TYPE_COLORS
-                  ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
-                )}
+                    "text-xs border px-2 py-0.5 w-fit font-normal",
+                    PROGRAM_TYPE_COLORS[
+                      assignTarget.type as keyof typeof PROGRAM_TYPE_COLORS
+                    ] ?? "badge-muted",
+                  )}
               >
                 {assignTarget.type}
               </Badge>
@@ -325,11 +326,7 @@ export function GradingScaleAssignmentSection({
                     compatibleScales.map((scale, i) => (
                       <SelectItem key={scale.id} value={scale.id}>
                         <div className="flex items-center gap-2">
-                          <div className={cn("h-2 w-2 rounded-full shrink-0", [
-                            "bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500",
-                            "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500",
-                            "bg-orange-500", "bg-rose-500",
-                          ][i % 10])} />
+                           <div className={cn("h-2 w-2 rounded-full shrink-0", CHART_DOT_BG[i % 10])} />
                           {scale.name} ({scale.ranges.length} ranges)
                         </div>
                       </SelectItem>
@@ -350,8 +347,8 @@ export function GradingScaleAssignmentSection({
               </div>
             )}
 
-            <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
-              <p className="text-xs text-blue-900 not-interactive">
+            <div className="rounded-md bg-info/10 border border-info/20 p-3">
+              <p className="text-xs text-info not-interactive">
                 Are you sure you want to assign this grading scale to{" "}
                 <span className="font-medium">{assignTarget.name}</span>?
               </p>
