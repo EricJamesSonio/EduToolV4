@@ -13,7 +13,7 @@ import * as bcrypt from 'bcrypt';
 import { AccountStatus } from '@prisma/client';
 
 import { db } from './db';
-import { ADMIN_CONFIGS, SALT_ROUNDS, SY_NAME } from './constants';
+import { ADMIN_CONFIGS, SALT_ROUNDS, getSharedSchoolYearWindow } from './constants';
 import { slugify } from './utils/identity.util';
 import { slugifyName } from '../../modules/organization/organization.repository';
 import { seedId } from '../../modules/org-seeder/seed-id';
@@ -44,6 +44,10 @@ import { checkSchoolYearReadiness } from './readiness-check';
 
 export async function run(): Promise<void> {
   console.log('\n🌱 SEED DOMAIN DATA — START\n');
+
+  // Shared future window for this seed run (same for all orgs, future-dated)
+  const sharedWindow = getSharedSchoolYearWindow();
+  console.log(`  shared window: ${sharedWindow.name} (${sharedWindow.start.toISOString().slice(0, 10)} -> ${sharedWindow.end.toISOString().slice(0, 10)})`);
 
   // 1. Seed platform owner + admins with orgs (reuse start.ts logic)
   console.log('▶ Seeding base accounts & organizations...');
@@ -164,9 +168,10 @@ export async function run(): Promise<void> {
       `\n▶ [${school.name}] Seeding domain data (${progKeys.join(', ')})...`,
     );
 
-    // a) School year
-    const schoolYearId = await seedSchoolYear(org.id);
-    console.log(`  └ school year: ${SY_NAME}`);
+    // a) School year (shared future window, pending until start_date)
+    const schoolYearId = await seedSchoolYear(org.id, sharedWindow);
+    const _sy = await db.schoolYear.findUnique({ where: { id: schoolYearId }, select: { name: true, start_date: true, status: true } });
+    console.log(`  └ school year: ${_sy?.name} (${_sy?.status}, ${(_sy?.start_date as Date)?.toISOString?.().slice(0, 10)})`);
 
     // b) Enrollment setting
     await db.orgEnrollmentSetting.upsert({
@@ -253,15 +258,31 @@ export async function run(): Promise<void> {
 
     if (readiness.ready) {
       console.log(`  ✅ School year is READY — proceeding to enroll students.`);
+      const syForActivate = await db.schoolYear.findUnique({ where: { id: schoolYearId }, select: { start_date: true } });
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const start = syForActivate?.start_date ? new Date(syForActivate.start_date) : null;
+      if (start) start.setHours(0, 0, 0, 0);
+      const canActivate = !!start && start <= today;
 
-      await db.schoolYear.updateMany({
-        where: { org_id: org.id, id: { not: schoolYearId }, status: 'active' },
-        data: { status: 'ended' },
-      });
-      await db.schoolYear.update({
-        where: { id: schoolYearId },
-        data: { status: 'active' },
-      });
+      if (canActivate) {
+        await db.schoolYear.updateMany({
+          where: { org_id: org.id, id: { not: schoolYearId }, status: 'active' },
+          data: { status: 'ended' },
+        });
+        await db.schoolYear.update({
+          where: { id: schoolYearId },
+          data: { status: 'active' },
+        });
+        console.log(`  └ activated: ${sharedWindow.name} is now active`);
+      } else {
+        console.log(`  ⏳ School year is READY but starts ${start?.toISOString().slice(0, 10)} — leaving as pending (enrollment window open)`);
+        // Still close other actives that might be lingering, but do not force-activate future year
+        await db.schoolYear.updateMany({
+          where: { org_id: org.id, status: 'active', end_date: { lt: new Date() } },
+          data: { status: 'ended' },
+        });
+      }
 
       const studentIds = await seedStudents(
         org.id,

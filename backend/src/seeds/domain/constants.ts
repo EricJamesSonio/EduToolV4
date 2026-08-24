@@ -8,11 +8,18 @@
  * two can never drift into mismatched namespaces).
  */
 
+import { getSharedSchoolYearWindow } from './utils/school-year-window.util';
+
 export const SALT_ROUNDS = 10;
 export const SEED_PASSWORD = 'seed123';
-export const SY_START = new Date('2025-07-01');
-export const SY_END = new Date('2026-06-30');
-export const SY_NAME = 'SY 2025-2026';
+// Dynamic future window — shared across all orgs for the current seed run.
+// Guarantees start >= now+10d (enrollment window) and duration 10..12 months.
+const _win = getSharedSchoolYearWindow();
+export const SY_START = _win.start;
+export const SY_END = _win.end;
+export const SY_NAME = _win.name;
+export { getSharedSchoolYearWindow };
+export type { SchoolYearWindow } from './utils/school-year-window.util';
 
 export const PROGRAM_SCHEME_PRESET_NAME: Record<string, string> = {
   daycare: 'Daycare Scheme',
