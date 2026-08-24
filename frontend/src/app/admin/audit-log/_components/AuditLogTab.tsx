@@ -43,7 +43,7 @@ export function AuditLogTab() {
 
   const classMap = useMemo(() => {
     const map = new Map<string, string>();
-    if (classes) for (const c of classes) map.set(c.id, c.title ?? c.subjectName ?? c.id);
+    if (classes) for (const c of classes) map.set(c.id, c.title ?? c.subjectName ?? "Unnamed Class");
     return map;
   }, [classes]);
 
@@ -116,7 +116,7 @@ export function AuditLogTab() {
             {entityName ? (
               <p className="text-sm truncate max-w-[160px]" title={entityId}>{entityName}</p>
             ) : (
-              <p className="font-mono text-xs text-muted-foreground truncate max-w-[160px]" title={entityId}>{entityId}</p>
+              <p className="text-xs text-muted-foreground truncate max-w-[160px]">Unknown</p>
             )}
           </div>
         );
@@ -178,7 +178,7 @@ export function AuditLogTab() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by UUID…"
+                placeholder="Search…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="pl-8"
