@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+﻿import { Check } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -62,7 +62,7 @@ export function PricingSection() {
           <div className="section-accent"></div>
         </div>
         <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
-          Simple, <span className="gradient-text">Transparent Pricing</span>
+          Simple, <span className="text-accent">Transparent Pricing</span>
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">
           Choose the plan that fits your school. No hidden fees, no surprises.
@@ -102,11 +102,11 @@ export function PricingSection() {
               {plan.features.map((feature, i) => {
                 const textColors = [
                   "text-primary",
-                  "text-emerald-600",
-                  "text-amber-600",
-                  "text-purple-600",
-                  "text-cyan-600",
-                  "text-orange-600",
+                  "text-success",
+                  "text-warning",
+                  "text-[var(--badge-purple)]",
+                  "text-info",
+                  "text-primary",
                 ];
                 return (
                   <li key={feature} className="flex items-start gap-3 text-sm">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { BookOpen, Zap, BarChart3, Layout, HelpCircle } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +20,7 @@ const resources: ResourceCard[] = [
     description:
       "Set up your school structure, configure departments and levels, and get Relief-ED ready in minutes.",
     slug: "getting-started",
-    color: "bg-blue-500/10 text-blue-500",
+    color: "icon-structure",
   },
   {
     id: "enroll-students",
@@ -29,7 +29,7 @@ const resources: ResourceCard[] = [
     description:
       "Learn the quick and easy way to add students to your classes and manage enrollments.",
     slug: "enroll-students",
-    color: "bg-emerald-500/10 text-emerald-500",
+    color: "icon-edu",
   },
   {
     id: "grading-guide",
@@ -38,7 +38,7 @@ const resources: ResourceCard[] = [
     description:
       "Understand grading schemes, scales, and how to lock grades to prevent accidental changes.",
     slug: "grading-guide",
-    color: "bg-orange-500/10 text-orange-500",
+    color: "icon-people",
   },
   {
     id: "templates",
@@ -47,7 +47,7 @@ const resources: ResourceCard[] = [
     description:
       "Use pre-configured setups for SHS, college departments, and other common school structures.",
     slug: "templates",
-    color: "bg-purple-500/10 text-purple-500",
+    color: "icon-educator",
   },
   {
     id: "help",
@@ -56,7 +56,7 @@ const resources: ResourceCard[] = [
     description:
       "Find answers to common questions and get support when you need it.",
     slug: "help",
-    color: "bg-pink-500/10 text-pink-500",
+    color: "icon-analytics",
   },
 ];
 
@@ -70,7 +70,7 @@ export function ResourcesSection() {
         </div>
         <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
           Learn &{" "}
-          <span className="gradient-text">Get Started</span>
+          <span className="text-accent">Get Started</span>
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">
           Everything you need to master Relief-ED and manage your school
@@ -86,7 +86,7 @@ export function ResourcesSection() {
             href={`/docs/get-started/${resource.slug}`}
             className="group"
           >
-            <div className="card-landing p-6 text-center space-y-4 h-full transition-all duration-300 cursor-pointer hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 hover:scale-105">
+            <div className="card-landing p-6 text-center space-y-4 h-full transition-all duration-300 cursor-pointer hover:shadow-lg hover:border-info/20 dark:hover:border-info/20 hover:scale-105">
               <div className="flex justify-center">
                 <div className={`icon-container ${resource.color}`}>
                   {resource.icon}
@@ -100,8 +100,8 @@ export function ResourcesSection() {
               </p>
               {/* Hidden arrow that appears on hover */}
               <div className="pt-2 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-blue-600 dark:text-blue-400 font-semibold text-sm flex items-center gap-1">
-                  Learn More →
+                <span className="text-info dark:text-info font-semibold text-sm flex items-center gap-1">
+                  Learn More â†’
                 </span>
               </div>
             </div>

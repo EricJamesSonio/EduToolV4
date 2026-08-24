@@ -3,14 +3,14 @@
 import { Building2, BookOpen, Calendar, Zap, Users, GraduationCap, BrainCircuit, CheckCircle2, Video } from "lucide-react";
 
 const features = [
-  { icon: Building2, title: "Organization Management", description: "Create and manage independent school environments with dedicated configurations and users.", color: "bg-blue-500/10 text-blue-500" },
-  { icon: BookOpen, title: "Academic Structure", description: "Build custom departments, levels, sections, subjects, and classes.", color: "bg-emerald-500/10 text-emerald-500" },
-  { icon: Calendar, title: "Academic Calendar System", description: "Manage reusable academic calendars and institutional schedules.", color: "bg-purple-500/10 text-purple-500" },
-  { icon: Zap, title: "Quick Setup Tools", description: "Generate academic structures instantly through predefined templates.", color: "bg-amber-500/10 text-amber-500" },
-  { icon: Users, title: "Educator Workspace", description: "Manage classes, subjects, and student grading.", color: "bg-teal-500/10 text-teal-500" },
-  { icon: GraduationCap, title: "Student Management", description: "Organize student enrollment and academic records.", color: "bg-indigo-500/10 text-indigo-500" },
-  { icon: BrainCircuit, title: "Assessment Generator", description: "Automatically create assessments by inputting lesson details — no more manual exam writing.", color: "bg-pink-500/10 text-pink-500" },
-  { icon: Video, title: "Video Meetings & Live Chat", description: "Built-in video conferencing with real-time chat for virtual classes and parent meetings.", color: "bg-cyan-500/10 text-cyan-500" },
+  { icon: Building2, title: "Organization Management", description: "Create and manage independent school environments with dedicated configurations and users.", color: "icon-structure" },
+  { icon: BookOpen, title: "Academic Structure", description: "Build custom departments, levels, sections, subjects, and classes.", color: "icon-edu" },
+  { icon: Calendar, title: "Academic Calendar System", description: "Manage reusable academic calendars and institutional schedules.", color: "icon-schedule" },
+  { icon: Zap, title: "Quick Setup Tools", description: "Generate academic structures instantly through predefined templates.", color: "icon-utility" },
+  { icon: Users, title: "Educator Workspace", description: "Manage classes, subjects, and student grading.", color: "icon-people" },
+  { icon: GraduationCap, title: "Student Management", description: "Organize student enrollment and academic records.", color: "icon-educator" },
+  { icon: BrainCircuit, title: "Assessment Generator", description: "Automatically create assessments by inputting lesson details — no more manual exam writing.", color: "icon-analytics" },
+  { icon: Video, title: "Video Meetings & Live Chat", description: "Built-in video conferencing with real-time chat for virtual classes and parent meetings.", color: "icon-global" },
 ];
 
 export function FeaturesSection() {
@@ -23,7 +23,7 @@ export function FeaturesSection() {
         </div>
         <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
           Everything Schools Need in{" "}
-          <span className="gradient-text">One Platform</span>
+          <span className="text-accent">One Platform</span>
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">
           Comprehensive tools designed specifically for modern educational institutions

@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import { Mail, Phone, MessageSquare, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const contactMethods = [
-  { icon: Mail, title: "Email", desc: "Send us a detailed request", action: "admin@edutool.com", href: "mailto:admin@edutool.com", color: "bg-blue-500/10 text-blue-500" },
-  { icon: Phone, title: "Phone", desc: "Call us for immediate support", action: "+1 (234) 567-890", href: "tel:+1234567890", color: "bg-emerald-500/10 text-emerald-500" },
-  { icon: MessageSquare, title: "Contact Form", desc: "Fill out our contact form", action: "Get in Touch", href: "#", color: "bg-purple-500/10 text-purple-500" },
+  { icon: Mail, title: "Email", desc: "Send us a detailed request", action: "admin@edutool.com", href: "mailto:admin@edutool.com", color: "icon-structure" },
+  { icon: Phone, title: "Phone", desc: "Call us for immediate support", action: "+1 (234) 567-890", href: "tel:+1234567890", color: "icon-edu" },
+  { icon: MessageSquare, title: "Contact Form", desc: "Fill out our contact form", action: "Get in Touch", href: "#", color: "icon-educator" },
 ];
 
 const checklist = [
@@ -27,7 +27,7 @@ export function ContactAdminSection() {
         </div>
         <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
           Ready to Manage{" "}
-          <span className="gradient-text">Your Institution?</span>
+          <span className="text-accent">Your Institution?</span>
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">
            Get a dedicated admin account and take control of your educational operations with Relief-ED.
