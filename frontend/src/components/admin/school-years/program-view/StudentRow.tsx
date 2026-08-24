@@ -66,7 +66,7 @@ export function StudentRow({
                   {pe.section.name}
                 </Badge>
               ) : (
-                <span className="text-xs text-amber-600 dark:text-amber-400 italic not-interactive">
+                <span className="text-xs text-warning italic not-interactive">
                   No section
                 </span>
               )}
