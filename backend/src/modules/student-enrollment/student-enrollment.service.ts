@@ -14,8 +14,13 @@ import {
   UpdateSchoolYearEnrollmentDto,
   EnrollStudentProgramDto,
   UpdateProgramEnrollmentDto,
+  RemoveProgramEnrollmentDto,
 } from './dto/student-enrollment.dto';
-import { SchoolYearEnrollmentStatus, Prisma } from '@prisma/client';
+import {
+  SchoolYearEnrollmentStatus,
+  ProgramEnrollmentEndReason,
+  Prisma,
+} from '@prisma/client';
 
 @Injectable()
 export class StudentEnrollmentService {
@@ -209,9 +214,9 @@ export class StudentEnrollmentService {
       );
     }
 
-    // Prevent duplicate program enrollment
+    // Prevent duplicate active program enrollment (allow re-enroll after ended)
     const alreadyInProgram = schoolYearEnrollment.programEnrollments?.find(
-      (p) => p.program_id === dto.program_id,
+      (p) => p.program_id === dto.program_id && p.status === 'active',
     );
     if (alreadyInProgram) {
       throw new ConflictException(
@@ -339,21 +344,33 @@ export class StudentEnrollmentService {
     programEnrollmentId: string,
     orgId: string,
     actorId: string,
+    dto?: RemoveProgramEnrollmentDto,
   ) {
     const record =
       await this.repo.findProgramEnrollmentById(programEnrollmentId);
     if (!record || record.org_id !== orgId) {
       throw new NotFoundException('Program enrollment not found.');
     }
-    await this.repo.removeProgramEnrollment(programEnrollmentId);
+    if (record.status !== 'active') {
+      throw new BadRequestException('Program enrollment is not active.');
+    }
+    const reason =
+      (dto?.reason as ProgramEnrollmentEndReason | undefined) ??
+      ProgramEnrollmentEndReason.admin_correction;
+    await this.repo.removeProgramEnrollment(
+      programEnrollmentId,
+      actorId,
+      reason,
+    );
 
     this.auditLogService
       .logAdminAction({
         orgId,
         actorId,
-        action: 'enrollment_removed',
+        action: 'program_enrollment_ended',
         entityType: 'program_enrollment',
         entityId: programEnrollmentId,
+        metadata: { reason },
       })
       .catch(() => {});
   }
