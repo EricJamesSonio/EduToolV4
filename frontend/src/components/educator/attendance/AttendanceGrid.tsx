@@ -25,17 +25,17 @@ const STATUS_LABEL: Record<AttendanceStatus, string> = {
 };
 
 const STATUS_CHIP: Record<AttendanceStatus, string> = {
-  present: "bg-emerald-500 hover:bg-emerald-600 text-white",
-  absent: "bg-red-500 hover:bg-red-600 text-white",
-  late: "bg-amber-500 hover:bg-amber-600 text-white",
-  excused: "bg-blue-500 hover:bg-blue-600 text-white",
+  present: "bg-success hover:bg-success/90 text-white",
+  absent: "bg-destructive hover:bg-destructive/90 text-white",
+  late: "bg-warning hover:bg-warning/90 text-white",
+  excused: "bg-info hover:bg-info/90 text-white",
 };
 
 const STATUS_COLOR: Record<AttendanceStatus, string> = {
-  present: "bg-emerald-500 text-white",
-  absent: "bg-red-500 text-white",
-  late: "bg-amber-500 text-white",
-  excused: "bg-blue-500 text-white",
+  present: "bg-success text-white",
+  absent: "bg-destructive text-white",
+  late: "bg-warning text-white",
+  excused: "bg-info text-white",
 };
 
 const EMPTY_CELL =
@@ -264,16 +264,16 @@ export function AttendanceGrid({ classId }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded bg-emerald-500" /> P
+            <span className="inline-block w-3 h-3 rounded bg-success" /> P
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded bg-red-500" /> A
+            <span className="inline-block w-3 h-3 rounded bg-destructive" /> A
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded bg-amber-500" /> L
+            <span className="inline-block w-3 h-3 rounded bg-warning" /> L
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded bg-blue-500" /> E
+            <span className="inline-block w-3 h-3 rounded bg-info" /> E
           </span>
         </div>
 
