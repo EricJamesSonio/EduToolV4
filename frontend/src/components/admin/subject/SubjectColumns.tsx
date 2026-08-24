@@ -78,7 +78,7 @@ export function useSubjectColumns(
               "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
               locked
                 ? "bg-muted text-muted-foreground"
-                : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+                : "badge-success"
             )}
           >
             {locked ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
