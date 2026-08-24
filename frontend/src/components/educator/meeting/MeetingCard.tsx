@@ -32,7 +32,7 @@ function getMeetingStatus(meeting: Meeting): "upcoming" | "live" | "ended" {
 
 const STATUS_CONFIG = {
   upcoming: { label: "Upcoming", variant: "secondary" as const, className: "" },
-  live:     { label: "Live",     variant: "default"   as const, className: "bg-green-600 hover:bg-green-600 text-white" },
+  live:     { label: "Live",     variant: "default"   as const, className: "bg-success hover:bg-success text-white" },
   ended:    { label: "Ended",    variant: "outline"   as const, className: "text-muted-foreground" },
 };
 
@@ -47,7 +47,7 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
     <div className={cn(
       listItemCardClass,
       "transition-colors",
-      status === "live" && "border-green-200 bg-green-50/30"
+      status === "live" && "border-success/20 bg-success/10"
     )}>
       {/* Header row */}
       <div className="flex items-start gap-3">
@@ -88,7 +88,7 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
             icon={Radio}
             label="Enter Room"
             variant="default"
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="bg-success hover:bg-success/90 text-white"
             onClick={() => router.push(`${basePath}/room`)}
           />
         )}
