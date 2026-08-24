@@ -268,7 +268,7 @@ export function EnrollStudentPanel({
               </p>
               {enrollBlocked ? (
                 <div className="flex items-center gap-2">
-                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                  <p className="text-xs text-warning flex items-center gap-1.5">
                     <AlertCircle className="h-3.5 w-3.5" />
                     School year not ready
                   </p>
