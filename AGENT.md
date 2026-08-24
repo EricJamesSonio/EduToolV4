@@ -1,15 +1,15 @@
-# AGENT — EduToolV4
+# AGENT
 
 > **This file is auto-read by your AI agent at session start.**
 > It is deliberately short. For **building, fixing, or changing code** you MUST follow it. For pure Q&A / reading docs with no code change, you can skip the ticket-state steps.
 
-This repo uses the `.ai` framework. The local project memory lives in `.ai/`, the reusable rules/skills live in the pinned submodule `.ai/shared` (`ai-skills@c09788beeaac149d69ad3b168354f1503a866698`). The framework is not optional when you touch code — it is how tickets, branching, and safety are enforced.
+This repo uses the `.ai` framework. The local project memory lives in `.ai/`, the reusable rules/skills live in the pinned submodule `.ai/shared` (`ai-skills@<sha — fill in after first submodule add, then pinned>`). The framework is not optional when you touch code — it is how tickets, branching, and safety are enforced.
 
 ---
 
 ## When this applies (building / changing code)
 
-**Applies:** new feature, bug fix, refactor, migration, schema change, API route, component, test, package bump, any file change under `backend/` or `frontend/`.
+**Applies:** new feature, bug fix, refactor, migration, schema change, API route, component, test, package bump, any file change under your app-code dirs (e.g. `backend/` / `frontend/` / `src/` / `app/` / `prisma/`).
 
 **Does not apply:** read-only questions, explaining code, drafting docs with no file edits. In those cases, just answer — don't create a worktree or touch `ticket-state`.
 
@@ -43,19 +43,19 @@ Full map lives in `.ai/shared/INDEX.md:1`, not here. This file stays a pointer o
 
 **Check for stale project docs before coding:**
 
-If `.ai/rules/project.md:1`, any `.ai/skills/*/FACTS.md:1`, or `CORE.md` Part 3 says `UNKNOWN — needs onboarder run` or contradicts what you see in `backend/src/` / `frontend/src/` / `prisma/`, run `shared/agents/onboarder.md:1` first. Don't build on placeholder docs. See `.ai/rules/CORE.md:108` Part 3 and `Build.md:252` Step 7.
+If `.ai/rules/project.md:1`, any `.ai/skills/*/FACTS.md:1`, or `CORE.md` Part 3 says `UNKNOWN — needs onboarder run` or contradicts what you see in your app-code dirs / source, run `shared/agents/onboarder.md:1` first. Don't build on placeholder docs. See `.ai/rules/CORE.md:108` Part 3 and `Build.md:252` Step 7.
 
 ---
 
 ## 2. Project wiring (from `.ai/rules/CORE.md:22` Part 0)
 
-- **Shared skills:** `.ai/shared/` — git submodule → `ai-skills`, pinned to `c09788beeaac149d69ad3b168354f1503a866698`. Bump only via a dedicated `INFRA` ticket (`shared/rules/dependencies.md` §Version Changes).
-- **Ticket-state:** dedicated worktree at `../EduToolV4-ticket-state`, branch `ticket-state`. Never checkout `ticket-state` inside a feature worktree.
+- **Shared skills:** `.ai/shared/` — git submodule → `ai-skills`, pinned to `<sha>`. Bump only via a dedicated `INFRA` ticket (`shared/rules/dependencies.md` §Version Changes).
+- **Ticket-state:** dedicated worktree at `../<project-name>-ticket-state`, branch `ticket-state`. Never checkout `ticket-state` inside a feature worktree.
 - **Handoffs:** `ticket-state/handoffs/<TICK-ID>.md` (per-ticket, not global).
 
 Confirm all three exist before claiming work. If missing: `git submodule update --init --recursive`, `git worktree list`, then `shared/agents/onboarder.md`.
 
-Build / wiring reference: `Build.md:1` (generic, works for any project — local fix for `EduToolV4`).
+Build / wiring reference: `Build.md:1` (generic, copy-paste for any project).
 
 ---
 
@@ -72,11 +72,11 @@ ticket-state          — orthogonal, no app code, never merges into development
 
 - Never push directly to `main` or `development` — all code lands via `agent/TICK-...` merge.
 - **No ticket, no change.** Every code change ties to a `ticket-state` ticket.
-- One agent branch per ticket, fresh from `development`, in a worktree **outside** the repo (`../EduToolV4-worktrees/TICK-...` or similar, never `worktrees/` inside repo).
+- One agent branch per ticket, fresh from `development`, in a worktree **outside** the repo (`../<project-name>-worktrees/TICK-...` or similar, never `worktrees/` inside repo).
 - Tests for the change pass before `ready-for-review`; full suite passes on `development` after merge.
 - Never `push --force` or `reset --hard` `ticket-state` to fix a rejected push — rejection is the mechanism working.
 
-This repo's `ticket-state` protections are convention-only — see §5.
+If `ticket-state` branch protection is not enabled on this org (requires plan upgrade), convention still applies — see §5.
 
 ---
 
@@ -88,7 +88,7 @@ This repo's `ticket-state` protections are convention-only — see §5.
 
 ```bash
 # from the dedicated worktree — never from your feature worktree
-cd ../EduToolV4-ticket-state
+cd ../<project-name>-ticket-state
 git fetch origin ticket-state && git reset --hard origin/ticket-state
 # now read tickets/pending/, tickets/in-progress/, counters/, handoffs/
 ```
@@ -98,7 +98,7 @@ A locally cached view is **never** valid. Do NOT trust the worktree without `fet
 **Claiming a ticket / creating a new one:**
 
 ```bash
-cd ../EduToolV4-ticket-state
+cd ../<project-name>-ticket-state
 git fetch origin ticket-state && git reset --hard origin/ticket-state
 # 1. confirm ticket still in tickets/pending/ (or counter value for new ticket)
 # 2. ONE commit: move ticket to tickets/in-progress/, fill Assigned to / Started / Worktree / Branch, AND increment/create counters/<DOMAIN>.txt (create as 1 if first ticket in that domain)
@@ -108,15 +108,15 @@ git push origin ticket-state
 
 Writing a handoff is the same sequence: single `handoffs/<TICK-ID>.md` file per ticket.
 
-**Mechanical guard:** `ticket-state/.github/workflows/ticket-state-guard.yml:1` checks every push shape (ticket alone, ticket+counter, or single handoff). It still runs in Actions even though it isn't a required status check on this repo (see §5). A failed guard is a block — fix the protocol, don't bypass it.
+**Mechanical guard:** `ticket-state/.github/workflows/ticket-state-guard.yml:1` checks every push shape (ticket alone, ticket+counter, or single handoff). If branch protection is enabled, it blocks bad pushes; if not (org plan limit), it still runs in Actions — reviewer must check it manually. A failed guard is a block either way — fix the protocol, don't bypass it.
 
 Lifecycle: `pending → in-progress → ready-for-review → merged → completed` (or `blocked`, `cancelled`). Full steps: `shared/rules/git-workflow.md` §Step-by-step lifecycle. Never work without a worktree; delete `handoffs/<TICK-ID>.md` only after `completed`.
 
 ---
 
-## 5. Branch protection note (this repo — org plan limit)
+## 5. Branch protection note (org plan limit — may be skipped)
 
-GitHub branch protection for `ticket-state` (Require linear history, Restrict force pushes, Require `ticket-state-guard`) **is not enabled** on this org — it requires a plan upgrade. See `.ai/workspace/context/known-issues.md:8` and `decisions/ADR-001-skip-ticket-state-protection.md:1`.
+GitHub branch protection for `ticket-state` (Require linear history, Restrict force pushes, Require `ticket-state-guard`) **may not be enabled** on some orgs — it requires a plan upgrade. If unavailable, see `.ai/workspace/context/known-issues.md:8` and `decisions/ADR-001-skip-ticket-state-protection.md:1` (generic template).
 
 - `ticket-state-guard` still runs but does **not** block pushes — reviewer must check it manually in Actions.
 - Convention is enforced by every agent following §4 exactly. Do NOT disable `ticket-state-guard.yml`.
@@ -149,7 +149,7 @@ Workspace memory (current-state, known-issues, roadmap, decisions) lives in `.ai
 
 ## 7. Where to look next
 
-- Setup / re-wiring a new machine: `Build.md:1` Steps 1–7 (already done; Step 8 skipped per §5).
+- Setup / re-wiring a new machine: `Build.md:1` Steps 1–7 (generic).
 - Full rule reasoning: `shared/rules/*.md`, `shared/skills/*/MUST-HAVES.md` via `CORE.md` Part 2.
 - Roles: `shared/agents/developer.md:1`, `tester.md`, `reviewer.md`, `debugger.md`, `onboarder.md`.
 
