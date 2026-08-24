@@ -682,7 +682,7 @@ export default function EnrollWorkspacePage() {
             <ul className="mt-2 space-y-1">
               {(readiness?.issues.filter((i) => i.severity === "blocking") ?? []).map((issue, i) => (
                 <li key={issue.ref?.id ?? `${issue.code}-${i}`} className="flex items-start gap-2 text-xs">
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 text-warning shrink-0" />
                   <span>{issue.message}</span>
                 </li>
               ))}
