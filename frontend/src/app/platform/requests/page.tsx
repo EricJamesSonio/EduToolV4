@@ -25,8 +25,8 @@ import {
 } from "@/components/platform/RequestDetailDialog";
 
 const statusBadge: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  pending: "badge-warning",
+  approved: "badge-success",
   rejected: "bg-destructive/10 text-destructive",
 };
 
