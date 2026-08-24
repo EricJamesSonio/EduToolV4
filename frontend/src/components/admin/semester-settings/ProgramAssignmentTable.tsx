@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
-const DOT_COLORS = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"];
+import { CHART_DOT_BG } from "@/lib/chart-colors";
 import {
   Select,
   SelectContent,
@@ -65,7 +65,7 @@ function ProgramTableRowActions({
   if (hasNoCalendar) {
     return (
       <div className="flex items-center gap-2">
-        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 shrink-0">
+        <Badge variant="outline" className="text-xs badge-warning shrink-0">
           <AlertTriangle className="h-3 w-3 mr-1" />
           No Calendar
         </Badge>
@@ -102,7 +102,7 @@ function ProgramTableRowActions({
             {matchingTemplates.map((t, i) => (
               <SelectItem key={t.id} value={t.id} className="text-xs">
                 <div className="flex items-center gap-2">
-                  <div className={cn("h-2 w-2 rounded-full shrink-0", DOT_COLORS[i % DOT_COLORS.length])} />
+                  <div className={cn("h-2 w-2 rounded-full shrink-0", CHART_DOT_BG[i % CHART_DOT_BG.length])} />
                   {t.name}
                 </div>
               </SelectItem>
@@ -221,7 +221,7 @@ export function ProgramAssignmentTable({
           const typePrograms = programsByType.get(type) ?? [];
           const typeColor =
             PROGRAM_TYPE_COLORS[type as ProgramType] ??
-            "bg-gray-100 text-gray-600 border-gray-200";
+            "badge-muted";
 
           const tableData = typePrograms.map((p) => ({
             id: p.id,
@@ -240,7 +240,7 @@ export function ProgramAssignmentTable({
                 return (
                   <div className="flex items-center gap-3 min-w-0">
                     {prog.semesterAssignment ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                     ) : (
                       <Circle className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                     )}
@@ -292,9 +292,9 @@ export function ProgramAssignmentTable({
               </div>
 
               {typePrograms.some((p) => !p.semesterAssignment) && (
-                <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
-                  <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-[11px] text-amber-700 not-interactive">
+                <div className="flex items-start gap-2 rounded-md bg-warning/10 border border-warning/20 px-3 py-2">
+                  <AlertCircle className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-warning not-interactive">
                     Some departments don&apos;t have a template assigned yet.
                   </p>
                 </div>

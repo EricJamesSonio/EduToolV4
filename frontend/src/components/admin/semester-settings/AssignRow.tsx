@@ -72,7 +72,7 @@ export function AssignRow({
       {/* Row */}
       <div className="flex items-center gap-3">
         {current ? (
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <CheckCircle2 className="h-4 w-4 text-success" />
         ) : (
           <Circle className="h-4 w-4 text-muted-foreground/30" />
         )}
@@ -80,7 +80,7 @@ export function AssignRow({
         <span className="text-sm font-medium flex-1 truncate not-interactive">{program.name}</span>
 
         {hasNoCalendar ? (
-          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 shrink-0 ml-auto not-interactive">
+          <Badge variant="outline" className="text-xs badge-warning shrink-0 ml-auto not-interactive">
             <AlertTriangle className="h-3 w-3 mr-1" />
             No Calendar
           </Badge>
@@ -127,7 +127,7 @@ export function AssignRow({
 
       {/* No calendar banner */}
       {hasNoCalendar && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/10 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+        <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           <span className="not-interactive">
             Set up an Academic Calendar for this department first (go to{" "}

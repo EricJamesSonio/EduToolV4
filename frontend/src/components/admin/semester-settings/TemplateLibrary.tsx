@@ -77,7 +77,7 @@ export function TemplateLibrary({
         const typeTemplates = templatesByType.get(type) ?? [];
         const typeColor =
           PROGRAM_TYPE_COLORS[type as ProgramType] ??
-          "bg-gray-100 text-gray-600 border-gray-200";
+          "badge-muted";
         return (
           <section key={type} className="space-y-3">
             <div className="flex items-center gap-2">

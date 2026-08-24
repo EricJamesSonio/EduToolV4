@@ -13,7 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
+import { CHART_DOT_BG } from "@/lib/chart-colors";
 import type { SemesterTemplate } from "@/types/admin/semester-template.types";
 
 interface TemplateCardProps {
@@ -96,9 +96,9 @@ export function TemplateCard({
             {[...template.semesters]
               .sort((a, b) => a.order_index - b.order_index)
               .map((sem, si) => {
-                const cardBg = ["bg-blue-50/50", "bg-emerald-50/50", "bg-purple-50/50", "bg-amber-50/50", "bg-teal-50/50", "bg-indigo-50/50", "bg-pink-50/50", "bg-cyan-50/50", "bg-orange-50/50", "bg-rose-50/50"];
-                const textClr = ["text-blue-600", "text-emerald-600", "text-purple-600", "text-amber-600", "text-teal-600", "text-indigo-600", "text-pink-600", "text-cyan-600", "text-orange-600", "text-rose-600"];
-                const dotClr  = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"];
+                const cardBg = ["bg-chart-1/10", "bg-chart-2/10", "bg-chart-3/10", "bg-chart-4/10", "bg-chart-5/10", "bg-chart-6/10", "bg-chart-7/10", "bg-chart-8/10", "bg-chart-9/10", "bg-chart-10/10"];
+                const textClr = ["text-[var(--chart-1)]", "text-[var(--chart-2)]", "text-[var(--chart-3)]", "text-[var(--chart-4)]", "text-[var(--chart-5)]", "text-[var(--chart-6)]", "text-[var(--chart-7)]", "text-[var(--chart-8)]", "text-[var(--chart-9)]", "text-[var(--chart-10)]"];
+                const dotClr  = [...CHART_DOT_BG];
                 const siMod = si % 10;
                 return (
                   <div

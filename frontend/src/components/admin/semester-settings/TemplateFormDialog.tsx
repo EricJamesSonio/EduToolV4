@@ -267,14 +267,14 @@ export function TemplateFormDialog({
                     string,
                   ][]).map(([value, label]) => {
                     const dotColor = ({
-                      college: "bg-blue-500",
-                      shs: "bg-violet-500",
-                      jhs: "bg-amber-500",
-                      elementary: "bg-emerald-500",
-                      kinder: "bg-pink-500",
-                      daycare: "bg-orange-500",
-                      custom: "bg-slate-500",
-                    } as Record<string, string>)[value] ?? "bg-gray-500";
+                      college: "bg-chart-1",
+                      shs: "bg-chart-2",
+                      jhs: "bg-chart-3",
+                      elementary: "bg-chart-4",
+                      kinder: "bg-chart-5",
+                      daycare: "bg-chart-6",
+                      custom: "bg-chart-9",
+                    } as Record<string, string>)[value] ?? "bg-muted";
                     return (
                       <SelectItem key={value} value={value}>
                         <div className="flex items-center gap-2">
