@@ -56,9 +56,9 @@ function gradeStatusBadge(
 
 function schoolYearStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: "bg-green-50 text-green-700 border-green-200",
+    active: "badge-success",
     completed: "bg-muted text-muted-foreground border-border/60",
-    upcoming: "bg-blue-50 text-blue-700 border-blue-200",
+    upcoming: "badge-info",
   };
 
   const cls =
@@ -97,10 +97,10 @@ function SubjectRows({ cls }: { cls: TranscriptClass }) {
   const avgColor =
     overallAvg != null
       ? overallAvg >= 90
-        ? "text-emerald-600"
+        ? "text-success"
         : overallAvg >= 75
-          ? "text-blue-600"
-          : "text-red-500"
+          ? "text-info"
+          : "text-destructive"
       : "";
 
   return (
@@ -170,7 +170,7 @@ function SemesterSection({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 px-1 pt-1">
+      <p className="text-xs font-semibold uppercase tracking-wider text-info px-1 pt-1">
         {semester.semesterName}
       </p>
 
@@ -178,19 +178,19 @@ function SemesterSection({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 border-b border-border/60">
-              <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide w-[35%] text-blue-600">
+              <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide w-[35%] text-info">
                 Subject
               </th>
 
-              <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide w-[25%] text-emerald-600">
+              <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide w-[25%] text-success">
                 Term
               </th>
 
-              <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wide w-[20%] text-amber-600">
+              <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wide w-[20%] text-warning">
                 Score
               </th>
 
-              <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wide w-[20%] text-purple-600">
+              <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wide w-[20%] text-[var(--badge-purple)]">
                 Grade
               </th>
             </tr>
@@ -236,7 +236,7 @@ function SchoolYearAccordion({
           )}
         </span>
 
-        <span className="flex-1 text-sm font-semibold text-purple-600">
+        <span className="flex-1 text-sm font-semibold text-[var(--badge-purple)]">
           {year.schoolYearName}
         </span>
 
