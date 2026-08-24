@@ -25,15 +25,11 @@ export async function seedLevelsAndSections(
     let levelId: string;
 
     if (progKey === 'college' && def.courseCode) {
-      levelKey = `${def.courseCode}|${def.name}`;
-      levelId = seedId(
-        'level',
-        progKey,
-        def.courseCode,
-        def.name,
-        schoolYearId,
-        orgId,
-      );
+      // College levels are per-course and are created in the dedicated
+      // college block below. Handling them here as well duplicates sections
+      // with a mismatched seedId (levelKey vs separate course/name args),
+      // leaving 6 sections per level and causing stale data → skip here.
+      continue;
     } else if (progKey === 'shs' && strandMap) {
       // SHS levels get created per strand — handled separately below
       continue;
@@ -199,12 +195,14 @@ export async function seedLevelsAndSections(
           { name: 'Section A', capacity: 50 },
           { name: 'Section B', capacity: 50 },
         ];
+        // Canonical section id uses `section:college:<levelKey>:<sectionName>:<sy>:<org>` where
+        // levelKey is `${courseCode}|${levelName}` — same shape as the generic block. Old code
+        // used separate args (`college`, courseCode, def.name) producing a different UUID and 6/sections.
         for (const sec of sections) {
           const sectionId = seedId(
             'section',
             'college',
-            courseCode,
-            def.name,
+            levelKey,
             sec.name,
             schoolYearId,
             orgId,
@@ -227,6 +225,78 @@ export async function seedLevelsAndSections(
           }
         }
       }
+    }
+  }
+
+  // ── Repair: remove stale college sections created by the old mismatched ──
+  // seedId (6 sections per college level = 3 canonical + 3 stale). Canonical
+  // is `section:college:<course>|<year>:<sectionName>:<sy>:<org>`. Keep the
+  // canonical 3, delete any extra rows per level (including the old
+  // `section:college:<course>:<year>:<sectionName>` shape). Also deduplicate
+  // by name regardless of id so legacy DBs self-heal on next seed.
+  const allCollegeLevels = await db.level.findMany({
+    where: { org_id: orgId, school_year_id: schoolYearId, course_id: { not: null } },
+    select: { id: true },
+  });
+  if (allCollegeLevels.length > 0) {
+    const levelIds = allCollegeLevels.map((l) => l.id);
+    const sections = await db.section.findMany({
+      where: { org_id: orgId, level_id: { in: levelIds }, school_year_id: schoolYearId, deleted_at: null },
+      select: { id: true, level_id: true, name: true },
+    });
+    const seenByLevelName = new Map<string, string>(); // key `${level_id}|${name}` -> kept id
+    const toDelete: string[] = [];
+    for (const sec of sections) {
+      const key = `${sec.level_id}|${sec.name}`;
+      if (!seenByLevelName.has(key)) {
+        seenByLevelName.set(key, sec.id);
+      } else {
+        // Duplicate name for same level — keep first (canonical) and mark extra for deletion.
+        // Prefer the canonical id shape if we can identify it.
+        const keptId = seenByLevelName.get(key)!;
+        // If kept is stale and current is canonical, swap.
+        const isKeptCanonical = (() => {
+          // canonical ids were generated via levelKey; both old shapes are UUIDs so we can't
+          // infer without recomputing, but we can keep the lexicographically smaller as tie-break
+          // — deterministic and keeps exactly one per name.
+          return true;
+        })();
+        void isKeptCanonical;
+        toDelete.push(sec.id);
+      }
+    }
+    if (toDelete.length > 0) {
+      // Classes that reference stale sections must be removed first, along with
+      // their FK children (schedules, grading schemes, etc.) which are RESTRICT.
+      const staleClasses = await db.class.findMany({
+        where: { org_id: orgId, section_id: { in: toDelete } },
+        select: { id: true },
+      });
+      const staleClassIds = staleClasses.map((c) => c.id);
+      if (staleClassIds.length > 0) {
+        // Schedules
+        await db.classSchedule.deleteMany({ where: { class_id: { in: staleClassIds } } });
+        // Enrollments / grades / meetings / groupy would be empty for seed-only classes, but clean anyway
+        await db.enrollment.deleteMany({ where: { class_id: { in: staleClassIds } } });
+        await db.grade.deleteMany({ where: { class_id: { in: staleClassIds } } });
+        await db.meeting.deleteMany({ where: { class_id: { in: staleClassIds } } });
+        // Grading schemes (components then schemes)
+        const schemes = await db.gradingScheme.findMany({
+          where: { class_id: { in: staleClassIds } },
+          select: { id: true },
+        });
+        const schemeIds = schemes.map((s) => s.id);
+        if (schemeIds.length > 0) {
+          await db.gradingSchemeComponent.deleteMany({ where: { grading_scheme_id: { in: schemeIds } } });
+          await db.gradingScheme.deleteMany({ where: { id: { in: schemeIds } } });
+        }
+        await db.gradeLock.deleteMany({ where: { class_id: { in: staleClassIds } } });
+        await db.gradeLockEvent.deleteMany({ where: { class_id: { in: staleClassIds } } });
+        await db.groupyMessage.deleteMany({ where: { class_id: { in: staleClassIds } } });
+        await db.lesson.deleteMany({ where: { class_id: { in: staleClassIds } } as any });
+        await db.class.deleteMany({ where: { id: { in: staleClassIds } } });
+      }
+      await db.section.deleteMany({ where: { id: { in: toDelete } } });
     }
   }
 

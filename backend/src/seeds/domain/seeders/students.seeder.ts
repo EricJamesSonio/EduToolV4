@@ -31,7 +31,7 @@ export async function seedStudents(
   }
 
   const allSections = await db.section.findMany({
-    where: { org_id: orgId, school_year_id: schoolYearId },
+    where: { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
     include: { level: true },
   });
 
@@ -90,6 +90,43 @@ export async function seedStudents(
     const existing = await db.account.findFirst({ where: { id } });
     if (existing) {
       studentIds.push(existing.id);
+      // Repair: existing student may have been seeded with section_id=null (previous bug where
+      // level had sections but enrollment bypassed readiness). Ensure they now have a section.
+      const ssyRepairId = seedId('ssy', orgId, existing.id, schoolYearId);
+      const ssyRepair = await db.studentSchoolYear.findFirst({ where: { id: ssyRepairId } });
+      if (ssyRepair) {
+        const enrollment = await db.studentProgramEnrollment.findFirst({
+          where: { student_school_year_id: ssyRepair.id, org_id: orgId },
+        });
+        if (enrollment && !enrollment.section_id && enrollment.level_id) {
+          const lvl = enrollment.level_id;
+          let sects = sectionsByProgram[enrollment.program_id ? (Object.entries(programMap).find(([,v])=>v===enrollment.program_id)?.[0] ?? '') : ''] ?? [];
+          // Fallback: query DB directly for this level's sections (handles college course mismatch)
+          let candidate: any = null;
+          // Try direct lookup by level_id
+          const direct = await db.section.findMany({
+            where: { org_id: orgId, school_year_id: schoolYearId, level_id: lvl, deleted_at: null },
+            take: 1,
+          });
+          if (direct.length > 0) candidate = direct[0];
+          else {
+            // Fallback: any section for that enrollment's program
+            const progKey = Object.entries(programMap).find(([,v])=>v===enrollment.program_id)?.[0];
+            if (progKey && sectionsByProgram[progKey]?.length) candidate = { id: sectionsByProgram[progKey][0].sectionId } as any;
+          }
+          if (candidate) {
+            await db.studentProgramEnrollment.update({
+              where: { id: enrollment.id },
+              data: { section_id: candidate.id, status: 'active' },
+            });
+            await db.profile.updateMany({
+              where: { account_id: existing.id },
+              data: { metadata: { studentId: (existing as any).profile?.metadata?.studentId ?? undefined, levelId: lvl, sectionId: candidate.id } as any },
+            }).catch(()=>{});
+            console.log(`  ↻ Repaired student ${email} — assigned section ${candidate.id.slice(0,6)} for level ${lvl.slice(0,6)}`);
+          }
+        }
+      }
       continue;
     }
 
@@ -98,11 +135,54 @@ export async function seedStudents(
     const levelIds = levelsByProgram[levelKey] ?? [];
     const levelId = levelIds.length > 0 ? pick(levelIds) : null;
 
-    // Find a section for this level
+    // Find a section for this level — section is REQUIRED if the level has sections
+    // (readiness guarantees every level has ≥1 section, so null would bypass validation).
     const [progKey] = levelKey.split(':');
     const programSections = sectionsByProgram[progKey] ?? [];
-    const levelSections = programSections.filter((s) => s.levelId === levelId);
-    const section = levelSections.length > 0 ? pick(levelSections) : null;
+    let levelSections = programSections.filter((s) => s.levelId === levelId);
+    // Fallback: if our in-memory map missed it (e.g. stale programMap), query DB directly
+    if (levelSections.length === 0 && levelId) {
+      const direct = await db.section.findMany({
+        where: { org_id: orgId, school_year_id: schoolYearId, level_id: levelId, deleted_at: null },
+        select: { id: true },
+      });
+      if (direct.length > 0) {
+        levelSections = direct.map((d) => ({ sectionId: d.id, levelId, levelName: '' }));
+        // also populate programSections cache for future picks
+        for (const d of direct) programSections.push({ sectionId: d.id, levelId, levelName: '' });
+      }
+    }
+    // If still empty, this level truly has 0 sections — this is a seed bug that would bypass
+    // readiness (level should have sections). Create a fallback section so class & enrollment stay valid.
+    let section: { sectionId: string; levelId: string; levelName: string } | null = null;
+    if (levelSections.length > 0) {
+      section = pick(levelSections);
+    } else if (levelId) {
+      console.warn(`  ⚠ Level ${levelId.slice(0,6)} has 0 sections for ${levelKey}; creating fallback Section A`);
+      const fallbackId = seedId('section', progKey, levelKey + '|' + levelId, 'Section A', schoolYearId, orgId);
+      const existingSec = await db.section.findFirst({ where: { id: fallbackId } });
+      let secId = fallbackId;
+      if (!existingSec) {
+        const levelRec = await db.level.findUnique({ where: { id: levelId } });
+        const created = await db.section.create({
+          data: {
+            id: fallbackId,
+            org_id: orgId,
+            level_id: levelId,
+            school_year_id: schoolYearId,
+            course_id: levelRec?.course_id ?? undefined,
+            strand_id: levelRec?.strand_id ?? undefined,
+            name: 'Section A',
+            capacity: 40,
+          },
+        });
+        secId = created.id;
+        // add to cache
+        programSections.push({ sectionId: secId, levelId, levelName: levelKey });
+        sectionsByProgram[progKey] = programSections;
+      }
+      section = { sectionId: secId, levelId, levelName: levelKey };
+    }
 
     const account = await db.account.create({
       data: {
@@ -167,6 +247,42 @@ export async function seedStudents(
           },
         });
       }
+    }
+  }
+
+  // ── Final sweep: fix any remaining enrollments with null section (covers students
+  // outside the 1..count range or that were skipped due to early continue) ──
+  const remaining = await db.studentProgramEnrollment.findMany({
+    where: { org_id: orgId, section_id: null, level_id: { not: null } },
+    select: { id: true, level_id: true, program_id: true },
+  });
+  for (const enr of remaining) {
+    if (!enr.level_id) continue;
+    // Verify the enrollment belongs to the current school year via its SSY
+    const ssy = await db.studentSchoolYear.findFirst({
+      where: { id: (await db.studentProgramEnrollment.findUnique({ where: { id: enr.id }, select: { student_school_year_id: true } }))!.student_school_year_id, school_year_id: schoolYearId },
+    });
+    if (!ssy) continue;
+    const secs = await db.section.findMany({
+      where: { org_id: orgId, school_year_id: schoolYearId, level_id: enr.level_id, deleted_at: null },
+      select: { id: true },
+    });
+    let secId: string | null = null;
+    if (secs.length > 0) secId = pick(secs).id;
+    else {
+      // Last resort: any section for that program
+      const progKey = Object.entries(programMap).find(([, v]) => v === enr.program_id)?.[0];
+      if (progKey) {
+        const any = await db.section.findFirst({
+          where: { org_id: orgId, school_year_id: schoolYearId, level: { program_id: enr.program_id }, deleted_at: null },
+          select: { id: true },
+        });
+        if (any) secId = any.id;
+      }
+    }
+    if (secId) {
+      await db.studentProgramEnrollment.update({ where: { id: enr.id }, data: { section_id: secId } });
+      console.log(`  ↻ Sweep repaired enrollment ${enr.id.slice(0,6)} — assigned section ${secId.slice(0,6)}`);
     }
   }
 
