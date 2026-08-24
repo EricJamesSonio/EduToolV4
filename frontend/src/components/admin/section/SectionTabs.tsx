@@ -141,10 +141,10 @@ export function StudentsTab({
                 className={cn(
                   "text-xs shrink-0 capitalize",
                   student.status === "active"
-                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                    ? "badge-success"
                     : student.status === "suspended"
-                    ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
-                    : "",
+                    ? "badge-destructive"
+                    : "badge-muted",
                 )}
               >
                 {student.status}

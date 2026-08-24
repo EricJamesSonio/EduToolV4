@@ -84,7 +84,7 @@ export function SectionTable({
         const programColor =
           PROGRAM_TYPE_COLORS[
             programType as keyof typeof PROGRAM_TYPE_COLORS
-          ] ?? "bg-slate-500/10 text-slate-600 border-slate-200";
+          ] ?? "badge-muted";
 
         return (
           <div className="flex flex-col gap-0.5">
