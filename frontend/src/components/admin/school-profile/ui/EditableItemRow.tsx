@@ -61,7 +61,7 @@ export function EditableItemRow({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-7 w-7 shrink-0 text-emerald-600 hover:bg-emerald-500/10"
+            className="h-7 w-7 shrink-0 text-success hover:bg-success/10"
             onClick={commit}
             disabled={disabled}
           >
