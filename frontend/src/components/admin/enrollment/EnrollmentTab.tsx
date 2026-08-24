@@ -46,7 +46,7 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
             </div>
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
               <p className="text-xs text-muted-foreground not-interactive">Active</p>
-              <p className="text-2xl font-semibold text-green-600 dark:text-green-400 not-interactive">
+              <p className="text-2xl font-semibold text-success not-interactive">
                 {activeCount}
               </p>
               <p className="text-xs text-muted-foreground not-interactive">

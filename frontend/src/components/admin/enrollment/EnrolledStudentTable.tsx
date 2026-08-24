@@ -13,9 +13,9 @@ import type { StudentSchoolYearEnrollment } from "@/types/admin/student-enrollme
 import type { Student } from "@/types/admin/student.types";
 
 const STATUS_CLASS: Record<string, string> = {
-  active:     "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400",
-  pending:    "bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400",
-  unenrolled: "bg-muted text-muted-foreground",
+  active:     "badge-success",
+  pending:    "badge-warning",
+  unenrolled: "badge-muted",
 };
 
 interface Props {
