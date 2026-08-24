@@ -37,17 +37,17 @@ interface StatCardProps {
 function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, action }: StatCardProps) {
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-3 sm:p-5 lg:p-6 flex items-start justify-between gap-2 sm:gap-4",
-      warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
+      "rounded-xl border border-border bg-card p-3 sm:p-5 lg:p-6 flex items-start justify-between gap-2 sm:gap-4 shadow-sm",
+      warning && value && value > 0 && "border-warning/40 bg-warning/15"
     )}>
       <div className="space-y-1 min-w-0">
-        <p className="text-xs sm:text-sm text-muted-foreground not-interactive">{label}</p>
+        <p className="text-xs sm:text-sm font-semibold text-foreground not-interactive">{label}</p>
         {isLoading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
           <p className={cn(
-            "text-xl sm:text-3xl font-bold tracking-tight not-interactive",
-            warning && value && value > 0 && "text-amber-600"
+            "text-xl sm:text-3xl font-extrabold tracking-tight not-interactive text-foreground",
+            warning && value && value > 0 && "text-warning"
           )}>
             {value ?? 0}
           </p>
@@ -64,12 +64,12 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, act
       <div className={cn(
         "rounded-md p-1.5 sm:p-2 shrink-0",
         iconColor ?? "bg-muted",
-        warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
+        warning && value && value > 0 && "bg-warning/15"
       )}>
         <Icon className={cn(
           "h-4 w-4 sm:h-5 sm:w-5",
           iconColor ? "text-current" : "text-muted-foreground",
-          warning && value && value > 0 && "text-amber-600"
+          warning && value && value > 0 && "text-warning"
         )} />
       </div>
     </div>
@@ -99,7 +99,7 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
     accessorKey: "activeCount",
     header: "Active",
     cell: ({ row }) => (
-      <span className="text-green-600 font-medium">{row.original.activeCount}</span>
+      <span className="text-success font-medium">{row.original.activeCount}</span>
     ),
   },
   {
@@ -107,7 +107,7 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
     header: "Pending",
     cell: ({ row }) => (
       <span className={cn(
-        row.original.pendingCount > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"
+        row.original.pendingCount > 0 ? "text-warning font-medium" : "text-muted-foreground"
       )}>
         {row.original.pendingCount}
       </span>
