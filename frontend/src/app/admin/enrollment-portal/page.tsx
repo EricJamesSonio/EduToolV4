@@ -81,7 +81,7 @@ function CountBar({ applied, enrolled }: { applied: number; enrolled: number }) 
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-success" style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs tabular-nums text-muted-foreground">{pct}%</span>
     </div>
@@ -95,7 +95,7 @@ function RowCount({ count }: { count: ProgramCountRow | undefined }) {
     <div className="flex items-center gap-2">
       <span className="tabular-nums">{applied}</span>
       <span className="text-muted-foreground">/</span>
-      <span className="tabular-nums text-emerald-600">{enrolled}</span>
+      <span className="tabular-nums text-success">{enrolled}</span>
     </div>
   );
 }
@@ -114,7 +114,7 @@ function ProgramBlock({ program }: { program: ProgramOverview }) {
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
             <span>{program.applied} applied</span>
             <span>·</span>
-            <span className="text-emerald-600">{program.approved} enrolled</span>
+            <span className="text-success">{program.approved} enrolled</span>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-3">
@@ -366,10 +366,10 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
 
           {/* Stat cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Applications" value={total} icon={<Users className="h-5 w-5 text-blue-600" />} tone="bg-blue-600/10" />
-            <StatCard label="In Review" value={(summary?.pending ?? 0) + (summary?.locked ?? 0)} icon={<CalendarClock className="h-5 w-5 text-amber-600" />} tone="bg-amber-500/10" />
-            <StatCard label="Enrolled (Approved)" value={summary?.approved ?? 0} icon={<UserCheck className="h-5 w-5 text-emerald-600" />} tone="bg-emerald-500/10" />
-            <StatCard label="Rejected" value={summary?.rejected ?? 0} icon={<UserX className="h-5 w-5 text-rose-600" />} tone="bg-rose-500/10" />
+            <StatCard label="Total Applications" value={total} icon={<Users className="h-5 w-5 text-info" />} tone="bg-info/10" />
+            <StatCard label="In Review" value={(summary?.pending ?? 0) + (summary?.locked ?? 0)} icon={<CalendarClock className="h-5 w-5 text-warning" />} tone="bg-warning/10" />
+            <StatCard label="Enrolled (Approved)" value={summary?.approved ?? 0} icon={<UserCheck className="h-5 w-5 text-success" />} tone="bg-success/10" />
+            <StatCard label="Rejected" value={summary?.rejected ?? 0} icon={<UserX className="h-5 w-5 text-destructive" />} tone="bg-destructive/10" />
           </div>
 
           <Separator />
