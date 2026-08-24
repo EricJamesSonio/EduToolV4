@@ -13,7 +13,7 @@
 import { v4 as uuid } from 'uuid';
 import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
-import { PROGRAM_SCHEME_PRESET_NAME, SY_END, SY_START } from '../constants';
+import { PROGRAM_SCHEME_PRESET_NAME } from '../constants';
 import { randInt } from '../utils/random.util';
 import {
   UsedMap,
@@ -34,6 +34,9 @@ export async function seedClasses(
   levelMap: Record<string, string>,
 ): Promise<void> {
   if (educatorIds.length === 0 || subjectIds.length === 0) return;
+  const sy = await db.schoolYear.findUnique({ where: { id: schoolYearId }, select: { start_date: true, end_date: true } });
+  const syStart = sy?.start_date ?? new Date();
+  const syEnd = sy?.end_date ?? new Date(syStart.getTime() + 365 * 24 * 60 * 60 * 1000);
 
   // Get semester IDs for each program
   const semesterMap: Record<string, string> = {};
@@ -69,9 +72,9 @@ export async function seedClasses(
           org_id: orgId,
           school_year_id: schoolYearId,
           name: firstSem.name,
-          start_date: SY_START,
+          start_date: syStart,
           end_date: new Date(
-            SY_START.getTime() + (SY_END.getTime() - SY_START.getTime()) / 2,
+            syStart.getTime() + (syEnd.getTime() - syStart.getTime()) / 2,
           ),
         },
       });
@@ -278,8 +281,8 @@ export async function seedClasses(
                 id: uuid(),
                 org_id: orgId,
                 weekday: slot.weekday,
-                start_time: scheduleDate(slot.start),
-                end_time: scheduleDate(slot.end),
+                start_time: scheduleDate(slot.start, syStart),
+                end_time: scheduleDate(slot.end, syStart),
               },
             ],
           },

@@ -12,7 +12,6 @@ import { v4 as uuid } from 'uuid';
 import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
 import { SEMESTER_TEMPLATES } from '../../../modules/org-seeder/data/semester-templates.data';
-import { SY_END, SY_START } from '../constants';
 
 export function computeCalendarBreaks(
   start: Date,
@@ -55,6 +54,9 @@ export async function seedProgramCalendars(
   programKeys: string[],
   programMap: Record<string, string>,
 ): Promise<void> {
+  const sy = await db.schoolYear.findUnique({ where: { id: schoolYearId }, select: { start_date: true, end_date: true } });
+  const syStart = sy?.start_date ?? new Date();
+  const syEnd = sy?.end_date ?? new Date(syStart.getTime() + 365 * 24 * 60 * 60 * 1000);
   for (const progKey of programKeys) {
     const programId = programMap[progKey];
     if (!programId) continue;
@@ -79,13 +81,13 @@ export async function seedProgramCalendars(
         org_id: orgId,
         school_year_id: schoolYearId,
         program_id: programId,
-        start_date: SY_START,
-        end_date: SY_END,
+        start_date: syStart,
+        end_date: syEnd,
         notes: `Auto-seeded calendar with ${breakCount} break(s), matching the ${breakCount}-semester template for this program.`,
       },
     });
 
-    const breaks = computeCalendarBreaks(SY_START, SY_END, breakCount);
+    const breaks = computeCalendarBreaks(syStart, syEnd, breakCount);
     if (breaks.length > 0) {
       await db.programCalendarBreak.createMany({
         data: breaks.map((b) => ({

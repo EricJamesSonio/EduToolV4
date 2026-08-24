@@ -2,7 +2,6 @@ import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
 import { SEMESTER_TEMPLATES } from '../../../modules/org-seeder/data/semester-templates.data';
 import { computeTermDates } from '../../../modules/org-seeder/utils/date-calculator.util';
-import { SY_END, SY_START } from '../constants';
 
 export async function seedSemesterTemplates(
   orgId: string,
@@ -10,6 +9,9 @@ export async function seedSemesterTemplates(
   programKeys: string[],
   programMap: Record<string, string>,
 ): Promise<void> {
+  const sy = await db.schoolYear.findUnique({ where: { id: schoolYearId }, select: { start_date: true, end_date: true } });
+  const syStart = sy?.start_date ?? new Date();
+  const syEnd = sy?.end_date ?? new Date(syStart.getTime() + 365 * 24 * 60 * 60 * 1000);
   for (const tpl of SEMESTER_TEMPLATES) {
     if (!programKeys.includes(tpl.programType)) continue;
 
@@ -90,7 +92,7 @@ export async function seedSemesterTemplates(
       },
     });
 
-    const termDateData = computeTermDates(SY_START, SY_END, tpl, termIds).map(
+    const termDateData = computeTermDates(syStart, syEnd, tpl, termIds).map(
       (td) => ({
         id: seedId('sem-term-date', assignment.id, td.termId),
         org_id: orgId,
