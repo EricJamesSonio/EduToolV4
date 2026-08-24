@@ -15,9 +15,9 @@ interface UpcomingAssessmentsCardProps {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  not_started: "bg-slate-100 text-slate-600 border-slate-200",
-  submitted:   "bg-blue-50   text-blue-700  border-blue-200",
-  graded:      "bg-emerald-50 text-emerald-700 border-emerald-200",
+  not_started: "badge-muted",
+  submitted:   "badge-info",
+  graded:      "badge-success",
 };
 
 const STATUS_LABELS: Record<string, string> = {

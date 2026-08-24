@@ -75,10 +75,10 @@ function GradeRow({ grade, index }: { grade: StudentTermGrade; index: number }) 
 
   const gradeColor =
     score >= 90
-      ? "text-emerald-600"
+      ? "text-success"
       : score >= 75
-        ? "text-blue-600"
-        : "text-red-500";
+        ? "text-info"
+        : "text-destructive";
 
   return (
     <div className="space-y-1.5">
