@@ -84,7 +84,7 @@ export function LessonContentPanel({
                 "inline whitespace-pre-wrap rounded-sm transition-all",
                 selMode && "cursor-pointer",
                 selMode && isHovered && !isStarted && "bg-muted-foreground/10 ring-1 ring-muted-foreground/20",
-                selMode && isStarted && !isSelected && !isPreview && (endWordIdx === null ? "ring-2 ring-yellow-500 bg-yellow-100 dark:bg-yellow-900/30" : "bg-primary/25"),
+                selMode && isStarted && !isSelected && !isPreview && (endWordIdx === null ? "ring-2 ring-warning bg-warning/15" : "bg-primary/25"),
                 selMode && isPreview && "bg-primary/10",
                 selMode && isSelected && "bg-primary/25 text-foreground",
                 isSlideWord && `${color.bg} ring-1 ${color.ring}`,
@@ -92,7 +92,7 @@ export function LessonContentPanel({
               title={slideIdx !== null ? `Slide ${slideIdx + 1}` : undefined}
             >
               {selMode && isStarted && endWordIdx === null && (
-                <span className="inline-flex items-center gap-0.5 align-middle text-[9px] font-semibold text-yellow-600 dark:text-yellow-400 mr-0.5">
+                <span className="inline-flex items-center gap-0.5 align-middle text-[9px] font-semibold text-warning mr-0.5">
                   <Crosshair className="h-2.5 w-2.5" />
                 </span>
               )}
