@@ -56,9 +56,7 @@ export function StudentListPanel({
   const programEnrolledStudentIds = useMemo(() => {
     const ids = new Set<string>();
     for (const e of allEnrollments) {
-      const hasActiveProgram = e.programEnrollments.some(
-        (pe) => pe.status === "active" || pe.status === "pending",
-      );
+      const hasActiveProgram = e.programEnrollments.some((pe) => pe.status === "active");
       if (hasActiveProgram) ids.add(e.student_id);
     }
     return ids;
