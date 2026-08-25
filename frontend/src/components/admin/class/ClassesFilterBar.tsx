@@ -130,7 +130,7 @@ export function ClassesFilterBar({
         placeholder="Search subject or educator..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-56"
+        className="h-9 text-sm w-48"
       />
 
       {/* Department */}
