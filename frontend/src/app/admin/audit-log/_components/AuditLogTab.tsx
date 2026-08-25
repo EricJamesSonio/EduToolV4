@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Filter, X, Search, Download } from "lucide-react";
+import { Filter, X, Download } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -175,15 +175,11 @@ export function AuditLogTab() {
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Actor / Entity ID</label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="pl-8"
-              />
-            </div>
+            <Input
+              placeholder="Search…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            />
           </div>
         </div>
       </div>
