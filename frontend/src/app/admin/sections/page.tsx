@@ -158,13 +158,15 @@ export default function SectionsPage(): React.JSX.Element {
       )}
 
       {schoolYearId && !isLoading && (
-        <div className="flex items-center gap-3">
-          <Input
-            placeholder="Search sections..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="h-9 text-sm w-48"
-          />
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative max-w-xs">
+            <Input
+              placeholder="Search sections..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="h-9 text-sm w-[200px] rounded-full"
+            />
+          </div>
 
           <SectionLevelFilter
             schoolYearId={schoolYearId}
