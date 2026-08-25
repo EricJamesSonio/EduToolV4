@@ -125,13 +125,15 @@ export function ClassesFilterBar({
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* Search — subject or educator name */}
-      <Input
-        placeholder="Search subject or educator..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="h-9 text-sm w-48"
-      />
+      {/* Search — subject or educator name - same size as Subjects search */}
+      <div className="relative max-w-xs">
+        <Input
+          placeholder="Search subject or educator..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-9 text-sm w-[200px] rounded-full"
+        />
+      </div>
 
       {/* Department */}
       <Select
