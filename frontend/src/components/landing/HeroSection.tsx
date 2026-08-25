@@ -32,7 +32,7 @@ export function HeroSection() {
           <div className="space-y-6">
             <h1 className="font-marketing font-extrabold cursor-default select-none text-5xl md:text-6xl">
               The All-in-One{" "}
-              <span className="gradient-text">School Management</span> Platform
+              <span className="text-accent">School Management</span> Platform
             </h1>
 
             <p className="cursor-default select-none text-muted-foreground max-w-xl mx-auto lg:mx-0">
@@ -105,7 +105,7 @@ export function HeroSection() {
               {/* Screen (auto height now) */}
               <div className="w-full bg-background/30">
                 <img
-                  src="/desktop-2.png"
+                  src="/desktop-3.png"
                   alt="Dashboard preview"
                   className="w-full h-auto object-cover"
                 />
@@ -120,7 +120,7 @@ export function HeroSection() {
 
               <div className="w-full bg-background/30">
                 <img
-                  src="/mobile-2.png"
+                  src="/mobile-3.png"
                   alt="Mobile preview"
                   className="w-full h-auto object-cover"
                 />

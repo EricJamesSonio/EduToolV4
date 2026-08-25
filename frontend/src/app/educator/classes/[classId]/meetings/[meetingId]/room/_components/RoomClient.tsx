@@ -410,7 +410,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           <div className="absolute top-3 right-4 z-10">
             <button
               onClick={() => setSidePanel("join-requests")}
-              className="flex items-center gap-1.5 bg-amber-500/20 text-amber-400 text-xs px-3 py-1.5 rounded-full border border-amber-500/30 hover:bg-amber-500/30 transition-colors"
+              className="flex items-center gap-1.5 bg-[#FDE68A] text-[#0B1E3A] text-xs px-3 py-1.5 rounded-full border border-[#FCD34D] hover:bg-[#FDE68A]/90 transition-colors"
             >
               {pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""}
             </button>

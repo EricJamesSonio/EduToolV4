@@ -93,11 +93,17 @@ export default function ProgramsPage(): React.JSX.Element {
 
   if (noSchoolYears) {
     return (
-      <EmptyState
-        icon={CalendarDays}
-        title="No school years found"
-        description="Create a school year first before managing departments."
-      />
+      <div className="space-y-6">
+        <PageHeader
+          title="Departments"
+          actions={<HelpGuide slug="admin_programs" />}
+        />
+        <EmptyState
+          icon={CalendarDays}
+          title="No school years found"
+          description="Create a school year first before managing departments."
+        />
+      </div>
     );
   }
 

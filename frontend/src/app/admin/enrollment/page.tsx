@@ -392,7 +392,7 @@ export default function EnrollmentPage() {
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
                   <p className="text-xs text-muted-foreground not-interactive">Active</p>
-                  <p className="text-2xl font-semibold text-success not-interactive">
+                  <p className="text-2xl font-semibold text-foreground not-interactive">
                     {activeCount}
                   </p>
                   <p className="text-xs text-muted-foreground not-interactive">

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
 import { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import type { Section } from "@/types/admin/section.types";
 import type { Program } from "@/types/admin/program.types";
@@ -114,11 +113,7 @@ export function SectionTable({
               variant="outline"
               className={cn(
                 "text-xs border px-2 py-0.5 w-fit font-normal not-interactive",
-                (() => {
-                  const match = levelInfo.name.match(/^(\d+)/);
-                  const idx = match ? (parseInt(match[1]) - 1) % WEEK_COLORS.length : 0;
-                  return WEEK_COLORS[idx];
-                })()
+                programColor
               )}
             >
               {levelInfo.name}

@@ -10,9 +10,9 @@ import apiClient from "@/api/client";
 import { fmt } from "./utils";
 
 const STATUS_ACTIONS = [
-  { label: "Missed", status: "missed" as const, badge: "M", className: "bg-destructive/10 text-destructive hover:bg-destructive/20" },
-  { label: "Custom Score", status: "custom" as const, badge: "C", className: "bg-warning/10 text-warning hover:bg-warning/20" },
-  { label: "Exempted", status: "exempted" as const, badge: "E", className: "bg-warning/10 text-warning hover:bg-warning/20" },
+  { label: "Missed", status: "missed" as const, badge: "M", className: "bg-[#FF6B6B] text-[#0B1E3A] border border-[#E85D4E] hover:bg-[#FF6B6B]/90" },
+  { label: "Custom Score", status: "custom" as const, badge: "C", className: "bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D] hover:bg-[#FDE68A]/90" },
+  { label: "Exempted", status: "exempted" as const, badge: "E", className: "bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D] hover:bg-[#FDE68A]/90" },
 ];
 
 const INCLUSION_LABEL: Record<string, string> = {
@@ -265,11 +265,11 @@ export function StatusCell({
   const isCustom = status === 'custom' && !isMissed && !isExempted;
   const badgeLabel = isMissed ? "M" : isExempted ? "E" : isCustom ? "C" : null;
   const badgeClass = isMissed
-    ? "bg-destructive/10 text-destructive"
+    ? "bg-[#FF6B6B] text-[#0B1E3A] border border-[#E85D4E]"
     : isExempted
-      ? "bg-warning/10 text-warning"
+      ? "bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D]"
       : isCustom
-        ? "bg-warning/10 text-warning"
+        ? "bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D]"
         : "";
 
   return (
@@ -286,7 +286,7 @@ export function StatusCell({
           </span>
         ) : isCustom ? (
           <span className="inline-flex items-center gap-0.5">
-            <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-warning/10 text-warning">C</span>
+            <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D]">C</span>
             <span>{fmt(score, 0)}/{totalItems}</span>
           </span>
         ) : isMissed || isExempted ? (
@@ -327,3 +327,4 @@ export function StatusCell({
     </div>
   );
 }
+

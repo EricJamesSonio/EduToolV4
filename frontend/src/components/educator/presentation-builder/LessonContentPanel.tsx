@@ -85,7 +85,7 @@ export function LessonContentPanel({
                 selMode && "cursor-pointer",
                 selMode && isHovered && !isStarted && "bg-muted-foreground/10 ring-1 ring-muted-foreground/20",
                 selMode && isStarted && !isSelected && !isPreview && (endWordIdx === null ? "ring-2 ring-warning bg-warning/15" : "bg-primary/25"),
-                selMode && isPreview && "bg-primary/10",
+                selMode && isPreview && "bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD]",
                 selMode && isSelected && "bg-primary/25 text-foreground",
                 isSlideWord && `${color.bg} ring-1 ${color.ring}`,
               )}

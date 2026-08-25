@@ -50,7 +50,7 @@ function QuestionCard({
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded text-sm border",
                   question.correctAnswer === c.text
-                    ? "border-success/30 bg-success/10"
+                    ? "border-[#86EFAC] bg-[#98FB98] text-[#0B1E3A]"
                     : "border-border"
                 )}
               >
@@ -268,7 +268,7 @@ export function Step5({
               return (
                 <div
                   key={sec.id}
-                  className="rounded-lg border bg-warning/10 p-4 space-y-2"
+                  className="rounded-lg border bg-[#FDE68A] border-[#FCD34D] text-[#0B1E3A] p-4 space-y-2"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -394,3 +394,4 @@ export function Step5({
     </div>
   );
 }
+

@@ -43,6 +43,23 @@ body {
     color: var(--foreground);
   }
 
+  /* Yellow touch from CMI "ANNOUNCEMENT" — use <span class="accent"> or .text-accent on titles */
+  h1 .accent,
+  h2 .accent,
+  h3 .accent,
+  .heading-accent {
+    color: var(--accent);
+  }
+
+  /* Announcement-style banner heading (navy bg, yellow text like image) */
+  .heading-announcement {
+    background-color: var(--primary);
+    color: var(--accent);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+  }
+
   h1 {
     font-size: 1.75rem;
   }
@@ -183,18 +200,18 @@ tbody tr:hover td {
     margin: 1.5rem 0;
   }
 
-  /* ── Card/Container baseline ── */
+  /* ── Card/Container baseline — higher contrast (global) ── */
   [data-slot="card"] {
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
     transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
   }
 
   [data-slot="card"]:hover {
     transform: translateY(-2px);
-    border-color: color-mix(in oklch, var(--border) 70%, var(--primary));
-    box-shadow: var(--shadow-md);
+    border-color: color-mix(in oklch, var(--border) 55%, var(--primary));
+    box-shadow: var(--shadow-lg);
   }
 }
 

@@ -220,7 +220,7 @@ export default function LessonDetailPage(): React.JSX.Element {
 
       {/* Re-extract banner */}
       {showReExtractBanner && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm space-y-2">
+        <div className="rounded-lg border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] p-4 text-sm space-y-2">
           <p className="font-medium text-amber-800">
             Content updated. Re-extract concepts?
           </p>
@@ -309,3 +309,4 @@ export default function LessonDetailPage(): React.JSX.Element {
     </div>
   );
 }
+

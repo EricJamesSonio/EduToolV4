@@ -44,11 +44,11 @@ const TYPE_LABELS: Record<string, string> = {
 
 const STATUS_STYLES: Record<SubmissionStatus, string> = {
   not_started: "bg-zinc-100 text-zinc-500 border-zinc-200",
-  draft: "bg-blue-50 text-blue-600 border-blue-200",
+  draft: "bg-[#93C5FD] text-[#0B1E3A] border-[#60A5FA]",
   submitted: "bg-green-50 text-green-700 border-green-200",
   exempted: "bg-purple-50 text-purple-700 border-purple-200",
-  custom: "bg-amber-50 text-amber-700 border-amber-200",
-  custom_score: "bg-amber-50 text-amber-700 border-amber-200",
+  custom: "bg-[#FDE68A] text-[#0B1E3A] border-[#FCD34D]",
+  custom_score: "bg-[#FDE68A] text-[#0B1E3A] border-[#FCD34D]",
 };
 
 function getStatusLabel(sub: Submission): string {
@@ -189,8 +189,8 @@ export default function SubmissionsPage(): React.JSX.Element {
         <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <FileText className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#BFDBFE] border border-[#93C5FD]">
+                <FileText className="h-5 w-5 text-[#0B1E3A]" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold">{assessment.title}</h2>
@@ -358,3 +358,4 @@ export default function SubmissionsPage(): React.JSX.Element {
     </div>
   );
 }
+

@@ -101,7 +101,7 @@ const components = Array.isArray(scheme?.components)
         <Button
           size="icon"
           variant="ghost"
-          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="h-8 w-8 text-muted-foreground hover:bg-[#FF6B6B] hover:text-[#0B1E3A] border border-transparent hover:border-[#E85D4E]"
           onClick={() => onDelete(scheme)}
           title="Delete"
         >

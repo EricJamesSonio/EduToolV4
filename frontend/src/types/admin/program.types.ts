@@ -29,13 +29,13 @@ export const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
 };
 
 export const PROGRAM_TYPE_COLORS: Record<ProgramType, string> = {
-  college:    "bg-blue-500/10 text-blue-600 border-blue-200",
-  shs:        "bg-violet-500/10 text-violet-600 border-violet-200",
-  jhs:        "bg-amber-500/10 text-amber-600 border-amber-200",
-  elementary: "bg-emerald-500/10 text-emerald-600 border-emerald-200",
-  kinder:     "bg-pink-500/10 text-pink-600 border-pink-200",
-  daycare:    "bg-orange-500/10 text-orange-600 border-orange-200",
-  custom:     "bg-slate-500/10 text-slate-600 border-slate-200",
+  college:    "bg-[#BFDBFE] text-[#0B1E3A] border-[#93C5FD]",
+  shs:        "bg-[#DDD6FE] text-[#0B1E3A] border-[#C4B5FD]",
+  jhs:        "bg-[#FDE68A] text-[#0B1E3A] border-[#FCD34D]",
+  elementary: "bg-[#98FB98] text-[#0B1E3A] border-[#86EFAC]",
+  kinder:     "bg-[#FBCFE8] text-[#0B1E3A] border-[#F9A8D4]",
+  daycare:    "bg-[#FED7AA] text-[#0B1E3A] border-[#FDBA74]",
+  custom:     "bg-[#E2E8F0] text-[#0B1E3A] border-[#CBD5E1]",
 };
 
 /* ========================= OTHER PROGRAM TYPES ========================= */

@@ -77,7 +77,7 @@ export function StudentGradeCard({
       {/* Student header */}
       <div className="rounded-xl border bg-card p-5">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-lg font-bold text-primary shrink-0">
+          <div className="w-12 h-12 rounded-full bg-[#BFDBFE] border border-[#93C5FD] flex items-center justify-center text-lg font-bold text-[#0B1E3A] shrink-0">
             {studentName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">

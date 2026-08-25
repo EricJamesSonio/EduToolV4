@@ -47,7 +47,7 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
     <div className={cn(
       listItemCardClass,
       "transition-colors",
-      status === "live" && "border-success/20 bg-success/10"
+      status === "live" && "border-[#86EFAC] bg-[#98FB98] text-[#0B1E3A]"
     )}>
       {/* Header row */}
       <div className="flex items-start gap-3">
@@ -101,3 +101,4 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
     </div>
   );
 }
+

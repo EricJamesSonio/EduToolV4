@@ -296,7 +296,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
                     className={cn(
                       "h-8 px-3 rounded-l-lg border text-xs transition-all",
                       isActive
-                        ? "border-primary bg-primary/10 text-primary font-semibold"
+                        ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A] font-semibold"
                         : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
                     )}
                     style={{ fontFamily: ff.stack }}
@@ -313,7 +313,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
                       className={cn(
                         "h-8 px-1.5 rounded-r-lg border-y border-r text-[10px] transition-all",
                         isActive
-                          ? "border-primary bg-primary/5 text-primary hover:bg-primary/15"
+                          ? "border-[#93C5FD] bg-[#BFDBFE]/50 text-[#0B1E3A] hover:bg-[#BFDBFE]"
                           : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
                       )}
                     >

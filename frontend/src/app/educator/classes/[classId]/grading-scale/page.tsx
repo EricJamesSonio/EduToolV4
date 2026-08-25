@@ -45,8 +45,8 @@ function RangeRow({
         "grid grid-cols-[60px_1fr_120px_100px_80px] items-center gap-4",
         "px-4 py-3 border-b last:border-0 transition-colors",
         range.isPassing
-          ? "hover:bg-emerald-50/50 dark:hover:bg-emerald-950/10"
-          : "hover:bg-red-50/50 dark:hover:bg-red-950/10",
+          ? "hover:bg-[#98FB98]/50"
+          : "hover:bg-[#FF6B6B]/50",
       )}
     >
       {/* Grade value */}
@@ -83,7 +83,7 @@ function RangeRow({
         {range.isPassing ? (
           <Badge
             variant="secondary"
-            className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
+            className="text-xs bg-[#98FB98] text-[#0B1E3A] border-[#86EFAC]"
           >
             <TrendingUp className="h-3 w-3 mr-1" />
             Passing
@@ -91,7 +91,7 @@ function RangeRow({
         ) : (
           <Badge
             variant="secondary"
-            className="text-xs bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400"
+            className="text-xs bg-[#FF6B6B] text-[#0B1E3A] border-[#E85D4E]"
           >
             <TrendingDown className="h-3 w-3 mr-1" />
             Failing
@@ -175,7 +175,7 @@ export default function GradingScalePage({ params }: Props) {
                 {scale.isLocked ? (
                   <Badge
                     variant="secondary"
-                    className="text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400"
+                    className="text-xs bg-[#FDE68A] text-[#0B1E3A] border-[#FCD34D]"
                   >
                     <Lock className="h-3 w-3 mr-1" />
                     Locked
@@ -192,13 +192,13 @@ export default function GradingScalePage({ params }: Props) {
                 <p className="text-xl font-bold tabular-nums">{sortedRanges.length}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Grade levels</p>
               </div>
-              <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 px-3 py-2.5 text-center">
+              <div className="rounded-md bg-[#98FB98] border border-[#86EFAC] px-3 py-2.5 text-center">
                 <p className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
                   {passingCount}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">Passing</p>
               </div>
-              <div className="rounded-md bg-red-50 dark:bg-red-950/20 px-3 py-2.5 text-center">
+              <div className="rounded-md bg-[#FF6B6B] border border-[#E85D4E] px-3 py-2.5 text-center">
                 <p className="text-xl font-bold tabular-nums text-red-600 dark:text-red-400">
                   {failingCount}
                 </p>
@@ -208,7 +208,7 @@ export default function GradingScalePage({ params }: Props) {
 
             {/* Lowest passing */}
             {lowestPassing && (
-              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-md border border-[#60A5FA] bg-[#93C5FD] text-[#0B1E3A] px-3 py-2">
                 <Info className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
                 <p className="text-xs text-blue-700 dark:text-blue-300">
                   Minimum passing grade:{" "}
@@ -218,7 +218,7 @@ export default function GradingScalePage({ params }: Props) {
             )}
 
             {scale.isLocked && scale.lockedAt && (
-              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-md border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] px-3 py-2">
                 <Lock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   This scale was locked on {formatDate(scale.lockedAt)} and cannot be changed.

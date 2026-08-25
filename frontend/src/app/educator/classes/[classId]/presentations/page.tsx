@@ -47,7 +47,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ListItemCardAction } from "@/components/shared/ListItemCard";
-import { cn, pickCardColor } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   Plus,
   Loader2,
@@ -180,7 +180,7 @@ function PresentationCard({
           <div
             className={cn(
               "rounded-md p-2.5 shrink-0",
-              pickCardColor(presentation.id),
+              "bg-[#DDD6FE] text-[#0B1E3A] border-[#C4B5FD]",
             )}
           >
             <Presentation className="h-4 w-4" />
@@ -198,7 +198,7 @@ function PresentationCard({
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {weekNumber !== null && (
             <>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD]">
                 Week {weekNumber}
               </span>
               <span>·</span>
@@ -236,7 +236,7 @@ function PresentationCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  className="gap-1.5 text-[#0B1E3A] bg-[#FF6B6B] border-[#E85D4E] hover:bg-[#FF6B6B]/90"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -405,3 +405,4 @@ export default function PresentationsPage(): React.JSX.Element {
     </div>
   );
 }
+

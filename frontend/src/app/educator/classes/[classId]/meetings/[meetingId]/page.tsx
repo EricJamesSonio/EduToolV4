@@ -72,8 +72,8 @@ function AttendanceCard({ attendance }: { attendance: SavedAttendance }) {
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="rounded-md bg-primary/10 p-2">
-            <Users className="h-4 w-4 text-primary" />
+          <div className="rounded-md bg-[#BFDBFE] border border-[#93C5FD] p-2">
+            <Users className="h-4 w-4 text-[#0B1E3A]" />
           </div>
           <div className="text-left">
             <p className="text-sm font-semibold">Attendance Record</p>
@@ -387,7 +387,7 @@ export default function MeetingDetailPage({ params }: Props) {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          className="h-7 w-7 text-muted-foreground hover:text-[#0B1E3A] hover:bg-[#FF6B6B] hover:border-[#E85D4E]"
                           onClick={() => setShowRemoveConfirm(invite.studentId)}
                           disabled={updateMutation.isPending}
                         >
@@ -439,7 +439,7 @@ export default function MeetingDetailPage({ params }: Props) {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 px-2 gap-1 text-xs text-destructive border-destructive/20 hover:bg-destructive/5"
+                          className="h-7 px-2 gap-1 text-xs text-[#0B1E3A] bg-[#FF6B6B] border-[#E85D4E] hover:bg-[#FF6B6B]/90"
                           onClick={() => handleRespond(req.id, "declined")}
                           disabled={respondMutation.isPending}
                         >

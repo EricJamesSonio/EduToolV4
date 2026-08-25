@@ -97,8 +97,8 @@ export default function SubmissionReviewPage() {
       <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <FileText className="h-5 w-5 text-primary" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#BFDBFE] border border-[#93C5FD]">
+              <FileText className="h-5 w-5 text-[#0B1E3A]" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">{submission.studentName}</h2>
@@ -199,7 +199,7 @@ function AnswerCard({
   return (
     <div className={cn(
       "rounded-lg border p-5 space-y-3",
-      isManual && "border-l-4 border-l-amber-400 bg-amber-50/10"
+      isManual && "border-l-4 border-l-[#FCD34D] bg-[#FDE68A]/30"
     )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ function AnswerCard({
             Item {index + 1} — {typeLabel(answer.question.type)}
           </span>
           {isManual && (
-            <span className="text-[10px] text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            <span className="text-[10px] text-[#0B1E3A] font-medium bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D] px-2 py-0.5 rounded-full">
               Manual
             </span>
           )}
@@ -227,8 +227,8 @@ function AnswerCard({
             return (
               <div key={ci} className={cn(
                 "flex items-center gap-2 px-3 py-1.5 rounded text-sm border",
-                isCorrect && "border-green-300 bg-green-50",
-                isSelected && !isCorrect && "border-red-300 bg-red-50"
+                isCorrect && "border-[#86EFAC] bg-[#98FB98] text-[#0B1E3A]",
+                isSelected && !isCorrect && "border-[#E85D4E] bg-[#FF6B6B] text-[#0B1E3A]"
               )}>
                 <span className="font-mono text-xs font-bold w-5">{label}.</span>
                 <span className="flex-1">{choice}</span>
@@ -265,3 +265,5 @@ function AnswerCard({
     </div>
   );
 }
+
+

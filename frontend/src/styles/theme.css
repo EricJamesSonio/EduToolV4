@@ -35,6 +35,8 @@
 
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-foreground: var(--accent-soft-foreground);
 
   /* Badge / tag hues (course category chips) — rotated across the 3 brand accents */
   --color-badge-orange: var(--badge-orange);
@@ -103,17 +105,19 @@
   --input: #AFC1DB;
   --ring: #0A2E5C;
 
-  --destructive: #C0392B;
-  --destructive-foreground: #FFFFFF;
-  --success: #15803D;
-  --success-foreground: #F0FDF4;
-  --warning: #A16207;
-  --warning-foreground: #FEFCE8;
-  --info: #0284C7;
-  --info-foreground: #FFFFFF;
+  --destructive: #FF6B6B;
+  --destructive-foreground: #0B1E3A;
+  --success: #98FB98;
+  --success-foreground: #0B1E3A;
+  --warning: #FFD166;
+  --warning-foreground: #0B1E3A;
+  --info: #7CC4F7;
+  --info-foreground: #0B1E3A;
 
   --accent: #FFCC00;
   --accent-foreground: #0A2E5C;
+  --accent-soft: #FFE27A;
+  --accent-soft-foreground: #0A2E5C;
 
   --badge-orange: #0A2E5C;
   --badge-orange-foreground: #FFFFFF;
@@ -162,17 +166,19 @@
   --input: #344766;
   --ring: #3A7BCE;
 
-  --destructive: #E85D4E;
-  --destructive-foreground: #2A0A07;
-  --success: #22C55E;
-  --success-foreground: #052E16;
-  --warning: #EAB308;
-  --warning-foreground: #422006;
-  --info: #38BDF8;
-  --info-foreground: #0C2A3D;
+  --destructive: #FF8A8A;
+  --destructive-foreground: #0B1E3A;
+  --success: #6EE7B7;
+  --success-foreground: #0B1E3A;
+  --warning: #FFE08A;
+  --warning-foreground: #0B1E3A;
+  --info: #93D4F8;
+  --info-foreground: #0B1E3A;
 
   --accent: #FDE047;
   --accent-foreground: #0A1628;
+  --accent-soft: #FEF08A;
+  --accent-soft-foreground: #0A1628;
 
   --badge-orange: #3A7BCE;
   --badge-orange-foreground: #0A1628;

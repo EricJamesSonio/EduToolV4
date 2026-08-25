@@ -15,6 +15,7 @@ import { StrandsSection }        from "@/components/admin/program/StrandsSection
 import { Badge }    from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn }       from "@/lib/utils";
+import { listItemIconClass } from "@/components/shared/ListItemCard";
 import { LevelWithSectionsList } from "./LevelWithSectionsList";
 import { SubjectsSection }       from "./SubjectsSection";
 import { useEnrollmentDrilldown } from "@/components/admin/school-years/hooks/useEnrollmentDrilldown";
@@ -84,7 +85,7 @@ export function ProgramDetailView({
 
       {/* Program header */}
       <div className="flex items-start gap-3">
-        <div className="icon-container icon-edu shrink-0 mt-0.5">
+        <div className={cn(listItemIconClass, typeColor, "mt-0.5")}>
           <GraduationCap className="h-4 w-4" />
         </div>
         <div className="space-y-1">

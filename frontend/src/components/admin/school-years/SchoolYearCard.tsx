@@ -199,12 +199,12 @@ const invalidateSchoolYears = () => {
 
   const getStatusIcon = () => {
     if (year.status === "active") {
-      return <CheckCircle2 className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-success" />;
+      return <CheckCircle2 className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-[#0B1E3A]" />;
     }
     if (year.status === "ended") {
       return <AlertCircle className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-muted-foreground" />;
     }
-    return <Calendar className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-primary" />;
+    return <Calendar className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-[#0B1E3A]" />;
   };
 
   return (
@@ -217,7 +217,7 @@ const invalidateSchoolYears = () => {
       >
         {/* Header with Icon and Info */}
         <div className="flex items-start gap-3">
-          <div className={cn(listItemIconClass, "icon-edu mt-0.5")}>
+          <div className={cn(listItemIconClass, "bg-[#98FB98] text-[#0B1E3A] border border-[#86EFAC] mt-0.5")}>
             {getStatusIcon()}
           </div>
           <div className="flex-1 space-y-1">
