@@ -1,6 +1,6 @@
 ﻿# TICK-INFRA-001 — Global unify icon colors (admin/educator/student/landing)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-08-25
 Created by: agent
@@ -31,25 +31,25 @@ Program icons were unified to bright solid PROGRAM_TYPE_COLORS (bg-[#BFDBFE] tex
 
 ## Acceptance Criteria
 
-- [ ] Template cards hover suppressed when expanded
-- [ ] SchoolYearCard/ProgramsTab/ProgramDetailView icons use PROGRAM_TYPE_COLORS solid
-- [ ] FeaturesSection no adjacent same color (yellow/purple not side-by-side)
-- [ ] SolutionSection/PricingSection fonts reuse global palette, not duplicate arrays
-- [ ] npm run lint && npm run build pass
+- [x] Template cards hover suppressed when expanded
+- [x] SchoolYearCard/ProgramsTab/ProgramDetailView icons use PROGRAM_TYPE_COLORS solid
+- [x] FeaturesSection no adjacent same color (yellow/purple not side-by-side)
+- [x] SolutionSection/PricingSection fonts reuse global palette, not duplicate arrays
+- [x] npm run lint && npm run build pass
 
 ## Confidence
 
 Score: 85/100
 - Requirement clarity: 90
-- Codebase verification: 85 (verified via explore, 20+ educator files still old)
+- Codebase verification: 85 (verified via explore, 20+ educator files still old, now fixed)
 - Architecture fit: 90
 Assumption: fallback for generic (no program.type) uses icon-structure solid (#BFDBFE).
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: lint --silent passed (0 errors)
+- Full suite: build passed (Next.js 16.2.1, 58 routes, Compiled successfully in 44s, TypeScript 50s)
+- Development integration: not yet (await merge)
 
 ## Blocker
 
@@ -58,8 +58,12 @@ None.
 ## Activity Log
 
 2026-08-25 — Claimed, created worktree from development.
+2026-08-25 — Implemented hover fix + global icon unification (educator 24 files, student 5, admin 6, landing 4, utilities solid), built clean, committed 56831397.
+2026-08-25 — Ready for review.
 
 ## Commits
+
+- 56831397 feat(frontend): unify global icon colors and fix template hover
 
 ## Notes
 
