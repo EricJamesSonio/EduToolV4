@@ -5,7 +5,7 @@ import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { Search, UserX } from "lucide-react";
+import { UserX } from "lucide-react";
 
 import { classApi } from "@/api/admin/class.api";
 
@@ -98,16 +98,12 @@ export function EnrollStudentDialog({
       size="md"
     >
       <div className="space-y-3 mt-1">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or Student ID..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            autoFocus
-          />
-        </div>
+        <Input
+          placeholder="Search by name or Student ID..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoFocus
+        />
 
         <div className="rounded-md border min-h-[120px] max-h-64 overflow-y-auto">
           {isLoading ? (
