@@ -5,12 +5,12 @@ import { Building2, BookOpen, Calendar, Zap, Users, GraduationCap, BrainCircuit,
 const features = [
   { icon: Building2, title: "Organization Management", description: "Create and manage independent school environments with dedicated configurations and users.", color: "icon-structure" },
   { icon: BookOpen, title: "Academic Structure", description: "Build custom departments, levels, sections, subjects, and classes.", color: "icon-edu" },
-  { icon: Calendar, title: "Academic Calendar System", description: "Manage reusable academic calendars and institutional schedules.", color: "icon-schedule" },
+  { icon: Calendar, title: "Academic Calendar System", description: "Manage reusable academic calendars and institutional schedules.", color: "icon-analytics" },
   { icon: Zap, title: "Quick Setup Tools", description: "Generate academic structures instantly through predefined templates.", color: "icon-utility" },
-  { icon: Users, title: "Educator Workspace", description: "Manage classes, subjects, and student grading.", color: "icon-people" },
+  { icon: Users, title: "Educator Workspace", description: "Manage classes, subjects, and student grading.", color: "icon-danger" },
   { icon: GraduationCap, title: "Student Management", description: "Organize student enrollment and academic records.", color: "icon-educator" },
-  { icon: BrainCircuit, title: "Assessment Generator", description: "Automatically create assessments by inputting lesson details — no more manual exam writing.", color: "icon-analytics" },
-  { icon: Video, title: "Video Meetings & Live Chat", description: "Built-in video conferencing with real-time chat for virtual classes and parent meetings.", color: "icon-global" },
+  { icon: BrainCircuit, title: "Assessment Generator", description: "Automatically create assessments by inputting lesson details — no more manual exam writing.", color: "icon-global" },
+  { icon: Video, title: "Video Meetings & Live Chat", description: "Built-in video conferencing with real-time chat for virtual classes and parent meetings.", color: "icon-credential" },
 ];
 
 export function FeaturesSection() {

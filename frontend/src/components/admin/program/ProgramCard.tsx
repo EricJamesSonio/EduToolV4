@@ -9,7 +9,7 @@ import {
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { cn, pickCardColor } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import type { Program } from "@/types/admin/program.types";
 
@@ -31,7 +31,7 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
   return (
     <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
-        <div className={cn(listItemIconClass, pickCardColor(program.id), "mt-0.5")}>
+        <div className={cn(listItemIconClass, color, "mt-0.5")}>
           <GraduationCap className="h-4.5 w-4.5" />
         </div>
         <div className="min-w-0 space-y-1">

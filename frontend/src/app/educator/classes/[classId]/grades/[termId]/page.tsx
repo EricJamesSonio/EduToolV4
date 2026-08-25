@@ -67,7 +67,7 @@ function ManualCell({
   return (
     <button
       onClick={() => { setDraft(String(value ?? "")); setEditing(true); }}
-      className="group relative min-w-[2.5rem] rounded px-2 py-0.5 text-xs tabular-nums hover:bg-primary/10 hover:text-primary transition-colors text-left"
+      className="group relative min-w-[2.5rem] rounded px-2 py-0.5 text-xs tabular-nums hover:bg-[#BFDBFE] hover:text-[#0B1E3A] hover:border-[#93C5FD] transition-colors text-left"
     >
       {value !== null ? fmt(value) : <span className="text-muted-foreground/50">—</span>}
       <span className="absolute -top-0.5 -right-0.5 hidden group-hover:block w-1.5 h-1.5 rounded-full bg-primary" />
@@ -258,7 +258,7 @@ export default function TermGradesPage() {
                     <tr key={student.studentId} className={cn("transition-colors hover:bg-muted/40", idx % 2 === 0 ? "bg-background" : "bg-muted/20")}>
                       <td className="sticky left-0 bg-inherit px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-[#BFDBFE] border border-[#93C5FD] flex items-center justify-center text-xs font-bold text-[#0B1E3A] shrink-0">
                             {student.studentName.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">

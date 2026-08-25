@@ -61,11 +61,11 @@ export function StudentCategoryDrillDown({
                       {earned !== null ? (
                         <>{fmt(earned, 0)}/{a.totalItems}</>
                       ) : a.isMissed ? (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive text-[10px] font-bold">M</span>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-[#FF6B6B] text-[#0B1E3A] border border-[#E85D4E] text-[10px] font-bold">M</span>
                       ) : a.isExempted ? (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning text-[10px] font-bold">E</span>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D] text-[10px] font-bold">E</span>
                       ) : a.status === 'custom' ? (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning text-[10px] font-bold">C</span>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D] text-[10px] font-bold">C</span>
                       ) : (
                         <span className="text-muted-foreground/50">&mdash;</span>
                       )}
@@ -86,3 +86,4 @@ export function StudentCategoryDrillDown({
     </div>
   );
 }
+

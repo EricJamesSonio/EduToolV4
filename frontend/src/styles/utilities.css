@@ -63,150 +63,150 @@
     color: var(--info-foreground);
   }
 
-  /* ── Status badge tints (for student status, enrollment status, etc.) ── */
+  /* ── Status badge tints — brighter, black (very dark navy) text for contrast ── */
   .badge-active {
-    background: color-mix(in oklch, var(--success) 15%, transparent);
+    background: var(--success);
     color: var(--success-foreground);
-    border: 1px solid color-mix(in oklch, var(--success) 30%, transparent);
+    border: 1px solid color-mix(in oklch, var(--success) 60%, black);
   }
 
   .badge-pending {
-    background: color-mix(in oklch, var(--warning) 15%, transparent);
+    background: var(--warning);
     color: var(--warning-foreground);
-    border: 1px solid color-mix(in oklch, var(--warning) 30%, transparent);
+    border: 1px solid color-mix(in oklch, var(--warning) 60%, black);
   }
 
   .badge-suspended {
-    background: color-mix(in oklch, var(--destructive) 12%, transparent);
+    background: var(--destructive);
     color: var(--destructive-foreground);
-    border: 1px solid color-mix(in oklch, var(--destructive) 25%, transparent);
+    border: 1px solid color-mix(in oklch, var(--destructive) 60%, black);
   }
 
   .badge-dropped {
-    background: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
-    color: var(--muted-foreground);
-    border: 1px solid color-mix(in oklch, var(--muted-foreground) 25%, transparent);
+    background: var(--muted);
+    color: #0B1E3A;
+    border: 1px solid var(--border);
   }
 
   .badge-transferred {
-    background: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
-    color: var(--muted-foreground);
-    border: 1px solid color-mix(in oklch, var(--muted-foreground) 25%, transparent);
+    background: var(--muted);
+    color: #0B1E3A;
+    border: 1px solid var(--border);
   }
 
   .badge-graduated {
-    background: color-mix(in oklch, var(--success) 18%, transparent);
+    background: var(--success);
     color: var(--success-foreground);
-    border: 1px solid color-mix(in oklch, var(--success) 35%, transparent);
+    border: 1px solid color-mix(in oklch, var(--success) 60%, black);
   }
 
   .badge-info {
-    background: color-mix(in oklch, var(--info) 15%, transparent);
+    background: var(--info);
     color: var(--info-foreground);
-    border: 1px solid color-mix(in oklch, var(--info) 30%, transparent);
+    border: 1px solid color-mix(in oklch, var(--info) 60%, black);
   }
 
   .dark .badge-active {
-    background: color-mix(in oklch, var(--success) 22%, transparent);
+    background: var(--success);
     color: var(--success-foreground);
-    border-color: color-mix(in oklch, var(--success) 35%, transparent);
+    border-color: color-mix(in oklch, var(--success) 60%, black);
   }
 
   .dark .badge-pending {
-    background: color-mix(in oklch, var(--warning) 22%, transparent);
+    background: var(--warning);
     color: var(--warning-foreground);
-    border-color: color-mix(in oklch, var(--warning) 35%, transparent);
+    border-color: color-mix(in oklch, var(--warning) 60%, black);
   }
 
   .dark .badge-suspended {
-    background: color-mix(in oklch, var(--destructive) 20%, transparent);
+    background: var(--destructive);
     color: var(--destructive-foreground);
-    border-color: color-mix(in oklch, var(--destructive) 32%, transparent);
+    border-color: color-mix(in oklch, var(--destructive) 60%, black);
   }
 
   .dark .badge-dropped {
-    background: color-mix(in oklch, var(--muted-foreground) 20%, transparent);
-    color: var(--muted-foreground);
-    border-color: color-mix(in oklch, var(--muted-foreground) 32%, transparent);
+    background: var(--muted);
+    color: var(--foreground);
+    border-color: var(--border);
   }
 
   .dark .badge-transferred {
-    background: color-mix(in oklch, var(--muted-foreground) 20%, transparent);
-    color: var(--muted-foreground);
-    border-color: color-mix(in oklch, var(--muted-foreground) 32%, transparent);
+    background: var(--muted);
+    color: var(--foreground);
+    border-color: var(--border);
   }
 
   .dark .badge-graduated {
-    background: color-mix(in oklch, var(--success) 25%, transparent);
+    background: var(--success);
     color: var(--success-foreground);
-    border-color: color-mix(in oklch, var(--success) 40%, transparent);
+    border-color: color-mix(in oklch, var(--success) 60%, black);
   }
 
   .dark .badge-info {
-    background: color-mix(in oklch, var(--info) 22%, transparent);
+    background: var(--info);
     color: var(--info-foreground);
-    border-color: color-mix(in oklch, var(--info) 35%, transparent);
+    border-color: color-mix(in oklch, var(--info) 60%, black);
   }
 
-  /* ── Extended badge variants (aliases / new) ── */
+  /* ── Extended badge variants — same bright solid style ── */
   .badge-warning {
-    background: color-mix(in oklch, var(--warning) 15%, transparent);
+    background: var(--warning);
     color: var(--warning-foreground);
-    border: 1px solid color-mix(in oklch, var(--warning) 30%, transparent);
+    border: 1px solid color-mix(in oklch, var(--warning) 60%, black);
   }
 
   .badge-success {
-    background: color-mix(in oklch, var(--success) 15%, transparent);
+    background: var(--success);
     color: var(--success-foreground);
-    border: 1px solid color-mix(in oklch, var(--success) 30%, transparent);
+    border: 1px solid color-mix(in oklch, var(--success) 60%, black);
   }
 
   .badge-destructive {
-    background: color-mix(in oklch, var(--destructive) 12%, transparent);
+    background: var(--destructive);
     color: var(--destructive-foreground);
-    border: 1px solid color-mix(in oklch, var(--destructive) 25%, transparent);
+    border: 1px solid color-mix(in oklch, var(--destructive) 60%, black);
   }
 
   .badge-muted {
-    background: color-mix(in oklch, var(--muted-foreground) 8%, transparent);
-    color: var(--muted-foreground);
-    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+    background: var(--muted);
+    color: #0B1E3A;
+    border: 1px solid var(--border);
   }
 
   .badge-purple {
-    background: color-mix(in oklch, var(--badge-purple) 15%, transparent);
+    background: var(--badge-purple);
     color: var(--badge-purple-foreground);
-    border: 1px solid color-mix(in oklch, var(--badge-purple) 30%, transparent);
+    border: 1px solid color-mix(in oklch, var(--badge-purple) 60%, black);
   }
 
   .dark .badge-warning {
-    background: color-mix(in oklch, var(--warning) 22%, transparent);
+    background: var(--warning);
     color: var(--warning-foreground);
-    border-color: color-mix(in oklch, var(--warning) 35%, transparent);
+    border-color: color-mix(in oklch, var(--warning) 60%, black);
   }
 
   .dark .badge-success {
-    background: color-mix(in oklch, var(--success) 22%, transparent);
+    background: var(--success);
     color: var(--success-foreground);
-    border-color: color-mix(in oklch, var(--success) 35%, transparent);
+    border-color: color-mix(in oklch, var(--success) 60%, black);
   }
 
   .dark .badge-destructive {
-    background: color-mix(in oklch, var(--destructive) 20%, transparent);
+    background: var(--destructive);
     color: var(--destructive-foreground);
-    border-color: color-mix(in oklch, var(--destructive) 32%, transparent);
+    border-color: color-mix(in oklch, var(--destructive) 60%, black);
   }
 
   .dark .badge-muted {
-    background: color-mix(in oklch, var(--muted-foreground) 14%, transparent);
-    color: var(--muted-foreground);
-    border-color: color-mix(in oklch, var(--border) 60%, transparent);
+    background: var(--muted);
+    color: var(--foreground);
+    border-color: var(--border);
   }
 
   .dark .badge-purple {
-    background: color-mix(in oklch, var(--badge-purple) 22%, transparent);
+    background: var(--badge-purple);
     color: var(--badge-purple-foreground);
-    border-color: color-mix(in oklch, var(--badge-purple) 35%, transparent);
+    border-color: color-mix(in oklch, var(--badge-purple) 60%, black);
   }
 
   /* ── Chart dots (categorical, non-semantic) ── */
@@ -246,12 +246,12 @@
     margin-inline: auto;
   }
 
-  /* ── Card with border + shadow ── */
+  /* ── Card with border + shadow — higher contrast (global) ── */
   .card-base {
     background: var(--card);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
   }
 
   /* ── Sidebar width token ── */
@@ -273,18 +273,18 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ── Landing card with soft shadow + hover lift ── */
+  /* ── Landing card with soft shadow + hover lift — higher contrast ── */
   .card-landing {
     background: var(--card);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
     transition: transform 250ms ease, box-shadow 250ms ease;
   }
 
   .card-landing:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-xl);
   }
 
   /* ── Icon container for feature/step icons ── */
@@ -303,40 +303,39 @@
     box-shadow: var(--shadow-md);
   }
 
-  /* ── Semantic icon background colors — higher contrast (20% light / 30% dark) ── */
-  .icon-people   { background: color-mix(in oklch, var(--primary) 20%, transparent); color: var(--primary); }
-  .icon-edu      { background: color-mix(in oklch, var(--success) 20%, transparent); color: var(--success); }
-  .icon-schedule { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 20%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
-  .icon-warning  { background: color-mix(in oklch, var(--warning) 20%, transparent); color: var(--warning); }
-  .icon-danger   { background: color-mix(in oklch, var(--destructive) 20%, transparent); color: var(--destructive); }
-  .icon-security { background: color-mix(in oklch, var(--destructive) 20%, transparent); color: var(--destructive); }
-  .icon-structure{ background: color-mix(in oklch, var(--info) 20%, transparent); color: var(--info); }
-  .icon-analytics{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 20%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .icon-utility  { background: color-mix(in oklch, var(--warning) 20%, transparent); color: var(--warning); }
-  .icon-action   { background: color-mix(in oklch, var(--primary) 20%, transparent); color: var(--primary); }
-  .icon-global   { background: color-mix(in oklch, var(--info) 20%, transparent); color: var(--info); }
-  .icon-credential{background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 20%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .icon-educator { background: oklch(0.55 0.18 290 / 0.20); color: oklch(0.40 0.18 290); }
+  /* ── Semantic icon background colors — solid bright + very dark navy text (global, matches ProgramCard) ── */
+  .icon-people   { background: #BFDBFE; color: #0B1E3A; border: 1px solid #93C5FD; }
+  .icon-edu      { background: #98FB98; color: #0B1E3A; border: 1px solid #86EFAC; }
+  .icon-schedule { background: #FDE68A; color: #0B1E3A; border: 1px solid #FCD34D; }
+  .icon-warning  { background: #FDE68A; color: #0B1E3A; border: 1px solid #FCD34D; }
+  .icon-danger   { background: #FF6B6B; color: #0B1E3A; border: 1px solid #E85D4E; }
+  .icon-security { background: #FF6B6B; color: #0B1E3A; border: 1px solid #E85D4E; }
+  .icon-structure{ background: #BFDBFE; color: #0B1E3A; border: 1px solid #93C5FD; }
+  .icon-analytics{ background: #DDD6FE; color: #0B1E3A; border: 1px solid #C4B5FD; }
+  .icon-utility  { background: #FDE68A; color: #0B1E3A; border: 1px solid #FCD34D; }
+  .icon-action   { background: #BFDBFE; color: #0B1E3A; border: 1px solid #93C5FD; }
+  .icon-global   { background: #93C5FD; color: #0B1E3A; border: 1px solid #60A5FA; }
+  .icon-credential{background: #FECACA; color: #0B1E3A; border: 1px solid #FCA5A5; }
+  .icon-educator { background: #DDD6FE; color: #0B1E3A; border: 1px solid #C4B5FD; }
 .icon-classes {
-  background: color-mix(in oklch, var(--icon-classes) 20%, transparent);
-  color: var(--icon-classes);
+  background: #98FB98; color: #0B1E3A; border: 1px solid #86EFAC;
 }
-  .icon-share    { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 20%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
+  .icon-share    { background: #93C5FD; color: #0B1E3A; border: 1px solid #60A5FA; }
 
-  .dark .icon-people    { background: color-mix(in oklch, var(--primary) 30%, transparent); color: color-mix(in oklch, var(--primary) 85%, white); }
-  .dark .icon-edu       { background: color-mix(in oklch, var(--success) 30%, transparent); color: color-mix(in oklch, var(--success) 85%, white); }
-  .dark .icon-schedule  { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 30%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
-  .dark .icon-warning   { background: color-mix(in oklch, var(--warning) 30%, transparent); color: color-mix(in oklch, var(--warning) 85%, white); }
-  .dark .icon-danger    { background: color-mix(in oklch, var(--destructive) 30%, transparent); color: color-mix(in oklch, var(--destructive) 85%, white); }
-  .dark .icon-security  { background: color-mix(in oklch, var(--destructive) 30%, transparent); color: color-mix(in oklch, var(--destructive) 85%, white); }
-  .dark .icon-structure { background: color-mix(in oklch, var(--info) 30%, transparent); color: color-mix(in oklch, var(--info) 85%, white); }
-  .dark .icon-analytics { background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 30%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .dark .icon-utility   { background: color-mix(in oklch, var(--warning) 30%, transparent); color: color-mix(in oklch, var(--warning) 85%, white); }
-  .dark .icon-global    { background: color-mix(in oklch, var(--info) 30%, transparent); color: color-mix(in oklch, var(--info) 85%, white); }
-  .dark .icon-credential{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 30%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
-  .dark .icon-share     { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 30%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
-  .dark .icon-educator  { background: oklch(0.55 0.18 290 / 0.30); color: oklch(0.72 0.18 290); }
-  .dark .icon-classes   { background: color-mix(in oklch, var(--icon-classes) 30%, transparent); color: color-mix(in oklch, var(--icon-classes) 90%, white); }
+  .dark .icon-people    { background: #1E3A5F; color: #BFDBFE; border-color: #33507A; }
+  .dark .icon-edu       { background: #14532D; color: #98FB98; border-color: #1E7A3A; }
+  .dark .icon-schedule  { background: #5B4A1A; color: #FDE68A; border-color: #7A5F1A; }
+  .dark .icon-warning   { background: #5B4A1A; color: #FDE68A; border-color: #7A5F1A; }
+  .dark .icon-danger    { background: #5A1A1A; color: #FF6B6B; border-color: #7A2424; }
+  .dark .icon-security  { background: #5A1A1A; color: #FF6B6B; border-color: #7A2424; }
+  .dark .icon-structure { background: #1E3A5F; color: #BFDBFE; border-color: #33507A; }
+  .dark .icon-analytics { background: #2E235A; color: #DDD6FE; border-color: #4A357A; }
+  .dark .icon-utility   { background: #5B4A1A; color: #FDE68A; border-color: #7A5F1A; }
+  .dark .icon-global    { background: #1E3A5F; color: #93C5FD; border-color: #33507A; }
+  .dark .icon-credential{ background: #5A2A2A; color: #FECACA; border-color: #7A3A3A; }
+  .dark .icon-share     { background: #1E3A5F; color: #93C5FD; border-color: #33507A; }
+  .dark .icon-educator  { background: #2E235A; color: #DDD6FE; border-color: #4A357A; }
+  .dark .icon-classes   { background: #14532D; color: #98FB98; border-color: #1E7A3A; }
 
   /* ── Gradient text for hero headings — CMI navy → announcement yellow ── */
   .gradient-text {
@@ -498,14 +497,15 @@
   }
 
 .table-enhanced {
-  border: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .table-enhanced thead tr {
   background-color: var(--muted);
-  border-bottom: none;
+  border-bottom: 1.5px solid var(--border);
 }
 
 .table-enhanced thead tr[data-header-variant="accent"] {

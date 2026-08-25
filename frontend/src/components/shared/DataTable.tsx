@@ -166,12 +166,14 @@ export function DataTable<TData, TValue>({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
-                    className="h-48 text-center"
+                    className="p-0 text-center border-0"
                   >
-                    <EmptyState
-                      title={emptyTitle}
-                      description={emptyDescription}
-                    />
+                    <div className="p-4">
+                      <EmptyState
+                        title={emptyTitle}
+                        description={emptyDescription}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               )

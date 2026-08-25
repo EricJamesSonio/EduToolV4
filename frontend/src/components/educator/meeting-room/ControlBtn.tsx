@@ -22,8 +22,8 @@ export function ControlBtn({
       disabled={disabled}
       className={cn(
         "meeting-ctrl-btn flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors disabled:opacity-50",
-        active  && !danger && "text-primary bg-primary/10",
-        danger  && "text-destructive hover:bg-destructive/10",
+        active  && !danger && "bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD]",
+        danger  && "text-[#0B1E3A] bg-[#FF6B6B] border border-[#E85D4E] hover:bg-[#FF6B6B]/90",
         !active && !danger && "text-muted-foreground hover:bg-muted hover:text-foreground",
         hideOnMobile && "meeting-ctrl-btn--hide-mobile",
         mobileOnly  && "meeting-ctrl-btn--mobile-only",

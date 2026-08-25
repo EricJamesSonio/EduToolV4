@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Plus, Pencil, Trash2, BookOpen } from "lucide-react";
@@ -15,7 +15,7 @@ import {
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { cn, pickCardColor } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { CourseSnapshot, Program } from "@/types/admin/program.types";
 
 interface CoursesSectionProps {
@@ -90,7 +90,7 @@ export function CoursesSection({
           {courses.map((course) => (
             <div key={course.id} className={cn(listItemCardClass, "p-3 sm:p-5 sm:space-y-4 lg:p-6")}>
               <div className="flex items-start gap-3">
-                <div className={cn(listItemIconClass, pickCardColor(course.id), "mt-0.5")}>
+                <div className={cn(listItemIconClass, "bg-[#BFDBFE] text-[#0B1E3A] border-[#93C5FD]", "mt-0.5")}>
                   <BookOpen className="h-4.5 w-4.5" />
                 </div>
                 <div className="flex-1 min-w-0">

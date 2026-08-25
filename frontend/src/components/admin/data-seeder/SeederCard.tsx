@@ -1,10 +1,10 @@
-// frontend/src/components/admin/data-seeder/SeederCard.tsx
+﻿// frontend/src/components/admin/data-seeder/SeederCard.tsx
 "use client";
 
 import { useEffect } from "react";
 import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn, pickCardColor } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useNavigationGuard } from "@/context/NavigationGuardContext";
 import { useSchoolProfile } from "@/hooks/admin/useSchoolProfile"
@@ -28,7 +28,7 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
   return (
     <div className="rounded-xl border bg-card p-6 space-y-4">
       <div className="flex items-start gap-3">
-        <div className={`icon-container ${pickCardColor(id)} shrink-0 mt-0.5`}>
+        <div className={`icon-container bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] shrink-0 mt-0.5`}>
           <Icon className="h-4.5 w-4.5" />
         </div>
         <div>
@@ -109,7 +109,7 @@ export function SeederCard() {
 
   // ===== Navigation guard: don't let the user silently lose an in-progress
   // seed by clicking away in the sidebar. "In progress" = at least one
-  // department has been selected — matches the point where real, non-trivial
+  // department has been selected â€” matches the point where real, non-trivial
   // choices start piling up (levels, sections, subjects, calendars, etc. all
   // key off the selected departments).
   const { setGuard } = useNavigationGuard();
@@ -153,7 +153,7 @@ export function SeederCard() {
             !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
           )}
         >
-          {/* Apply Preset — only when a preset exists and the selected school year is fresh (no seeded departments yet) */}
+          {/* Apply Preset â€” only when a preset exists and the selected school year is fresh (no seeded departments yet) */}
           {selectedSchoolYearId && savedProfileDepartments.length > 0 && existingProgramTypes.size === 0 && (
             <Card id="preset" icon={Sparkles} title="Apply Preset">
               <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -184,7 +184,7 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Programs — when preset exists, only its departments are selectable */}
+          {/* Programs â€” when preset exists, only its departments are selectable */}
           <Card id="programs" icon={Layers} title="Departments">
             <ProgramStep
               selectedPrograms={selectedPrograms}
@@ -196,7 +196,7 @@ export function SeederCard() {
             />
           </Card>
 
-          {/* Strands (SHS) — before Levels because Levels depend on selected Strands */}
+          {/* Strands (SHS) â€” before Levels because Levels depend on selected Strands */}
           {selectedPrograms.has("shs") && (
             <Card id="strands" icon={BookOpen} title="SHS Strands">
               <StrandStep
@@ -210,7 +210,7 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Courses (College) — before Levels because Levels depend on selected Courses (e.g. BSA 5yr vs 4yr) */}
+          {/* Courses (College) â€” before Levels because Levels depend on selected Courses (e.g. BSA 5yr vs 4yr) */}
           {selectedPrograms.has("college") && (
             <Card id="courses" icon={BookOpen} title="College Courses">
               <CourseStep
@@ -224,7 +224,7 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Levels — also show when an override defines levels for a program; seeder is read-only (select/unselect only, edit in Configure) */}
+          {/* Levels â€” also show when an override defines levels for a program; seeder is read-only (select/unselect only, edit in Configure) */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="levels" icon={LayoutList} title="Levels">
               <LevelStep
@@ -246,7 +246,7 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Sections — after Levels; read-only */}
+          {/* Sections â€” after Levels; read-only */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="sections" icon={Scale} title="Sections">
               <SectionStep
@@ -403,7 +403,7 @@ export function SeederCard() {
       <ConfirmDialog
         open={!!pendingSchoolYear}
         title="School year looks short"
-        message="This school year doesn't span a full year. This might be a mistake — are you sure you want to proceed?"
+        message="This school year doesn't span a full year. This might be a mistake â€” are you sure you want to proceed?"
         confirmLabel="Yes, create it"
         destructive={false}
         isLoading={createSchoolYearMutation.isPending}

@@ -74,7 +74,7 @@ export function StudentList({
                   selectedId === s.studentId && "bg-primary/5 border-l-2 border-l-primary",
                 )}
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#BFDBFE] border border-[#93C5FD] flex items-center justify-center text-xs font-bold text-[#0B1E3A] shrink-0">
                   {s.studentName.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 leading-tight">

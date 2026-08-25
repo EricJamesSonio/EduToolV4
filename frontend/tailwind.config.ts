@@ -66,6 +66,8 @@ colors: {
   accent: {
     DEFAULT: "var(--accent)",
     foreground: "var(--accent-foreground)",
+    soft: "var(--accent-soft)",
+    "soft-foreground": "var(--accent-soft-foreground)",
   },
 
   destructive: {

@@ -102,7 +102,10 @@ export function GradingScaleList({
         {scales.map((scale) => (
           <div
             key={scale.id}
-            className="rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+            className={cn(
+              "rounded-lg border bg-card transition-colors",
+              expanded !== scale.id && "hover:bg-muted/30"
+            )}
           >
             <div
               className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"

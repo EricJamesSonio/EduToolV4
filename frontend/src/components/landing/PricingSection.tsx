@@ -100,17 +100,27 @@ export function PricingSection() {
 
             <ul className="space-y-3 mb-8 flex-1">
               {plan.features.map((feature, i) => {
+                const checkColors = [
+                  "bg-[#BFDBFE] text-[#0B1E3A]",
+                  "bg-[#98FB98] text-[#0B1E3A]",
+                  "bg-[#FDE68A] text-[#0B1E3A]",
+                  "bg-[#DDD6FE] text-[#0B1E3A]",
+                  "bg-[#93C5FD] text-[#0B1E3A]",
+                  "bg-[#FED7AA] text-[#0B1E3A]",
+                ];
                 const textColors = [
-                  "text-primary",
-                  "text-success",
-                  "text-warning",
-                  "text-[var(--badge-purple)]",
-                  "text-info",
-                  "text-primary",
+                  "text-[#1E40AF]",
+                  "text-[#065F46]",
+                  "text-[#92400E]",
+                  "text-[#6B21A8]",
+                  "text-[#1E3A8A]",
+                  "text-[#9A3412]",
                 ];
                 return (
                   <li key={feature} className="flex items-start gap-3 text-sm">
-                    <Check className={`h-4 w-4 shrink-0 mt-0.5 ${textColors[i % textColors.length]}`} />
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-full shrink-0 mt-0.5 ${checkColors[i % checkColors.length]}`}>
+                      <Check className="h-3 w-3" />
+                    </span>
                     <span className={`${textColors[i % textColors.length]} not-interactive`}>{feature}</span>
                   </li>
                 );

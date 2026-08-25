@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import { SchoolCarousel } from "./SchoolCarousel";
@@ -21,7 +21,7 @@ export function AnalyticsPreviewSection() {
         </div>
 
         <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
-          Trusted by <span className="gradient-text">Schools</span>
+          Trusted by <span className="text-accent">Schools</span>
         </h2>
 
         <p className="text-lg text-muted-foreground not-interactive">

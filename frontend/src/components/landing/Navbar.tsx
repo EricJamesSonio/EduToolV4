@@ -40,12 +40,12 @@ export function Navbar() {
         <Link href="/" className="flex items-center gap-3 group">
           <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
             <img
-              src="/edutool-orange.png"
+              src="/edutool-yellow.png"
               alt="Relief-ED logo"
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="font-heading font-bold text-xl tracking-tight">
+          <span className="font-heading font-bold text-xl tracking-tight text-white">
             Relief-ED
           </span>
         </Link>
@@ -72,11 +72,11 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Right button — Get Started (same login page, single CTA) */}
+        {/* Right button — Sign in (accent yellow, stands out on navy navbar) */}
         <div>
           <Link href="/login">
-            <Button className="bg-primary text-primary-foreground hover:opacity-90 shadow-sm text-base px-5 py-2.5">
-              Get Started
+            <Button className="bg-accent-soft text-accent-soft-foreground hover:bg-accent-soft/90 shadow-sm text-base px-5 py-2.5 font-semibold">
+              Sign in
             </Button>
           </Link>
         </div>

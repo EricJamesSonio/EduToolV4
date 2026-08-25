@@ -40,7 +40,7 @@ export function CleanGradeTable({
       sticky: true,
       render: (student) => (
           <div className="flex items-center gap-1">
-            <div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+            <div className="w-5 h-5 rounded-full bg-[#BFDBFE] border border-[#93C5FD] flex items-center justify-center text-[9px] font-bold text-[#0B1E3A] shrink-0">
               {student.studentName.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 leading-tight">

@@ -105,9 +105,9 @@ export default function AssessmentResultPage(): React.JSX.Element {
                 className={cn(
                   "text-[11px] font-medium capitalize",
                   result.status === "submitted"
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    ? "bg-[#BFDBFE] text-[#0B1E3A] border-[#93C5FD]"
                     : result.status === "graded"
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    ? "bg-[#98FB98] text-[#0B1E3A] border-[#86EFAC]"
                     : "bg-muted text-muted-foreground"
                 )}
               >

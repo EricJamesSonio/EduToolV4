@@ -30,9 +30,9 @@ interface ConceptBuildContent {
 }
 
 const difficultyColors: Record<string, string> = {
-  easy: "bg-success/15 text-success dark:bg-success/15 dark:text-success",
-  medium: "bg-warning/15 text-warning dark:bg-warning/15 dark:text-warning",
-  hard: "bg-destructive/15 text-destructive dark:bg-destructive/15 dark:text-destructive",
+  easy: "bg-[#98FB98] text-[#0B1E3A] border border-[#86EFAC]",
+  medium: "bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D]",
+  hard: "bg-[#FF6B6B] text-[#0B1E3A] border border-[#E85D4E]",
 };
 
 function useProgress(isExtracting: boolean, done: boolean): number {
@@ -208,7 +208,7 @@ export function ConceptBuildViewer({
                 {keywords.map((kw, i) => (
                   <span
                     key={i}
-                    className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full"
+                    className="text-xs bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] px-2 py-0.5 rounded-full"
                   >
                     {kw}
                   </span>
@@ -266,3 +266,4 @@ export function ConceptBuildViewer({
     </div>
   );
 }
+

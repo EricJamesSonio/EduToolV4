@@ -194,7 +194,7 @@ export function ClassGradingSchemeEditor({
     <div className="w-full space-y-6">
       {/* LOCK */}
       {isLocked && (
-        <div className="flex items-center gap-2.5 rounded-md border border-warning/20 bg-warning/10 px-4 py-2.5 text-sm text-warning">
+        <div className="flex items-center gap-2.5 rounded-md border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] px-4 py-2.5 text-sm border">
           <Lock className="h-4 w-4" />
           <span>
             <strong>Locked</strong> — cannot edit this scheme.

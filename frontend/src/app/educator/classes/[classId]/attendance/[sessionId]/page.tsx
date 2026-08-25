@@ -308,7 +308,7 @@ export default function AttendanceSessionPage() {
 
       {/* Future session notice */}
       {isFuture && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/10 dark:border-amber-800 px-4 py-3">
+        <div className="rounded-lg border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] px-4 py-3">
           <p className="text-xs text-amber-700 dark:text-amber-400">
             This session is scheduled for <strong>{dateLabel}</strong>. Attendance can only be marked on or after this date.
           </p>

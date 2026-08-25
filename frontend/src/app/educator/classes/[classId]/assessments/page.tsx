@@ -47,8 +47,8 @@ import type { AssessmentType } from "@/types/educator/assessment.types";
 import type { WeekSlot } from "@/types/educator/lesson.types";
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-amber-50 text-amber-700 border-amber-200",
-  upcoming: "bg-blue-50 text-blue-700 border-blue-200",
+  draft: "bg-[#FDE68A] text-[#0B1E3A] border-[#FCD34D]",
+  upcoming: "bg-[#93C5FD] text-[#0B1E3A] border-[#60A5FA]",
   open: "bg-green-50 text-green-700 border-green-200",
   closed: "bg-zinc-100 text-zinc-600 border-zinc-200",
 };

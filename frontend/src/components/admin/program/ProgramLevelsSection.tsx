@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import {
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { cn, pickCardColor } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { Level } from "@/types/admin/level.types";
 
 interface ProgramLevelsSectionProps {
@@ -112,7 +112,7 @@ export function ProgramLevelsSection({
               disabled={createMutation.isPending}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
-              {createMutation.isPending ? "Adding…" : "Add Level"}
+              {createMutation.isPending ? "Addingâ€¦" : "Add Level"}
             </Button>
             <Button
               size="sm"
@@ -136,7 +136,7 @@ export function ProgramLevelsSection({
                 onClick={() => setGenCount((c) => Math.max(cfg.min, c - 1))}
                 disabled={genCount <= cfg.min}
                 className="h-7 w-7 rounded border flex items-center justify-center text-sm hover:bg-muted disabled:opacity-40"
-              >−</button>
+              >âˆ’</button>
               <span className="w-6 text-center text-sm font-medium not-interactive">{genCount}</span>
               <button
                 onClick={() => setGenCount((c) => Math.min(cfg.max, c + 1))}
@@ -188,7 +188,7 @@ export function ProgramLevelsSection({
                 />
               ) : (
                 <div className="flex items-start gap-3">
-                  <div className={cn(listItemIconClass, pickCardColor(level.id), "mt-0.5")}>
+                  <div className={cn(listItemIconClass, "bg-[#FDE68A] text-[#0B1E3A] border-[#FCD34D]", "mt-0.5")}>
                     <Layers className="h-4.5 w-4.5" />
                   </div>
                   <div className="flex-1 min-w-0">

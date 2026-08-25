@@ -1,4 +1,4 @@
-// ===== File: frontend\src\app\login\page.tsx =====
+﻿// ===== File: frontend\src\app\login\page.tsx =====
 "use client";
 
 import Link from "next/link";
@@ -116,21 +116,20 @@ export default function LoginPage() {
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm bg-white/15 backdrop-blur-sm">
               <img
-                src="/edutool-orange.png"
+                src="/edutool-yellow.png"
                 alt="Relief-ED logo"
                 className="w-full h-full object-cover"
               />
             </div>
-            <span className="font-heading font-bold text-lg tracking-tight">
+            <span className="font-heading font-bold text-lg tracking-tight text-white">
               Relief-ED
             </span>
           </div>
 
           <div className="flex flex-col gap-8">
             <div>
-              <h1 className="font-marketing font-extrabold text-4xl md:text-5xl leading-tight tracking-tight text-foreground">
-                Every class, grade, and meeting — in one place your school
-                can trust.
+              <h1 className="font-marketing font-extrabold text-4xl md:text-5xl leading-tight tracking-tight text-primary-foreground">
+                Every class, grade, and meeting — in <span className="text-accent">one place your school can trust.</span>
               </h1>
               <p className="mt-3 text-sm text-primary-foreground/85">
                 Sign in to manage classes, track attendance, and keep
@@ -216,7 +215,7 @@ export default function LoginPage() {
             <Link href="/" className="inline-flex items-center gap-2.5 group">
               <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
                 <img
-                  src="/edutool-orange.png"
+                  src="/edutool-yellow.png"
                   alt="Relief-ED logo"
                   className="w-full h-full object-cover"
                 />
@@ -230,7 +229,7 @@ export default function LoginPage() {
           <Card className="shadow-sm border-0 md:shadow-none">
             <CardHeader className="pb-4 pt-6 px-6">
               <h1 className="font-marketing font-extrabold text-3xl md:text-4xl tracking-tight">
-                Welcome <span className="gradient-text">back</span>
+                Welcome <span className="text-accent">back</span>
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Sign in to your account to continue.

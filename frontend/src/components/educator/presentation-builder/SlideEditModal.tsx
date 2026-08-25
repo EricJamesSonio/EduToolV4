@@ -111,7 +111,7 @@ export function SlideEditModal({ slide, onSave, onClose }: SlideEditModalProps) 
                   className={cn(
                     "flex-1 h-9 rounded-lg border text-sm font-medium transition-all",
                     fontSize === fs.value
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A]"
                       : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
                   )}
                 >
@@ -135,7 +135,7 @@ export function SlideEditModal({ slide, onSave, onClose }: SlideEditModalProps) 
                   className={cn(
                     "h-10 px-3 rounded-lg border text-sm transition-all text-left",
                     fontFamily === ff.value
-                      ? "border-primary bg-primary/10 text-primary font-semibold"
+                      ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A] font-semibold"
                       : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
                   )}
                   style={{ fontFamily: ff.stack }}

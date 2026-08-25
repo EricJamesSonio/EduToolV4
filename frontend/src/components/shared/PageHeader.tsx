@@ -1,4 +1,4 @@
-// ===== File: frontend\src\components\shared\PageHeader.tsx =====
+﻿// ===== File: frontend\src\components\shared\PageHeader.tsx =====
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -69,7 +69,7 @@ className={cn(
           {title}
         </h1>
           {description && (
-            <p className="text-type-body font-medium gradient-text not-interactive">
+            <p className="text-type-body font-medium text-accent not-interactive">
               {description}
             </p>
           )}

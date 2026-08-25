@@ -96,8 +96,8 @@ export function ProgramsTab({ schoolYearId, isEnded }: ProgramsTabProps): React.
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 shrink-0 mt-0.5">
-                  <GraduationCap className="h-4 w-4 text-primary" />
+                <div className={cn("flex h-8 w-8 items-center justify-center rounded-md shrink-0 mt-0.5", typeColor)}>
+                  <GraduationCap className="h-4 w-4" />
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-semibold">{program.name}</p>

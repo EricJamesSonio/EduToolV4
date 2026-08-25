@@ -30,7 +30,7 @@ export function TemplateCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border bg-card transition-all hover:bg-muted/20">
+    <div className={cn("rounded-xl border bg-card transition-all", !expanded && "hover:bg-muted/20")}>
       <div
         className="flex cursor-pointer select-none items-center gap-4 px-5 py-4"
         onClick={() => setExpanded((e) => !e)}

@@ -397,20 +397,28 @@ export function SolutionSection() {
 
                     <ul className="space-y-3">
                       {item.points.map((point, i) => {
+                        const dotColors = [
+                          "bg-[#BFDBFE]",
+                          "bg-[#98FB98]",
+                          "bg-[#FDE68A]",
+                          "bg-[#DDD6FE]",
+                          "bg-[#93C5FD]",
+                          "bg-[#FED7AA]",
+                        ];
                         const textColors = [
-                          "text-primary",
-                          "text-success",
-                          "text-warning",
-                          "text-[var(--badge-purple)]",
-                          "text-info",
-                          "text-primary",
+                          "text-[#1E40AF]",
+                          "text-[#065F46]",
+                          "text-[#92400E]",
+                          "text-[#6B21A8]",
+                          "text-[#1E3A8A]",
+                          "text-[#9A3412]",
                         ];
                         return (
                           <li
                             key={i}
                             className="flex items-center gap-3 text-base"
                           >
-                            <span className="w-2 h-2 rounded-full bg-foreground/60 flex-shrink-0" />
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColors[i % dotColors.length]}`} />
                             <span className={`${textColors[i % textColors.length]} font-medium not-interactive`}>
                               {point}
                             </span>

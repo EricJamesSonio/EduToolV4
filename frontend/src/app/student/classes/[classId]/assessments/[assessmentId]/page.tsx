@@ -273,11 +273,11 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     {isManualQuestion ? (
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] text-xs font-semibold">
                         <span>✏️</span>
                       </span>
                     ) : (
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] text-xs font-semibold">
                         {i + 1}
                       </span>
                     )}
@@ -324,7 +324,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                           className={cn(
                             "flex items-center gap-3 rounded-lg border px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/30",
                             answers[q.id] === choice
-                              ? "border-primary bg-primary/5"
+                              ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A]"
                               : "border-border/60"
                           )}
                         >
@@ -351,7 +351,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                         className={cn(
                           "flex-1 flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium cursor-pointer transition-colors hover:bg-accent/30",
                           answers[q.id] === opt
-                            ? "border-primary bg-primary/5 text-foreground"
+                            ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A]"
                             : "border-border/60 text-muted-foreground"
                         )}
                       >
