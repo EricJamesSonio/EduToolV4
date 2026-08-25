@@ -110,11 +110,8 @@ export function SectionTable({
             )}
 
             <Badge
-              variant="outline"
-              className={cn(
-                "text-xs border px-2 py-0.5 w-fit font-normal not-interactive",
-                programColor
-              )}
+              variant="secondary"
+              className="text-xs px-2 py-0.5 w-fit font-normal not-interactive"
             >
               {levelInfo.name}
             </Badge>
