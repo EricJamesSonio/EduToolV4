@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchInputProps {
@@ -48,13 +48,12 @@ export function SearchInput({
 
   return (
     <div className={cn("relative", className)}>
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
       <Input
         value={internal}
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className="pl-9 pr-9"
+        className="pr-9"
       />
       {internal && (
         <button

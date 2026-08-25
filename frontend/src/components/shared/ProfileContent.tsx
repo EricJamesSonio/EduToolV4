@@ -29,10 +29,7 @@ import {
   Loader2,
   Camera,
   Save,
-  UserRound,
-  AtSign,
   Send,
-  KeyRound,
 } from "lucide-react";
 import type { AccountStatus, Role } from "@/types/auth.types";
 
@@ -376,17 +373,14 @@ export function ProfileContent(): React.JSX.Element {
                   <Label htmlFor="fullName" className="text-xs lg:text-sm text-muted-foreground">
                     Full name
                   </Label>
-                  <div className="relative">
-                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
-                    <Input
-                      id="full-name"
-                      className="pl-9 lg:pl-10 lg:h-11 lg:text-base"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Your full name"
-                      maxLength={200}
-                    />
-                  </div>
+                  <Input
+                    id="full-name"
+                    className="lg:h-11 lg:text-base"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Your full name"
+                    maxLength={200}
+                  />
                 </div>
 
                 <div className="flex justify-end">
@@ -439,19 +433,16 @@ export function ProfileContent(): React.JSX.Element {
                 </p>
               ) : changeStep === "enter-email" ? (
                 <div className="mt-4 space-y-3">
-                  <div className="relative">
-                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
-                    <Input
-                      type="email"
-                      className="pl-9 lg:pl-10 lg:h-11 lg:text-base"
-                      value={newEmail}
-                      onChange={(e) => {
-                        setNewEmail(e.target.value);
-                        setChangeError("");
-                      }}
-                      placeholder="you@gmail.com"
-                    />
-                  </div>
+                  <Input
+                    type="email"
+                    className="lg:h-11 lg:text-base"
+                    value={newEmail}
+                    onChange={(e) => {
+                      setNewEmail(e.target.value);
+                      setChangeError("");
+                    }}
+                    placeholder="you@gmail.com"
+                  />
                   {changeError && (
                     <p className="text-xs lg:text-sm text-destructive">{changeError}</p>
                   )}
@@ -482,20 +473,17 @@ export function ProfileContent(): React.JSX.Element {
                 </div>
               ) : (
                 <div className="mt-4 space-y-3">
-                  <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
-                    <Input
-                      inputMode="numeric"
-                      maxLength={6}
-                      className="pl-9 lg:pl-10 lg:h-11 lg:text-base"
-                      value={otpCode}
-                      onChange={(e) => {
-                        setOtpCode(e.target.value.replace(/\D/g, ""));
-                        setChangeError("");
-                      }}
-                      placeholder="6-digit code sent to your new email"
-                    />
-                  </div>
+                  <Input
+                    inputMode="numeric"
+                    maxLength={6}
+                    className="lg:h-11 lg:text-base"
+                    value={otpCode}
+                    onChange={(e) => {
+                      setOtpCode(e.target.value.replace(/\D/g, ""));
+                      setChangeError("");
+                    }}
+                    placeholder="6-digit code sent to your new email"
+                  />
                   {changeError && (
                     <p className="text-xs lg:text-sm text-destructive">{changeError}</p>
                   )}
