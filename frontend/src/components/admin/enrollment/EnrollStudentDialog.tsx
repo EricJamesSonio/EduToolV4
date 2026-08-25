@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, X } from "lucide-react";
+import { UserPlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
@@ -91,15 +91,11 @@ export function EnrollStudentDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or student ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <Input
+          placeholder="Search by name, email, or student ID..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
