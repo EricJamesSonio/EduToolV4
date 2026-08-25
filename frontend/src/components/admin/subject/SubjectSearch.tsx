@@ -14,12 +14,12 @@ export function SubjectSearch({
 }: SubjectSearchProps) {
   return (
     <div className="flex items-center gap-2">
-      <div className="relative flex-1 max-w-xs">
+      <div className="relative max-w-xs">
         <Input
           placeholder="Search subjects..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pr-10 h-9 text-sm"
+          className="pr-10 h-9 text-sm rounded-full w-[200px]"
         />
         {searchQuery && (
           <button
