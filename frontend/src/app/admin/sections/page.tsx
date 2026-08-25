@@ -15,7 +15,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AsyncListState } from "@/components/shared/AsyncListState";
 import { Pagination } from "@/components/shared/Pagination";
 
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { useSections } from "@/hooks/admin/useSectionsHelper";
 import { useEnrichedLevels } from "@/hooks/admin/useEnrichedLevels";
@@ -159,15 +159,12 @@ export default function SectionsPage(): React.JSX.Element {
 
       {schoolYearId && !isLoading && (
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search sections..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-8 w-56 h-9"
-            />
-          </div>
+          <Input
+            placeholder="Search sections..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="h-9 text-sm w-48"
+          />
 
           <SectionLevelFilter
             schoolYearId={schoolYearId}
