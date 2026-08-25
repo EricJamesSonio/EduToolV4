@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
   SelectValue,
@@ -609,15 +609,12 @@ export default function EnrollWorkspacePage() {
       {levelId && (
         <>
           <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, student ID, or email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
+            <Input
+              placeholder="Search by name, student ID, or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 max-w-sm h-9"
+            />
             {filtered.length > 0 && leftTab === "enroll" && (
               <p className="text-xs text-muted-foreground">
                 {selected.size} of {filtered.length} selected
