@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Lock, Loader2, FileText, CheckCircle2 } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -10,21 +9,23 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { useClassGrades, usePublishStudent, useUnlockStudent } from "@/hooks/educator/useGrades"
 import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api"
 import { educatorGradeLockApi } from "@/api/educator/grade-lock.api"
-import apiClient from "@/api/client"
+import { gradeApi } from "@/api/educator/grade.api"
 import { useQueryClient } from "@tanstack/react-query"
+import { useAsyncQuery } from "@/hooks/hook-factory.utils"
+import { queryKeys } from "@/hooks/queryKeys.factory"
+import type { GradingScale } from "@/types/admin/grading-scale.types"
 import { StudentList, type StudentSummary } from "./StudentList"
 import { StudentGradeCard } from "./StudentGradeCard"
-import type { GradingScale } from "@/types/admin/grading-scale.types"
 
 export function PublishedGradesPage({ classId }: { classId: string }) {
   const { data: allTerms, isLoading: termsLoading } = useClassGrades(classId)
   const qc = useQueryClient()
 
-  const { data: gradingScale } = useQuery<GradingScale | null>({
-    queryKey: ["grading-scale", "class", classId],
-    queryFn: () => educatorGradingSchemeApi.getScaleForClass(classId),
-    enabled: !!classId,
-  })
+  const { data: gradingScale } = useAsyncQuery<GradingScale | null>(
+    queryKeys.educator.gradingScale.detail(classId),
+    () => educatorGradingSchemeApi.getScaleForClass(classId),
+    { enabled: !!classId, meta: { preset: 'detail' } },
+  )
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [publishAllOpen, setPublishAllOpen] = useState(false)
@@ -86,12 +87,11 @@ export function PublishedGradesPage({ classId }: { classId: string }) {
   const handlePublishAllTermsForStudent = async (studentId: string) => {
     try {
       for (const term of activeTerms) {
-        await apiClient.patch(
-          `/classes/${classId}/grades/${term.termId}/students/${studentId}/publish`,
-        )
+        await gradeApi.publishStudent(classId, term.termId, studentId)
       }
       toast.success("All terms published.")
-      qc.invalidateQueries({ queryKey: ["grades", classId] })
+      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all })
+      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) })
     } catch {
       toast.error("Failed to publish all terms.")
     }
@@ -103,9 +103,11 @@ export function PublishedGradesPage({ classId }: { classId: string }) {
       await educatorGradeLockApi.lockClass(classId)
       toast.success("All grades published.")
       setPublishAllOpen(false)
-      qc.invalidateQueries({ queryKey: ["grades", classId] })
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Failed to publish all grades.")
+      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all })
+      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) })
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg ?? "Failed to publish all grades.")
     } finally {
       setPublishingAll(false)
     }

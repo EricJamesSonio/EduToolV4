@@ -18,17 +18,17 @@ export function usePresentations(classId: string) {
 
 export function usePresentation(classId: string, id: string) {
   return useAsyncQuery<Presentation>(
-    [...queryKeys.educator.presentations.all, 'detail', classId, id] as const,
+    queryKeys.educator.presentations.detail(classId, id),
     () => presentationApi.getOne(classId, id),
-    { enabled: !!classId && !!id },
+    { enabled: !!classId && !!id, meta: { preset: 'detail' } },
   );
 }
 
 export function usePresentationByLesson(classId: string, lessonId: string) {
   return useAsyncQuery<Presentation | null>(
-    [...queryKeys.educator.presentations.all, 'byLesson', classId, lessonId] as const,
+    queryKeys.educator.presentations.byLesson(classId, lessonId),
     () => presentationApi.getByLesson(classId, lessonId),
-    { enabled: !!classId && !!lessonId },
+    { enabled: !!classId && !!lessonId, meta: { preset: 'detail' } },
   );
 }
 

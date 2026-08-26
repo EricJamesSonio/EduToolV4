@@ -30,12 +30,14 @@ export const educatorQueryKeys = {
       ] as const,
   },
 
-  attendance: {
+   attendance: {
     all: [...educatorKeys.all, 'attendance'] as const,
     list: (classId: string, filters?: QueryFilters) =>
       [...educatorKeys.all, 'attendance', 'list', classId, filters] as const,
     session: (sessionId: string) =>
       [...educatorKeys.all, 'attendance', 'session', sessionId] as const,
+    weeks: (classId: string, weekNumber: number) =>
+      [...educatorKeys.all, 'attendance', 'weeks', classId, weekNumber] as const,
   },
 
   classes: {
@@ -108,16 +110,24 @@ export const educatorQueryKeys = {
       [...educatorKeys.all, 'meetings', 'token', meetingId] as const,
   },
 
-  presentations: {
+   presentations: {
     all: [...educatorKeys.all, 'presentations'] as const,
     list: (classId: string) =>
       [...educatorKeys.all, 'presentations', 'list', classId] as const,
+    detail: (classId: string, presentationId: string) =>
+      [...educatorKeys.all, 'presentations', 'detail', classId, presentationId] as const,
+    byLesson: (classId: string, lessonId: string) =>
+      [...educatorKeys.all, 'presentations', 'byLesson', classId, lessonId] as const,
   },
 
-  submissions: {
+   submissions: {
     all: [...educatorKeys.all, 'submissions'] as const,
     list: (assessmentId: string, filters?: QueryFilters) =>
       [...educatorKeys.all, 'submissions', 'list', assessmentId, filters] as const,
+    listByClass: (classId: string, assessmentId: string) =>
+      [...educatorKeys.all, 'submissions', 'listByClass', classId, assessmentId] as const,
+    answers: (assessmentId: string, submissionId: string) =>
+      [...educatorKeys.all, 'submissions', 'answers', assessmentId, submissionId] as const,
     detail: (submissionId: string) =>
       [...educatorKeys.all, 'submissions', 'detail', submissionId] as const,
   },

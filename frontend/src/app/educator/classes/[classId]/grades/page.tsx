@@ -17,7 +17,10 @@ import { WEEK_COLORS } from "@/lib/palette";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClassGrades, useComputeGrades } from "@/hooks/educator/useGrades";
 import { cn } from "@/lib/utils";
+import { gradeApi } from "@/api/educator/grade.api";
+import { educatorGradeLockApi } from "@/api/educator/grade-lock.api";
 import apiClient from "@/api/client";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useClassGradeLock, useRequestUnlock } from "@/hooks/educator/useGradeLock";
 
 import type { ViewMode, ReadinessIssue } from "@/components/educator/grades";
@@ -59,11 +62,10 @@ export default function GradesPage() {
       const key = `${studentId}-${category}`;
       setSaving((prev) => new Set(prev).add(key));
       try {
-        await apiClient.patch(
-          `/classes/${classId}/grades/${activeTermId}/students/${studentId}/manual`,
-          { category, score: value }
-        );
+        await gradeApi.setManualScore(classId, activeTermId, studentId, { category, score: value });
         toast.success(`${category} score updated.`);
+        qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, activeTermId) });
+        qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
       } catch {
         toast.error("Failed to save score. Please try again.");
       } finally {
@@ -74,19 +76,19 @@ export default function GradesPage() {
         });
       }
     },
-    [classId, activeTermId]
+    [classId, activeTermId, qc]
   );
 
   const handleLockGrades = async () => {
     setLocking(true);
     try {
-      await apiClient.post(`/grade-lock/${classId}/lock`);
+      await educatorGradeLockApi.lockClass(classId);
       toast.success("Grades locked successfully.");
       setLockDialogOpen(false);
-      qc.invalidateQueries({ queryKey: ["grades", classId] });
-      qc.invalidateQueries({ queryKey: ["grade-lock", classId] });
-    } catch (err: any) {
-      const data = err?.response?.data;
+      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all });
+      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) });
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { issues?: ReadinessIssue[]; message?: string } } })?.response?.data;
       if (data?.issues) {
         setReadinessIssues(data.issues);
         setReadinessDialogOpen(true);
@@ -104,10 +106,11 @@ export default function GradesPage() {
       await apiClient.post(`/grade-lock/${classId}/unlock`, { reason: "Educator unlocked grades" });
       toast.success("Grades unlocked successfully.");
       setUnlockConfirmOpen(false);
-      qc.invalidateQueries({ queryKey: ["grades", classId] });
-      qc.invalidateQueries({ queryKey: ["grade-lock", classId] });
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Failed to unlock grades.");
+      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all });
+      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) });
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Failed to unlock grades.");
     } finally {
       setUnlocking(false);
     }
@@ -303,7 +306,11 @@ export default function GradesPage() {
               saving={saving}
               refreshKey={refreshKey}
               isLocked={isClassLocked}
-              onRefresh={() => { setRefreshKey((k) => k + 1); qc.invalidateQueries({ queryKey: ["grades", classId] }); }}
+              onRefresh={() => {
+                setRefreshKey((k) => k + 1);
+                if (activeTermId) qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, activeTermId) });
+                qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
+              }}
             />
           ) : (
             <CleanGradeTable

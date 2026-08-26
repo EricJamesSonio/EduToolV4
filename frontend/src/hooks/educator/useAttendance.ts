@@ -31,9 +31,11 @@ export const useSaveAttendanceGrid = (classId: string) => {
 
 export const useAttendanceSessions = (classId: string, weekNumber?: number) => {
   return useAsyncQuery<WeekSessions[]>(
-    [...queryKeys.educator.attendance.all, 'weeks', classId, weekNumber ?? 'all'] as const,
+    weekNumber !== undefined
+      ? queryKeys.educator.attendance.weeks(classId, weekNumber)
+      : queryKeys.educator.attendance.list(classId),
     () => attendanceApi.getSessions(classId, weekNumber),
-    { enabled: !!classId },
+    { enabled: !!classId, meta: { preset: 'list' } },
   );
 };
 

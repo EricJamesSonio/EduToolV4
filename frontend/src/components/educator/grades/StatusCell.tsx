@@ -7,6 +7,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/api/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { fmt } from "./utils";
 
 const STATUS_ACTIONS = [
@@ -62,6 +64,7 @@ export function StatusCell({
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const qc = useQueryClient();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -122,6 +125,8 @@ export function StatusCell({
         `/classes/${classId}/assessments/${assessmentId}/submissions/${effectiveId}/status`,
         body,
       );
+      qc.invalidateQueries({ queryKey: queryKeys.educator.submissions.all });
+      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all });
       onStatusChange();
     } catch {
       toast.error("Failed to update status.");
