@@ -1,17 +1,10 @@
 # AI Integration Skill — Facts
 
-<!--
-Project-specific facts only. Permanent prompt/response/error-handling
-rules live in shared/skills/ai-integration/MUST-HAVES.md — read that
-first. shared/agents/onboarder.md is the only agent that writes to this
-file.
--->
-
-Last verified: <!-- fill in --> UNKNOWN — needs onboarder run
+Last verified: 2026-08-26, commit 1f5fe24
 
 ## Provider
 
-Provider/model: <!-- e.g. Anthropic Claude / OpenAI — fill in -->
-Client: <!-- name the actual client service file, e.g. `ai-client.service.ts` -->
-Prompt builder: <!-- name the actual file, e.g. `prompt-builder.util.ts` -->
-Response parser/validator: <!-- name the actual file(s), e.g. `json-parser.util.ts`, `concept-validator.util.ts` -->
+Provider/model: None evidenced — no AI provider/model wiring found in backend/src or frontend/src (no openai/anthropic/ai-client files; ai-integration skill scaffold unused). Leave as UNKNOWN until a concrete module appears.
+Client: UNKNOWN — needs human input (no ai-client.service.ts found)
+Prompt builder: UNKNOWN — needs human input
+Response parser/validator: UNKNOWN — needs human input

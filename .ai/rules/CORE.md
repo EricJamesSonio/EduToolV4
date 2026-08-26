@@ -117,44 +117,15 @@ generic patterns can't express for this specific codebase.
 
 ## Part 3 — Ticket ID / domain codes
 
-**Status: UNKNOWN — needs onboarder run. No domain codes assigned yet.**
+Last verified: 2026-08-26, commit 1f5fe24
 
-<!--
-shared/agents/onboarder.md fills this section in. Do not hand-write domain
-codes here — they need to be evidenced, the same way every other onboarder
-output is.
+Tickets are `TICK-<DOMAIN>-<number>`, e.g. `TICK-AUTH-001`. The domain code is a fast pre-read signal for which routing rows are likely relevant before even opening the ticket body — it is not a substitute for actually reading the ticket.
 
-What onboarder does here:
-1. Derive domain codes from the same top-level modules/route groups it
-   uses for rules/project.md's "main domains" — a real folder like
-   modules/booking/ or routes/payment/ becomes a code like BOOKING or
-   PAYMENT. Short, uppercase, one word per real domain.
-2. List every code found, plus one INFRA code for cross-cutting work (CI,
-   tooling, shared utils not owned by one domain) — every project gets
-   INFRA even if evidence for it is thin, since cross-cutting tickets are
-   universal.
-3. Replace this whole "Status: UNKNOWN" block with the real list, in the
-   same format as the finished example below.
-4. Re-run and extend (never silently replace) this list later as the
-   project's real module set grows — treat it as a living list, not
-   fixed forever.
+Canonical domain codes (maintained/extended by `shared/agents/onboarder.md` as the project's real module set is confirmed — treat this list as a starting point, not fixed forever):
 
-Once populated, this section reads like:
+`AUTH` `ORG` `SCHOOLYEAR` `PROGRAM` `LEVEL` `SECTION` `SUBJECT` `SEMESTER` `CALENDAR` `CLASS` `STUDENT` `EDUCATOR` `ENROLL` `ACADEMIC` `GRADE` `GRADING` `ASSESS` `ATTEND` `MEETING` `LESSON` `PRESENT` `TRANSCRIPT` `NOTIFY` `GROUPY` `CONCERN` `ANALYTICS` `PLATFORM` `UPLOAD` `MAIL` `INFRA` (cross-cutting: CI, tooling, ai-skills pin bumps, shared utils not owned by one domain)
 
-    Tickets are `TICK-<DOMAIN>-<number>`, e.g. `TICK-BOOKING-001`. The
-    domain code is a fast pre-read signal for which routing rows are
-    likely relevant before even opening the ticket body — it is not a
-    substitute for actually reading the ticket.
-
-    Canonical domain codes (maintained/extended by
-    `shared/agents/onboarder.md` as the project's real module set is
-    confirmed — treat this list as a starting point, not fixed forever):
-
-    `BOOKING` `PAYMENT` `AUTH` `ORG` `INFRA` (cross-cutting: CI, tooling,
-    shared utils not owned by one domain)
-
-    Full ID/branch/archival mechanics: `shared/rules/git-workflow.md`.
--->
+Derived from backend/src/modules/* (academic-calendar, academic-history, assessment, attendance, auth, class, class-assignment-request, concern, course, enrollment, enrollment-portal, grade, grade-lock, grading-scale, grading-scheme, grading-scheme-template, groupy, lesson, meeting, notification, organization, platform, presentation, program, program-shift, registrar, school-profile, school-year, section, semester, semester-template, strand, student, student-enrollment, subject, submission, transcript, upload, etc.) and frontend/src/app groups (admin, educator, student, platform, enroll). Full ID/branch/archival mechanics: `shared/rules/git-workflow.md`.
 
 ---
 
