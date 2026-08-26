@@ -17,6 +17,9 @@ import {
   type SlotInput,
 } from "@/utils/classes.utils";
 import type { CreateClassForm } from "./CreateClassDialog.types";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
+import { orgScheduleConfigApi } from "@/api/admin/org-schedule-config.api";
 
 interface ClassSchedulePickerProps {
   /** Fetched classes of the chosen educator; undefined until one is selected. */
@@ -27,8 +30,9 @@ interface ClassSchedulePickerProps {
 }
 
 const MAX_SLOTS = 2;
-const DEFAULT_WINDOW_START_MIN = 7 * 60;  // 07:00
-const DEFAULT_WINDOW_END_MIN = 22 * 60;   // 22:00
+const FALLBACK_WINDOW_START_MIN = 7 * 60;  // 07:00
+const FALLBACK_WINDOW_END_MIN = 17 * 60;   // 17:00
+const FALLBACK_STEP_MIN = 30;
 
 export function ClassSchedulePicker({
   educatorClasses,
@@ -36,6 +40,16 @@ export function ClassSchedulePicker({
   onConflictsChange,
 }: ClassSchedulePickerProps) {
   const { getValues, setValue } = useFormContext<CreateClassForm>();
+
+  const { data: scheduleCfg } = useAsyncQuery(
+    adminQueryKeys.orgScheduleConfig.detail(),
+    orgScheduleConfigApi.get,
+    { meta: { preset: "static", feature: "organization" } },
+  );
+
+  const windowStartMin = scheduleCfg ? timeToMinutes(scheduleCfg.startTime) : FALLBACK_WINDOW_START_MIN;
+  const windowEndMin = scheduleCfg ? timeToMinutes(scheduleCfg.endTime) : FALLBACK_WINDOW_END_MIN;
+  const stepMin = scheduleCfg?.slotDuration ?? FALLBACK_STEP_MIN;
 
   const initialSchedules = getValues("schedules") ?? [];
   const initialCount = Math.min(MAX_SLOTS, Math.max(1, initialSchedules.length || 1));
@@ -203,8 +217,9 @@ export function ClassSchedulePicker({
           pickedRanges={filled}
           maxPicks={slotCount}
           draftStart={draft}
-          defaultWindowStartMin={DEFAULT_WINDOW_START_MIN}
-          defaultWindowEndMin={DEFAULT_WINDOW_END_MIN}
+          defaultWindowStartMin={windowStartMin}
+          defaultWindowEndMin={windowEndMin}
+          stepMin={stepMin}
           onDraftStart={setDraft}
           onPickRange={handlePickRange}
         />
