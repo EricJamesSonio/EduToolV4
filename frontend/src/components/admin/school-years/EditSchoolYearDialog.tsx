@@ -53,7 +53,6 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
     onSuccess: () => {
       toast.success("School year updated.");
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.all });
-      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
       onClose();
     },
 

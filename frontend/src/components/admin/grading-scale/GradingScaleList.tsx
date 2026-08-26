@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
 import { CHART_DOT_BG } from "@/lib/chart-colors";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import type { GradingScale } from "@/types/admin/grading-scale.types";
 
 interface GradingScaleListProps {
@@ -60,7 +61,7 @@ export function GradingScaleList({
     mutationFn: (id: string) => gradingScaleApi.delete(id),
     onSuccess: () => {
       toast.success("Grading scale deleted.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.gradingScales.all });
       setDeleteTarget(null);
     },
     onError: (e) => {

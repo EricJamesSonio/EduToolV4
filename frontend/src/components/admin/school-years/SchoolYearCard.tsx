@@ -97,14 +97,12 @@ export function SchoolYearCard({ year, hasActive, readiness }: Props): React.JSX
 
 const invalidateSchoolYears = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.all });
-    queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
   };
 
   const removeFromCache = () => {
     const removeYear = (old: SchoolYear[] | undefined) =>
       old?.filter((y) => y.id !== year.id);
     queryClient.setQueryData(queryKeys.admin.schoolYears.list(), removeYear);
-    queryClient.setQueryData(["admin", "school-years"], removeYear);
   };
 
   const activateMutation = useMutation({

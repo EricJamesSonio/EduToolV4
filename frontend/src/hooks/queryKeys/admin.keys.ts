@@ -353,6 +353,8 @@ export const adminQueryKeys = {
         studentId,
         'enrollments',
       ] as const,
+    credentials: () =>
+      [...adminKeys.all, 'students', 'credentials'] as const,
   },
 
   studentEnrollment: {

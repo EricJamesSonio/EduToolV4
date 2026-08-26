@@ -88,8 +88,9 @@ export default function CredentialsPage(): React.JSX.Element {
   const [downloading, setDownloading] = useState(false);
 
   const { data, isLoading, refetch, isRefetching } = useAsyncQuery(
-    [...queryKeys.admin.students.all, 'credentials-list'] as const,
+    queryKeys.admin.students.credentials(),
     getCredentialsList,
+    { meta: { preset: 'list' } },
   );
 
   async function handleDownload() {

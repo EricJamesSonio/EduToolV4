@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AlertCircle, Check, CheckCircle2, Layers, X } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/DataTable";
@@ -113,10 +114,10 @@ export function TemplateAssignmentPanel({
 
   const refreshAssignments = () => {
     queryClient.invalidateQueries({
-      queryKey: ["admin", "gradingSchemeTemplates", "programAssignments"],
+      queryKey: queryKeys.admin.gradingSchemeTemplates.programAssignments(schoolYearId),
     });
     queryClient.invalidateQueries({
-      queryKey: ["admin", "gradingSchemeTemplates", "classAssignments"],
+      queryKey: queryKeys.admin.gradingSchemeTemplates.classAssignments(schoolYearId),
     });
   };
 

@@ -20,6 +20,7 @@ import { useGradingScales, useGradingScaleAssignments } from "@/hooks/admin/useG
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { usePrograms } from "@/hooks/admin/usePrograms";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 import type { GradingScale } from "@/types/admin/grading-scale.types";
@@ -48,7 +49,7 @@ export default function GradingScalesPage(): React.JSX.Element {
     mutationFn: (id: string) => gradingScaleApi.delete(id),
     onSuccess: () => {
       toast.success("Grading scale deleted.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.gradingScales.all });
       setDeleteTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {

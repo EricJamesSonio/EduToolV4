@@ -51,7 +51,7 @@ export const useDeleteSemesterTemplate = () => {
 
 export const useTemplateAssignments = (schoolYearId: string | null) => {
   return useAsyncQuery<TemplateAssignment[]>(
-    [...templateKeys.all, 'assignments', schoolYearId],
+    queryKeys.admin.semesterTemplateAssignments.list(schoolYearId ?? ""),
     () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
     { meta: { preset: 'list', feature: 'template-assignments' }, enabled: !!schoolYearId },
   );
@@ -59,9 +59,9 @@ export const useTemplateAssignments = (schoolYearId: string | null) => {
 
 export const useProgramsBySchoolYear = (schoolYearId: string | null) => {
   return useAsyncQuery<{ id: string; name: string; type: string }[]>(
-    [...templateKeys.all, 'programs', schoolYearId],
+    queryKeys.admin.programs.list({ schoolYearId: schoolYearId ?? undefined } as unknown as Record<string, unknown>),
     async () => {
-      const res = await clientApi.get(`/programs?schoolYearId=${schoolYearId}`);
+      const res = await clientApi.get(`/programs`, { params: { schoolYearId } });
       return res.data.data ?? [];
     },
     { meta: { preset: 'list', feature: 'programs-by-year' }, enabled: !!schoolYearId },
@@ -71,13 +71,13 @@ export const useProgramsBySchoolYear = (schoolYearId: string | null) => {
 export const useAssignTemplate = () => {
   return useMutationWithInvalidation(
     (dto: AssignTemplateDto) => semesterTemplateApi.assign(dto),
-    { invalidateKeys: [[...templateKeys.all, 'assignments']] },
+    { invalidateKeys: [queryKeys.admin.semesterTemplateAssignments.all] },
   );
 };
 
 export const useRemoveTemplateAssignment = () => {
   return useMutationWithInvalidation(
     (programId: string) => semesterTemplateApi.removeAssignment(programId),
-    { invalidateKeys: [[...templateKeys.all, 'assignments']] },
+    { invalidateKeys: [queryKeys.admin.semesterTemplateAssignments.all] },
   );
 };

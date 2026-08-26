@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import type { GradeRange, GradingScale } from "@/types/admin/grading-scale.types";
 import { PROGRAM_TYPE_VALUES, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
 import type { ProgramType } from "@/types/admin/program.types";
@@ -95,7 +96,7 @@ export function CreateGradingScaleDialog({
       gradingScaleApi.create(data),
     onSuccess: () => {
       toast.success("Grading scale created.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.gradingScales.all });
       onClose();
     },
     onError: (err: AxiosError<{ message: string }>) => {

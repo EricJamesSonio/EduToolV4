@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { GradingScale, GradingScaleAssignment } from "@/types/admin/grading-scale.types";
 
@@ -87,7 +88,7 @@ export function GradingScaleAssignmentSection({
     }) => gradingScaleApi.assignToProgram(programId, scaleId, selectedSchoolYearId!),
     onSuccess: () => {
       toast.success("Grading scale assigned successfully.");
-      const assignKey = ["admin", "gradingScales", "assignments", selectedSchoolYearId!] as const;
+      const assignKey = queryKeys.admin.gradingScales.assignments(selectedSchoolYearId!);
       const current = queryClient.getQueryData<GradingScaleAssignment[]>(assignKey) ?? [];
       const newAssign: GradingScaleAssignment = {
         id: "",
@@ -119,7 +120,7 @@ export function GradingScaleAssignmentSection({
     }) => gradingScaleApi.removeAssignment(programId, selectedSchoolYearId!),
     onSuccess: (_data, variables) => {
       toast.success("Assignment removed.");
-      const assignKey = ["admin", "gradingScales", "assignments", selectedSchoolYearId!] as const;
+      const assignKey = queryKeys.admin.gradingScales.assignments(selectedSchoolYearId!);
       const current = queryClient.getQueryData<GradingScaleAssignment[]>(assignKey) ?? [];
       queryClient.setQueryData(assignKey, current.filter(a => a.programId !== variables.programId));
       queryClient.invalidateQueries({ queryKey: assignKey });
