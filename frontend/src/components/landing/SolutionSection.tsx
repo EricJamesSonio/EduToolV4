@@ -17,9 +17,9 @@ const solutionsByRole = {
       eyebrow: "School setup",
       heading: "Set Up Your School in Minutes, Not Weeks",
       body:
-        "Stop wasting hours configuring departments, subjects, and levels. Relief-ED lets you structure your academic system exactly how your school operatesâ€”quickly and without frustration.",
+        "Stop wasting hours configuring departments, subjects, and levels. Relief-ED lets you structure your academic system exactly how your school operates—quickly and without frustration.",
       points: [
-        "Supports Kâ€“12, college, and custom departments",
+        "Supports K–12, college, and custom departments",
         "Flexible academic hierarchy that adapts to your system",
         "No rigid setup or limitations",
       ],
@@ -56,7 +56,7 @@ const solutionsByRole = {
       eyebrow: "Class management",
       heading: "Manage Classes Without the Busywork",
       body:
-        "Handle lessons, assessments, attendance, and grading all in one placeâ€”without jumping between tools or spreadsheets.",
+        "Handle lessons, assessments, attendance, and grading all in one place—without jumping between tools or spreadsheets.",
       points: [
         "Centralized class dashboard",
         "Quick access to lessons, attendance, and grades",
@@ -80,7 +80,7 @@ const solutionsByRole = {
       eyebrow: "Grading workflow",
       heading: "Grade Faster and Stay Accurate",
       body:
-        "Automatically compute grades, track performance, and lock results with confidenceâ€”without manual errors.",
+        "Automatically compute grades, track performance, and lock results with confidence—without manual errors.",
       points: [
         "Automatic grade computation",
         "Flexible grading schemes",
@@ -95,7 +95,7 @@ const solutionsByRole = {
       eyebrow: "Assessments",
       heading: "Take Assessments with Ease",
       body:
-        "Complete quizzes, exams, and activities with a smooth and guided experienceâ€”no confusion or lost progress.",
+        "Complete quizzes, exams, and activities with a smooth and guided experience—no confusion or lost progress.",
       points: [
         "Auto-save progress",
         "Resume anytime",
@@ -130,7 +130,7 @@ const solutionsByRole = {
   ],
 };
 
-// â”€â”€ Shared context to pause other videos when one plays â”€â”€
+// ── Shared context to pause other videos when one plays ──
 
 interface PlayerCtxValue {
   playingRef: React.MutableRefObject<HTMLVideoElement | null>;
@@ -144,7 +144,7 @@ function usePlayerCtx(): PlayerCtxValue {
   return ctx;
 }
 
-// â”€â”€ Optimized VideoPreview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Optimized VideoPreview ────────────────────────────
 
 function VideoPreview({ src }: { src: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -156,7 +156,7 @@ function VideoPreview({ src }: { src: string }) {
 
   const { playingRef } = usePlayerCtx();
 
-  // IntersectionObserver â€“ begin loading metadata 300px before visible
+  // IntersectionObserver – begin loading metadata 300px before visible
   useEffect(() => {
     const el = containerRef.current;
 
@@ -203,7 +203,7 @@ function VideoPreview({ src }: { src: string }) {
     };
   }, [inView]);
 
-  // Click handler â€“ play/pause toggle
+  // Click handler – play/pause toggle
   const handleClick = useCallback(() => {
     const video = videoRef.current;
 
@@ -282,7 +282,7 @@ function VideoPreview({ src }: { src: string }) {
   );
 }
 
-// â”€â”€ Provider wrapping the section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Provider wrapping the section ─────────────────────
 
 function VideoPlayerProvider({
   children,
@@ -298,7 +298,7 @@ function VideoPlayerProvider({
   );
 }
 
-// â”€â”€ Main section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main section ──────────────────────────────────────
 
 export function SolutionSection() {
   const [role, setRole] = useState<Role>("admin");
@@ -339,7 +339,7 @@ export function SolutionSection() {
           </h2>
 
           <p className="text-lg text-muted-foreground not-interactive">
-            See how Relief-ED works for your roleâ€”whether you're managing,
+            See how Relief-ED works for your role—whether you're managing,
             teaching, or learning.
           </p>
         </div>

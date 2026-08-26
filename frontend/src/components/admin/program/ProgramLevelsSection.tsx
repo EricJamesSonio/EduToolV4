@@ -112,7 +112,7 @@ export function ProgramLevelsSection({
               disabled={createMutation.isPending}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
-              {createMutation.isPending ? "Addingâ€¦" : "Add Level"}
+              {createMutation.isPending ? "Adding…" : "Add Level"}
             </Button>
             <Button
               size="sm"
@@ -136,7 +136,7 @@ export function ProgramLevelsSection({
                 onClick={() => setGenCount((c) => Math.max(cfg.min, c - 1))}
                 disabled={genCount <= cfg.min}
                 className="h-7 w-7 rounded border flex items-center justify-center text-sm hover:bg-muted disabled:opacity-40"
-              >âˆ’</button>
+              >−</button>
               <span className="w-6 text-center text-sm font-medium not-interactive">{genCount}</span>
               <button
                 onClick={() => setGenCount((c) => Math.min(cfg.max, c + 1))}
