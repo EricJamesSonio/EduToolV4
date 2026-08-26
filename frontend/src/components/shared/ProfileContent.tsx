@@ -157,6 +157,7 @@ export function ProfileContent(): React.JSX.Element {
     setPersonalEmail(next.personalEmail ?? "");
     setUser(next);
     queryClient.setQueryData(queryKeys.auth.me(), next);
+    queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
   }
 
   const getBackendError = (err: unknown): string => {

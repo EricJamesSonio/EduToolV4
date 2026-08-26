@@ -41,6 +41,8 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
     mutationFn: () => platformApi.resetAdminPassword(id),
     onSuccess: (result) => {
       toast.success("Password reset successfully.");
+      queryClient.invalidateQueries({ queryKey: queryKeys.platform.admins.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.platform.admins.detail(id) });
       setResetCredentials({
         fullName: admin?.fullName ?? "",
         email: result.email,

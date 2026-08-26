@@ -51,6 +51,7 @@ function StudentsPageInner(): React.JSX.Element {
   const resetMutation = useMutation({
     mutationFn: (studentId: string) => studentApi.resetPassword(studentId),
     onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.students.all });
       const student = resetTarget;
       setResetTarget(null);
       setNewCredentials({

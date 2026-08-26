@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { KeyRound } from "lucide-react";
 import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
@@ -31,10 +32,13 @@ export function ResetPasswordDialog({
 }: Props): React.JSX.Element {
   const [newCredentials, setNewCredentials] =
     useState<CredentialsPreview | null>(null);
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: () => studentApi.resetPassword(student.id),
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.students.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.students.detail(student.id) });
       setNewCredentials({
         fullName:  student.fullName,
         email:     student.email,

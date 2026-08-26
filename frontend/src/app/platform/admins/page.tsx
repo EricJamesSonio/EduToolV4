@@ -49,6 +49,7 @@ export default function PlatformAdminsPage() {
     mutationFn: (id: string) => platformApi.resetAdminPassword(id),
     onSuccess: (result) => {
       toast.success("Password reset. New credentials ready.");
+      queryClient.invalidateQueries({ queryKey: queryKeys.platform.admins.all });
       setResetCredentials({
         fullName: confirmState?.admin.fullName ?? "",
         email: result.email,
