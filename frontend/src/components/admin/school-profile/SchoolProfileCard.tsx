@@ -97,7 +97,7 @@ export function SchoolProfileCard() {
 
   // Level-scoped accordion: single expanded course/strand and level per department.
   // Separate pill row (better UX) controls which Section/Subject editors are visible.
-  // Close does not exclude data â€” seed still includes all levels.
+  // Close does not exclude data — seed still includes all levels.
   const [expandedCourseByDept, setExpandedCourseByDept] = useState<Record<string, string | null>>({})
   const [expandedLevelByDept, setExpandedLevelByDept] = useState<Record<string, string | null>>({})
 
@@ -200,7 +200,7 @@ export function SchoolProfileCard() {
   if (isLoading) {
     return (
       <div className="rounded-xl border bg-card p-6">
-        <p className="text-sm text-muted-foreground not-interactive">Loading school profileâ€¦</p>
+        <p className="text-sm text-muted-foreground not-interactive">Loading school profile…</p>
       </div>
     )
   }
@@ -333,7 +333,7 @@ export function SchoolProfileCard() {
               />
             )}
 
-            {/* Separate pill row â€” level scoped accordion (course/strand â†’ level) */}
+            {/* Separate pill row — level scoped accordion (course/strand → level) */}
             {isCollege && department.courses.length > 0 && (
               <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
                 <p className="text-xs font-medium text-muted-foreground not-interactive">Select a course to view its levels</p>
@@ -471,12 +471,12 @@ export function SchoolProfileCard() {
               </div>
             )}
 
-            {/* Level-scoped editors â€” single expanded level only (accordion) */}
+            {/* Level-scoped editors — single expanded level only (accordion) */}
             {activeLevel ? (
               <div className="space-y-3">
                 <SectionStep
                   levelId={activeLevel.key}
-                  levelLabel={`${activeLevel.name} â€” Sections`}
+                  levelLabel={`${activeLevel.name} — Sections`}
                   sections={activeLevel.sections}
                   disabled={readOnly || saveMutation.isPending}
                   onAdd={(levelKey, name, capacity) => draft.addSection(department.type, activeLevel.key, name, capacity)}
@@ -485,7 +485,7 @@ export function SchoolProfileCard() {
                 />
                 <SubjectStep
                   levelId={activeLevel.key}
-                  levelLabel={`${activeLevel.name} â€” Subjects`}
+                  levelLabel={`${activeLevel.name} — Subjects`}
                   subjects={activeLevel.subjects}
                   disabled={readOnly || saveMutation.isPending}
                   onAdd={(levelKey, name) => draft.addSubject(department.type, activeLevel.key, name)}
@@ -552,7 +552,7 @@ export function SchoolProfileCard() {
         title="Remove this department?"
         message={
           pendingDeselect
-            ? `This removes "${PROGRAM_TYPE_LABELS[pendingDeselect]}" from your configuration draft. It won't be saved unless you click Save Configuration â€” your existing saved data (if any) stays untouched until then.`
+            ? `This removes "${PROGRAM_TYPE_LABELS[pendingDeselect]}" from your configuration draft. It won't be saved unless you click Save Configuration — your existing saved data (if any) stays untouched until then.`
             : ""
         }
         confirmLabel="Remove from Draft"

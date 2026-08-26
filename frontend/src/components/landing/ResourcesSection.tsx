@@ -101,7 +101,7 @@ export function ResourcesSection() {
               {/* Hidden arrow that appears on hover */}
               <div className="pt-2 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="text-info dark:text-info font-semibold text-sm flex items-center gap-1">
-                  Learn More â†’
+                  Learn More →
                 </span>
               </div>
             </div>
