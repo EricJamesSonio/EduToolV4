@@ -385,4 +385,12 @@ export const adminQueryKeys = {
     all: [...adminKeys.all, 'schoolProfile'] as const,
     list: () => [...adminKeys.all, 'schoolProfile', 'list'] as const,
   },
+
+  academicHistory: {
+    all: [...adminKeys.all, 'academicHistory'] as const,
+    timeline: (studentId: string, params?: { schoolYearId?: string; sort?: 'asc' | 'desc' }) =>
+      [...adminKeys.all, 'academicHistory', 'timeline', studentId, params ?? null] as const,
+    fullHistory: (studentId: string) =>
+      [...adminKeys.all, 'academicHistory', 'fullHistory', studentId] as const,
+  },
 } as const;

@@ -93,4 +93,11 @@ export const studentQueryKeys = {
     all: [...studentKeys.all, 'transcript'] as const,
     detail: () => [...studentKeys.all, 'transcript', 'detail'] as const,
   },
+
+  academicHistory: {
+    all: [...studentKeys.all, 'academicHistory'] as const,
+    full: () => [...studentKeys.all, 'academicHistory', 'full'] as const,
+    timeline: (params?: { schoolYearId?: string; sort?: 'asc' | 'desc' }) =>
+      [...studentKeys.all, 'academicHistory', 'timeline', params ?? null] as const,
+  },
 } as const;
