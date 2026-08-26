@@ -1,6 +1,6 @@
 ﻿# TICK-ORG-001 — Organization schedule time-range settings (global)
 
-Status: ready-for-review
+Status: merged
 Priority: high
 Created: 2026-08-27
 Created by: agent
@@ -64,7 +64,8 @@ None.
 
 2026-08-27 - Claimed TICK-ORG-001, creating worktree from development. Confidence 96/100 logged.
 2026-08-27 - Implemented backend OrgScheduleConfig + strict blocking + class validation, frontend tabs + picker integration. tsc/lint/build PASS. Committed 3b1996c0.
-2026-08-27 - Ready for review., creating worktree from development. Confidence 96/100 logged.
+2026-08-27 - Ready for review.
+2026-08-27 - Merged to development as 4d0d8f51, full suite PASS (lint/typecheck/build on development)., creating worktree from development. Confidence 96/100 logged.
 
 ## Commits
 
