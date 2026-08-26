@@ -1,6 +1,6 @@
 # TICK-INFRA-002 — Fix frontend mojibake (em dash, en dash, ellipsis, arrow)
 
-Status: ready-for-review
+Status: merged
 Priority: high
 Created: 2026-08-26
 Created by: agent
@@ -51,8 +51,8 @@ No assumption in 80–94 band; no auth/tenant/grading/migration touched.
 ## Tests
 
 - Targeted: lint --silent passed (0 errors on 5 files), tsc --noEmit passed (0 errors), mojibake grep 0 hits
-- Full suite: not run (frontend typecheck passed, next build skipped due to turbopack symlink outside root — lint/typecheck are the relevant gates for this pure-text fix)
-- Development integration: not run
+- Full suite: passed on development — eslint 9.39.4 (0 errors), tsc --noEmit --skipLibCheck (0 errors), next build 16.2.1 compiled 36.3s + TypeScript 57s + static 58 routes OK
+- Development integration: passed (merge 00dfabe0, 5 files 30/30)
 
 ## Blocker
 
@@ -63,10 +63,12 @@ None.
 2026-08-26 — Claimed, created worktree agent/TICK-INFRA-002-fix-frontend-mojibake from development.
 2026-08-26 — Fixed 5 files via 6 mojibake mappings (e2 20ac 201d→—, e2 20ac 201c→–, e2 20ac a6→…, e2 2020 2019→→, e2 02c6 2019→−, e2 201d 20ac→─), verified 0 â hits, lint/typecheck passed, committed fdad3e40.
 2026-08-26 — Ready for review.
+2026-08-26 — Merged to development via ort strategy (no conflicts), merge commit 00dfabe0, pushed to origin/development, full suite passed on development.
 
 ## Commits
 
 - fdad3e40 fix(frontend): normalize mojibake glyphs to correct UTF-8 (5 files, 30 insertions, 30 deletions)
+- 00dfabe0 merge(agent): TICK-INFRA-002 fix frontend mojibake
 
 ## Notes
 
