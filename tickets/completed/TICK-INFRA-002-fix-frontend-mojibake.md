@@ -1,6 +1,6 @@
 # TICK-INFRA-002 — Fix frontend mojibake (em dash, en dash, ellipsis, arrow)
 
-Status: merged
+Status: completed
 Priority: high
 Created: 2026-08-26
 Created by: agent
@@ -64,6 +64,7 @@ None.
 2026-08-26 — Fixed 5 files via 6 mojibake mappings (e2 20ac 201d→—, e2 20ac 201c→–, e2 20ac a6→…, e2 2020 2019→→, e2 02c6 2019→−, e2 201d 20ac→─), verified 0 â hits, lint/typecheck passed, committed fdad3e40.
 2026-08-26 — Ready for review.
 2026-08-26 — Merged to development via ort strategy (no conflicts), merge commit 00dfabe0, pushed to origin/development, full suite passed on development.
+2026-08-26 — Completed (workspace/changelog updated, worktree retained for audit).
 
 ## Commits
 
