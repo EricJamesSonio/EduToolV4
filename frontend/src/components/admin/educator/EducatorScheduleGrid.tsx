@@ -32,6 +32,7 @@ interface EducatorScheduleGridProps {
   draftStart?: DraftCell | null;
   defaultWindowStartMin?: number;
   defaultWindowEndMin?: number;
+  stepMin?: number;
   onDraftStart?: (cell: DraftCell) => void;
   onPickRange?: (range: ScheduleRange) => void;
 }
@@ -55,7 +56,6 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sat, Sun appended only if used
 const MIN_INTERVAL_CANDIDATES = [30, 15, 10, 5, 1];
 const PX_PER_MINUTE = 1.1;
 const TIME_COL_WIDTH = 64;
-const INTERACTIVE_STEP_MIN = 30;
 
 const BLOCK_COLORS = [
   "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
@@ -149,6 +149,7 @@ export function EducatorScheduleGrid({
   draftStart,
   defaultWindowStartMin,
   defaultWindowEndMin,
+  stepMin = 30,
   onDraftStart,
   onPickRange,
 }: EducatorScheduleGridProps) {
@@ -180,10 +181,10 @@ export function EducatorScheduleGrid({
 
   const { gridStart, gridEnd, interval } = useMemo(() => {
     if (interactive) {
-      const step = INTERACTIVE_STEP_MIN;
+      const step = stepMin;
       if (blocks.length === 0) {
         const start = defaultWindowStartMin ?? 7 * 60;
-        const end = defaultWindowEndMin ?? 18 * 60;
+        const end = defaultWindowEndMin ?? 17 * 60;
         return { gridStart: start, gridEnd: end, interval: step };
       }
       const starts = blocks.map((b) => b.startMin);

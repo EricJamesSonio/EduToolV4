@@ -5,6 +5,7 @@ import { AuditLogModule } from '@/modules/audit-log/audit-log.module';
 import { NotificationModule } from '@/modules/notification/notification.module';
 import { AnalyticsModule } from '@/modules/analytics/analytics.module';
 import { OrgEnrollmentSettingModule } from '@/modules/org-enrollment-setting/org-enrollment-setting.module';
+import { OrgScheduleConfigModule } from '@/modules/org-schedule-config/org-schedule-config.module';
 
 @Module({
   imports: [
@@ -12,7 +13,8 @@ import { OrgEnrollmentSettingModule } from '@/modules/org-enrollment-setting/org
     NotificationModule,
     AnalyticsModule,
     OrgEnrollmentSettingModule,
+    OrgScheduleConfigModule,
   ],
-  exports: [AuditLogModule, NotificationModule, AnalyticsModule],
+  exports: [AuditLogModule, NotificationModule, AnalyticsModule, OrgScheduleConfigModule],
 })
 export class SystemDomainModule {}

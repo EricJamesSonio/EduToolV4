@@ -100,7 +100,7 @@ export async function seedStudents(
         });
         if (enrollment && !enrollment.section_id && enrollment.level_id) {
           const lvl = enrollment.level_id;
-          let sects = sectionsByProgram[enrollment.program_id ? (Object.entries(programMap).find(([,v])=>v===enrollment.program_id)?.[0] ?? '') : ''] ?? [];
+          const sects = sectionsByProgram[enrollment.program_id ? (Object.entries(programMap).find(([,v])=>v===enrollment.program_id)?.[0] ?? '') : ''] ?? [];
           // Fallback: query DB directly for this level's sections (handles college course mismatch)
           let candidate: any = null;
           // Try direct lookup by level_id

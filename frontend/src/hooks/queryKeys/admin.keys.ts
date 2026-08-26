@@ -181,6 +181,12 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'orgEnrollmentSetting', 'detail'] as const,
   },
 
+  orgScheduleConfig: {
+    all: [...adminKeys.all, 'orgScheduleConfig'] as const,
+    detail: () =>
+      [...adminKeys.all, 'orgScheduleConfig', 'detail'] as const,
+  },
+
   programCalendar: {
     all: [...adminKeys.all, 'programCalendar'] as const,
     detail: (programId: string, schoolYearId: string) =>
