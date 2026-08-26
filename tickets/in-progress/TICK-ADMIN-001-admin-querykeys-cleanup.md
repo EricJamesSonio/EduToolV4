@@ -1,6 +1,6 @@
 ﻿# TICK-ADMIN-001 — Fix admin ad-hoc React Query keys (gradingScales, schoolYears, templates)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-08-26
 Created by: agent
@@ -36,11 +36,11 @@ Admin components use raw arrays for query keys instead of queryKeys.admin factor
 
 ## Acceptance Criteria
 
-- [ ] No raw \[\"admin\",\"gradingScales\"]\ literals — uses queryKeys.admin.gradingScales.all/list
-- [ ] AssignmentSection uses queryKeys.admin.gradingScales.assignments(schoolYearId)
-- [ ] No raw \[\"admin\",\"school-years\"]\ — uses queryKeys.admin.schoolYears.all
-- [ ] TemplateAssignmentPanel uses queryKeys.admin.gradingSchemeTemplates.programAssignments/classAssignments
-- [ ] tsc --noEmit --skipLibCheck and eslint pass on touched files
+- [x] No raw \[\"admin\",\"gradingScales\"]\ literals — uses queryKeys.admin.gradingScales.all/list
+- [x] AssignmentSection uses queryKeys.admin.gradingScales.assignments(schoolYearId)
+- [x] No raw \[\"admin\",\"school-years\"]\ — uses queryKeys.admin.schoolYears.all
+- [x] TemplateAssignmentPanel uses queryKeys.admin.gradingSchemeTemplates.programAssignments/classAssignments
+- [x] tsc --noEmit --skipLibCheck and eslint pass on touched files
 
 ## Confidence
 
@@ -54,9 +54,9 @@ No cap — no auth/tenant/grading invariants unverified.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: tsc --noEmit --skipLibCheck pass (via junction), eslint pass on 10 files
+- Full suite: not run (phase 2)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -65,11 +65,13 @@ None.
 ## Activity Log
 
 2026-08-26 — Claimed, creating worktree from development.
+2026-08-26 — Migrated 10 files to factory keys, verified tsc/eslint, committed 898dd20.
+2026-08-26 — Ready for review.
 
 ## Commits
 
-None yet.
+- 898dd20 feat(admin): replace ad-hoc React Query keys with factory keys
 
 ## Notes
 
-Phase 2 of React Query factory phased fix. Depends on Phase 1 factory pattern; no dependency conflict.
+Phase 2 of React Query factory phased fix.
