@@ -136,11 +136,14 @@ export class SemesterTemplateSeederService {
 
       // No template with this name exists yet for the org — create it
       // fresh, derived from the calendar (or the default shape if there's
-      // no calendar yet).
+      // no calendar yet). Term names come from School Profile config when
+      // present (e.g. college Prelim/Midterm/Finals), otherwise generic.
+      const profileTerms = ctx.profileSemesterTerms[baseTpl.programType];
       const tpl = buildGenericTemplate(
         baseTpl.name,
         baseTpl.programType,
         periodCount > 0 ? periodCount : baseTpl.semesters.length,
+        profileTerms,
       );
 
       const template = await this.db.semesterTemplate.create({

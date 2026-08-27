@@ -17,8 +17,26 @@ export class GradingSchemeSeederService {
       'College Scheme': 'college',
     };
 
-    for (const preset of SCHEME_PRESETS) {
-      const progKey = schemeProgram[preset.name];
+    const hasProfileSchemes = Object.keys(ctx.profileGradingSchemes).length > 0;
+
+    const effectivePresets: typeof SCHEME_PRESETS = hasProfileSchemes
+      ? [
+          ...Object.entries(ctx.profileGradingSchemes).map(([programType, scheme]) => ({
+            name: scheme.name,
+            programType,
+            components: scheme.components.map((c: any) => ({
+              name: c.name,
+              type: c.type as any,
+              weight: c.weight,
+              isOptional: !!c.isOptional,
+            })),
+          })),
+          ...SCHEME_PRESETS.filter((p) => !ctx.profileGradingSchemes[schemeProgram[p.name]]),
+        ]
+      : SCHEME_PRESETS;
+
+    for (const preset of effectivePresets) {
+      const progKey = (preset as any).programType ?? schemeProgram[preset.name];
       if (progKey && !ctx.shouldSeedProgram(progKey)) {
         ctx.result.gradingSchemeTemplates.skipped++;
         continue;

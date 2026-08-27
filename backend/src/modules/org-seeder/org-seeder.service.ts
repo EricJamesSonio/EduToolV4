@@ -51,7 +51,21 @@ export class OrgSeederService {
   ): Promise<SeedResult> {
     const ctx = new SeedContext(this.db, options);
     const profileByType = await this.schoolProfileService.getAllByType(ctx.orgId);
-Object.assign(ctx.profileDepartments, profileByType);
+    Object.assign(ctx.profileDepartments, profileByType);
+    const [gradingScales, gradingSchemes, semesterTerms] = await Promise.all([
+      this.schoolProfileService.getGradingScales(ctx.orgId),
+      this.schoolProfileService.getGradingSchemes(ctx.orgId),
+      this.schoolProfileService.getSemesterTermConfigs(ctx.orgId),
+    ]);
+    for (const gs of gradingScales) {
+      ctx.profileGradingScales[gs.programType] = { name: gs.name, ranges: gs.ranges as any };
+    }
+    for (const scheme of gradingSchemes) {
+      ctx.profileGradingSchemes[scheme.programType] = { name: scheme.name, components: scheme.components as any };
+    }
+    for (const cfg of semesterTerms) {
+      ctx.profileSemesterTerms[cfg.programType] = cfg.terms as string[];
+    }
 
     await this.db.orgEnrollmentSetting.upsert({
       where: { org_id: ctx.orgId },

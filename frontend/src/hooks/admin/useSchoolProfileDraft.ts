@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
 import type { ProgramType } from "@/types/admin/program.types"
-import type { SchoolProfileDepartment } from "@/types/admin/school-profile.types"
+import type {
+  SchoolProfileDepartment,
+  SchoolProfileGradingScale,
+  SchoolProfileGradingScheme,
+  SchoolProfileSemesterTermConfig,
+  SchoolProfileData,
+} from "@/types/admin/school-profile.types"
 import {
   COLLEGE_COURSES,
   LEVEL_DEFS,
@@ -11,6 +17,8 @@ import {
   SHS_STRAND_SUBJECTS,
   COLLEGE_GE_SUBJECTS,
   SHS_MINOR_SUBJECTS,
+  GRADING_SCALE_PRESETS,
+  GRADING_SCHEME_TEMPLATES,
 } from "@/components/admin/data-seeder/constants/seed-data"
 
 // ── Draft shapes (local-only, no ids until saved) ──────────────────────────
@@ -54,6 +62,47 @@ export interface DraftDepartment {
   strands: DraftStrand[]
   levels: DraftLevel[] // department-level (non-course, non-strand)
   subjects: DraftSubject[] // department-level minor/shared subjects
+}
+
+export interface DraftGradingRange {
+  key: string
+  label: string
+  minScore: number
+  maxScore: number
+  gradeValue: string
+}
+
+export interface DraftGradingScale {
+  key: string
+  programType: ProgramType
+  name: string
+  ranges: DraftGradingRange[]
+}
+
+export interface DraftSchemeComponent {
+  key: string
+  name: string
+  type: string
+  weight: number
+  isOptional: boolean
+}
+
+export interface DraftGradingScheme {
+  key: string
+  programType: ProgramType
+  name: string
+  components: DraftSchemeComponent[]
+}
+
+export interface DraftSemesterTerm {
+  key: string
+  name: string
+}
+
+export interface DraftSemesterTermConfig {
+  key: string
+  programType: ProgramType
+  terms: DraftSemesterTerm[]
 }
 
 let keyCounter = 0
@@ -143,6 +192,42 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
   return { type, courses: [], strands: [], levels, subjects: [] }
 }
 
+// ── Grading / Semester predefined ──────────────────────────────────────────
+
+function buildPredefinedGradingScale(programType: ProgramType): DraftGradingScale {
+  const fallback = programType === "college" ? "college_5pt" : "deped_k12"
+  const preset = GRADING_SCALE_PRESETS.find((p) => p.key === fallback) ?? GRADING_SCALE_PRESETS[0]
+  return {
+    key: makeKey("scale"),
+    programType,
+    name: preset.name,
+    ranges: preset.ranges.map((r) => ({ key: makeKey("range"), label: r.label, minScore: r.minScore, maxScore: r.maxScore, gradeValue: r.gradeValue })),
+  }
+}
+
+function buildPredefinedGradingScheme(programType: ProgramType): DraftGradingScheme {
+  const tpl = GRADING_SCHEME_TEMPLATES.find((t) => t.programType === programType)
+  if (!tpl) {
+    return { key: makeKey("scheme"), programType, name: `${programType} Scheme`, components: [] }
+  }
+  return {
+    key: makeKey("scheme"),
+    programType,
+    name: tpl.name,
+    components: tpl.components.map((c) => ({ key: makeKey("comp"), name: c.name, type: c.type, weight: c.weight, isOptional: c.isOptional })),
+  }
+}
+
+function buildPredefinedSemesterTerms(programType: ProgramType): DraftSemesterTermConfig {
+  // College defaults to Prelim/Midterm/Finals, others generic Term 1/2/3
+  const defaultTerms = programType === "college" ? ["Prelim", "Midterm", "Finals"] : ["Term 1", "Term 2", "Term 3"]
+  return {
+    key: makeKey("sem"),
+    programType,
+    terms: defaultTerms.map((name) => ({ key: makeKey("term"), name })),
+  }
+}
+
 // ── Loading a draft from an already-saved profile ───────────────────────────
 
 function fromSavedDepartment(saved: SchoolProfileDepartment): DraftDepartment {
@@ -176,10 +261,50 @@ function fromSavedDepartment(saved: SchoolProfileDepartment): DraftDepartment {
   }
 }
 
+function fromSavedGradingScale(saved: SchoolProfileGradingScale): DraftGradingScale {
+  return {
+    key: saved.id,
+    programType: saved.programType as ProgramType,
+    name: saved.name,
+    ranges: saved.ranges.map((r) => ({ key: makeKey("range"), label: r.label, minScore: r.minScore, maxScore: r.maxScore, gradeValue: r.gradeValue })),
+  }
+}
+
+function fromSavedGradingScheme(saved: SchoolProfileGradingScheme): DraftGradingScheme {
+  return {
+    key: saved.id,
+    programType: saved.programType as ProgramType,
+    name: saved.name,
+    components: saved.components.map((c) => ({ key: makeKey("comp"), name: c.name, type: c.type, weight: c.weight, isOptional: !!c.isOptional })),
+  }
+}
+
+function fromSavedSemesterTerms(saved: SchoolProfileSemesterTermConfig): DraftSemesterTermConfig {
+  return {
+    key: saved.id,
+    programType: saved.programType as ProgramType,
+    terms: saved.terms.map((name) => ({ key: makeKey("term"), name })),
+  }
+}
+
 // ── The hook ─────────────────────────────────────────────────────────────
 
-export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[]) {
+type SavedInput = SchoolProfileDepartment[] | SchoolProfileData
+
+function isSchoolProfileData(input: SavedInput): input is SchoolProfileData {
+  return !Array.isArray(input) && typeof (input as any).departments !== "undefined"
+}
+
+export function useSchoolProfileDraft(savedInput: SavedInput) {
+  const savedDepartments: SchoolProfileDepartment[] = isSchoolProfileData(savedInput) ? (savedInput.departments as SchoolProfileDepartment[]) : (savedInput as SchoolProfileDepartment[])
+  const savedGradingScales: SchoolProfileGradingScale[] = isSchoolProfileData(savedInput) ? (savedInput.gradingScales as SchoolProfileGradingScale[]) : []
+  const savedGradingSchemes: SchoolProfileGradingScheme[] = isSchoolProfileData(savedInput) ? (savedInput.gradingSchemes as SchoolProfileGradingScheme[]) : []
+  const savedSemesterConfigs: SchoolProfileSemesterTermConfig[] = isSchoolProfileData(savedInput) ? (savedInput.semesterTermConfigs as SchoolProfileSemesterTermConfig[]) : []
+
   const [departments, setDepartments] = useState<Record<string, DraftDepartment>>({})
+  const [gradingScales, setGradingScales] = useState<Record<string, DraftGradingScale>>({})
+  const [gradingSchemes, setGradingSchemes] = useState<Record<string, DraftGradingScheme>>({})
+  const [semesterConfigs, setSemesterConfigs] = useState<Record<string, DraftSemesterTermConfig>>({})
   const [dirty, setDirty] = useState(false)
 
   const savedByType = useMemo(() => {
@@ -189,29 +314,76 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
   }, [savedDepartments])
 
   // Keep draft in sync with server when the user has no unsaved edits.
-  // This fixes the "saved config disappears after logout/relogin" illusion:
-  // the old once-flag hydrated=true after the first empty fetch and never
-  // re-hydrated when the profile query later resolved.
   useEffect(() => {
     if (dirty) return
-    const initial: Record<string, DraftDepartment> = {}
+    const initialDepts: Record<string, DraftDepartment> = {}
     for (const saved of savedDepartments) {
-      initial[saved.type] = fromSavedDepartment(saved)
+      initialDepts[saved.type] = fromSavedDepartment(saved)
     }
     setDepartments((prev) => {
       const prevKeys = Object.keys(prev).sort().join(",")
-      const nextKeys = Object.keys(initial).sort().join(",")
-      if (prevKeys !== nextKeys) return initial
-      for (const k of Object.keys(initial)) {
+      const nextKeys = Object.keys(initialDepts).sort().join(",")
+      if (prevKeys !== nextKeys) return initialDepts
+      for (const k of Object.keys(initialDepts)) {
         const a = prev[k]
-        const b = initial[k]
-        if (!a || JSON.stringify(a) !== JSON.stringify(b)) return initial
+        const b = initialDepts[k]
+        if (!a || JSON.stringify(a) !== JSON.stringify(b)) return initialDepts
       }
-      // Also handle case where server cleared config
-      if (Object.keys(prev).length !== Object.keys(initial).length) return initial
+      if (Object.keys(prev).length !== Object.keys(initialDepts).length) return initialDepts
       return prev
     })
-  }, [savedDepartments, dirty])
+
+    const initialScales: Record<string, DraftGradingScale> = {}
+    for (const s of savedGradingScales) {
+      initialScales[s.programType] = fromSavedGradingScale(s)
+    }
+    setGradingScales((prev) => {
+      const prevKeys = Object.keys(prev).sort().join(",")
+      const nextKeys = Object.keys(initialScales).sort().join(",")
+      if (prevKeys !== nextKeys) return initialScales
+      for (const k of Object.keys(initialScales)) {
+        const a = prev[k]
+        const b = initialScales[k]
+        if (!a || JSON.stringify(a) !== JSON.stringify(b)) return initialScales
+      }
+      if (Object.keys(prev).length !== Object.keys(initialScales).length) return initialScales
+      return prev
+    })
+
+    const initialSchemes: Record<string, DraftGradingScheme> = {}
+    for (const s of savedGradingSchemes) {
+      initialSchemes[s.programType] = fromSavedGradingScheme(s)
+    }
+    setGradingSchemes((prev) => {
+      const prevKeys = Object.keys(prev).sort().join(",")
+      const nextKeys = Object.keys(initialSchemes).sort().join(",")
+      if (prevKeys !== nextKeys) return initialSchemes
+      for (const k of Object.keys(initialSchemes)) {
+        const a = prev[k]
+        const b = initialSchemes[k]
+        if (!a || JSON.stringify(a) !== JSON.stringify(b)) return initialSchemes
+      }
+      if (Object.keys(prev).length !== Object.keys(initialSchemes).length) return initialSchemes
+      return prev
+    })
+
+    const initialSem: Record<string, DraftSemesterTermConfig> = {}
+    for (const c of savedSemesterConfigs) {
+      initialSem[c.programType] = fromSavedSemesterTerms(c)
+    }
+    setSemesterConfigs((prev) => {
+      const prevKeys = Object.keys(prev).sort().join(",")
+      const nextKeys = Object.keys(initialSem).sort().join(",")
+      if (prevKeys !== nextKeys) return initialSem
+      for (const k of Object.keys(initialSem)) {
+        const a = prev[k]
+        const b = initialSem[k]
+        if (!a || JSON.stringify(a) !== JSON.stringify(b)) return initialSem
+      }
+      if (Object.keys(prev).length !== Object.keys(initialSem).length) return initialSem
+      return prev
+    })
+  }, [savedDepartments, savedGradingScales, savedGradingSchemes, savedSemesterConfigs, dirty])
   const selectedTypes = useMemo(() => new Set(Object.keys(departments) as ProgramType[]), [departments])
 
   function selectDepartment(type: ProgramType) {
@@ -219,11 +391,45 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
     const saved = savedByType.get(type)
     const draft = saved ? fromSavedDepartment(saved) : buildPredefinedDepartment(type)
     setDepartments((prev) => ({ ...prev, [type]: draft }))
+    // Auto-create one-per-department grading/scheme/terms if not already present
+    setGradingScales((prev) => {
+      if (prev[type]) return prev
+      const savedScale = savedGradingScales.find((s) => s.programType === type)
+      const draftScale = savedScale ? fromSavedGradingScale(savedScale) : buildPredefinedGradingScale(type)
+      return { ...prev, [type]: draftScale }
+    })
+    setGradingSchemes((prev) => {
+      if (prev[type]) return prev
+      const savedScheme = savedGradingSchemes.find((s) => s.programType === type)
+      const draftScheme = savedScheme ? fromSavedGradingScheme(savedScheme) : buildPredefinedGradingScheme(type)
+      return { ...prev, [type]: draftScheme }
+    })
+    setSemesterConfigs((prev) => {
+      if (prev[type]) return prev
+      const savedCfg = savedSemesterConfigs.find((c) => c.programType === type)
+      const draftCfg = savedCfg ? fromSavedSemesterTerms(savedCfg) : buildPredefinedSemesterTerms(type)
+      return { ...prev, [type]: draftCfg }
+    })
     setDirty(true)
   }
 
   function deselectDepartment(type: ProgramType) {
     setDepartments((prev) => {
+      const next = { ...prev }
+      delete next[type]
+      return next
+    })
+    setGradingScales((prev) => {
+      const next = { ...prev }
+      delete next[type]
+      return next
+    })
+    setGradingSchemes((prev) => {
+      const next = { ...prev }
+      delete next[type]
+      return next
+    })
+    setSemesterConfigs((prev) => {
       const next = { ...prev }
       delete next[type]
       return next
@@ -373,6 +579,110 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
     )
   }
 
+  // ── Grading Scale ──
+  function updateGradingScale(programType: ProgramType, patch: Partial<Pick<DraftGradingScale, "name">>) {
+    setGradingScales((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, ...patch } }
+    })
+    setDirty(true)
+  }
+  function addGradingRange(programType: ProgramType, range: Omit<DraftGradingRange, "key">) {
+    setGradingScales((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, ranges: [...cur.ranges, { key: makeKey("range"), ...range }] } }
+    })
+    setDirty(true)
+  }
+  function updateGradingRange(programType: ProgramType, rangeKey: string, patch: Partial<Omit<DraftGradingRange, "key">>) {
+    setGradingScales((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, ranges: cur.ranges.map((r) => (r.key === rangeKey ? { ...r, ...patch } : r)) } }
+    })
+    setDirty(true)
+  }
+  function deleteGradingRange(programType: ProgramType, rangeKey: string) {
+    setGradingScales((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, ranges: cur.ranges.filter((r) => r.key !== rangeKey) } }
+    })
+    setDirty(true)
+  }
+
+  // ── Grading Scheme ──
+  function updateGradingScheme(programType: ProgramType, patch: Partial<Pick<DraftGradingScheme, "name">>) {
+    setGradingSchemes((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, ...patch } }
+    })
+    setDirty(true)
+  }
+  function addSchemeComponent(programType: ProgramType, comp: Omit<DraftSchemeComponent, "key">) {
+    setGradingSchemes((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, components: [...cur.components, { key: makeKey("comp"), ...comp }] } }
+    })
+    setDirty(true)
+  }
+  function updateSchemeComponent(programType: ProgramType, compKey: string, patch: Partial<Omit<DraftSchemeComponent, "key">>) {
+    setGradingSchemes((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, components: cur.components.map((c) => (c.key === compKey ? { ...c, ...patch } : c)) } }
+    })
+    setDirty(true)
+  }
+  function deleteSchemeComponent(programType: ProgramType, compKey: string) {
+    setGradingSchemes((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, components: cur.components.filter((c) => c.key !== compKey) } }
+    })
+    setDirty(true)
+  }
+
+  // ── Semester Terms ──
+  function addSemesterTerm(programType: ProgramType, name: string) {
+    setSemesterConfigs((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, terms: [...cur.terms, { key: makeKey("term"), name }] } }
+    })
+    setDirty(true)
+  }
+  function renameSemesterTerm(programType: ProgramType, termKey: string, name: string) {
+    setSemesterConfigs((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, terms: cur.terms.map((t) => (t.key === termKey ? { ...t, name } : t)) } }
+    })
+    setDirty(true)
+  }
+  function deleteSemesterTerm(programType: ProgramType, termKey: string) {
+    setSemesterConfigs((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      return { ...prev, [programType]: { ...cur, terms: cur.terms.filter((t) => t.key !== termKey) } }
+    })
+    setDirty(true)
+  }
+  function reorderSemesterTerms(programType: ProgramType, orderedKeys: string[]) {
+    setSemesterConfigs((prev) => {
+      const cur = prev[programType]
+      if (!cur) return prev
+      const byKey = new Map(cur.terms.map((t) => [t.key, t]))
+      const reordered = orderedKeys.map((k) => byKey.get(k)!).filter(Boolean)
+      return { ...prev, [programType]: { ...cur, terms: reordered } }
+    })
+    setDirty(true)
+  }
+
   function markSaved() {
     setDirty(false)
   }
@@ -383,11 +693,23 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
       initial[saved.type] = fromSavedDepartment(saved)
     }
     setDepartments(initial)
+    const scales: Record<string, DraftGradingScale> = {}
+    for (const s of savedGradingScales) scales[s.programType] = fromSavedGradingScale(s)
+    setGradingScales(scales)
+    const schemes: Record<string, DraftGradingScheme> = {}
+    for (const s of savedGradingSchemes) schemes[s.programType] = fromSavedGradingScheme(s)
+    setGradingSchemes(schemes)
+    const sems: Record<string, DraftSemesterTermConfig> = {}
+    for (const c of savedSemesterConfigs) sems[c.programType] = fromSavedSemesterTerms(c)
+    setSemesterConfigs(sems)
     setDirty(false)
   }
 
   return {
     departments,
+    gradingScales,
+    gradingSchemes,
+    semesterConfigs,
     selectedTypes,
     dirty,
     selectDepartment,
@@ -407,6 +729,18 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
     addSubject,
     renameSubject,
     deleteSubject,
+    updateGradingScale,
+    addGradingRange,
+    updateGradingRange,
+    deleteGradingRange,
+    updateGradingScheme,
+    addSchemeComponent,
+    updateSchemeComponent,
+    deleteSchemeComponent,
+    addSemesterTerm,
+    renameSemesterTerm,
+    deleteSemesterTerm,
+    reorderSemesterTerms,
     markSaved,
     discardChanges,
   }

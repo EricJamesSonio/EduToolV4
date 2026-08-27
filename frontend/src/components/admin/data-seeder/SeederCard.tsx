@@ -2,12 +2,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database, Sparkles } from "lucide-react";
+import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useNavigationGuard } from "@/context/NavigationGuardContext";
-import { useSchoolProfile } from "@/hooks/admin/useSchoolProfile"
+import { useSchoolProfileData } from "@/hooks/admin/useSchoolProfile"
 import { useEffectiveSeedData } from "./hooks/useEffectiveSeedData"
 
 import { SchoolYearStep } from "./SchoolYearStep";
@@ -41,8 +41,9 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
 }
 
 export function SeederCard() {
-  const { data: savedProfileDepartments = [] } = useSchoolProfile();
-  const overrides = useEffectiveSeedData(savedProfileDepartments);
+  const { data: profileData } = useSchoolProfileData();
+  const savedProfileDepartments = profileData?.departments ?? []
+  const overrides = useEffectiveSeedData(profileData ?? []);
   const hasPreset = savedProfileDepartments.length > 0
   const allowedProgramTypes = hasPreset ? new Set(savedProfileDepartments.map((d) => d.type)) : null
 
@@ -58,7 +59,7 @@ export function SeederCard() {
     createSchoolYearMutation,
     seedMutation,
     handleSeed,
-    handleApplyPreset,
+    handleSelectAll,
     summaryText,
     summaryItems,
     derivedSelectedLevels,
@@ -153,32 +154,24 @@ export function SeederCard() {
             !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
           )}
         >
-          {/* Apply Preset — only when a preset exists and the selected school year is fresh (no seeded departments yet) */}
+          {/* Select All — replaces Apply Preset: selects all configured (does not seed) */}
           {selectedSchoolYearId && savedProfileDepartments.length > 0 && existingProgramTypes.size === 0 && (
-            <Card id="preset" icon={Sparkles} title="Apply Preset">
+            <Card id="select-all" icon={CheckSquare} title="Select All">
               <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">Preset available from School Profile</p>
+                  <p className="text-sm font-medium">Configuration available from School Profile</p>
                   <p className="text-xs text-muted-foreground not-interactive">
-                    This school year has no data yet. Apply your saved preset ({savedProfileDepartments.map((d) => d.type).join(", ")}) to seed departments, levels, sections and subjects in one click.
+                    This school year has no data yet. Select all configured departments and templates ({savedProfileDepartments.map((d) => d.type).join(", ")}) in one click — semester templates excluded (needs calendar).
                   </p>
                 </div>
                 <Button
-                  onClick={() => handleApplyPreset(savedProfileDepartments)}
+                  onClick={() => handleSelectAll(allowedProgramTypes)}
                   disabled={seedMutation.isPending}
+                  variant="outline"
                   className="shrink-0 gap-1.5"
                 >
-                  {seedMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Applying...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Apply Preset
-                    </>
-                  )}
+                  <CheckSquare className="h-4 w-4" />
+                  Select All
                 </Button>
               </div>
             </Card>
@@ -301,6 +294,7 @@ export function SeederCard() {
                   disabledScaleNames={existingGradingScaleNames}
                   onToggleSeed={setSeedGradingScale}
                   onSelectPreset={setGradingScaleForProgram}
+                  scalesByProgramOverride={overrides.gradingScalesByProgram}
                 />
               </Card>
 
@@ -312,6 +306,7 @@ export function SeederCard() {
                   disabledSchemeNames={existingGradingSchemeNames}
                   onToggleSeed={setSeedGradingSchemes}
                   onToggleScheme={toggleGradingScheme}
+                  schemesByProgramOverride={overrides.gradingSchemesByProgram}
                 />
               </Card>
 
@@ -339,6 +334,7 @@ export function SeederCard() {
                   disabledTemplateNames={existingSemesterTemplateNames}
                   onToggleSeed={setSeedSemesterTemplates}
                   onToggleTemplate={toggleSemesterTemplate}
+                  termNamesByProgramOverride={overrides.semesterTermNamesByProgram}
                 />
               </Card>
             </>

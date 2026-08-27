@@ -1,16 +1,17 @@
 ﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Layers, LayoutList, Loader2, Database, Eye, Pencil, ChevronDown, ChevronRight } from "lucide-react"
+import { Layers, LayoutList, Loader2, Database, Eye, Pencil, ChevronDown, ChevronRight, Scale, BarChart3, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { useNavigationGuard } from "@/context/NavigationGuardContext"
 import { toast } from "sonner"
 import { isAxiosError } from "axios"
 import type { ProgramType } from "@/types/admin/program.types"
 import { PROGRAM_TYPE_LABELS } from "@/types/admin/program.types"
-import { useSchoolProfile, useSaveSchoolProfile } from "@/hooks/admin/useSchoolProfile"
+import { useSchoolProfileData, useSaveSchoolProfile } from "@/hooks/admin/useSchoolProfile"
 import { useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft"
 import { DepartmentStep } from "./DepartmentStep"
 import { CourseStep } from "./CourseStep"
@@ -72,8 +73,9 @@ function CollapsibleDepartmentCard({
 }
 
 export function SchoolProfileCard() {
-  const { data: savedDepartments = [], isLoading } = useSchoolProfile()
-  const draft = useSchoolProfileDraft(savedDepartments)
+  const { data: profileData, isLoading } = useSchoolProfileData()
+  const savedDepartments = profileData?.departments ?? []
+  const draft = useSchoolProfileDraft(profileData ?? [])
   const saveMutation = useSaveSchoolProfile()
 
   const hasSavedConfig = savedDepartments.length > 0
@@ -181,20 +183,28 @@ export function SchoolProfileCard() {
   }
 
   const handleSave = () => {
-    saveMutation.mutate(Object.values(draft.departments), {
-      onSuccess: () => {
-        toast.success("Configuration saved. The Data Seeder will now use this setup.")
-        draft.markSaved()
-        setMode("view")
+    saveMutation.mutate(
+      {
+        departments: Object.values(draft.departments),
+        gradingScales: Object.values(draft.gradingScales),
+        gradingSchemes: Object.values(draft.gradingSchemes),
+        semesterTermConfigs: Object.values(draft.semesterConfigs),
+      } as any,
+      {
+        onSuccess: () => {
+          toast.success("Configuration saved. The Data Seeder will now use this setup.")
+          draft.markSaved()
+          setMode("view")
+        },
+        onError: (err: unknown) => {
+          const message =
+            isAxiosError<{ message?: string }>(err) && err.response?.data?.message
+              ? err.response.data.message
+              : "Failed to save configuration. Please try again."
+          toast.error(message)
+        },
       },
-      onError: (err: unknown) => {
-        const message =
-          isAxiosError<{ message?: string }>(err) && err.response?.data?.message
-            ? err.response.data.message
-            : "Failed to save configuration. Please try again."
-        toast.error(message)
-      },
-    })
+    )
   }
 
   if (isLoading) {
@@ -522,6 +532,184 @@ export function SchoolProfileCard() {
           </Card>
         )
       })}
+
+      {/* ── Grading Scales (one per department) ── */}
+      {visibleDepartments.length > 0 && (
+        <Card id="grading-scales" icon={BarChart3} title="Grading Scales — Configuration">
+          {readOnly ? (
+            <p className="text-xs text-muted-foreground not-interactive">Showing configured grading scales. Switch to Edit to modify.</p>
+          ) : (
+            <p className="text-xs text-muted-foreground not-interactive">One scale per department. Edit name and grade ranges. Changes will be used by the Data Seeder.</p>
+          )}
+          <div className="space-y-4">
+            {visibleDepartments.map((dept) => {
+              const scale = (draft.gradingScales as Record<string, any>)[dept.type]
+              if (!scale) return null
+              return (
+                <div key={dept.type} className="rounded-lg border p-4 space-y-3 bg-muted/10">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{PROGRAM_TYPE_LABELS[dept.type]}</span>
+                    <span className="text-xs text-muted-foreground">{scale.ranges.length} ranges</span>
+                  </div>
+                  <Input
+                    value={scale.name}
+                    disabled={readOnly || saveMutation.isPending}
+                    onChange={(e) => draft.updateGradingScale(dept.type, { name: e.target.value })}
+                    placeholder="Scale name"
+                    className="h-8 text-sm"
+                  />
+                  <div className="space-y-2">
+                    {scale.ranges.map((r: any) => (
+                      <div key={r.key} className="grid grid-cols-12 gap-1 items-center rounded-md border bg-background p-2">
+                        <Input value={r.label} disabled={readOnly} onChange={(e) => draft.updateGradingRange(dept.type, r.key, { label: e.target.value })} placeholder="Label" className="col-span-4 h-7 text-xs" />
+                        <Input type="number" value={r.minScore} disabled={readOnly} onChange={(e) => draft.updateGradingRange(dept.type, r.key, { minScore: Number(e.target.value) })} placeholder="Min" className="col-span-2 h-7 text-xs" />
+                        <Input type="number" value={r.maxScore} disabled={readOnly} onChange={(e) => draft.updateGradingRange(dept.type, r.key, { maxScore: Number(e.target.value) })} placeholder="Max" className="col-span-2 h-7 text-xs" />
+                        <Input value={r.gradeValue} disabled={readOnly} onChange={(e) => draft.updateGradingRange(dept.type, r.key, { gradeValue: e.target.value })} placeholder="Grade" className="col-span-2 h-7 text-xs" />
+                        {!readOnly && (
+                          <Button type="button" variant="ghost" size="sm" className="col-span-2 h-7 text-xs" onClick={() => draft.deleteGradingRange(dept.type, r.key)} disabled={scale.ranges.length <= 1}>
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => draft.addGradingRange(dept.type, { label: "New Range", minScore: 0, maxScore: 100, gradeValue: "X" })}
+                    >
+                      + Add Range
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* ── Grading Schemes (one per department) ── */}
+      {visibleDepartments.length > 0 && (
+        <Card id="grading-schemes" icon={Scale} title="Grading Schemes — Configuration">
+          {readOnly ? (
+            <p className="text-xs text-muted-foreground not-interactive">Showing configured grading schemes. Switch to Edit to modify.</p>
+          ) : (
+            <p className="text-xs text-muted-foreground not-interactive">One scheme per department. Weights must sum to 100. Configured here, seeded in Data Seeder.</p>
+          )}
+          <div className="space-y-4">
+            {visibleDepartments.map((dept) => {
+              const scheme = (draft.gradingSchemes as Record<string, any>)[dept.type]
+              if (!scheme) return null
+              const weightSum = scheme.components.reduce((s: number, c: any) => s + Number(c.weight), 0)
+              return (
+                <div key={dept.type} className="rounded-lg border p-4 space-y-3 bg-muted/10">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{PROGRAM_TYPE_LABELS[dept.type]}</span>
+                    <span className={cn("text-xs", Math.abs(weightSum - 100) > 0.01 ? "text-destructive font-medium" : "text-muted-foreground")}>
+                      Sum: {weightSum}% {Math.abs(weightSum - 100) > 0.01 && "(must be 100)"}
+                    </span>
+                  </div>
+                  <Input
+                    value={scheme.name}
+                    disabled={readOnly || saveMutation.isPending}
+                    onChange={(e) => draft.updateGradingScheme(dept.type, { name: e.target.value })}
+                    placeholder="Scheme name"
+                    className="h-8 text-sm"
+                  />
+                  <div className="space-y-2">
+                    {scheme.components.map((comp: any) => (
+                      <div key={comp.key} className="grid grid-cols-12 gap-1 items-center rounded-md border bg-background p-2">
+                        <Input value={comp.name} disabled={readOnly} onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { name: e.target.value })} placeholder="Component" className="col-span-3 h-7 text-xs" />
+                        <select
+                          value={comp.type}
+                          disabled={readOnly}
+                          onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { type: e.target.value })}
+                          className="col-span-3 h-7 rounded-md border bg-background px-2 text-xs"
+                        >
+                          <option value="quiz">quiz</option>
+                          <option value="activity">activity</option>
+                          <option value="manual">manual</option>
+                          <option value="exam">exam</option>
+                          <option value="participation">participation</option>
+                          <option value="behavior">behavior</option>
+                          <option value="other">other</option>
+                        </select>
+                        <Input type="number" value={comp.weight} disabled={readOnly} onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { weight: Number(e.target.value) })} placeholder="Weight" className="col-span-2 h-7 text-xs" />
+                        <label className="col-span-2 flex items-center gap-1 text-xs">
+                          <input type="checkbox" checked={!!comp.isOptional} disabled={readOnly} onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { isOptional: e.target.checked })} />
+                          Optional
+                        </label>
+                        {!readOnly && (
+                          <Button type="button" variant="ghost" size="sm" className="col-span-2 h-7 text-xs" onClick={() => draft.deleteSchemeComponent(dept.type, comp.key)} disabled={scheme.components.length <= 1}>
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => draft.addSchemeComponent(dept.type, { name: "New Component", type: "quiz", weight: 10, isOptional: false })}
+                    >
+                      + Add Component
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* ── Semester Terms (names only, count = number of terms) ── */}
+      {visibleDepartments.length > 0 && (
+        <Card id="semester-terms" icon={Calendar} title="Semester Terms — Configuration">
+          {readOnly ? (
+            <p className="text-xs text-muted-foreground not-interactive">Showing configured semester term names. Data Seeder generates semesters from the academic calendar; each semester gets these terms.</p>
+          ) : (
+            <p className="text-xs text-muted-foreground not-interactive">One term list per department. Edit term names; the Data Seeder will create N semesters from the calendar, each with these terms. College default: Prelim / Midterm / Finals.</p>
+          )}
+          <div className="space-y-4">
+            {visibleDepartments.map((dept) => {
+              const cfg = (draft.semesterConfigs as Record<string, any>)[dept.type]
+              if (!cfg) return null
+              return (
+                <div key={dept.type} className="rounded-lg border p-4 space-y-3 bg-muted/10">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{PROGRAM_TYPE_LABELS[dept.type]}</span>
+                    <span className="text-xs text-muted-foreground">{cfg.terms.length} terms</span>
+                  </div>
+                  <div className="space-y-2">
+                    {cfg.terms.map((t: any, idx: number) => (
+                      <div key={t.key} className="flex items-center gap-2 rounded-md border bg-background p-2">
+                        <span className="text-xs text-muted-foreground w-6 text-center">{idx + 1}.</span>
+                        <Input value={t.name} disabled={readOnly} onChange={(e) => draft.renameSemesterTerm(dept.type, t.key, e.target.value)} placeholder="Term name" className="flex-1 h-7 text-xs" />
+                        {!readOnly && (
+                          <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => draft.deleteSemesterTerm(dept.type, t.key)} disabled={cfg.terms.length <= 1}>
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {!readOnly && (
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => draft.addSemesterTerm(dept.type, `Term ${cfg.terms.length + 1}`)}>
+                      + Add Term
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {!readOnly && draft.selectedTypes.size > 0 && (
         <Card id="save" icon={Database} title="Save Configuration">

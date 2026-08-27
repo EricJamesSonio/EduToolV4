@@ -157,13 +157,23 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
     levelConfigs,
     resolvedGradingScales,
     seedGradingScale,
-    gradingSchemesByProgram,
-    semesterTemplatesByProgram,
-    sectionConfigs,
+    setSeedGradingScale,
+    gradingScaleByProgram,
+    setGradingScaleForProgram,
     seedGradingSchemes,
+    setSeedGradingSchemes,
+    gradingSchemesByProgram,
+    toggleGradingScheme,
     seedSemesterTemplates,
+    setSeedSemesterTemplates,
+    semesterTemplatesByProgram,
+    toggleSemesterTemplate,
+    sectionConfigs,
     seedProgramCalendars,
+    setSeedProgramCalendars,
     programCalendarConfigs,
+    initProgramCalendar,
+    updateProgramCalendar,
     resetAll,
     selectedLevelKeys,
     selectedSectionKeys,
@@ -383,35 +393,29 @@ seedMutation.mutate({
 });
   }
 
-  function handleApplyPreset(savedDepartments: SchoolProfileDepartment[]) {
+  function handleSelectAll(allowedProgramTypes?: Set<string> | null) {
     if (!selectedSchoolYearId) {
       toast.error("Select a school year first.");
       return;
     }
-    if (savedDepartments.length === 0) {
-      toast.error("No preset configured. Set up School Profile first.");
-      return;
+    const targets = allowedProgramTypes ? Array.from(allowedProgramTypes) : PROGRAMS.map((p) => p.key)
+    // Select all departments (filtered by configured when preset exists)
+    seedState.selectAll(targets, setSelectedPrograms)
+    // Select all courses/strands when applicable (respects overrides)
+    if (targets.includes("college")) {
+      const courseCodes = overrides?.collegeCourses?.map((c) => c.code) ?? COLLEGE_COURSES.map((c) => c.code ?? "")
+      seedState.selectAll(courseCodes, setSelectedCourses)
     }
-    const programs = savedDepartments.map((d) => d.type)
-    const collegeDept = savedDepartments.find((d) => d.type === "college")
-    const shsDept = savedDepartments.find((d) => d.type === "shs")
-    const courses = overrides?.collegeCourses?.map((c) => c.code)
-      ?? collegeDept?.courses.map((c) => c.code ?? c.name)
-      ?? undefined
-    const strands = overrides?.shsStrands
-      ?? shsDept?.strands.map((s) => s.name)
-      ?? undefined
-
-    // Backend will source levels/sections/subjects directly from the saved
-    // School Profile (profileDepartments) when it exists, so we only need
-    // to tell it which departments/courses/strands to materialize for this
-    // school year. No levelConfigs/sectionConfigs needed for a pure preset apply.
-    seedMutation.mutate({
-      schoolYearId: selectedSchoolYearId,
-      programs,
-      courses: courses && courses.length > 0 ? courses : undefined,
-      strands: strands && strands.length > 0 ? strands : undefined,
-    });
+    if (targets.includes("shs")) {
+      const strands = overrides?.shsStrands ?? SHS_STRANDS
+      seedState.selectAll(strands, setSelectedStrands)
+    }
+    // Enable grading scales/schemes (one per department) — semester templates excluded (needs calendar)
+    setSeedGradingScale(true)
+    // auto-select per-program via toggle handlers (sets all to true)
+    setSeedGradingSchemes(true)
+    setSeedProgramCalendars(true)
+    toast.success("Selected all configured departments and templates (semester templates excluded — configure calendar first).")
   }
 
   // Derived sets for disabled states
@@ -559,7 +563,7 @@ seedMutation.mutate({
     // Seed
     seedMutation,
     handleSeed,
-    handleApplyPreset,
+    handleSelectAll,
 
     // UI state
     collapsed,
