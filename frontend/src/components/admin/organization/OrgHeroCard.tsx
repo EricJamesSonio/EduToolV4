@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useSchoolProfile } from "@/hooks/admin/useSchoolProfile";
 import { PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
+import type { SchoolProfileDepartment } from "@/types/admin/school-profile.types";
 
 const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 
@@ -55,7 +56,15 @@ export function OrgHeroCard({ name, logoUrl }: OrgHeroCardProps): React.JSX.Elem
     }
   }
 
-  const { data: departments = [], isLoading: deptLoading } = useSchoolProfile();
+  const { data: departmentsData, isLoading: deptLoading } = useSchoolProfile();
+  // Defensive: previous cache collision between useSchoolProfile (array) and
+  // useSchoolProfileData (object) could poison the cache with { departments: [...] }.
+  // Guard so OrgHeroCard never crashes on departments.map even with stale data.
+  const departments: SchoolProfileDepartment[] = Array.isArray(departmentsData)
+    ? departmentsData
+    : Array.isArray((departmentsData as unknown as { departments?: unknown })?.departments)
+      ? ((departmentsData as unknown as { departments: SchoolProfileDepartment[] }).departments as SchoolProfileDepartment[])
+      : [];
 
   return (
     <Card className="border-border/60 h-full">
@@ -129,11 +138,17 @@ export function OrgHeroCard({ name, logoUrl }: OrgHeroCardProps): React.JSX.Elem
               {departments.map((dept) => {
                 const label =
                   PROGRAM_TYPE_LABELS[dept.type as keyof typeof PROGRAM_TYPE_LABELS] ?? dept.type;
+                const courses = Array.isArray((dept as unknown as { courses?: unknown })?.courses)
+                  ? (dept.courses as unknown as Array<{ name: string }>)
+                  : [];
+                const strands = Array.isArray((dept as unknown as { strands?: unknown })?.strands)
+                  ? (dept.strands as unknown as Array<{ name: string }>)
+                  : [];
                 const subtext =
-                  dept.courses.length > 0
-                    ? dept.courses.map((c) => c.name).join(" · ")
-                    : dept.strands.length > 0
-                      ? dept.strands.map((s) => s.name).join(" · ")
+                  courses.length > 0
+                    ? courses.map((c) => c.name).join(" · ")
+                    : strands.length > 0
+                      ? strands.map((s) => s.name).join(" · ")
                       : null;
 
                 return (

@@ -11,7 +11,10 @@ import {
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { organizationApi } from "@/api/admin/organization.api";
 
+import { useRouter } from "next/navigation";
+import { Clock, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { EmailExtensionSection } from "./EmailExtensionSection";
@@ -21,6 +24,7 @@ import { OrgCreateForm } from "./OrgCreateForm";
 import type { OrgForm } from "./types";
 
 export function OrgDetailsCard(): React.JSX.Element {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: org, isLoading } = useAsyncQuery(
@@ -152,6 +156,33 @@ export function OrgDetailsCard(): React.JSX.Element {
         <Card className="border-border/60">
           <CardContent className="px-6 py-5">
             <EmailExtensionSection />
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60">
+          <CardContent className="px-6 py-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-muted shrink-0">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">Schedule time range</p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Global daily window &amp; slot length for all departments.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                onClick={() => router.push("/admin/organization/schedule")}
+              >
+                Configure schedule
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
