@@ -125,7 +125,8 @@ runSuite('SchoolProfile -> Seeder integration (real DB)', () => {
     });
 
     await check('getProfile returns 3 departments with courses/strands intact', async () => {
-      const departments = await profileService.getProfile(orgId);
+      const raw = await profileService.getProfile(orgId) as any;
+      const departments = Array.isArray(raw) ? raw : raw.departments;
       expect(departments).toHaveLength(3);
 
       const college = departments.find((d: any) => d.type === 'college');
@@ -158,16 +159,17 @@ runSuite('SchoolProfile -> Seeder integration (real DB)', () => {
 
     // This is what OrgHeroCard renders: 3 departments, with course/strand names
     await check('OrgHeroCard data shape: departments have names for rendering', async () => {
-      const departments = await profileService.getProfile(orgId);
-      const labels = departments.map((d: any) => d.type).sort();
+      const raw2 = await profileService.getProfile(orgId) as any;
+      const departments2 = Array.isArray(raw2) ? raw2 : raw2.departments;
+      const labels = departments2.map((d: any) => d.type).sort();
       expect(labels).toEqual(['college', 'elementary', 'shs']);
       // College subtext would be "BS Computer Science"
-      const collegeDept = departments.find((d: any) => d.type === 'college');
+      const collegeDept = departments2.find((d: any) => d.type === 'college');
       if (!collegeDept) throw new Error('college department not found');
       const collegeSubtext = collegeDept.courses.map((c: any) => c.name).join(' · ');
       expect(collegeSubtext).toBe('BS Computer Science');
       // SHS subtext would be "STEM"
-      const shsDept = departments.find((d: any) => d.type === 'shs');
+      const shsDept = departments2.find((d: any) => d.type === 'shs');
       if (!shsDept) throw new Error('shs department not found');
       const shsSubtext = shsDept.strands.map((s: any) => s.name).join(' · ');
       expect(shsSubtext).toBe('STEM');
@@ -254,7 +256,8 @@ runSuite('SchoolProfile -> Seeder integration (real DB)', () => {
         ],
       } as any);
 
-      const after = await profileService.getProfile(orgId);
+      const raw3 = await profileService.getProfile(orgId) as any;
+      const after = Array.isArray(raw3) ? raw3 : raw3.departments;
       expect(after).toHaveLength(1);
       expect(after[0].type).toBe('college');
       expect(after[0].courses[0].name).toBe('BSIT');
