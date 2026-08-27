@@ -1,6 +1,6 @@
 # TICK-GRADE-002 - Make grading/scale/scheme and semester terms configurable and replace Apply Preset with Select All
 
-Status: ready-for-review
+Status: merged
 Priority: high
 Created: 2026-08-27
 Created by: agent
