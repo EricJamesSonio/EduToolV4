@@ -7,6 +7,8 @@ import { EnableToggle } from "./ui/EnableToggle"
 import { ProgramPanel } from "./ui/ProgramPanel"
 import { SelectableCard } from "./ui/SelectableCard"
 
+import type { GradingSchemeTemplate } from "./constants/grading-schemes"
+
 interface GradingSchemeStepProps {
   selectedPrograms:        Set<string>
   seedGradingSchemes:      boolean
@@ -14,6 +16,7 @@ interface GradingSchemeStepProps {
   disabledSchemeNames:     Set<string>
   onToggleSeed:            (enabled: boolean) => void
   onToggleScheme:          (programType: string, enabled: boolean) => void
+  schemesByProgramOverride?: Record<string, GradingSchemeTemplate> | null
 }
 
 export function GradingSchemeStep({
@@ -23,10 +26,14 @@ export function GradingSchemeStep({
   disabledSchemeNames,
   onToggleSeed,
   onToggleScheme,
+  schemesByProgramOverride,
 }: GradingSchemeStepProps) {
-  const applicableSchemes = GRADING_SCHEME_TEMPLATES.filter((scheme) =>
-    selectedPrograms.has(scheme.programType)
-  )
+  const hasOverride = !!schemesByProgramOverride
+  const applicableSchemes = hasOverride
+    ? Array.from(selectedPrograms)
+        .map((prog) => schemesByProgramOverride![prog])
+        .filter((s): s is GradingSchemeTemplate => !!s)
+    : GRADING_SCHEME_TEMPLATES.filter((scheme) => selectedPrograms.has(scheme.programType))
 
   if (applicableSchemes.length === 0) return null
 

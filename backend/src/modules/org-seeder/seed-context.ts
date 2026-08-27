@@ -99,6 +99,9 @@ export class SeedContext {
   readonly levelMap: Record<string, string> = {};
   readonly subjectNameToId: Record<string, string> = {};
   readonly profileDepartments: Record<string, SchoolProfileDepartmentData | null> = {};
+  readonly profileGradingScales: Record<string, { name: string; ranges: GradingScaleRangeOption[] }> = {};
+  readonly profileGradingSchemes: Record<string, { name: string; components: { name: string; type: string; weight: number; isOptional?: boolean }[] }> = {};
+  readonly profileSemesterTerms: Record<string, string[]> = {};
 
   readonly result: SeedResult = {
     programs: emptyCount(),

@@ -1,5 +1,7 @@
 import { useMemo } from "react"
-import type { SchoolProfileDepartment } from "@/types/admin/school-profile.types"
+import type { SchoolProfileDepartment, SchoolProfileData } from "@/types/admin/school-profile.types"
+import type { GradingScalePreset } from "../constants/grading-scales"
+import type { GradingSchemeTemplate } from "../constants/grading-schemes"
 
 export interface EffectiveSeedOverrides {
   collegeCourses: { code: string; name: string; years: number }[] | null
@@ -9,12 +11,19 @@ export interface EffectiveSeedOverrides {
   levelSubjectsByLevelName: Record<string, string[]>
   courseSubjectsByCode: Record<string, string[]>
   strandSubjectsByName: Record<string, string[]>
+  gradingScalesByProgram: Record<string, GradingScalePreset> | null
+  gradingSchemesByProgram: Record<string, GradingSchemeTemplate> | null
+  semesterTermNamesByProgram: Record<string, string[]> | null
 }
 
 export function useEffectiveSeedData(
-  savedDepartments: SchoolProfileDepartment[],
+  savedInput: SchoolProfileDepartment[] | SchoolProfileData,
 ): EffectiveSeedOverrides {
   return useMemo(() => {
+    const savedDepartments: SchoolProfileDepartment[] = Array.isArray(savedInput) ? savedInput : (savedInput as SchoolProfileData).departments
+    const savedGradingScales = Array.isArray(savedInput) ? [] : (savedInput as SchoolProfileData).gradingScales ?? []
+    const savedGradingSchemes = Array.isArray(savedInput) ? [] : (savedInput as SchoolProfileData).gradingSchemes ?? []
+    const savedSemesterTerms = Array.isArray(savedInput) ? [] : (savedInput as SchoolProfileData).semesterTermConfigs ?? []
     const byType = new Map(savedDepartments.map((d) => [d.type, d]))
 
     const college = byType.get("college")
@@ -83,6 +92,31 @@ export function useEffectiveSeedData(
       }
     }
 
+    const gradingScalesByProgram: Record<string, GradingScalePreset> | null =
+      savedGradingScales.length > 0
+        ? Object.fromEntries(
+            savedGradingScales.map((s) => [
+              s.programType,
+              { key: s.programType, name: s.name, ranges: s.ranges.map((r) => ({ label: r.label, minScore: r.minScore, maxScore: r.maxScore, gradeValue: r.gradeValue })) },
+            ]),
+          )
+        : null
+
+    const gradingSchemesByProgram: Record<string, GradingSchemeTemplate> | null =
+      savedGradingSchemes.length > 0
+        ? Object.fromEntries(
+            savedGradingSchemes.map((s) => [
+              s.programType,
+              { name: s.name, programType: s.programType, components: s.components.map((c) => ({ name: c.name, type: c.type, weight: c.weight, isOptional: !!c.isOptional })) },
+            ]),
+          )
+        : null
+
+    const semesterTermNamesByProgram: Record<string, string[]> | null =
+      savedSemesterTerms.length > 0
+        ? Object.fromEntries(savedSemesterTerms.map((c) => [c.programType, [...c.terms]]))
+        : null
+
     return {
       collegeCourses,
       shsStrands,
@@ -91,6 +125,9 @@ export function useEffectiveSeedData(
       levelSubjectsByLevelName,
       courseSubjectsByCode,
       strandSubjectsByName,
+      gradingScalesByProgram,
+      gradingSchemesByProgram,
+      semesterTermNamesByProgram,
     }
-  }, [savedDepartments])
+  }, [savedInput])
 }

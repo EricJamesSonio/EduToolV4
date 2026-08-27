@@ -3,6 +3,9 @@ import {
   IsOptional,
   IsInt,
   Min,
+  Max,
+  IsBoolean,
+  IsNumber,
   IsArray,
   ValidateNested,
   IsIn,
@@ -187,9 +190,93 @@ export class SaveProfileDepartmentDto {
   subjects!: SaveProfileSubjectDto[];
 }
 
+export class SaveProfileGradingRangeDto {
+  @IsString()
+  label!: string;
+
+  @IsInt()
+  minScore!: number;
+
+  @IsInt()
+  maxScore!: number;
+
+  @IsString()
+  gradeValue!: string;
+}
+
+export class SaveProfileGradingScaleDto {
+  @IsString()
+  programType!: string;
+
+  @IsString()
+  name!: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SaveProfileGradingRangeDto)
+  ranges!: SaveProfileGradingRangeDto[];
+}
+
+export class SaveProfileSchemeComponentDto {
+  @IsString()
+  name!: string;
+
+  @IsString()
+  type!: string;
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  weight!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isOptional?: boolean;
+}
+
+export class SaveProfileGradingSchemeDto {
+  @IsString()
+  programType!: string;
+
+  @IsString()
+  name!: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SaveProfileSchemeComponentDto)
+  components!: SaveProfileSchemeComponentDto[];
+}
+
+export class SaveProfileSemesterTermConfigDto {
+  @IsString()
+  programType!: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  terms!: string[];
+}
+
 export class SaveSchoolProfileDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SaveProfileDepartmentDto)
   departments!: SaveProfileDepartmentDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SaveProfileGradingScaleDto)
+  gradingScales?: SaveProfileGradingScaleDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SaveProfileGradingSchemeDto)
+  gradingSchemes?: SaveProfileGradingSchemeDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SaveProfileSemesterTermConfigDto)
+  semesterTermConfigs?: SaveProfileSemesterTermConfigDto[];
 }

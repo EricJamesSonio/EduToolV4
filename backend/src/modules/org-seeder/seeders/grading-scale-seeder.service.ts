@@ -13,6 +13,7 @@ export class GradingScaleSeederService {
   ) {}
 
   async seed(ctx: SeedContext): Promise<void> {
+    const hasProfileScales = Object.keys(ctx.profileGradingScales).length > 0;
     const assignments =
       Object.keys(ctx.gradingScales).length > 0
         ? Object.entries(ctx.gradingScales)
@@ -26,18 +27,30 @@ export class GradingScaleSeederService {
               scaleName: scale.name,
               ranges: scale.ranges as object,
             }))
-        : buildScaleAssignments()
-            .filter(
-              (sa) =>
-                ctx.shouldSeedProgram(sa.programKey) &&
-                ctx.programMap[sa.programKey],
-            )
-            .map((sa) => ({
-              programKey: sa.programKey,
-              programId: ctx.programMap[sa.programKey],
-              scaleName: sa.scaleName,
-              ranges: sa.ranges,
-            }));
+        : hasProfileScales
+          ? Object.entries(ctx.profileGradingScales)
+              .filter(
+                ([progKey]) =>
+                  ctx.shouldSeedProgram(progKey) && ctx.programMap[progKey],
+              )
+              .map(([progKey, scale]) => ({
+                programKey: progKey,
+                programId: ctx.programMap[progKey],
+                scaleName: scale.name,
+                ranges: scale.ranges as object,
+              }))
+          : buildScaleAssignments()
+              .filter(
+                (sa) =>
+                  ctx.shouldSeedProgram(sa.programKey) &&
+                  ctx.programMap[sa.programKey],
+              )
+              .map((sa) => ({
+                programKey: sa.programKey,
+                programId: ctx.programMap[sa.programKey],
+                scaleName: sa.scaleName,
+                ranges: sa.ranges,
+              }));
 
     for (const { programKey, programId, scaleName, ranges } of assignments) {
       // Single source of truth for uniqueness — same lookup the manual

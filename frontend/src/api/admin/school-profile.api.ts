@@ -6,6 +6,10 @@ import type {
   SchoolProfileLevel,
   SchoolProfileSection,
   SchoolProfileSubject,
+  SchoolProfileData,
+  SchoolProfileGradingScale,
+  SchoolProfileGradingScheme,
+  SchoolProfileSemesterTermConfig,
   CreateProfileCourseRequest,
   UpdateProfileCourseRequest,
   CreateProfileStrandRequest,
@@ -17,7 +21,12 @@ import type {
   CreateProfileSubjectRequest,
   UpdateProfileSubjectRequest,
 } from "@/types/admin/school-profile.types";
-import type { DraftDepartment } from "@/hooks/admin/useSchoolProfileDraft"
+import type {
+  DraftDepartment,
+  DraftGradingScale,
+  DraftGradingScheme,
+  DraftSemesterTermConfig,
+} from "@/hooks/admin/useSchoolProfileDraft"
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -26,9 +35,22 @@ interface ApiEnvelope<T> {
 
 
 export const schoolProfileApi = {
-  getProfile: async (): Promise<SchoolProfileDepartment[]> => {
-    const res = await client.get<ApiEnvelope<SchoolProfileDepartment[]>>("/school-profile");
-    return res.data.data;
+  getProfile: async (): Promise<SchoolProfileData> => {
+    const res = await client.get<ApiEnvelope<any>>("/school-profile");
+    const data = res.data.data;
+    if (Array.isArray(data)) {
+      return { departments: data, gradingScales: [], gradingSchemes: [], semesterTermConfigs: [] };
+    }
+    return {
+      departments: data.departments ?? [],
+      gradingScales: data.gradingScales ?? [],
+      gradingSchemes: data.gradingSchemes ?? [],
+      semesterTermConfigs: data.semesterTermConfigs ?? [],
+    } as SchoolProfileData;
+  },
+  getDepartments: async (): Promise<SchoolProfileDepartment[]> => {
+    const profile = await schoolProfileApi.getProfile();
+    return profile.departments;
   },
 
   selectDepartment: async (type: string): Promise<SchoolProfileDepartment> => {
@@ -171,8 +193,21 @@ export const schoolProfileApi = {
   deleteSubject: async (id: string): Promise<void> => {
     await client.delete(`/school-profile/subjects/${id}`);
   },
-  saveProfile: async (departments: DraftDepartment[]): Promise<void> => {
-  const payload = departments.map((d) => ({
+  saveProfile: async (params: {
+    departments: DraftDepartment[];
+    gradingScales?: DraftGradingScale[];
+    gradingSchemes?: DraftGradingScheme[];
+    semesterTermConfigs?: DraftSemesterTermConfig[];
+  } | DraftDepartment[]): Promise<void> => {
+  const isArrayShorthand = Array.isArray(params as any)
+  const actualDepartments = isArrayShorthand
+    ? (params as unknown as DraftDepartment[])
+    : (params as { departments: DraftDepartment[] }).departments
+  const gradingScales = isArrayShorthand ? undefined : (params as any).gradingScales as DraftGradingScale[] | undefined
+  const gradingSchemes = isArrayShorthand ? undefined : (params as any).gradingSchemes as DraftGradingScheme[] | undefined
+  const semesterTermConfigs = isArrayShorthand ? undefined : (params as any).semesterTermConfigs as DraftSemesterTermConfig[] | undefined
+
+  const payload = actualDepartments.map((d) => ({
     type: d.type,
     courses: d.courses.map((c) => ({
       name: c.name,
@@ -201,6 +236,21 @@ export const schoolProfileApi = {
     })),
     subjects: d.subjects.map((s) => ({ name: s.name, subjectType: s.subjectType })),
   }))
-  await client.post("/school-profile/save", { departments: payload })
+  const body: any = { departments: payload }
+  if (gradingScales !== undefined) body.gradingScales = gradingScales.map((g) => ({
+    programType: g.programType,
+    name: g.name,
+    ranges: g.ranges.map((r: any) => ({ label: r.label, minScore: r.minScore, maxScore: r.maxScore, gradeValue: r.gradeValue })),
+  }))
+  if (gradingSchemes !== undefined) body.gradingSchemes = gradingSchemes.map((s) => ({
+    programType: s.programType,
+    name: s.name,
+    components: s.components.map((c: any) => ({ name: c.name, type: c.type, weight: c.weight, isOptional: !!c.isOptional })),
+  }))
+  if (semesterTermConfigs !== undefined) body.semesterTermConfigs = semesterTermConfigs.map((c) => ({
+    programType: c.programType,
+    terms: c.terms.map((t: any) => (typeof t === "string" ? t : t.name)),
+  }))
+  await client.post("/school-profile/save", body)
 },
 };

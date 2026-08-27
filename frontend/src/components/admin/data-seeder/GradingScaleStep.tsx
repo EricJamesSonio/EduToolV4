@@ -8,6 +8,8 @@ import { EnableToggle } from "./ui/EnableToggle"
 import { ProgramPanel } from "./ui/ProgramPanel"
 import { SelectableCard } from "./ui/SelectableCard"
 
+import type { GradingScalePreset } from "./constants/grading-scales"
+
 interface GradingScaleStepProps {
   selectedPrograms:        Set<string>
   seedGradingScale:        boolean
@@ -15,6 +17,7 @@ interface GradingScaleStepProps {
   disabledScaleNames:      Set<string>
   onToggleSeed:            (v: boolean) => void
   onSelectPreset:          (prog: string, presetKey: string) => void
+  scalesByProgramOverride?: Record<string, GradingScalePreset> | null
 }
 
 export function GradingScaleStep({
@@ -24,8 +27,10 @@ export function GradingScaleStep({
   disabledScaleNames,
   onToggleSeed,
   onSelectPreset,
+  scalesByProgramOverride,
 }: GradingScaleStepProps) {
   const programs = Array.from(selectedPrograms)
+  const hasOverride = !!scalesByProgramOverride
 
   return (
     <div className="space-y-3">
@@ -39,6 +44,56 @@ export function GradingScaleStep({
         <p className="text-xs text-muted-foreground not-interactive">
           Select departments above to configure their grading scales.
         </p>
+      ) : hasOverride ? (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground not-interactive">
+            Using grading scales configured in School Profile (one per department). Enable seeding to create them.
+          </p>
+          {programs.map((prog) => {
+            const preset = scalesByProgramOverride![prog]
+            if (!preset) {
+              return (
+                <ProgramPanel key={prog} program={prog} badge={<Badge variant="secondary" className="text-xs font-normal">Not configured</Badge>}>
+                  <p className="text-xs text-muted-foreground">No grading scale configured for this department. Add one in Configure → Grading Scales.</p>
+                </ProgramPanel>
+              )
+            }
+            const alreadyExists = disabledScaleNames.has(preset.name)
+            return (
+              <ProgramPanel
+                key={prog}
+                program={prog}
+                badge={<Badge variant={alreadyExists ? "secondary" : "outline"} className="text-xs font-normal">{alreadyExists ? "Already exists" : preset.name}</Badge>}
+              >
+                <SelectableCard
+                  selected={!alreadyExists}
+                  onSelect={() => {}}
+                  title={preset.name}
+                  subtitle={`${preset.ranges.length} grade ${preset.ranges.length === 1 ? "range" : "ranges"} (configured)`}
+                  disabled={alreadyExists}
+                  disabledReason={alreadyExists ? "Already exists — edit it on the Grading Scales page" : undefined}
+                />
+                {!alreadyExists && (
+                  <CollapsiblePreview label="Preview ranges" count={preset.ranges.length}>
+                    {preset.ranges.map((range, i) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
+                            {range.gradeValue}
+                          </Badge>
+                          <span className="text-muted-foreground not-interactive">{range.label}</span>
+                        </div>
+                        <span className="font-mono text-muted-foreground tabular-nums not-interactive">
+                          {range.minScore}–{range.maxScore}%
+                        </span>
+                      </div>
+                    ))}
+                  </CollapsiblePreview>
+                )}
+              </ProgramPanel>
+            )
+          })}
+        </div>
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">

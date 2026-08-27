@@ -94,6 +94,32 @@ function mapDepartment(raw: any) {
   };
 }
 
+function mapGradingScale(raw: any) {
+  return {
+    id: raw.id,
+    programType: raw.program_type,
+    name: raw.name,
+    ranges: raw.ranges,
+  };
+}
+
+function mapGradingScheme(raw: any) {
+  return {
+    id: raw.id,
+    programType: raw.program_type,
+    name: raw.name,
+    components: raw.components,
+  };
+}
+
+function mapSemesterTermConfig(raw: any) {
+  return {
+    id: raw.id,
+    programType: raw.program_type,
+    terms: raw.terms,
+  };
+}
+
 @Injectable()
 export class SchoolProfileRepository {
   constructor(private readonly db: DatabaseService) {}
@@ -113,6 +139,40 @@ export class SchoolProfileRepository {
       include: PROFILE_TREE_INCLUDE,
     });
     return department ? mapDepartment(department) : null;
+  }
+
+  async findGradingScales(orgId: string) {
+    const rows = await this.db.schoolProfileGradingScale.findMany({
+      where: { org_id: orgId },
+      orderBy: { program_type: 'asc' },
+    });
+    return rows.map(mapGradingScale);
+  }
+
+  async findGradingSchemes(orgId: string) {
+    const rows = await this.db.schoolProfileGradingScheme.findMany({
+      where: { org_id: orgId },
+      orderBy: { program_type: 'asc' },
+    });
+    return rows.map(mapGradingScheme);
+  }
+
+  async findSemesterTermConfigs(orgId: string) {
+    const rows = await this.db.schoolProfileSemesterTermConfig.findMany({
+      where: { org_id: orgId },
+      orderBy: { program_type: 'asc' },
+    });
+    return rows.map(mapSemesterTermConfig);
+  }
+
+  async findFullProfile(orgId: string) {
+    const [departments, gradingScales, gradingSchemes, semesterTermConfigs] = await Promise.all([
+      this.findAllDepartments(orgId),
+      this.findGradingScales(orgId),
+      this.findGradingSchemes(orgId),
+      this.findSemesterTermConfigs(orgId),
+    ]);
+    return { departments, gradingScales, gradingSchemes, semesterTermConfigs };
   }
 
   async createDepartment(orgId: string, type: string) {

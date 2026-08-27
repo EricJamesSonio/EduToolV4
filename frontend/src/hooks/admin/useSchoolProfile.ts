@@ -8,6 +8,7 @@ import type {
   SchoolProfileLevel,
   SchoolProfileSection,
   SchoolProfileSubject,
+  SchoolProfileData,
   CreateProfileCourseRequest,
   UpdateProfileCourseRequest,
   CreateProfileStrandRequest,
@@ -19,7 +20,7 @@ import type {
   CreateProfileSubjectRequest,
   UpdateProfileSubjectRequest,
 } from "@/types/admin/school-profile.types";
-import type { DraftDepartment } from "./useSchoolProfileDraft"
+import type { DraftDepartment, DraftGradingScale, DraftGradingScheme, DraftSemesterTermConfig } from "./useSchoolProfileDraft"
 
 
 const profileKey = queryKeys.admin.schoolProfile.list();
@@ -27,14 +28,32 @@ const profileKey = queryKeys.admin.schoolProfile.list();
 export const useSchoolProfile = () => {
   return useAsyncQuery<SchoolProfileDepartment[]>(
     profileKey,
+    async () => {
+      const data = await schoolProfileApi.getProfile();
+      return data.departments;
+    },
+    { meta: { preset: "list", feature: "school-profile" } },
+  );
+};
+
+export const useSchoolProfileData = () => {
+  return useAsyncQuery<SchoolProfileData>(
+    profileKey,
     schoolProfileApi.getProfile,
     { meta: { preset: "list", feature: "school-profile" } },
   );
 };
 
 export const useSaveSchoolProfile = () => {
-  return useMutationWithInvalidation<void, Error, DraftDepartment[]>(
-    (departments) => schoolProfileApi.saveProfile(departments),
+  return useMutationWithInvalidation<
+    void,
+    Error,
+    DraftDepartment[] | { departments: DraftDepartment[]; gradingScales?: DraftGradingScale[]; gradingSchemes?: DraftGradingScheme[]; semesterTermConfigs?: DraftSemesterTermConfig[] }
+  >(
+    (payload) => {
+      if (Array.isArray(payload)) return schoolProfileApi.saveProfile(payload as DraftDepartment[]);
+      return schoolProfileApi.saveProfile(payload as any);
+    },
     { invalidateKeys: [profileKey] },
   )
 }

@@ -306,6 +306,46 @@ model SchoolProfileSubjectSharing {
   @@unique([subject_id, strand_id])
 }
 
+model SchoolProfileGradingScale {
+  id           String   @id @default(uuid())
+  org_id       String
+  program_type String
+  name         String
+  ranges       Json
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@unique([org_id, program_type])
+  @@unique([org_id, name])
+  @@index([org_id])
+}
+
+model SchoolProfileGradingScheme {
+  id           String   @id @default(uuid())
+  org_id       String
+  program_type String
+  name         String
+  components   Json
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@unique([org_id, program_type])
+  @@unique([org_id, name])
+  @@index([org_id])
+}
+
+model SchoolProfileSemesterTermConfig {
+  id           String   @id @default(uuid())
+  org_id       String
+  program_type String
+  terms        Json
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@unique([org_id, program_type])
+  @@index([org_id])
+}
+
 //////////////////////
 // STRUCTURE
 //////////////////////

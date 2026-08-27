@@ -23,6 +23,7 @@ interface SemesterTemplateStepProps {
   disabledTemplateNames:      Set<string>
   onToggleSeed:               (enabled: boolean) => void
   onToggleTemplate:           (programType: string, enabled: boolean) => void
+  termNamesByProgramOverride?: Record<string, string[]> | null
 }
 
 export function SemesterTemplateStep({
@@ -34,6 +35,7 @@ export function SemesterTemplateStep({
   disabledTemplateNames,
   onToggleSeed,
   onToggleTemplate,
+  termNamesByProgramOverride,
 }: SemesterTemplateStepProps) {
   const applicablePrograms = Array.from(selectedPrograms).filter(
     (p) => !!SEMESTER_TEMPLATE_BY_PROGRAM[p]
@@ -75,8 +77,9 @@ export function SemesterTemplateStep({
   const config = programCalendarConfigs[programType]
   const breakCount = getBreakCount(config)
   const configured = isCalendarConfigured(config)
+  const overrideTerms = termNamesByProgramOverride?.[programType]
   const liveTemplate = configured
-    ? buildGenericTemplate(base.name, programType, breakCount)
+    ? buildGenericTemplate(base.name, programType, breakCount, overrideTerms)
     : null
   // Must check against the LIVE (adapted, suffixed) name — base.name is
   // always the plain 2-sem label. Checking against it would incorrectly

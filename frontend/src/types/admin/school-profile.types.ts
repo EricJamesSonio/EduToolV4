@@ -51,6 +51,47 @@ export interface SchoolProfileDepartment {
   subjects: SchoolProfileSubject[]; // department-level minor/shared subjects
 }
 
+export interface SchoolProfileGradingRange {
+  label: string;
+  minScore: number;
+  maxScore: number;
+  gradeValue: string;
+}
+
+export interface SchoolProfileGradingScale {
+  id: string;
+  programType: string;
+  name: string;
+  ranges: SchoolProfileGradingRange[];
+}
+
+export interface SchoolProfileSchemeComponent {
+  name: string;
+  type: string;
+  weight: number;
+  isOptional?: boolean;
+}
+
+export interface SchoolProfileGradingScheme {
+  id: string;
+  programType: string;
+  name: string;
+  components: SchoolProfileSchemeComponent[];
+}
+
+export interface SchoolProfileSemesterTermConfig {
+  id: string;
+  programType: string;
+  terms: string[];
+}
+
+export interface SchoolProfileData {
+  departments: SchoolProfileDepartment[];
+  gradingScales: SchoolProfileGradingScale[];
+  gradingSchemes: SchoolProfileGradingScheme[];
+  semesterTermConfigs: SchoolProfileSemesterTermConfig[];
+}
+
 export interface CreateProfileCourseRequest {
   name: string;
   code?: string;

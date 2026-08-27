@@ -48,19 +48,24 @@ export function getAdaptedTemplateName(baseName: string, semesterCount: number):
  * Mirrors the backend builder. During seeding the template adapts to the
  * calendar's period count — N periods => N semesters, each with generic
  * "Term 1/2/3" rows. These constants describe that default shape (2 semesters).
+ * When `termNames` is provided (from School Profile), those names replace the generic ones.
  */
 export function buildGenericTemplate(
   name: string,
   programType: string,
-  semesterCount: number
+  semesterCount: number,
+  termNames?: string[],
 ): SemesterTemplate {
+  const terms: SemesterTerm[] = termNames && termNames.length > 0
+    ? termNames.map((n, idx) => ({ name: n, order_index: idx }))
+    : GENERIC_TERMS.map((t) => ({ ...t }))
   return {
     name: getAdaptedTemplateName(name, semesterCount),
     programType,
     semesters: Array.from({ length: semesterCount }, (_, i) => ({
       name: ORDINALS[i] ?? `${i + 1}th Semester`,
       order_index: i,
-      terms: GENERIC_TERMS.map((t) => ({ ...t })),
+      terms: terms.map((t) => ({ ...t })),
     })),
   }
 }

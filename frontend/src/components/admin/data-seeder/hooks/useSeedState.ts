@@ -347,6 +347,11 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
   const out: Record<string, GradingScalePreset> = {}
 
   Array.from(selectedPrograms).forEach((prog) => {
+    const overrideScale = overrides?.gradingScalesByProgram?.[prog]
+    if (overrideScale) {
+      out[prog] = overrideScale
+      return
+    }
     // Fall back to the first preset — matches what GradingScaleStep shows
     // as selected by default, so what's actually seeded always matches
     // what the admin saw selected in the UI.
@@ -356,7 +361,7 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
   })
 
   return out
-}, [selectedPrograms, gradingScaleByProgram])
+}, [selectedPrograms, gradingScaleByProgram, overrides])
 
   // ===== GRADING SCHEMES (NOT AUTO-SELECTED) =====
   const [seedGradingSchemes, setSeedGradingSchemes] = useState(false)
@@ -378,9 +383,15 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
       // every applicable program scheme so no extra per-program clicks are needed.
       setGradingSchemesByProgram((prev) => {
         const next = { ...prev }
-        GRADING_SCHEME_TEMPLATES.forEach((tpl) => {
-          next[tpl.programType] = true
-        })
+        if (overrides?.gradingSchemesByProgram) {
+          Object.keys(overrides.gradingSchemesByProgram).forEach((k) => {
+            next[k] = true
+          })
+        } else {
+          GRADING_SCHEME_TEMPLATES.forEach((tpl) => {
+            next[tpl.programType] = true
+          })
+        }
         return next
       })
     }
@@ -409,7 +420,10 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
       // otherwise we'd be auto-selecting a template we can't actually derive.
       setSemesterTemplatesByProgram((prev) => {
         const next = { ...prev }
-        SEMESTER_TEMPLATES.forEach((tpl) => {
+        const source = overrides?.semesterTermNamesByProgram
+          ? Object.keys(overrides.semesterTermNamesByProgram).map((k) => ({ programType: k }))
+          : SEMESTER_TEMPLATES
+        source.forEach((tpl: any) => {
           next[tpl.programType] = isCalendarConfigured(programCalendarConfigs[tpl.programType])
         })
         return next

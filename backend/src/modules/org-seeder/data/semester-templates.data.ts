@@ -64,19 +64,26 @@ export function getAdaptedTemplateName(
  * containing the same generic "Term 1/2/3" rows. The seed flow calls this with
  * the calendar's period count so the template always matches the Academic
  * Calendar (never a skipped auto-registration). Users rename later.
+ * When `termNames` is provided (from School Profile config), those names are
+ * used instead of the generic Term 1/2/3 labels, preserving the configured
+ * order (e.g. college Prelim/Midterm/Finals).
  */
 export function buildGenericTemplate(
   name: string,
   programType: string,
   semesterCount: number,
+  termNames?: string[],
 ): SemesterTemplateDef {
+  const terms: TermDef[] = termNames && termNames.length > 0
+    ? termNames.map((n, idx) => ({ name: n, order_index: idx }))
+    : GENERIC_TERMS.map((t) => ({ ...t }));
   return {
     name: getAdaptedTemplateName(name, semesterCount),
     programType,
     semesters: Array.from({ length: semesterCount }, (_, i) => ({
       name: ORDINALS[i] ?? `${i + 1}th Semester`,
       order_index: i,
-      terms: GENERIC_TERMS.map((t) => ({ ...t })),
+      terms: terms.map((t) => ({ ...t })),
     })),
   };
 }
