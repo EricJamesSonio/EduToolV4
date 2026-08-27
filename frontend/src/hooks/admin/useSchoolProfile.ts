@@ -24,13 +24,22 @@ import type { DraftDepartment, DraftGradingScale, DraftGradingScheme, DraftSemes
 
 
 const profileKey = queryKeys.admin.schoolProfile.list();
+// Dedicated sub-key so OrgHeroCard's array-shaped query does not collide with
+// the object-shaped SchoolProfileData cache (same fetch, different `select`).
+const profileDepartmentsKey = [...profileKey, "departments"] as const;
 
 export const useSchoolProfile = () => {
   return useAsyncQuery<SchoolProfileDepartment[]>(
-    profileKey,
+    profileDepartmentsKey,
     async () => {
       const data = await schoolProfileApi.getProfile();
-      return data.departments;
+      // getProfile normalizes array-legacy vs object responses; defensive fallback
+      // if cache was ever poisoned with the full object.
+      if (Array.isArray(data)) return data as unknown as SchoolProfileDepartment[];
+      if (Array.isArray((data as SchoolProfileData)?.departments)) {
+        return (data as SchoolProfileData).departments;
+      }
+      return [];
     },
     { meta: { preset: "list", feature: "school-profile" } },
   );
@@ -54,21 +63,21 @@ export const useSaveSchoolProfile = () => {
       if (Array.isArray(payload)) return schoolProfileApi.saveProfile(payload as DraftDepartment[]);
       return schoolProfileApi.saveProfile(payload as any);
     },
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   )
 }
 
 export const useSelectDepartment = () => {
   return useMutationWithInvalidation<SchoolProfileDepartment, Error, string>(
     (type) => schoolProfileApi.selectDepartment(type),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
 export const useDeselectDepartment = () => {
   return useMutationWithInvalidation<void, Error, string>(
     (type) => schoolProfileApi.deselectDepartment(type),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -79,7 +88,7 @@ export const useCreateProfileCourse = () => {
     { departmentId: string; data: CreateProfileCourseRequest }
   >(
     ({ departmentId, data }) => schoolProfileApi.createCourse(departmentId, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -90,14 +99,14 @@ export const useUpdateProfileCourse = () => {
     { id: string; data: UpdateProfileCourseRequest }
   >(
     ({ id, data }) => schoolProfileApi.updateCourse(id, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
 export const useDeleteProfileCourse = () => {
   return useMutationWithInvalidation<void, Error, string>(
     (id) => schoolProfileApi.deleteCourse(id),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -108,7 +117,7 @@ export const useCreateProfileStrand = () => {
     { departmentId: string; data: CreateProfileStrandRequest }
   >(
     ({ departmentId, data }) => schoolProfileApi.createStrand(departmentId, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -119,14 +128,14 @@ export const useUpdateProfileStrand = () => {
     { id: string; data: UpdateProfileStrandRequest }
   >(
     ({ id, data }) => schoolProfileApi.updateStrand(id, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
 export const useDeleteProfileStrand = () => {
   return useMutationWithInvalidation<void, Error, string>(
     (id) => schoolProfileApi.deleteStrand(id),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -137,7 +146,7 @@ export const useCreateProfileLevel = () => {
     { departmentId: string; data: CreateProfileLevelRequest }
   >(
     ({ departmentId, data }) => schoolProfileApi.createLevel(departmentId, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -148,14 +157,14 @@ export const useUpdateProfileLevel = () => {
     { id: string; data: UpdateProfileLevelRequest }
   >(
     ({ id, data }) => schoolProfileApi.updateLevel(id, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
 export const useDeleteProfileLevel = () => {
   return useMutationWithInvalidation<void, Error, string>(
     (id) => schoolProfileApi.deleteLevel(id),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -166,7 +175,7 @@ export const useCreateProfileSection = () => {
     { levelId: string; data: CreateProfileSectionRequest }
   >(
     ({ levelId, data }) => schoolProfileApi.createSection(levelId, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -177,14 +186,14 @@ export const useUpdateProfileSection = () => {
     { id: string; data: UpdateProfileSectionRequest }
   >(
     ({ id, data }) => schoolProfileApi.updateSection(id, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
 export const useDeleteProfileSection = () => {
   return useMutationWithInvalidation<void, Error, string>(
     (id) => schoolProfileApi.deleteSection(id),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -195,7 +204,7 @@ export const useCreateProfileSubject = () => {
     { levelId: string; data: CreateProfileSubjectRequest }
   >(
     ({ levelId, data }) => schoolProfileApi.createSubject(levelId, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
@@ -206,13 +215,13 @@ export const useUpdateProfileSubject = () => {
     { id: string; data: UpdateProfileSubjectRequest }
   >(
     ({ id, data }) => schoolProfileApi.updateSubject(id, data),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
 
 export const useDeleteProfileSubject = () => {
   return useMutationWithInvalidation<void, Error, string>(
     (id) => schoolProfileApi.deleteSubject(id),
-    { invalidateKeys: [profileKey] },
+    { invalidateKeys: [profileKey, profileDepartmentsKey] },
   );
 };
