@@ -640,15 +640,17 @@ model SubjectSharing {
 }
 
 model SubjectPrerequisite {
-  id              String @id @default(uuid())
+  id              String   @id @default(uuid())
   org_id          String
   subject_id      String
   prerequisite_id String
+  created_at      DateTime @default(now())
 
   subject      Subject @relation("SubjectPrereqs", fields: [subject_id], references: [id])
   prerequisite Subject @relation("PrereqFor", fields: [prerequisite_id], references: [id])
 
-  @@unique([subject_id, prerequisite_id])
+  @@unique([org_id, subject_id, prerequisite_id])
+  @@index([org_id, subject_id])
 }
 
 model Class {
@@ -749,6 +751,8 @@ model ClassAssignmentRequest {
   finalized_at                  DateTime?
   finalized_by                  String?
   reopen_reason                 String?
+  has_prerequisite_warning      Boolean                      @default(false)
+  prerequisite_warnings         Json                         @default("[]")
   created_at                    DateTime                     @default(now())
   updated_at                    DateTime                     @updatedAt
 
@@ -758,6 +762,7 @@ model ClassAssignmentRequest {
   @@index([org_id, student_school_year_id])
   @@index([org_id, student_id])
   @@index([status])
+  @@index([org_id, has_prerequisite_warning])
 }
 
 //////////////////////

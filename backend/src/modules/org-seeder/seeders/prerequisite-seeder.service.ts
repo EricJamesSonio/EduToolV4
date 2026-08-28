@@ -34,7 +34,8 @@ export class PrerequisiteSeederService {
 
         await this.db.subjectPrerequisite.upsert({
           where: {
-            subject_id_prerequisite_id: {
+            org_id_subject_id_prerequisite_id: {
+              org_id: ctx.orgId,
               subject_id: subjectId,
               prerequisite_id: prereqId,
             },
