@@ -6,6 +6,8 @@ import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
+import { AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import type { Student } from "@/types/admin/student.types";
 
 function getInitials(name: string): string {
@@ -16,9 +18,10 @@ interface StudentTableProps {
   data: Student[];
   onView: (student: Student) => void;
   onResetPassword: (student: Student) => void;
+  warningStudentIds?: Set<string>;
 }
 
-export function StudentTable({ data, onView, onResetPassword }: StudentTableProps): React.JSX.Element {
+export function StudentTable({ data, onView, onResetPassword, warningStudentIds }: StudentTableProps): React.JSX.Element {
   const columns: ColumnDef<Student>[] = [
     {
       header: "",
@@ -38,9 +41,20 @@ export function StudentTable({ data, onView, onResetPassword }: StudentTableProp
     {
       header: "Full Name",
       accessorKey: "fullName",
-      cell: ({ getValue }) => (
-        <span className="font-medium not-interactive">{getValue<string>() ?? "—"}</span>
-      ),
+      cell: ({ row, getValue }) => {
+        const hasWarning = warningStudentIds?.has(row.original.id);
+        return (
+          <span className="font-medium not-interactive inline-flex items-center gap-1.5">
+            {getValue<string>() ?? "—"}
+            {hasWarning && (
+              <Badge variant="outline" className="text-[10px] gap-1 border-amber-300 text-amber-700 bg-amber-50 px-1.5 py-0">
+                <AlertTriangle className="h-3 w-3" />
+                Prereq
+              </Badge>
+            )}
+          </span>
+        );
+      },
     },
     {
       header: "Student ID",

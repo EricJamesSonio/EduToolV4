@@ -18,6 +18,7 @@ import type { Subject, SubjectSharing } from "@/types/admin/subject.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ShareSubjectDialog } from "@/components/admin/subject/ShareSubjectDialog";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
+import { PrerequisitesSection } from "@/components/admin/subject/PrerequisitesSection";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -278,6 +279,8 @@ export default function SubjectDetailPage({
           schoolYearId={activeSchoolYearId}
         />
       )}
+
+      <PrerequisitesSection subject={subject} />
 
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold not-interactive">Linked Classes</h2>

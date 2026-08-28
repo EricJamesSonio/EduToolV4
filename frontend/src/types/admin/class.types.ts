@@ -47,4 +47,10 @@ export interface Class {
   courseName?: string;
   strandName?: string;
   templateId?: string | null;
+  has_prerequisite_warning?: boolean;
+  prerequisite_warnings?: Array<{
+    subject_id: string;
+    subject_name: string;
+    reason: string;
+  }>;
 }

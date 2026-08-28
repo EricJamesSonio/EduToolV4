@@ -20,6 +20,7 @@ import { useStudentSemesters } from "@/hooks/student/useStudentSemesters";
 import type { StudentSemesterItem } from "@/api/student/semester.api";
 import { Button } from "@/components/ui/button";
 import { useMyAcademicHistory } from "@/hooks/admin/useAcademicHistory";
+import { useAuth } from "@/hooks/useAuth";
 import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
 
 export default function StudentClassesPage(): React.JSX.Element {
@@ -28,6 +29,7 @@ export default function StudentClassesPage(): React.JSX.Element {
 
   const { data: semestersData } = useStudentSemesters();
   const { data: classesData, isLoading, isError } = useStudentClasses();
+  const { user } = useAuth();
   const { data: myHistory } = useMyAcademicHistory() as { data: { studentSchoolYearId: string; schoolYear: { id: string }; programEnrollments: { section?: { id: string } | null; status: string }[] }[] | undefined };
   const activeHistory = Array.isArray(myHistory) && myHistory.length > 0 ? (myHistory[0] as unknown as { studentSchoolYearId: string; id: string; schoolYear: { id: string }; programEnrollments: { section?: { id: string } | null; status: string }[] }) : null;
   const activeSsyId = activeHistory?.studentSchoolYearId ?? (activeHistory as unknown as { id: string } | null)?.id ?? undefined;
@@ -130,6 +132,7 @@ export default function StudentClassesPage(): React.JSX.Element {
           studentSchoolYearId={activeSsyId ?? ""}
           schoolYearId={activeSchoolYearIdForRequest}
           sectionId={activeSectionId}
+          studentId={user?.id}
           origin="student_request"
           onClose={() => setRequestOpen(false)}
         />

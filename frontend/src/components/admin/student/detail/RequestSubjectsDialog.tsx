@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { classApi } from "@/api/admin/class.api";
@@ -18,16 +19,26 @@ interface Props {
   origin: "student_request" | "admin_flag";
   schoolYearId?: string;
   sectionId?: string | null;
+  studentId?: string;
 }
 
-export function RequestSubjectsDialog({ open, onClose, studentSchoolYearId, origin, schoolYearId, sectionId }: Props): React.JSX.Element {
+export function RequestSubjectsDialog({ open, onClose, studentSchoolYearId, origin, schoolYearId, sectionId, studentId }: Props): React.JSX.Element {
   const create = useCreateClassAssignmentRequest();
   const isAdminFlag = origin === "admin_flag";
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: classesRaw, isLoading: classesLoading } = useAsyncQuery(
-    ["admin", "available-classes", schoolYearId, sectionId] as unknown as readonly unknown[],
-    () => classApi.getAll({ schoolYearId: schoolYearId ?? undefined, sectionId: sectionId ?? undefined } as never),
+    ["admin", "available-classes", schoolYearId, sectionId, studentId] as unknown as readonly unknown[],
+    () =>
+      studentId
+        ? classApi.getEligibleForStudent(studentId).then((all) => {
+            // Filter to requested schoolYear/section when provided (eligible is already placement-aware)
+            let filtered: typeof all = [...all];
+            if (schoolYearId) filtered = filtered.filter((c) => (c as unknown as { schoolYearId: string }).schoolYearId === schoolYearId);
+            if (sectionId) filtered = filtered.filter((c) => (c as unknown as { sectionId: string | null }).sectionId === sectionId);
+            return filtered;
+          })
+        : classApi.getAll({ schoolYearId: schoolYearId ?? undefined, sectionId: sectionId ?? undefined } as never),
     { enabled: open && !isAdminFlag && !!schoolYearId },
   );
 
@@ -119,11 +130,24 @@ export function RequestSubjectsDialog({ open, onClose, studentSchoolYearId, orig
             {availableClasses.map((cls) => {
               const subjectName = (cls as unknown as { subjectName?: string; subject?: { name: string } }).subjectName ?? (cls as unknown as { subject?: { name: string } }).subject?.name ?? cls.id.slice(0, 8);
               const checked = selected.has(cls.id);
+              const hasWarning = !!(cls as unknown as { has_prerequisite_warning?: boolean }).has_prerequisite_warning;
+              const warnings = (cls as unknown as { prerequisite_warnings?: Array<{ subject_name: string }> }).prerequisite_warnings ?? [];
               return (
-                <label key={cls.id} className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${checked ? "bg-primary/5 border-primary/30" : "bg-card hover:bg-muted/50"}`}>
-                  <Checkbox checked={checked} onCheckedChange={() => handleToggle(cls.id)} />
-                  <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium flex-1">{subjectName}</span>
+                <label key={cls.id} className={`flex flex-col gap-1 rounded-lg border p-3 cursor-pointer transition-colors ${checked ? "bg-primary/5 border-primary/30" : "bg-card hover:bg-muted/50"}`}>
+                  <div className="flex items-center gap-3 w-full">
+                    <Checkbox checked={checked} onCheckedChange={() => handleToggle(cls.id)} />
+                    <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium flex-1">{subjectName}</span>
+                    {hasWarning && (
+                      <Badge variant="outline" className="text-[10px] gap-1 border-amber-300 text-amber-700 bg-amber-50 shrink-0">
+                        <AlertTriangle className="h-3 w-3" />
+                        Prereq
+                      </Badge>
+                    )}
+                  </div>
+                  {hasWarning && warnings.length > 0 && (
+                    <p className="text-xs text-amber-700 ml-8 leading-snug">Not yet passed: {warnings.map((w) => w.subject_name).join(", ")}</p>
+                  )}
                 </label>
               );
             })}

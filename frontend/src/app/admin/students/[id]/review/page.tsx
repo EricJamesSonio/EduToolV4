@@ -2,11 +2,12 @@
 
 import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckSquare, Square, BookOpen } from "lucide-react";
+import { ArrowLeft, CheckSquare, Square, BookOpen, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -40,11 +41,18 @@ export default function StudentReviewPage({ params }: { params: Promise<{ id: st
 
   const { data: requestsData, isLoading: reqLoading } = useClassAssignmentRequests({ studentId: id, status: "pending_review" });
 
-  // Available classes where student enrolled (program/section)
+  // Available classes where student enrolled (program/section) — use eligible endpoint to get live prerequisite warnings
+  const sectionIdForFilter = activePe?.section?.id ?? null;
   const { data: classesRaw, isLoading: classesLoading } = useAsyncQuery(
-    ["admin", "review-classes", activeSye?.id, activePe?.section?.id] as unknown as readonly unknown[],
-    () => classApi.getAll({ schoolYearId: activeSchoolYearId ?? undefined, sectionId: activePe?.section?.id ?? undefined } as never),
-    { enabled: !!activeSchoolYearId && !!activePe },
+    ["admin", "review-classes-eligible", id, activeSye?.id, sectionIdForFilter] as unknown as readonly unknown[],
+    () =>
+      classApi.getEligibleForStudent(id).then((all) => {
+        let filtered = all as unknown as Array<Record<string, unknown>>;
+        if (activeSchoolYearId) filtered = filtered.filter((c) => (c as unknown as { schoolYearId: string }).schoolYearId === activeSchoolYearId);
+        if (sectionIdForFilter) filtered = filtered.filter((c) => (c as unknown as { sectionId: string | null }).sectionId === sectionIdForFilter);
+        return filtered;
+      }),
+    { enabled: !!activeSchoolYearId && !!activePe && !!id },
   );
 
   const availableClasses = useMemo(() => {
@@ -57,8 +65,9 @@ export default function StudentReviewPage({ params }: { params: Promise<{ id: st
     return maybe?.data ?? [];
   }, [classesRaw]);
 
-  const request = (requestsData as unknown as { data?: { id: string }[] })?.data?.[0] as { id: string } | undefined
-    ?? (Array.isArray(requestsData) ? (requestsData as unknown as { id: string }[])[0] : undefined);
+  const request = (requestsData as unknown as { data?: Array<{ id: string; has_prerequisite_warning?: boolean; prerequisite_warnings?: Array<{ subject_name: string; prerequisite_subject_name: string; prerequisite_subject_id: string; subject_id: string }> }> })?.data?.[0] as unknown as { id: string; has_prerequisite_warning?: boolean; prerequisite_warnings?: Array<{ subject_name: string; prerequisite_subject_name: string; prerequisite_subject_id: string; subject_id: string }> } | undefined
+    ?? (Array.isArray(requestsData) ? (requestsData as unknown as Array<{ id: string; has_prerequisite_warning?: boolean; prerequisite_warnings?: never[] }>)[0] as unknown as { id: string; has_prerequisite_warning?: boolean; prerequisite_warnings?: never[] } : undefined);
+  const frozenWarnings = (request as unknown as { prerequisite_warnings?: unknown[] })?.prerequisite_warnings ?? [];
 
   const finalize = useFinalizeClassAssignmentRequest();
 
@@ -137,6 +146,21 @@ export default function StudentReviewPage({ params }: { params: Promise<{ id: st
           </Button>
         </div>
 
+        {frozenWarnings.length > 0 && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 flex gap-3 mb-4">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Prerequisite warning — frozen at submission</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">This request had unmet prerequisites when submitted. Approving is the override — no separate flag needed.</p>
+              <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc ml-4 space-y-0.5">
+                {(frozenWarnings as Array<{ subject_name: string; prerequisite_subject_name: string }>).map((w, i) => (
+                  <li key={i}>{w.subject_name} requires {w.prerequisite_subject_name} (not yet passed)</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {classesLoading || reqLoading ? (
           <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : !request ? (
@@ -148,11 +172,24 @@ export default function StudentReviewPage({ params }: { params: Promise<{ id: st
             {availableClasses.map((cls) => {
               const subjectName = (cls as unknown as { subjectName?: string; subject?: { name: string } }).subjectName ?? (cls as unknown as { subject?: { name: string } }).subject?.name ?? cls.id.slice(0, 8);
               const checked = selected.has(cls.id);
+              const hasWarning = !!(cls as unknown as { has_prerequisite_warning?: boolean }).has_prerequisite_warning;
+              const warnings = (cls as unknown as { prerequisite_warnings?: Array<{ subject_name: string }> }).prerequisite_warnings ?? [];
               return (
-                <label key={cls.id} className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${checked ? "bg-primary/5 border-primary/30" : "bg-card hover:bg-muted/50"}`}>
-                  <Checkbox checked={checked} onCheckedChange={() => handleToggle(cls.id)} />
-                  <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium flex-1">{subjectName}</span>
+                <label key={cls.id} className={`flex flex-col gap-1 rounded-lg border p-3 cursor-pointer transition-colors ${checked ? "bg-primary/5 border-primary/30" : "bg-card hover:bg-muted/50"}`}>
+                  <div className="flex items-center gap-3 w-full">
+                    <Checkbox checked={checked} onCheckedChange={() => handleToggle(cls.id)} />
+                    <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium flex-1">{subjectName}</span>
+                    {hasWarning && (
+                      <Badge variant="outline" className="text-[10px] gap-1 border-amber-300 text-amber-700 bg-amber-50 shrink-0">
+                        <AlertTriangle className="h-3 w-3" />
+                        Prereq
+                      </Badge>
+                    )}
+                  </div>
+                  {hasWarning && warnings.length > 0 && (
+                    <p className="text-xs text-amber-700 ml-8">Not yet passed: {warnings.map((w) => w.subject_name).join(", ")}</p>
+                  )}
                 </label>
               );
             })}

@@ -104,6 +104,8 @@ interface RawClass {
   strand_name?:      string | null;
   _count?:           { enrollments: number };
   template_id?:      string | null;
+  has_prerequisite_warning?: boolean;
+  prerequisite_warnings?: Array<{ subject_id: string; subject_name: string; reason: string }>;
 }
 
 interface ApiResponse<T> {
@@ -165,6 +167,8 @@ function mapClass(raw: RawClass): Class {
     courseName: raw.course_name ?? undefined,
     strandName: raw.strand_name ?? undefined,
     templateId: raw.template_id ?? null,
+    has_prerequisite_warning: raw.has_prerequisite_warning ?? false,
+    prerequisite_warnings: raw.prerequisite_warnings ?? [],
   };
 }
 

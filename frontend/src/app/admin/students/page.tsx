@@ -32,6 +32,7 @@ import { StudentCredentialsCard } from "@/components/admin/student/StudentCreden
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
 
 function StudentsPageInner(): React.JSX.Element {
@@ -43,6 +44,7 @@ function StudentsPageInner(): React.JSX.Element {
   const [page, setPage]             = useState(1);
   const [limit, setLimit]           = useState(DEFAULT_PAGE_SIZE);
   const [reviewFilter, setReviewFilter] = useState<"all" | "pending_review" | "ready">("all");
+  const [warningFilter, setWarningFilter] = useState<"all" | "with_warnings">("all");
   const [resetTarget, setResetTarget] = useState<Student | null>(null);
   const [newCredentials, setNewCredentials] = useState<{
     fullName: string; email: string; studentId: string; password: string;
@@ -144,10 +146,19 @@ const enrichedStudents: Student[] = useMemo(
     return new Set((list as { student_id?: string; studentId?: string }[]).map((r) => r.student_id ?? r.studentId).filter(Boolean) as string[]);
   }, [reviewData]);
 
+  const { data: warningData } = useClassAssignmentRequests({ hasPrerequisiteWarning: "true" } as unknown as { status?: string });
+  const warningStudentIds = useMemo(() => {
+    const raw = (warningData as unknown as { data?: unknown[] } | unknown[]) as unknown;
+    const list = Array.isArray(raw) ? raw : (raw as { data?: unknown[] })?.data ?? [];
+    return new Set((list as { student_id?: string; studentId?: string }[]).map((r) => r.student_id ?? r.studentId).filter(Boolean) as string[]);
+  }, [warningData]);
+
   const displayStudents = useMemo(() => {
-    if (reviewFilter === "all") return enrichedStudents;
-    return enrichedStudents.filter((s) => reviewStudentIds.has(s.id));
-  }, [enrichedStudents, reviewFilter, reviewStudentIds]);
+    let out = enrichedStudents;
+    if (reviewFilter !== "all") out = out.filter((s) => reviewStudentIds.has(s.id));
+    if (warningFilter === "with_warnings") out = out.filter((s) => warningStudentIds.has(s.id));
+    return out;
+  }, [enrichedStudents, reviewFilter, reviewStudentIds, warningFilter, warningStudentIds]);
 
   const handleSetupEmail = () => {
     router.push("/admin/organization");
@@ -214,7 +225,7 @@ const enrichedStudents: Student[] = useMemo(
           setPage(1);
         }}
       />
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Select value={reviewFilter} onValueChange={(v) => setReviewFilter(v as never)}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="All Review Status" />
@@ -225,7 +236,17 @@ const enrichedStudents: Student[] = useMemo(
             <SelectItem value="ready">Ready</SelectItem>
           </SelectContent>
         </Select>
-        {reviewFilter !== "all" && <span className="text-xs text-muted-foreground">{displayStudents.length} matched</span>}
+        <Select value={warningFilter} onValueChange={(v) => setWarningFilter(v as never)}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Prereq warnings" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All warnings</SelectItem>
+            <SelectItem value="with_warnings">With prereq warnings</SelectItem>
+          </SelectContent>
+        </Select>
+        {(reviewFilter !== "all" || warningFilter !== "all") && <span className="text-xs text-muted-foreground">{displayStudents.length} matched</span>}
+        {warningFilter === "with_warnings" && <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">Prereq warnings</Badge>}
       </div>
 
       <AsyncListState
@@ -257,6 +278,7 @@ const enrichedStudents: Student[] = useMemo(
             data={displayStudents}
             onView={(s) => router.push(`/admin/students/${s.id}`)}
             onResetPassword={setResetTarget}
+            warningStudentIds={warningStudentIds}
           />
           <Pagination
             page={page}

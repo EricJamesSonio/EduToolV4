@@ -1,10 +1,10 @@
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { classAssignmentRequestApi, type CreateRequestPayload } from "@/api/admin/class-assignment-request.api";
 
-export const useClassAssignmentRequests = (filters?: { studentId?: string; schoolYearId?: string; status?: string }) => {
+export const useClassAssignmentRequests = (filters?: { studentId?: string; schoolYearId?: string; status?: string; hasPrerequisiteWarning?: string }) => {
   return useAsyncQuery(
     ["admin", "classAssignmentRequests", filters] as unknown as readonly unknown[],
-    () => classAssignmentRequestApi.list(filters),
+    () => classAssignmentRequestApi.list(filters as never),
   );
 };
 
