@@ -1,6 +1,6 @@
 # TICK-ACCOUNTS-002 � Username regex enforcement + bulk import duplicate pre-check
 
-Status: merged
+Status: completed
 Priority: high
 Created: 2026-08-27
 Created by: agent
