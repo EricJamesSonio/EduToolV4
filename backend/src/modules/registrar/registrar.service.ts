@@ -142,6 +142,12 @@ export class RegistrarService {
         'Username must not include an email extension.',
       );
     }
+    if (!/^[a-z0-9]+$/.test(localPart)) {
+      throw new BadRequestException('Username must be alphanumeric only.');
+    }
+    if (localPart.length > 30) {
+      throw new BadRequestException('Username must be at most 30 characters.');
+    }
 
     const base = extension
       .replace(/^@/, '')

@@ -21,9 +21,21 @@ export interface BulkCreateEducatorResult {
   plainPassword: string;
 }
 
+export interface BulkSkippedRow {
+  row:    number;
+  email:  string;
+  reason: string;
+}
+
+export interface BulkCreateResponse {
+  created: BulkCreateEducatorResult[];
+  skipped: BulkSkippedRow[];
+}
+
 export interface UpdateEducatorRequest {
   fullName?:     string;
   email?:        string;
+  emailName?:    string;
   profileImage?: string;
 }
 
@@ -81,10 +93,12 @@ export const educatorApi = {
     return res.data.data;
   },
 
-  bulkCreate: async (entries: { fullName: string; id: string }[]): Promise<BulkCreateEducatorResult[]> => {
-    const res = await client.post<ApiResponse<BulkCreateEducatorResult[]>>(
+  bulkCreate: async (entries: { fullName: string; id: string }[]): Promise<BulkCreateResponse> => {
+    const res = await client.post<ApiResponse<any>>(
       "/educators/bulk", { entries }
     );
-    return res.data.data;
+    const data = res.data.data;
+    if (Array.isArray(data)) return { created: data, skipped: [] };
+    return data as BulkCreateResponse;
   },
 };

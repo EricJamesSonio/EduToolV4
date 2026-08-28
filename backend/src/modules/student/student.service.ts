@@ -81,11 +81,17 @@ export class StudentService {
       );
     }
 
-    const localPart = emailName.trim().replace(/^@+/, '');
+    const localPart = emailName.trim().replace(/^@+/, '').toLowerCase();
     if (!localPart || localPart.includes('@')) {
       throw new BadRequestException(
         'Email name must not include an email extension.',
       );
+    }
+    if (!/^[a-z0-9]+$/.test(localPart)) {
+      throw new BadRequestException('Username must be alphanumeric only.');
+    }
+    if (localPart.length > 30) {
+      throw new BadRequestException('Username must be at most 30 characters.');
     }
 
     const base = extension
@@ -133,14 +139,29 @@ export class StudentService {
     );
 
     const allEmails = withEmails.map((e) => e.email);
-    const existing = await this.studentRepository.findEmailsInBatch(
+    const existingEmails = await this.studentRepository.findEmailsInBatch(
       allEmails,
       orgId,
     );
-    if (existing.length > 0) {
-      throw new ConflictException(
-        `Emails already exist: ${existing.join(', ')}. Remove duplicates and retry.`,
-      );
+    const existingSet = new Set(existingEmails);
+
+    const seenEmails = new Set<string>();
+    const skipped: Array<{ row: number; email: string; reason: string }> = [];
+    const toCreate: typeof withEmails = [];
+
+    for (let i = 0; i < withEmails.length; i++) {
+      const e = withEmails[i];
+      const row = i + 1;
+      if (existingSet.has(e.email)) {
+        skipped.push({ row, email: e.email, reason: 'duplicate_in_database' });
+        continue;
+      }
+      if (seenEmails.has(e.email)) {
+        skipped.push({ row, email: e.email, reason: 'duplicate_in_file' });
+        continue;
+      }
+      seenEmails.add(e.email);
+      toCreate.push(e);
     }
 
     const created: Array<{
@@ -150,23 +171,32 @@ export class StudentService {
       plainPassword: string;
     }> = [];
 
-    for (const { fullName, email, id } of withEmails) {
-      const plainPassword = generateSystemPassword();
-      const hashedPassword = await hashPassword(plainPassword);
+    for (const { fullName, email, id } of toCreate) {
+      try {
+        const plainPassword = generateSystemPassword();
+        const hashedPassword = await hashPassword(plainPassword);
 
-      await this.studentRepository.create({
-        orgId,
-        email,
-        hashedPassword,
-        status: StudentStatus.PENDING,
-        fullName,
-        studentId: id,
-      });
+        await this.studentRepository.create({
+          orgId,
+          email,
+          hashedPassword,
+          status: StudentStatus.PENDING,
+          fullName,
+          studentId: id,
+        });
 
-      created.push({ fullName, email, studentId: id, plainPassword });
+        created.push({ fullName, email, studentId: id, plainPassword });
+      } catch (err: any) {
+        if (err?.code === 'P2002') {
+          const row = toCreate.findIndex((x) => x.email === email) + 1;
+          skipped.push({ row, email, reason: 'race_condition' });
+        } else {
+          throw err;
+        }
+      }
     }
 
-    return created;
+    return { created, skipped } as any;
   }
 
   private sanitizeName(name: string): string {
@@ -276,9 +306,31 @@ export class StudentService {
     const account = await this.studentRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
-    if (dto.email && dto.email !== account.email) {
+    let resolvedEmail: string | undefined;
+    if ((dto as any).emailName) {
+      resolvedEmail = await this.buildOrgEmail(orgId, (dto as any).emailName);
+      if (resolvedEmail !== account.email) {
+        const emailTaken = await this.studentRepository.findByEmail(
+          resolvedEmail,
+          orgId,
+        );
+        if (emailTaken) {
+          throw new ConflictException(
+            'An account with this email already exists in the organization.',
+          );
+        }
+      }
+    } else if ((dto as any).email && (dto as any).email !== account.email) {
+      // Back-compat: if raw email is sent (legacy), validate domain by recomputing via emailName path is preferred,
+      // but allow with strict check that it matches org+role domain
+      const rawEmail = (dto as any).email as string;
+      const expectedDomain = (await this.buildOrgEmail(orgId, 'temp')).split('@')[1];
+      if (!rawEmail.toLowerCase().endsWith(`@${expectedDomain}`)) {
+        throw new BadRequestException('Email must match organization domain.');
+      }
+      resolvedEmail = rawEmail.toLowerCase();
       const emailTaken = await this.studentRepository.findByEmail(
-        dto.email,
+        resolvedEmail,
         orgId,
       );
       if (emailTaken) {
@@ -319,7 +371,7 @@ export class StudentService {
 
     const updated = await this.studentRepository.updateProfile(id, {
       fullName: dto.fullName,
-      email: dto.email,
+      email: resolvedEmail,
       studentId: dto.studentId,
       levelId: dto.levelId,
       sectionId: dto.sectionId,
@@ -415,7 +467,11 @@ export class StudentService {
       data: Record<string, string>;
       errors: string[];
     }> = [];
+    const skipped: Array<{ row: number; email: string; reason: string }> = [];
     const validRows: Array<{ row: number; data: Record<string, string> }> = [];
+
+    const seenEmails = new Set<string>();
+    const seenIds = new Set<string>();
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -428,18 +484,34 @@ export class StudentService {
       if (row['Email'] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row['Email'])) {
         errors.push('Email format is invalid.');
       }
-      if (row['Email'] && takenEmailSet.has(row['Email'])) {
-        errors.push(`Email "${row['Email']}" already exists.`);
-      }
-      if (row['Student ID'] && takenIdSet.has(row['Student ID'])) {
-        errors.push(`Student ID "${row['Student ID']}" already exists.`);
-      }
 
       if (errors.length > 0) {
         validationReport.push({ row: rowNum, data: row, errors });
-      } else {
-        validRows.push({ row: rowNum, data: row });
+        continue;
       }
+
+      const emailLower = row['Email'].trim().toLowerCase();
+      const idTrim = row['Student ID'].trim();
+
+      if (takenEmailSet.has(row['Email']) || takenEmailSet.has(emailLower)) {
+        skipped.push({ row: rowNum, email: row['Email'], reason: 'duplicate_in_database' });
+        continue;
+      }
+      if (takenIdSet.has(row['Student ID']) || takenIdSet.has(idTrim)) {
+        skipped.push({ row: rowNum, email: row['Email'], reason: 'duplicate_in_database' });
+        continue;
+      }
+      if (seenEmails.has(emailLower)) {
+        skipped.push({ row: rowNum, email: row['Email'], reason: 'duplicate_in_file' });
+        continue;
+      }
+      if (seenIds.has(idTrim)) {
+        skipped.push({ row: rowNum, email: row['Email'], reason: 'duplicate_in_file' });
+        continue;
+      }
+      seenEmails.add(emailLower);
+      seenIds.add(idTrim);
+      validRows.push({ row: rowNum, data: row });
     }
 
     if (validationReport.length > 0) {
@@ -449,9 +521,10 @@ export class StudentService {
         validCount: validRows.length,
         invalidCount: validationReport.length,
         errors: validationReport,
+        skipped,
         message:
           'Fix the errors and re-upload, or proceed with valid rows only.',
-      };
+      } as any;
     }
 
     const created: Array<
@@ -459,28 +532,37 @@ export class StudentService {
     > = [];
 
     for (const { data } of validRows) {
-      const plainPassword = generateSystemPassword();
-      const hashedPassword = await hashPassword(plainPassword);
+      try {
+        const plainPassword = generateSystemPassword();
+        const hashedPassword = await hashPassword(plainPassword);
 
-      const account = await this.studentRepository.create({
-        orgId,
-        email: data['Email'],
-        hashedPassword,
-        status: StudentStatus.PENDING,
-        fullName: data['Full Name'],
-        studentId: data['Student ID'],
-        levelId: data['Level ID'] || undefined,
-        sectionId: data['Section ID'] || undefined,
-      });
+        const account = await this.studentRepository.create({
+          orgId,
+          email: data['Email'],
+          hashedPassword,
+          status: StudentStatus.PENDING,
+          fullName: data['Full Name'],
+          studentId: data['Student ID'],
+          levelId: data['Level ID'] || undefined,
+          sectionId: data['Section ID'] || undefined,
+        });
 
-      created.push({ ...this.formatAccount(account), plainPassword });
+        created.push({ ...this.formatAccount(account), plainPassword });
+      } catch (err: any) {
+        if (err?.code === 'P2002') {
+          skipped.push({ row: 0, email: data['Email'], reason: 'race_condition' });
+        } else {
+          throw err;
+        }
+      }
     }
 
     return {
       status: 'success',
       totalCreated: created.length,
       students: created,
-    };
+      skipped,
+    } as any;
   }
 
   // actorId added

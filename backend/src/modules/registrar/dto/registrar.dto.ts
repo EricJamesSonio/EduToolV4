@@ -7,8 +7,9 @@ import {
   IsEnum,
   IsInt,
   Min,
+  Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export enum RegistrarStatus {
   ACTIVE = 'active',
@@ -18,9 +19,11 @@ export enum RegistrarStatus {
 // ── POST /registrars ──────────────────────────────────────────────────────────
 
 export class CreateRegistrarDto {
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
   @IsString()
   @MinLength(2)
   @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9]+$/, { message: 'Username must be alphanumeric only.' })
   username: string;
 
   @IsOptional()

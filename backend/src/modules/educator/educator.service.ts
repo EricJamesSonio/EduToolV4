@@ -107,11 +107,17 @@ export class EducatorService {
       );
     }
 
-    const localPart = emailName.trim().replace(/^@+/, '');
+    const localPart = emailName.trim().replace(/^@+/, '').toLowerCase();
     if (!localPart || localPart.includes('@')) {
       throw new BadRequestException(
         'Email name must not include an email extension.',
       );
+    }
+    if (!/^[a-z0-9]+$/.test(localPart)) {
+      throw new BadRequestException('Username must be alphanumeric only.');
+    }
+    if (localPart.length > 30) {
+      throw new BadRequestException('Username must be at most 30 characters.');
     }
 
     const base = extension
@@ -159,19 +165,32 @@ export class EducatorService {
       })),
     );
 
-    // Check for existing emails in batch
+    // Pre-check: existing emails + intra-batch duplicates → skip, not fail
     const allEmails = withEmails.map((e) => e.email);
-    const existing = await this.educatorRepository.findEmailsInBatch(
+    const existingEmails = await this.educatorRepository.findEmailsInBatch(
       allEmails,
       orgId,
     );
-    if (existing.length > 0) {
-      throw new ConflictException(
-        `Emails already exist: ${existing.join(', ')}. Remove duplicates and retry.`,
-      );
+    const existingSet = new Set(existingEmails);
+    const seenEmails = new Set<string>();
+    const skipped: Array<{ row: number; email: string; reason: string }> = [];
+    const toCreate: typeof withEmails = [];
+
+    for (let i = 0; i < withEmails.length; i++) {
+      const e = withEmails[i];
+      const row = i + 1;
+      if (existingSet.has(e.email)) {
+        skipped.push({ row, email: e.email, reason: 'duplicate_in_database' });
+        continue;
+      }
+      if (seenEmails.has(e.email)) {
+        skipped.push({ row, email: e.email, reason: 'duplicate_in_file' });
+        continue;
+      }
+      seenEmails.add(e.email);
+      toCreate.push(e);
     }
 
-    // Create all accounts
     const created: Array<{
       fullName: string;
       email: string;
@@ -179,22 +198,31 @@ export class EducatorService {
       plainPassword: string;
     }> = [];
 
-    for (const { fullName, email, id } of withEmails) {
-      const plainPassword = generateSystemPassword();
-      const hashedPassword = await hashPassword(plainPassword);
+    for (const { fullName, email, id } of toCreate) {
+      try {
+        const plainPassword = generateSystemPassword();
+        const hashedPassword = await hashPassword(plainPassword);
 
-      await this.educatorRepository.create({
-        orgId,
-        email,
-        hashedPassword,
-        fullName,
-        educatorId: id,
-      });
+        await this.educatorRepository.create({
+          orgId,
+          email,
+          hashedPassword,
+          fullName,
+          educatorId: id,
+        });
 
-      created.push({ fullName, email, educatorId: id, plainPassword });
+        created.push({ fullName, email, educatorId: id, plainPassword });
+      } catch (err: any) {
+        if (err?.code === 'P2002') {
+          const row = toCreate.findIndex((x) => x.email === email) + 1;
+          skipped.push({ row, email, reason: 'race_condition' });
+        } else {
+          throw err;
+        }
+      }
     }
 
-    return created;
+    return { created, skipped } as any;
   }
 
   private sanitizeName(name: string): string {
@@ -242,8 +270,16 @@ export class EducatorService {
     }
 
     let email = account.email;
-    if (dto.email) {
-      email = dto.email;
+    const dtoAny = dto as any;
+    if (dtoAny.emailName) {
+      email = await this.buildOrgEmail(orgId, dtoAny.emailName);
+    } else if (dtoAny.email && dtoAny.email !== account.email) {
+      const rawEmail = dtoAny.email as string;
+      const expectedDomain = (await this.buildOrgEmail(orgId, 'temp')).split('@')[1];
+      if (!rawEmail.toLowerCase().endsWith(`@${expectedDomain}`)) {
+        throw new BadRequestException('Email must match organization domain.');
+      }
+      email = rawEmail.toLowerCase();
     }
 
     // Guard: new email must be unique within org

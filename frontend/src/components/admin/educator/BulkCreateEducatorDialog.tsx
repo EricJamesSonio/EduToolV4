@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Check, Copy, Download, Users, AlertCircle } from "lucide-react";
-import { educatorApi, type BulkCreateEducatorResult } from "@/api/admin/educator.api";
+import { educatorApi, type BulkCreateEducatorResult, type BulkCreateResponse } from "@/api/admin/educator.api";
 import { downloadCsv } from "@/utils/csv.util";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -56,7 +56,7 @@ export function BulkCreateEducatorDialog({
 }: BulkCreateEducatorDialogProps) {
   const [raw, setRaw] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [results, setResults] = useState<BulkCreateEducatorResult[] | null>(null);
+  const [results, setResults] = useState<BulkCreateResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
 
@@ -67,12 +67,18 @@ export function BulkCreateEducatorDialog({
   const handleCreate = async () => {
     setIsPending(true);
     try {
-      const created = await educatorApi.bulkCreate(
+      const res = await educatorApi.bulkCreate(
         valid.map((p) => ({ fullName: p.fullName, id: p.id }))
       );
-      setResults(created);
+      const data: BulkCreateResponse = Array.isArray(res as any) ? { created: res as any, skipped: [] } : (res as BulkCreateResponse);
+      setResults(data);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.educators.all });
-      toast.success(`Created ${created.length} educator${created.length === 1 ? "" : "s"}.`);
+      const { created, skipped } = data;
+      if (skipped.length > 0) {
+        toast.success(`Created ${created.length}, skipped ${skipped.length} duplicate${skipped.length === 1 ? "" : "s"}.`);
+      } else {
+        toast.success(`Created ${created.length} educator${created.length === 1 ? "" : "s"}.`);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to create educators.");
     } finally {
@@ -81,9 +87,10 @@ export function BulkCreateEducatorDialog({
   };
 
   const handleCopyAll = async () => {
-    const text = results
-      ?.map(
-        (r) =>
+    const created = results?.created ?? [];
+    const text = created
+      .map(
+        (r: BulkCreateEducatorResult) =>
           `Full Name: ${r.fullName}\nEmail: ${r.email}\nEducator ID: ${r.educatorId}\nPassword: ${r.plainPassword}`
       )
       .join("\n\n");
@@ -97,7 +104,7 @@ export function BulkCreateEducatorDialog({
   const handleDownload = () => {
     if (!results) return;
     downloadCsv(
-      results.map((r) => ({
+      results.created.map((r: BulkCreateEducatorResult) => ({
         "Full Name": r.fullName,
         Email: r.email,
         "Educator ID": r.educatorId,
@@ -203,7 +210,7 @@ export function BulkCreateEducatorDialog({
           </p>
 
           <div className="max-h-[360px] overflow-y-auto space-y-2 rounded-lg border bg-muted/40 p-3">
-            {results.map((r, i) => (
+            {results.created.map((r: BulkCreateEducatorResult, i: number) => (
               <div key={i}>
                 {i > 0 && <Separator className="my-2" />}
                 <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
@@ -226,6 +233,22 @@ export function BulkCreateEducatorDialog({
                 </div>
               </div>
             ))}
+            {results.skipped.length > 0 && (
+              <>
+                <Separator className="my-3" />
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Skipped — duplicates ({results.skipped.length})
+                  </p>
+                  {results.skipped.map((s: any, i: number) => (
+                    <div key={`skipped-${i}`} className="flex items-center justify-between rounded bg-amber-50 dark:bg-amber-950/30 px-2 py-1.5 text-xs">
+                      <span className="font-mono truncate">{s.email}</span>
+                      <span className="ml-2 shrink-0 text-muted-foreground">row {s.row} · {s.reason.replace(/_/g, ' ')}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex gap-2">
