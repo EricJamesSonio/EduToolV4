@@ -35,7 +35,9 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
         delete: jest.fn(),
       };
 
-      const service = new SubjectPrerequisiteService(repo as any);
+      const gradingScaleRepo = { findByClassId: jest.fn().mockResolvedValue(null) } as unknown as never;
+      const db = {} as unknown as never;
+      const service = new SubjectPrerequisiteService(repo as any, gradingScaleRepo, db);
 
       // Simulate a re-import that starts (delete) then dies mid-insert.
       await expect(
@@ -82,7 +84,9 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
         delete: jest.fn(),
       };
 
-      const service = new SubjectPrerequisiteService(repo as any);
+      const gradingScaleRepo2 = { findByClassId: jest.fn().mockResolvedValue(null) } as unknown as never;
+      const db2 = {} as unknown as never;
+      const service = new SubjectPrerequisiteService(repo as any, gradingScaleRepo2, db2);
 
       // Correct behavior: a student who has never completed the prerequisite
       // must still be DENIED if the subject has prerequisites defined. After an
@@ -117,14 +121,14 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
             // old school year, failed: arrives first from this unordered query
             {
               id: 'g-old',
-              class: { subject_id: 'p-math' },
+              class: { id: 'class-old', subject_id: 'p-math' },
               final_score: 40,
               is_locked: true,
             },
             // latest school year, passed
             {
               id: 'g-new',
-              class: { subject_id: 'p-math' },
+              class: { id: 'class-new', subject_id: 'p-math' },
               final_score: 90,
               is_locked: true,
             },
@@ -133,7 +137,9 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
       };
 
       const repo = new SubjectPrerequisiteRepository(fakeDb as any);
-      const service = new SubjectPrerequisiteService(repo);
+      const gradingScaleRepo3 = { findByClassId: jest.fn().mockResolvedValue(null) } as unknown as never;
+      const db3 = {} as unknown as never;
+      const service = new SubjectPrerequisiteService(repo, gradingScaleRepo3, db3);
 
       // Correct behavior: the latest locked grade (90) is selected -> eligible.
       const result = await service.checkEligibility('s1', 'stu-1', 'org-1');
@@ -154,7 +160,7 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
           findMany: jest.fn().mockResolvedValue([
             {
               id: 'g-new',
-              class: { subject_id: 'p-math' },
+              class: { id: 'class-new', subject_id: 'p-math' },
               final_score: 90,
               is_locked: true,
             },
@@ -163,7 +169,9 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
       };
 
       const repo = new SubjectPrerequisiteRepository(fakeDb as any);
-      const service = new SubjectPrerequisiteService(repo);
+      const gradingScaleRepo4 = { findByClassId: jest.fn().mockResolvedValue(null) } as unknown as never;
+      const db4 = {} as unknown as never;
+      const service = new SubjectPrerequisiteService(repo, gradingScaleRepo4, db4);
 
       const result = await service.checkEligibility('s1', 'stu-1', 'org-1');
       expect(result).toEqual({ eligible: true, missing: [] });

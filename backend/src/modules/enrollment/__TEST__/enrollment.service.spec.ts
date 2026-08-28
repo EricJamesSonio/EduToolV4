@@ -18,6 +18,7 @@ describe('EnrollmentService', () => {
   const semesterId = 'sem-1';
   const studentId = 'stu-1';
 
+  let gradingScaleRepo: { findByClassId: jest.Mock };
   beforeEach(() => {
     repo = {
       getPrerequisitesWithGrades: jest.fn(),
@@ -35,8 +36,10 @@ describe('EnrollmentService', () => {
       findOneByStudentAndClass: jest.fn(),
     };
     db = {};
-    service = new EnrollmentService(repo, db);
+    gradingScaleRepo = { findByClassId: jest.fn().mockResolvedValue(null) };
+    service = new EnrollmentService(repo, gradingScaleRepo as unknown as never, db);
     jest.clearAllMocks();
+    gradingScaleRepo.findByClassId.mockResolvedValue(null);
     (resolveSubjectAcademicStructure as jest.Mock).mockResolvedValue({ programId: 'prog-1' });
     (isEligibleForClassStructure as jest.Mock).mockReturnValue(true);
   });
@@ -53,23 +56,23 @@ describe('EnrollmentService', () => {
       expect(res.missing[0].reason).toBe('not_taken');
     });
     it('reports not_locked when grade exists but not locked', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: false, final_score: 90 } }]);
+      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: false, final_score: 90, class: { id: 'class-1' } } }]);
       const res = await service.checkEligibility(subjectId, studentId, orgId);
       expect(res.missing[0].reason).toBe('not_locked');
     });
     it('reports not_passed when score < 75', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: true, final_score: 60 } }]);
+      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: true, final_score: 60, class: { id: 'class-1' } } }]);
       const res = await service.checkEligibility(subjectId, studentId, orgId);
       expect(res.missing[0].reason).toBe('not_passed');
     });
     it('passes when all locked and >=75', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: true, final_score: 80 } }]);
+      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: true, final_score: 80, class: { id: 'class-1' } } }]);
       const res = await service.checkEligibility(subjectId, studentId, orgId);
       expect(res.eligible).toBe(true);
     });
     it('handles mixed missing and passed', async () => {
       repo.getPrerequisitesWithGrades.mockResolvedValue([
-        { subject_id: 'pre-1', subject_name: 'A', grade: { is_locked: true, final_score: 90 } },
+        { subject_id: 'pre-1', subject_name: 'A', grade: { is_locked: true, final_score: 90, class: { id: 'class-1' } } },
         { subject_id: 'pre-2', subject_name: 'B', grade: null },
       ]);
       const res = await service.checkEligibility(subjectId, studentId, orgId);

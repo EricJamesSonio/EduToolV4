@@ -218,16 +218,24 @@ export class EnrollmentRepository {
           subject_id: { in: prereqSubjectIds },
         },
       },
+      orderBy: [
+        { class: { schoolYear: { start_date: 'asc' } } },
+        { id: 'asc' },
+      ],
       include: {
-        class: { select: { subject_id: true } },
+        class: { select: { id: true, subject_id: true, school_year_id: true } },
       },
     });
 
-    return prereqs.map((p) => ({
-      subject_id: p.prerequisite_id,
-      subject_name: p.prerequisite.name,
-      grade:
-        grades.find((g) => g.class.subject_id === p.prerequisite_id) ?? null,
-    }));
+    return prereqs.map((p) => {
+      const matches = grades.filter(
+        (g) => g.class.subject_id === p.prerequisite_id,
+      );
+      return {
+        subject_id: p.prerequisite_id,
+        subject_name: p.prerequisite.name,
+        grade: matches.length > 0 ? matches[matches.length - 1] : null,
+      };
+    });
   }
 }

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { EnrollmentRepository } from './enrollment.repository';
+import { GradingScaleRepository } from '../grading-scale/grading-scale.repository';
 import {
   UpdateEnrollmentDto,
   PrerequisiteCheckResultDto,
@@ -16,15 +17,44 @@ import {
   isEligibleForClassStructure,
 } from './enrollment-eligibility.util';
 
-// Minimum passing score — adjust if your grading scale differs per org
-const PASSING_SCORE = 75;
+// Fallback when no GradingScale assignment exists
+const FALLBACK_PASSING_SCORE = 75;
 
 @Injectable()
 export class EnrollmentService {
   constructor(
     private readonly enrollmentRepository: EnrollmentRepository,
+    private readonly gradingScaleRepository: GradingScaleRepository,
     private readonly db: DatabaseService,
   ) {}
+
+  private async isGradePassing(
+    grade: { final_score: number; class: { id: string } },
+    orgId: string,
+  ): Promise<boolean> {
+    const classId = (grade.class as unknown as { id: string }).id;
+    try {
+      const scale = await this.gradingScaleRepository.findByClassId(
+        classId,
+        orgId,
+      );
+      if (scale && (scale as unknown as { ranges: unknown }).ranges) {
+        const ranges = (scale as unknown as { ranges: unknown[] }).ranges as Array<{
+          minPercent: number;
+          maxPercent: number;
+          isPassing: boolean;
+        }>;
+        const rounded = Math.round(grade.final_score);
+        const match = ranges.find(
+          (r) => rounded >= r.minPercent && rounded <= r.maxPercent,
+        );
+        if (match) return !!match.isPassing;
+      }
+    } catch {
+      // fall through
+    }
+    return grade.final_score >= FALLBACK_PASSING_SCORE;
+  }
 
   // ── Prerequisite gate ───────────────────────────────────────────────────
 
@@ -72,7 +102,11 @@ export class EnrollmentService {
         continue;
       }
 
-      if (row.grade.final_score < PASSING_SCORE) {
+      const passed = await this.isGradePassing(
+        row.grade as unknown as { final_score: number; class: { id: string } },
+        orgId,
+      );
+      if (!passed) {
         missing.push({
           subject_id: row.subject_id,
           subject_name: row.subject_name,

@@ -97,7 +97,7 @@ export class SubjectPrerequisiteRepository {
       ],
       include: {
         class: {
-          select: { subject_id: true },
+          select: { id: true, subject_id: true, school_year_id: true },
         },
       },
     });

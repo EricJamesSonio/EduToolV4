@@ -5,6 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common'; // ✅ added semicolon
 
+import { DatabaseService } from '@/core/database/database.provider';
+import { GradingScaleRepository } from '../grading-scale/grading-scale.repository';
 import { SubjectPrerequisiteRepository } from './subject-prerequisite.repository';
 import {
   CreatePrerequisiteDto,
@@ -12,13 +14,16 @@ import {
   PrerequisiteCheckResultDto,
 } from './dto/subject-prerequisite.dto';
 
-// Minimum passing grade — adjust to match your org's grading scale
-const PASSING_SCORE = 75;
+// Fallback when no GradingScale assignment exists — matches legacy PASSING_SCORE.
+// Prefer isPassing from GradingScale.ranges; this is only for subjects with no scale.
+const FALLBACK_PASSING_SCORE = 75;
 
 @Injectable()
 export class SubjectPrerequisiteService {
   constructor(
     private readonly prereqRepository: SubjectPrerequisiteRepository,
+    private readonly gradingScaleRepository: GradingScaleRepository,
+    private readonly db: DatabaseService,
   ) {}
 
   async create(orgId: string, dto: CreatePrerequisiteDto) {
@@ -38,6 +43,18 @@ export class SubjectPrerequisiteService {
       throw new ConflictException('This prerequisite link already exists');
     }
 
+    // Immediate-only cycle check: reject A->B if B->A already exists (consistent with immediate-only checking)
+    const mutual = await this.prereqRepository.findOne(
+      dto.prerequisite_id,
+      dto.subject_id,
+      orgId,
+    );
+    if (mutual) {
+      throw new BadRequestException(
+        'Immediate cycle detected: the prerequisite already requires this subject',
+      );
+    }
+
     return this.prereqRepository.create(orgId, dto);
   }
 
@@ -46,6 +63,20 @@ export class SubjectPrerequisiteService {
       throw new BadRequestException(
         'A subject cannot be a prerequisite of itself',
       );
+    }
+
+    // Immediate-only cycle check for each requested prerequisite
+    for (const prereqId of dto.prerequisite_ids) {
+      const mutual = await this.prereqRepository.findOne(
+        prereqId,
+        dto.subject_id,
+        orgId,
+      );
+      if (mutual) {
+        throw new BadRequestException(
+          `Immediate cycle detected: prerequisite ${prereqId} already requires ${dto.subject_id}`,
+        );
+      }
     }
 
     return this.prereqRepository.bulkCreate(
@@ -73,6 +104,35 @@ export class SubjectPrerequisiteService {
     return this.prereqRepository.delete(existing.id);
   }
 
+  private async isGradePassing(
+    grade: { final_score: number; class: { id: string } },
+    orgId: string,
+  ): Promise<boolean> {
+    const classId = (grade.class as unknown as { id: string }).id;
+    try {
+      const scale = await this.gradingScaleRepository.findByClassId(
+        classId,
+        orgId,
+      );
+      if (scale && (scale as unknown as { ranges: unknown }).ranges) {
+        const ranges = (scale as unknown as { ranges: unknown[] }).ranges as Array<{
+          minPercent: number;
+          maxPercent: number;
+          isPassing: boolean;
+        }>;
+        const rounded = Math.round(grade.final_score);
+        const match = ranges.find(
+          (r) => rounded >= r.minPercent && rounded <= r.maxPercent,
+        );
+        if (match) return !!match.isPassing;
+      }
+    } catch {
+      // fall through to fallback
+    }
+    // Fallback when no scale or no matching range — legacy threshold
+    return grade.final_score >= FALLBACK_PASSING_SCORE;
+  }
+
   async checkEligibility(
     subject_id: string,
     student_id: string,
@@ -93,7 +153,8 @@ export class SubjectPrerequisiteService {
       if (defined.length > 0) {
         rows = defined.map((d) => ({
           subject_id: d.prerequisite_id,
-          subject_name: (d as any).prerequisite?.name ?? d.prerequisite_id,
+          subject_name: (d as unknown as { prerequisite: { name: string } })
+            ?.prerequisite?.name ?? d.prerequisite_id,
           grade: null,
         }));
       }
@@ -124,7 +185,11 @@ export class SubjectPrerequisiteService {
         continue;
       }
 
-      if (row.grade.final_score < PASSING_SCORE) {
+      const passed = await this.isGradePassing(
+        row.grade as unknown as { final_score: number; class: { id: string } },
+        org_id,
+      );
+      if (!passed) {
         missing.push({
           subject_id: row.subject_id,
           subject_name: row.subject_name,
