@@ -36,26 +36,28 @@ export function EmailInput({
 }: EmailInputProps): React.JSX.Element {
   const [isFocused, setIsFocused] = useState(false);
 
-  // ✅ NEW: Build full email extension with role suffix
+  // Build full email extension with role suffix — inserts role before first dot (e.g. cmi.edu -> cmi.student.edu)
   const fullExtension = useMemo(() => {
     if (!extension) return "";
 
-    const baseDomain = extension.replace(/^@/, "");
-
+    const base = extension.replace(/^@/, "").trim();
+    const firstDot = base.indexOf(".");
+    let domain: string;
     if (role === "student") {
-      return `@${baseDomain}.student`;
+      domain = firstDot >= 0 ? `${base.slice(0, firstDot)}.student${base.slice(firstDot)}` : `student.${base}`;
     } else if (role === "educator") {
-      return `@${baseDomain}.educator`;
+      domain = firstDot >= 0 ? `${base.slice(0, firstDot)}.educator${base.slice(firstDot)}` : `educator.${base}`;
+    } else {
+      domain = base;
     }
-
-    return `@${baseDomain}`;
+    return `@${domain.toLowerCase()}`;
   }, [extension, role]);
 
   // Parse the input value (username only)
   const username = value.replace(fullExtension, "").replace(/@.*$/, "");
 
   // Build the full email for display
-  const displayEmail = fullExtension ? `${username}${fullExtension}.com` : value;
+  const displayEmail = fullExtension ? `${username}${fullExtension}` : value;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
@@ -83,10 +85,10 @@ export function EmailInput({
           autoComplete="off"
           className="pr-32"
         />
-        {/* ✅ Display extension in placeholder style inside input */}
+        {/* Display extension in placeholder style inside input */}
         {isFocused && username && fullExtension && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-            {fullExtension}.com
+            {fullExtension}
           </span>
         )}
       </div>

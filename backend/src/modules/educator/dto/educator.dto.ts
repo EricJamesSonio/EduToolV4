@@ -12,8 +12,9 @@ import {
   ArrayMinSize,
   ArrayMaxSize,
   ValidateNested,
+  Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export enum EducatorStatus {
   ACTIVE = 'active',
@@ -28,9 +29,11 @@ export class CreateEducatorDto {
   @MaxLength(150)
   fullName?: string;
 
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
   @IsString()
   @MinLength(1)
-  @MaxLength(100)
+  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9]+$/, { message: 'Username must be alphanumeric only.' })
   emailName?: string;
 }
 
@@ -42,6 +45,14 @@ export class UpdateEducatorDto {
   @MinLength(2)
   @MaxLength(150)
   fullName?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9]+$/, { message: 'Username must be alphanumeric only.' })
+  emailName?: string;
 
   @IsOptional()
   @IsEmail({ require_tld: false })

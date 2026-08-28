@@ -40,6 +40,7 @@ export interface BulkImportResult {
   validCount?:  number;
   invalidCount?: number;
   students?:    Student[];
+  skipped?: Array<{ row: number; email: string; reason: string }>;
   errors?: Array<{
     row:    number;
     data:   Record<string, string>;

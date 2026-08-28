@@ -29,9 +29,21 @@ export interface BulkCreateStudentResult {
   plainPassword: string;
 }
 
+export interface BulkSkippedRow {
+  row:    number;
+  email:  string;
+  reason: string;
+}
+
+export interface BulkCreateResponse {
+  created: BulkCreateStudentResult[];
+  skipped: BulkSkippedRow[];
+}
+
 export interface UpdateStudentRequest {
   fullName?:     string;
   email?:        string;
+  emailName?:    string;
   studentId?:    string;
   profileImage?: string;
 }
@@ -168,10 +180,12 @@ export const studentApi = {
     await client.delete(`/students/${studentId}/enrollments/${enrollmentId}`);
   },
 
-  bulkCreate: async (entries: { fullName: string; id: string }[]): Promise<BulkCreateStudentResult[]> => {
-    const res = await client.post<ApiResponse<BulkCreateStudentResult[]>>(
+  bulkCreate: async (entries: { fullName: string; id: string }[]): Promise<BulkCreateResponse> => {
+    const res = await client.post<ApiResponse<any>>(
       "/students/bulk", { entries }
     );
-    return res.data.data;
+    const data = res.data.data;
+    if (Array.isArray(data)) return { created: data, skipped: [] };
+    return data as BulkCreateResponse;
   },
 };
