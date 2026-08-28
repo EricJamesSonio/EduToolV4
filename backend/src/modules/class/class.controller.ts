@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ClassService } from './class.service';
 import {
@@ -79,13 +80,16 @@ export class ClassController {
   }
 
   @Get('eligible-for-student/:studentId')
-  @Roles('admin')
+  @Roles('admin', 'student')
   async getEligibleClassesForStudent(
     @Param('studentId') studentId: string,
-    @CurrentUser('org_id') orgId: string,
+    @CurrentUser() user: { org_id: string; id: string; role: string },
     @Query('search') search?: string,
   ) {
-    return this.classService.getEligibleClassesForStudent(studentId, orgId, search);
+    if (user.role === 'student' && user.id !== studentId) {
+      throw new ForbiddenException('Students may only view their own eligible classes.');
+    }
+    return this.classService.getEligibleClassesForStudent(studentId, user.org_id, search);
   }
 
   @Get(':id')

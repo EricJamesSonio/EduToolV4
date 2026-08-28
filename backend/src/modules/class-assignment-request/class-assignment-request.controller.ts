@@ -31,12 +31,13 @@ export class ClassAssignmentRequestController {
     @Query('studentId') studentId?: string,
     @Query('schoolYearId') schoolYearId?: string,
     @Query('status') status?: string,
+    @Query('hasPrerequisiteWarning') hasPrerequisiteWarning?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.service.list(
       user.org_id,
-      { studentId, schoolYearId, status },
+      { studentId, schoolYearId, status, hasPrerequisiteWarning },
       page ? Number(page) : 1,
       limit ? Number(limit) : 20,
     );

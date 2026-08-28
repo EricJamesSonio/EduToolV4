@@ -31,6 +31,7 @@ import {
   slotsOverlap,
   toTimeSlot,
 } from './class-schedule.util';
+import { SubjectPrerequisiteService } from '../subject-prerequisite/subject-prerequisite.service';
 
 type TimeSlot = ReturnType<typeof toTimeSlot>;
 
@@ -42,6 +43,7 @@ export class ClassService {
     private readonly attendanceService: AttendanceService,
     private readonly auditLogService: AuditLogService,
     private readonly gradingSchemeTemplateService: GradingSchemeTemplateService,
+    private readonly subjectPrerequisiteService: SubjectPrerequisiteService,
     private readonly db: DatabaseService,
   ) {}
 
@@ -548,24 +550,35 @@ export class ClassService {
       eligible.push(cls);
     }
 
-    // Map to same shape as findAll for frontend consumption
-    return eligible.map((cls) => {
-      const subject = (cls as unknown as { subject: { name: string; program_id: string | null; program: { name: string } | null; course: { name: string } | null; strand: { name: string } | null; level: { name: string } | null } }).subject;
-      const educator = (cls as unknown as { educator: { profile: { full_name: string } | null } }).educator;
-      return {
-        ...cls,
-        program_id:
-          (cls as unknown as { subject: { program_id: string | null } }).subject?.program_id ?? null,
-        template_id: (cls as unknown as { gradingSchemes: { template_id: string }[] }).gradingSchemes?.[0]?.template_id ?? null,
-        subject_name: subject?.name ?? null,
-        program_name: subject?.program?.name ?? subject?.course?.name ?? subject?.strand?.name ?? null,
-        level_name: subject?.level?.name ?? null,
-        course_name: (cls as unknown as { subject: { course: { name: string } | null } }).subject?.course?.name ?? null,
-        strand_name: (cls as unknown as { subject: { strand: { name: string } | null } }).subject?.strand?.name ?? null,
-        educatorName: educator?.profile?.full_name ?? null,
-        enrolled_count: (cls as unknown as { _count: { enrollments: number } })._count?.enrollments ?? 0,
-      };
-    });
+    // Map to same shape as findAll for frontend consumption, plus live prerequisite warnings (soft, never blocks)
+    const withWarnings = await Promise.all(
+      eligible.map(async (cls) => {
+        const eligibility =
+          await this.subjectPrerequisiteService.checkEligibility(
+            cls.subject_id,
+            studentId,
+            orgId,
+          );
+        const subject = (cls as unknown as { subject: { name: string; program_id: string | null; program: { name: string } | null; course: { name: string } | null; strand: { name: string } | null; level: { name: string } | null } }).subject;
+        const educator = (cls as unknown as { educator: { profile: { full_name: string } | null } }).educator;
+        return {
+          ...cls,
+          program_id:
+            (cls as unknown as { subject: { program_id: string | null } }).subject?.program_id ?? null,
+          template_id: (cls as unknown as { gradingSchemes: { template_id: string }[] }).gradingSchemes?.[0]?.template_id ?? null,
+          subject_name: subject?.name ?? null,
+          program_name: subject?.program?.name ?? subject?.course?.name ?? subject?.strand?.name ?? null,
+          level_name: subject?.level?.name ?? null,
+          course_name: (cls as unknown as { subject: { course: { name: string } | null } }).subject?.course?.name ?? null,
+          strand_name: (cls as unknown as { subject: { strand: { name: string } | null } }).subject?.strand?.name ?? null,
+          educatorName: educator?.profile?.full_name ?? null,
+          enrolled_count: (cls as unknown as { _count: { enrollments: number } })._count?.enrollments ?? 0,
+          has_prerequisite_warning: eligibility.missing.length > 0,
+          prerequisite_warnings: eligibility.missing,
+        };
+      }),
+    );
+    return withWarnings;
   }
 
   async getEnrollments(id: string, orgId: string) {

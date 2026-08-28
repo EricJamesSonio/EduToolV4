@@ -10,6 +10,7 @@ import { EnrollmentModule } from '../enrollment/enrollment.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { GradingSchemeTemplateModule } from '../grading-scheme-template/grading-scheme-template.module';
+import { SubjectPrerequisiteModule } from '../subject-prerequisite/subject-prerequisite.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { GradingSchemeTemplateModule } from '../grading-scheme-template/grading-
     AuditLogModule,
     forwardRef(() => AttendanceModule),
     forwardRef(() => GradingSchemeTemplateModule),
+    SubjectPrerequisiteModule,
   ],
   controllers: [
     ClassController,

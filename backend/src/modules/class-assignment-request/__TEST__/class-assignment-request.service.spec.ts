@@ -9,6 +9,7 @@ describe('Phase 3A — ClassAssignmentRequest proof', () => {
     subject: { findMany: jest.Mock };
   } & Record<string, unknown>;
   let audit: { logAdminAction: jest.Mock };
+  let prereqService: { checkEligibility: jest.Mock };
 
   beforeEach(() => {
     repo = {
@@ -23,12 +24,18 @@ describe('Phase 3A — ClassAssignmentRequest proof', () => {
 
     db = {
       studentSchoolYear: { findFirst: jest.fn().mockResolvedValue({ id: 'ssy-1', student_id: 'stu-1', status: 'active' }) },
-      subject: { findMany: jest.fn().mockResolvedValue([{ id: 'subj-1' }, { id: 'subj-2' }]) },
+      subject: { findMany: jest.fn().mockResolvedValue([{ id: 'subj-1', name: 'Math 1' }, { id: 'subj-2', name: 'Math 2' }]) },
     } as unknown as typeof db;
 
     audit = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
+    prereqService = { checkEligibility: jest.fn().mockResolvedValue({ eligible: true, missing: [] }) };
 
-    service = new ClassAssignmentRequestService(repo, db as unknown as never, audit as unknown as never);
+    service = new ClassAssignmentRequestService(
+      repo,
+      db as unknown as never,
+      audit as unknown as never,
+      prereqService as unknown as never,
+    );
   });
 
   it('creates request before section assignment (enrolled but no section yet)', async () => {

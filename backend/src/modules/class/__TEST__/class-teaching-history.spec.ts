@@ -47,6 +47,7 @@ describe('Phase 6 — Educator Teaching History', () => {
       { generateSessionsForClass: jest.fn() } as never,
       { logAdminAction: jest.fn().mockResolvedValue(undefined) } as never,
       { autoApplyForNewClass: jest.fn() } as never,
+      { checkEligibility: jest.fn().mockResolvedValue({ eligible: true, missing: [] }) } as never,
       {} as never,
     );
 

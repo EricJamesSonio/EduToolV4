@@ -62,6 +62,7 @@ describe('ClassService', () => {
     attendanceService = { generateSessionsForClass: jest.fn().mockResolvedValue(undefined) };
     auditLogService = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
     gradingTemplateService = { autoApplyForNewClass: jest.fn().mockResolvedValue(undefined) };
+    const subjectPrerequisiteService = { checkEligibility: jest.fn().mockResolvedValue({ eligible: true, missing: [] }) };
     db = {
       subject: { findFirst: jest.fn() },
       course: { findFirst: jest.fn() },
@@ -72,8 +73,9 @@ describe('ClassService', () => {
       programSemesterAssignment: { findFirst: jest.fn() },
       semester: { findFirst: jest.fn() },
       classSchedule: { findMany: jest.fn() },
+      orgScheduleConfig: { findUnique: jest.fn().mockResolvedValue(null) },
     };
-    service = new ClassService(repo, enrollmentService, attendanceService, auditLogService, gradingTemplateService, db);
+    service = new ClassService(repo, enrollmentService, attendanceService, auditLogService, gradingTemplateService, subjectPrerequisiteService as never, db);
     jest.clearAllMocks();
   });
 
