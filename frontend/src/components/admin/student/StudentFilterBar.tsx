@@ -71,7 +71,7 @@ export function StudentFilterBar({ filters, onChange }: StudentFilterBarProps): 
           value={filters.search ?? ""}
           onChange={(v) => set({ search: v || undefined })}
           placeholder="Search by name or student ID…"
-          className="w-64"
+          className="flex-1 min-w-44 sm:w-64 sm:flex-none"
         />
 
         <Select
@@ -80,7 +80,7 @@ export function StudentFilterBar({ filters, onChange }: StudentFilterBarProps): 
             set({ status: v === "all" ? undefined : (v as StudentStatus) })
           }
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="flex-1 min-w-32 sm:w-40 sm:flex-none">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>

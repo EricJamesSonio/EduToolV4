@@ -227,7 +227,7 @@ const enrichedStudents: Student[] = useMemo(
       />
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={reviewFilter} onValueChange={(v) => setReviewFilter(v as never)}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="flex-1 min-w-40 sm:w-48 sm:flex-none">
             <SelectValue placeholder="All Review Status" />
           </SelectTrigger>
           <SelectContent>
@@ -237,7 +237,7 @@ const enrichedStudents: Student[] = useMemo(
           </SelectContent>
         </Select>
         <Select value={warningFilter} onValueChange={(v) => setWarningFilter(v as never)}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="flex-1 min-w-40 sm:w-48 sm:flex-none">
             <SelectValue placeholder="Prereq warnings" />
           </SelectTrigger>
           <SelectContent>
