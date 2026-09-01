@@ -621,13 +621,20 @@ export function SchoolProfileCard() {
                   />
                   <div className="space-y-2">
                     {scheme.components.map((comp: any) => (
-                      <div key={comp.key} className="grid grid-cols-12 gap-1 items-center rounded-md border bg-background p-2">
-                        <Input value={comp.name} disabled={readOnly} onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { name: e.target.value })} placeholder="Component" className="col-span-3 h-7 text-xs" />
+                      <div key={comp.key} className="grid grid-cols-1 gap-2 rounded-md border bg-background p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(8rem,1fr)_minmax(70px,0.7fr)_auto_auto] sm:items-center">
+                        <Input
+                          value={comp.name}
+                          disabled={readOnly}
+                          onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { name: e.target.value })}
+                          placeholder="Component"
+                          className="h-7 text-xs min-w-0"
+                        />
                         <select
                           value={comp.type}
                           disabled={readOnly}
                           onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { type: e.target.value })}
-                          className="col-span-3 h-7 rounded-md border bg-background px-2 text-xs"
+                          className="h-7 w-full min-w-[8rem] max-w-full rounded-md border bg-background px-2 text-xs"
+                          style={{ minWidth: "8rem" }}
                         >
                           <option value="quiz">quiz</option>
                           <option value="activity">activity</option>
@@ -637,13 +644,27 @@ export function SchoolProfileCard() {
                           <option value="behavior">behavior</option>
                           <option value="other">other</option>
                         </select>
-                        <Input type="number" value={comp.weight} disabled={readOnly} onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { weight: Number(e.target.value) })} placeholder="Weight" className="col-span-2 h-7 text-xs" />
-                        <label className="col-span-2 flex items-center gap-1 text-xs">
+                        <Input
+                          type="number"
+                          value={comp.weight}
+                          disabled={readOnly}
+                          onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { weight: Number(e.target.value) })}
+                          placeholder="Weight"
+                          className="h-7 text-xs"
+                        />
+                        <label className="flex min-w-0 items-center gap-1.5 text-xs whitespace-nowrap">
                           <input type="checkbox" checked={!!comp.isOptional} disabled={readOnly} onChange={(e) => draft.updateSchemeComponent(dept.type, comp.key, { isOptional: e.target.checked })} />
-                          Optional
+                          <span>Optional</span>
                         </label>
                         {!readOnly && (
-                          <Button type="button" variant="ghost" size="sm" className="col-span-2 h-7 text-xs" onClick={() => draft.deleteSchemeComponent(dept.type, comp.key)} disabled={scheme.components.length <= 1}>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 whitespace-nowrap text-xs"
+                            onClick={() => draft.deleteSchemeComponent(dept.type, comp.key)}
+                            disabled={scheme.components.length <= 1}
+                          >
                             Remove
                           </Button>
                         )}

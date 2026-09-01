@@ -1,0 +1,79 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e184]:
+    - navigation [ref=f2e185]:
+      - generic [ref=f2e186]:
+        - generic [ref=f2e187]:
+          - button "Toggle sidebar" [ref=f2e188]
+          - link "Relief-ED logo Relief-ED" [ref=f2e190] [cursor=pointer]:
+            - /url: /
+            - img "Relief-ED logo" [ref=f2e192]
+            - generic [ref=f2e193]: Relief-ED
+        - generic [ref=f2e194]:
+          - button "Notifications" [ref=f2e195]
+          - link "EJ" [ref=f2e197] [cursor=pointer]:
+            - /url: /admin/profile
+    - complementary [ref=f2e200]:
+      - generic [ref=f2e201]:
+        - generic [ref=f2e203]:
+          - paragraph [ref=f2e204]: Admin Portal
+          - paragraph [ref=f2e205]: System Management
+        - button [ref=f2e206]
+      - navigation [ref=f2e210]:
+        - generic [ref=f2e211]:
+          - link "Dashboard" [ref=f2e212] [cursor=pointer]:
+            - /url: /admin/dashboard
+          - link "Organization" [ref=f2e219] [cursor=pointer]:
+            - /url: /admin/organization
+          - link "Data Seeder" [ref=f2e225] [cursor=pointer]:
+            - /url: /admin/data-seeder
+          - link "Enrollment" [ref=f2e231] [cursor=pointer]:
+            - /url: /admin/enrollment
+          - link "Enrollment Portal" [ref=f2e236] [cursor=pointer]:
+            - /url: /admin/enrollment-portal
+        - generic [ref=f2e241]:
+          - link "School Years" [ref=f2e242] [cursor=pointer]:
+            - /url: /admin/school-years
+          - link "Departments" [ref=f2e246] [cursor=pointer]:
+            - /url: /admin/programs
+          - link "Sections" [ref=f2e250] [cursor=pointer]:
+            - /url: /admin/sections
+          - link "Subjects" [ref=f2e256] [cursor=pointer]:
+            - /url: /admin/subjects
+          - link "Academic Calendar" [ref=f2e260] [cursor=pointer]:
+            - /url: /admin/academic-calendar
+          - link "Semester Settings" [ref=f2e264] [cursor=pointer]:
+            - /url: /admin/semester-settings
+          - link "Classes" [ref=f2e270] [cursor=pointer]:
+            - /url: /admin/classes
+        - generic [ref=f2e275]:
+          - link "Grading Scales" [ref=f2e276] [cursor=pointer]:
+            - /url: /admin/grading-scales
+          - link "Grading Schemes" [ref=f2e280] [cursor=pointer]:
+            - /url: /admin/grading-schemes
+        - generic [ref=f2e285]:
+          - link "Educators" [ref=f2e286] [cursor=pointer]:
+            - /url: /admin/educators
+          - link "Students" [ref=f2e292] [cursor=pointer]:
+            - /url: /admin/students
+          - link "Registrars" [ref=f2e299] [cursor=pointer]:
+            - /url: /admin/registrars
+        - generic [ref=f2e313]:
+          - link "Grade Lock" [ref=f2e314] [cursor=pointer]:
+            - /url: /admin/grade-lock
+          - link "Audit Log" [ref=f2e319] [cursor=pointer]:
+            - /url: /admin/audit-log
+        - link "Concerns" [ref=f2e325] [cursor=pointer]:
+          - /url: /admin/concerns
+      - button "Log out" [ref=f2e335]
+    - main [ref=f2e340]
+  - region "Notifications alt+T"
+  - button "Open Tanstack query devtools" [ref=f2e114] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f2e342] [cursor=pointer]:
+    - generic [ref=f2e345]:
+      - text: Compiling
+      - generic [ref=f2e346]:
+        - generic [ref=f2e347]: .
+        - generic [ref=f2e348]: .
+        - generic [ref=f2e349]: .
+  - alert [ref=f2e43]
+  - button "API" [ref=f2e183] [cursor=pointer]

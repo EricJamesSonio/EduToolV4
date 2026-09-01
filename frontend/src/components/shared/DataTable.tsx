@@ -71,15 +71,15 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className={cn("relative w-full", className)}>
+    <div className={cn("relative w-full overflow-x-auto [scrollbar-gutter:stable_both-edges]", className)}>
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-background/60 backdrop-blur-[1px]">
           <LoadingSpinner size="md" />
         </div>
       )}
 
-      <div className="rounded-md border">
-        <Table className={cn(hasFixedWidths && "table-fixed")}>
+      <div className="min-w-[720px] rounded-md border">
+        <Table className={cn(hasFixedWidths && "table-fixed", "min-w-[720px]")}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} data-header-variant={headerVariant}>
