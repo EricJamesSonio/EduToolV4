@@ -64,7 +64,7 @@ export function GradingSchemeComponentRow({
 }: GradingSchemeComponentRowProps) {
   return (
     <div className={cn(
-      "grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center border-l-4 pl-3",
+      "grid grid-cols-1 gap-3 border-l-4 pl-3 sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_minmax(0,160px)_auto_auto]",
       TYPE_COLORS[row.type] ?? "border-l-gray-500"
     )}>
       {/* Name */}
@@ -73,6 +73,7 @@ export function GradingSchemeComponentRow({
         disabled={disabled}
         placeholder={COMPONENT_TYPES.find((t) => t.value === row.type)?.label ?? ""}
         onChange={(e) => onChange(index, "name", e.target.value)}
+        className="w-full min-w-0"
       />
 
       {/* Type */}
@@ -81,7 +82,7 @@ export function GradingSchemeComponentRow({
         disabled={disabled}
         onValueChange={(v) => onChange(index, "type", v as ComponentType)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-full min-w-0 max-w-full md:w-[160px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -114,7 +115,7 @@ export function GradingSchemeComponentRow({
           pattern="[0-9]*"
           value={row.weight}
           disabled={disabled}
-          className="w-[72px] tabular-nums"
+          className="w-[72px] min-w-0 tabular-nums"
           onFocus={(e) => e.target.select()}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^0-9]/g, "");
@@ -125,16 +126,18 @@ export function GradingSchemeComponentRow({
       </div>
 
       {/* Delete */}
-      <Button
-        size="icon"
-        variant="ghost"
-        disabled={disabled}
-        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-        onClick={() => onDelete(index)}
-        title="Remove component"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="flex justify-end sm:justify-start">
+        <Button
+          size="icon"
+          variant="ghost"
+          disabled={disabled}
+          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={() => onDelete(index)}
+          title="Remove component"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

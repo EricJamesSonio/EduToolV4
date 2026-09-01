@@ -78,8 +78,8 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      <div className="min-w-[720px] rounded-md border">
-        <Table className={cn(hasFixedWidths && "table-fixed", "min-w-[720px]")}>
+      <div className="min-w-0 rounded-md border">
+        <Table className={cn(hasFixedWidths && "table-fixed", "min-w-0")}> 
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} data-header-variant={headerVariant}>

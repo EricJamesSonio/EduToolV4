@@ -11,16 +11,10 @@ const Table: React.FC<React.ComponentProps<"table">> = ({
   ...props
 }) => {
   return (
-    <div
-      data-slot="table-container"
-      className="w-full overflow-x-auto rounded-[var(--radius)] bg-card"
-    >
+    <div data-slot="table-container" className="w-full rounded-[var(--radius)] bg-card">
       <table
         data-slot="table"
-        className={cn(
-          "w-full caption-bottom table-enhanced",
-          className
-        )}
+        className={cn("w-full min-w-0 caption-bottom table-enhanced", className)}
         {...props}
       />
     </div>
@@ -97,10 +91,7 @@ const TableHead: React.FC<
   return (
     <th
       data-slot="table-head"
-      className={cn(
-        "text-left align-middle font-semibold whitespace-nowrap",
-        className
-      )}
+      className={cn("text-left align-middle font-semibold", className)}
       {...props}
     />
   );
@@ -115,10 +106,7 @@ const TableCell: React.FC<
   return (
     <td
       data-slot="table-cell"
-      className={cn(
-        "align-middle whitespace-nowrap",
-        className
-      )}
+      className={cn("align-middle", className)}
       {...props}
     />
   );

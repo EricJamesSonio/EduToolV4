@@ -67,7 +67,7 @@ export default function StudentClassesPage(): React.JSX.Element {
         title="My Classes"
         actions={
           <Select value={semesterId} onValueChange={handleSemesterChange}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full min-w-[9rem] max-w-[12rem] sm:w-48">
               <SelectValue placeholder="All Semesters">
                 {semesters.find((s) => s.id === semesterId)?.name ?? "All Semesters"}
               </SelectValue>

@@ -90,7 +90,7 @@ function ProgramTableRowActions({
             }
           }}
         >
-          <SelectTrigger className="h-8 w-44 text-xs">
+          <SelectTrigger className="h-8 w-full min-w-[8rem] max-w-[11rem] text-xs sm:min-w-[10rem] sm:max-w-[11rem]">
             <SelectValue placeholder="Assign template…">
                 {matchingTemplates.find((t) => t.id === selectedId)?.name ?? "Assign template…"}
               </SelectValue>
