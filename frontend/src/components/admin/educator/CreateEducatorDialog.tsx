@@ -127,17 +127,13 @@ export function CreateEducatorDialog({
                 disabled={createMutation.isPending}
               />
 
-              {email.trim() && emailExtension && (
-                <p className="text-xs text-muted-foreground">
-                  Preview:{" "}
+              {email.trim() && (
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Final Email:</span>{" "}
                   <span className="font-medium">
-                    {buildFullEmail(
-                      email,
-                      emailExtension,
-                      "educator"
-                    )}
+                    {buildFullEmail(email, emailExtension, "educator")}
                   </span>
-                </p>
+                </div>
               )}
 
               {usernameError && (
