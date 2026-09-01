@@ -179,10 +179,10 @@ export function GradingSchemeEditor() {
 
       {/* Column headers — only when rows exist */}
       {rows.length > 0 && (
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-0.5">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">Category Name</span>
-          <span className="w-[140px] text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">Type</span>
-          <span className="w-[96px] text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">Weight</span>
+        <div className="hidden text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_minmax(110px,0.7fr)_40px] sm:gap-3 sm:px-0.5">
+          <span className="not-interactive">Category Name</span>
+          <span className="not-interactive">Type</span>
+          <span className="not-interactive">Weight</span>
           <span className="w-8" />
         </div>
       )}

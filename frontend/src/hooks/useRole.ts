@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/auth.store";
@@ -39,10 +39,26 @@ export type RoleGuardStatus = "loading" | "allowed" | "redirecting";
  *   3. On bfcache restore (pageshow) → full replace so the cached protected
  *      page is dropped and the user lands on /login.
  */
-export function useRoleGuard(allowedRoles: Role[]): { status: RoleGuardStatus } {
-  const { user, isLoading } = useAuth();
+export function useRoleGuard(allowedRoles: Role[]): {
+  status: RoleGuardStatus;
+  showLogoutPrompt: boolean;
+  confirmLogout: () => void;
+  cancelLogout: () => void;
+} {
+  const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   const redirectedRef = useRef(false);
+  const [showLogoutPrompt, setShowLogoutPrompt] = useState(false);
+
+  const cancelLogout = () => {
+    setShowLogoutPrompt(false);
+    window.history.pushState(null, "", window.location.href);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutPrompt(false);
+    void logout();
+  };
 
   useLayoutEffect(() => {
     if (isLoading) return;
@@ -58,6 +74,27 @@ export function useRoleGuard(allowedRoles: Role[]): { status: RoleGuardStatus } 
       redirectedRef.current = false;
     }
   }, [user, isLoading, allowedRoles, router]);
+
+  useEffect(() => {
+    if (isLoading || !user) return;
+
+    const canAccessPortal = allowedRoles.includes(user.role);
+    if (!canAccessPortal) return;
+
+    const reLockHistory = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+
+   const onPopState = () => {
+     if (!user) return;
+     setShowLogoutPrompt(true);
+     reLockHistory();
+   };
+
+    reLockHistory();
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [allowedRoles, isLoading, user]);
 
   /* bfcache restore — the component is not remounted on restore, so the effect
      above is skipped.  pageshow fires even for persisted (cached) restores.
@@ -83,5 +120,5 @@ export function useRoleGuard(allowedRoles: Role[]): { status: RoleGuardStatus } 
     status = "redirecting";
   }
 
-  return { status };
+  return { status, showLogoutPrompt, confirmLogout, cancelLogout };
 }

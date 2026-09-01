@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useRoleGuard } from "@/hooks/useRole";
 import { RouteGuardLoader } from "@/components/shared/RouteGuardLoader";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { WelcomeModal } from "@/components/shared/WelcomeModal";
 import { StudentSidebar } from "@/components/layout/StudentSidebar";
 import { AppShell } from "@/components/layout/AppShell";
@@ -22,18 +23,32 @@ export default function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { status } = useRoleGuard(["student"]);
+  const { status, showLogoutPrompt, confirmLogout, cancelLogout } = useRoleGuard(["student"]);
   if (status !== "allowed") return <RouteGuardLoader />;
 
   return (
-    <MeetingProvider>
-      <SidebarProvider>
-        <AppShell sidebar={<StudentSidebar />}>
-          {children}
-          <WelcomeModal role="student" />
-        </AppShell>
-      </SidebarProvider>
-      <MeetingMiniPlayer />
-    </MeetingProvider>
+    <>
+      <ConfirmDialog
+        open={showLogoutPrompt}
+        onOpenChange={(open) => {
+          if (!open) cancelLogout();
+        }}
+        title="Logout?"
+        message="You are still signed in. Do you want to log out before leaving this portal?"
+        confirmLabel="Logout"
+        cancelLabel="Stay signed in"
+        destructive
+        onConfirm={confirmLogout}
+      />
+      <MeetingProvider>
+        <SidebarProvider>
+          <AppShell sidebar={<StudentSidebar />}>
+            {children}
+            <WelcomeModal role="student" />
+          </AppShell>
+        </SidebarProvider>
+        <MeetingMiniPlayer />
+      </MeetingProvider>
+    </>
   );
 }

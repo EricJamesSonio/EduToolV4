@@ -47,6 +47,7 @@ describe('useRoleGuard', () => {
     jest.clearAllMocks();
     mockReplace = jest.fn();
     mockUseRouter.mockReturnValue({ replace: mockReplace });
+    jest.spyOn(window, 'confirm').mockReturnValue(false);
     addEventListenerSpy = jest.spyOn(window, 'addEventListener');
     removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
   });
@@ -107,7 +108,7 @@ describe('useRoleGuard', () => {
   it('pageshow handler checks persisted and calls store', () => {
     const getStateSpy = jest.spyOn(useAuthStore, 'getState').mockReturnValue({ user: null } as unknown as ReturnType<typeof useAuthStore.getState>);
 
-    mockUseAuth.mockReturnValue({ user: { role: 'admin' }, isLoading: false });
+    mockUseAuth.mockReturnValue({ user: { role: 'admin' }, isLoading: false, logout: jest.fn() });
     renderHook(() => useRoleGuard(['admin']));
 
     const handler = addEventListenerSpy.mock.calls.find((c: [string, unknown]) => c[0] === 'pageshow')?.[1] as ((e: { persisted: boolean }) => void) | undefined;
@@ -123,6 +124,28 @@ describe('useRoleGuard', () => {
     expect(getStateSpy.mock.calls.length).toBe(callsBefore);
 
     getStateSpy.mockRestore();
+  });
+
+  it('opens the app logout dialog on browser back from a protected portal', () => {
+    const mockLogout = jest.fn();
+    mockUseAuth.mockReturnValue({ user: { role: 'admin' }, isLoading: false, logout: mockLogout });
+    const { result } = renderHook(() => useRoleGuard(['admin']));
+
+    const handler = addEventListenerSpy.mock.calls.find((c: [string, unknown]) => c[0] === 'popstate')?.[1] as (() => void) | undefined;
+    expect(handler).toBeDefined();
+    if (!handler) throw new Error('popstate handler not found');
+
+    act(() => {
+      handler();
+    });
+
+    expect(result.current.showLogoutPrompt).toBe(true);
+
+    act(() => {
+      result.current.confirmLogout();
+    });
+
+    expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 
   it('allows multiple roles', () => {

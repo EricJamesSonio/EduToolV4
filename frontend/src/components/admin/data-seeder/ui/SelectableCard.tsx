@@ -31,7 +31,7 @@ export function SelectableCard({
         onSelect()
       }}
       className={cn(
-        "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+        "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors sm:gap-3",
         disabled
           ? "cursor-not-allowed opacity-40 pointer-events-none select-none"
           : "hover:bg-muted/50",
@@ -49,13 +49,13 @@ export function SelectableCard({
       >
         {selected && !disabled && <Check className="h-2.5 w-2.5" />}
       </div>
-      <div>
-        <p className="text-sm font-medium leading-tight">{title}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium leading-tight break-words">{title}</p>
         {!disabled && subtitle && (
-          <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground break-words">{subtitle}</p>
         )}
         {disabled && disabledReason && (
-          <p className="text-xs text-muted-foreground mt-0.5">{disabledReason}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground break-words">{disabledReason}</p>
         )}
       </div>
     </button>

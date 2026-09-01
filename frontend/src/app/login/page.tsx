@@ -2,8 +2,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { getRoleHomePath } from "@/utils/role.util";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,13 +22,24 @@ import {
 } from "lucide-react";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const router = useRouter();
+  const { login, user, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(getRoleHomePath(user.role));
+    }
+  }, [authLoading, router, user]);
+
+  if (!authLoading && user) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +68,7 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       await login(trimmedEmail, trimmedPassword);
@@ -72,7 +85,7 @@ export default function LoginPage() {
         setError("Something went wrong. Please try again.");
       }
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -248,7 +261,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))}
-                    disabled={isLoading}
+                   disabled={isSubmitting}
                   />
                 </div>
 
@@ -265,7 +278,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         setPassword(e.target.value.replace(/\s/g, ""))
                       }
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="pr-10"
                     />
                     <button
@@ -294,8 +307,8 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Signing in...
