@@ -1,6 +1,6 @@
 # TICK-STUDENT-001 — Admin Students page filter controls stack vertically on small screens
 
-Status: in-progress
+Status: ready-for-review
 Priority: medium
 Created: 2026-09-01
 Created by: agent
@@ -58,13 +58,28 @@ same desktop layout as today.
 
 ## Confidence
 
-Score: not yet assessed
+Score: 96/100
+- Requirement clarity: 97 (user explicitly described mobile stacking of filter
+  controls; pages already responsive)
+- Codebase verification: 96 (read all three surfaces; `sm:`-override pattern
+  matches existing codebase usage like SchoolYearSelector `w-full sm:w-64` and
+  enrollment-portal `w-full sm:w-72`)
+- Architecture fit: 96 (pure Tailwind utility classes, no logic/data changes)
+- Edge cases: 93 (very narrow screens still wrap gracefully thanks to `min-w-*`;
+  desktop is pixel-identical because `sm:` restores the original fixed widths)
+- Blast radius: 97 (3 files, CSS classes only)
+No cap — no auth/tenant/grading/migration/realtime code touched.
 
 ## Tests
 
-- Targeted: not run
+- Targeted: eslint pass on the 3 touched files (exit 0); `tsc --noEmit` full
+  project pass (exit 0); `next build --webpack` full production build pass
+  (exit 0, all routes compiled incl. /admin/students). Turbopack build was not
+  used because it rejects the node_modules junction that this repo's worktrees
+  rely on (known Turbopack limitation: "Symlink [project]/node_modules is
+  invalid, it points out of the filesystem root").
 - Full suite: not run
-- Development integration: not run
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -73,10 +88,14 @@ None.
 ## Activity Log
 
 2026-09-01 — Claimed, creating worktree from development.
+2026-09-01 — Made filter controls responsive on mobile (flex-1 + min-w-* below
+  sm, fixed widths restored at sm+). Verified eslint, tsc, and full production
+  build all pass. Committed 6c244e4e.
+2026-09-01 — Ready for review.
 
 ## Commits
 
-<Filled in as work lands.>
+- 6c244e4e fix(admin): make students filter controls responsive side-by-side on mobile
 
 ## Notes
 
