@@ -48,7 +48,7 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
       const endpoint = `${config.method?.toUpperCase()} ${config.url}`;
       trackCall(endpoint);
 
