@@ -17,7 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buildFullEmail } from "@/lib/email/buildFullEmail";
 import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
-import { USERNAME_MAX_LENGTH, USERNAME_REGEX, USERNAME_ERROR_MESSAGE } from "@/utils/validation.util";
+import {
+  USERNAME_MAX_LENGTH,
+  USERNAME_REGEX,
+  USERNAME_ERROR_MESSAGE,
+  sanitizeUsernameInput,
+} from "@/utils/validation.util";
 
 interface CredentialsPreview {
   fullName: string;
@@ -53,6 +58,7 @@ export function CreateStudentDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors },
   } = useForm<CreateStudentForm>({
@@ -179,6 +185,13 @@ export function CreateStudentDialog({
                   message: USERNAME_ERROR_MESSAGE,
                 },
               })}
+              onChange={(event) => {
+                const next = sanitizeUsernameInput(event.target.value);
+                setValue("email", next, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
+              }}
               disabled={mutation.isPending}
             />
 

@@ -52,6 +52,12 @@ export const usernameSchema = z
   )
   .regex(USERNAME_REGEX, USERNAME_ERROR_MESSAGE);
 
+/** Strips any invalid characters so the input stays username-safe while the
+ * server/email extension handles the final email format. */
+export function sanitizeUsernameInput(value: string): string {
+  return value.replace(/[^a-zA-Z0-9]/g, "");
+}
+
 /** Returns an error message for an invalid username, or null when valid. */
 export function validateUsername(username: string): string | null {
   const result = usernameSchema.safeParse(username);

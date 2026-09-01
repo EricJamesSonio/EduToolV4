@@ -9,17 +9,12 @@ import { Loader2 } from "lucide-react";
 import { useCreateRegistrar } from "@/hooks/admin/useRegistrars";
 import { RegistrarCredentialsCard } from "./RegistrarCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
-import { nameSchema, validateUsername } from "@/utils/validation.util";
-
-function previewRegistrarEmail(username: string, extension: string | null): string {
-  if (!extension) return username;
-  const base = extension.replace(/^@/, "").replace(/\.(student|educator|registrar)\./g, ".").trim();
-  const dotIdx = base.indexOf(".");
-  const domain = dotIdx >= 0
-    ? `${base.slice(0, dotIdx)}.registrar${base.slice(dotIdx)}`
-    : `registrar.${base}`;
-  return `${username.trim().replace(/^@+/, "").toLowerCase()}@${domain}`;
-}
+import { buildFullEmail } from "@/lib/email/buildFullEmail";
+import {
+  nameSchema,
+  sanitizeUsernameInput,
+  validateUsername,
+} from "@/utils/validation.util";
 
 interface CreateRegistrarDialogProps {
   open: boolean;
@@ -130,19 +125,20 @@ export function CreateRegistrarDialog({
                 maxLength={30}
                 value={username}
                 onChange={(e) => {
-                  setUsername(e.target.value);
+                  const next = sanitizeUsernameInput(e.target.value);
+                  setUsername(next);
                   setUsernameError(null);
                 }}
                 disabled={createMutation.isPending}
               />
 
-              {username.trim() && emailExtension && (
-                <p className="text-xs text-muted-foreground">
-                  Preview:{" "}
+              {username.trim() && (
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Final Email:</span>{" "}
                   <span className="font-medium">
-                    {previewRegistrarEmail(username, emailExtension)}
+                    {buildFullEmail(username, emailExtension, "registrar")}
                   </span>
-                </p>
+                </div>
               )}
 
               {usernameError && (

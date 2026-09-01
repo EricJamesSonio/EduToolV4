@@ -12,7 +12,10 @@ import { useCreateEducator } from "@/hooks/admin/useEducators";
 import { EducatorCredentialsCard } from "./EducatorCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import { buildFullEmail } from "@/lib/email/buildFullEmail";
-import { validateUsername } from "@/utils/validation.util";
+import {
+  sanitizeUsernameInput,
+  validateUsername,
+} from "@/utils/validation.util";
 
 interface CreateEducatorDialogProps {
   open: boolean;
@@ -117,7 +120,8 @@ export function CreateEducatorDialog({
                 maxLength={30}
                 value={email}
                 onChange={(e) => {
-                  setEmail(e.target.value);
+                  const next = sanitizeUsernameInput(e.target.value);
+                  setEmail(next);
                   setUsernameError(null);
                 }}
                 disabled={createMutation.isPending}
