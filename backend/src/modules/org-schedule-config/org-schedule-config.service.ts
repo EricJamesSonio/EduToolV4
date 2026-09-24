@@ -6,6 +6,7 @@ import {
 import { OrgScheduleConfigRepository } from './org-schedule-config.repository';
 import { UpsertOrgScheduleConfigDto } from './dto/org-schedule-config.dto';
 import { DatabaseService } from '@/core/database/database.provider';
+import { getScheduleViolation, toMinutes } from './schedule-window.util';
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);

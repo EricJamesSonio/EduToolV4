@@ -1,15 +1,3 @@
-/**
- * classes.seeder.ts
- *
- * Deterministic pass: for every level, pair each of its subjects with each
- * of its sections (cycling the shorter list) so every subject AND every
- * section under that level ends up with at least one class — satisfying
- * both the "subject has classes" and "section has classes" readiness
- * requirements without a full N×M combinatorial blow-up. Each new class
- * also gets a grading scheme copied from that program's grading scheme
- * template, satisfying "class has a grading scheme."
- */
-
 import { v4 as uuid } from 'uuid';
 import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
@@ -18,6 +6,7 @@ import { randInt } from '../utils/random.util';
 import {
   UsedMap,
   allocateScheduleSlot,
+  buildScheduleWindows,
   scheduleDate,
   scheduleKey,
   timeOnly,
@@ -38,7 +27,6 @@ export async function seedClasses(
   const syStart = sy?.start_date ?? new Date();
   const syEnd = sy?.end_date ?? new Date(syStart.getTime() + 365 * 24 * 60 * 60 * 1000);
 
-  // Get semester IDs for each program
   const semesterMap: Record<string, string> = {};
   for (const progKey of programKeys) {
     const programId = programMap[progKey];
@@ -82,13 +70,10 @@ export async function seedClasses(
     semesterMap[progKey] = semesterId;
   }
 
-  // Reverse map: programId -> progKey, so a Level record can tell us which
-  // program config it belongs to.
   const programIdToKey: Record<string, string> = {};
   for (const [key, id] of Object.entries(programMap)) programIdToKey[id] = key;
 
-  // Grading scheme template cache, keyed by progKey, loaded lazily.
-  const schemeTemplateCache = new Map<
+  const schemeTemplateCache = new Map
     string,
     {
       templateId: string;
@@ -171,8 +156,6 @@ export async function seedClasses(
     });
   }
 
-  // Pre-load already-seeded classes so re-runs never double-book an educator or
-  // section (keeps the seed conflict-free and idempotent).
   const educatorUsed: UsedMap = new Map();
   const sectionUsed: UsedMap = new Map();
   const existingClasses = await db.class.findMany({
@@ -190,6 +173,18 @@ export async function seedClasses(
       if (cls.section_id) usedAdd(sectionUsed, cls.section_id, key);
     }
   }
+
+  const scheduleCfg = await db.orgScheduleConfig.upsert({
+    where: { org_id: orgId },
+    update: {},
+    create: {
+      org_id: orgId,
+      start_time: '07:00',
+      end_time: '17:00',
+      slot_duration: 30,
+    },
+  });
+  const windows = buildScheduleWindows(scheduleCfg);
 
   const uniqueLevelIds = [...new Set(Object.values(levelMap))];
   const levels = await db.level.findMany({
@@ -256,6 +251,7 @@ export async function seedClasses(
         section.id,
         educatorUsed,
         sectionUsed,
+        windows,
       );
       if (!allocation) {
         console.warn(

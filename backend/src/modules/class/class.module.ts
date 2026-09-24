@@ -11,6 +11,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { GradingSchemeTemplateModule } from '../grading-scheme-template/grading-scheme-template.module';
 import { SubjectPrerequisiteModule } from '../subject-prerequisite/subject-prerequisite.module';
+import { OrgScheduleConfigModule } from '../org-schedule-config/org-schedule-config.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SubjectPrerequisiteModule } from '../subject-prerequisite/subject-prere
     forwardRef(() => AttendanceModule),
     forwardRef(() => GradingSchemeTemplateModule),
     SubjectPrerequisiteModule,
+    OrgScheduleConfigModule,
   ],
   controllers: [
     ClassController,

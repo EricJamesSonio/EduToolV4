@@ -13,6 +13,8 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { GradingSchemeTemplateService } from '../grading-scheme-template/grading-scheme-template.service';
 import { resolveProgramIdFromSubject } from '../program/program-type-resolver';
 import { DatabaseService } from '@/core/database/database.provider';
+import { OrgScheduleConfigService } from '../org-schedule-config/org-schedule-config.service';
+import { getScheduleViolation } from '../org-schedule-config/schedule-window.util';
 import {
   resolveSubjectAcademicStructure,
   isEligibleForClassStructure,
@@ -45,6 +47,7 @@ export class ClassService {
     private readonly gradingSchemeTemplateService: GradingSchemeTemplateService,
     private readonly subjectPrerequisiteService: SubjectPrerequisiteService,
     private readonly db: DatabaseService,
+    private readonly orgScheduleConfigService: OrgScheduleConfigService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -108,43 +111,22 @@ export class ClassService {
     return fallback.id;
   }
 
-  private toMinutes(hhmm: string): number {
-    const [h, m] = hhmm.split(':').map(Number);
-    return h * 60 + m;
-  }
 
   private dateToMinutes(d: Date): number {
     return d.getHours() * 60 + d.getMinutes();
   }
 
   private async assertScheduleConfig(orgId: string, slots: TimeSlot[]): Promise<void> {
-    const cfg = await this.db.orgScheduleConfig.findUnique({
-      where: { org_id: orgId },
-    });
-    const startM = cfg ? this.toMinutes(cfg.start_time) : 7 * 60;
-    const endM = cfg ? this.toMinutes(cfg.end_time) : 17 * 60;
-    const dur = cfg ? cfg.slot_duration : 30;
-
+    const cfg = await this.orgScheduleConfigService.getByOrg(orgId);
     for (const slot of slots) {
-      const sM = this.dateToMinutes(slot.startTime);
-      const eM = this.dateToMinutes(slot.endTime);
-      const len = eM - sM;
-
-      if (sM < startM || eM > endM) {
-        const fmt = (mins: number) =>
-          `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+      const violation = getScheduleViolation(
+        cfg,
+        this.dateToMinutes(slot.startTime),
+        this.dateToMinutes(slot.endTime),
+      );
+      if (violation) {
         throw new BadRequestException(
-          `Schedule weekday ${slot.weekday}: time ${fmt(sM)}–${fmt(eM)} is outside allowed range ${cfg?.start_time ?? '07:00'}–${cfg?.end_time ?? '17:00'}.`,
-        );
-      }
-      if (len % dur !== 0) {
-        throw new BadRequestException(
-          `Schedule weekday ${slot.weekday}: duration ${len}m must be a multiple of ${dur}m.`,
-        );
-      }
-      if ((sM - startM) % dur !== 0) {
-        throw new BadRequestException(
-          `Schedule weekday ${slot.weekday}: start time must align to ${dur}m slots from ${cfg?.start_time ?? '07:00'}.`,
+          `Schedule weekday ${slot.weekday}: ${violation}`,
         );
       }
     }

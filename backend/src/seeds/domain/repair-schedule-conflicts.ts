@@ -1,16 +1,7 @@
-/**
- * repair-schedule-conflicts.ts
- *
- * Scans every non-deleted class and moves any schedule that overlaps
- * another class of the SAME educator (and section) within the same school
- * year to a free slot. Runs after the domain seeder so data created by
- * older/other seeders gets reconciled. Idempotent — reports how many
- * classes were touched.
- */
-
 import { db } from './db';
 import {
   UsedMap,
+  buildScheduleWindows,
   findFreeSlot,
   isUsed,
   scheduleDate,
@@ -37,6 +28,12 @@ export async function repairScheduleConflicts(): Promise<number> {
   }
 
   for (const group of byGroup.values()) {
+    const cfg = await db.orgScheduleConfig.findUnique({
+      where: { org_id: group[0].org_id },
+    });
+    if (!cfg) continue;
+    const windows = buildScheduleWindows(cfg);
+
     const educatorUsed: UsedMap = new Map();
     const sectionUsed: UsedMap = new Map();
 
@@ -77,10 +74,10 @@ export async function repairScheduleConflicts(): Promise<number> {
           cls.section_id,
           educatorUsed,
           sectionUsed,
+          windows,
           resolvedKeys,
         );
         if (!freeSlot) {
-          // No free slot available — keep the original rather than lose data.
           resolved.push({
             id: s.id,
             weekday: s.weekday,
