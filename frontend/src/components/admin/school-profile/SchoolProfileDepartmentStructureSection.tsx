@@ -362,20 +362,25 @@ export function SchoolProfileDepartmentStructureSection({
           </div>
         );
 
-        const cardProps = {
-          key: department.type,
-          id: "structure",
-          icon: LayoutList,
-          title: PROGRAM_TYPE_LABELS[department.type],
-        };
+const cardProps = {
+  id: "structure",
+  icon: LayoutList,
+  title: PROGRAM_TYPE_LABELS[department.type],
+};
 
-        return readOnly ? (
-          <CollapsibleDepartmentCard {...cardProps} defaultOpen={false}>
-            {content}
-          </CollapsibleDepartmentCard>
-        ) : (
-          <Card {...cardProps}>{content}</Card>
-        );
+return readOnly ? (
+  <CollapsibleDepartmentCard
+    key={department.type}
+    {...cardProps}
+    defaultOpen={false}
+  >
+    {content}
+  </CollapsibleDepartmentCard>
+) : (
+  <Card key={department.type} {...cardProps}>
+    {content}
+  </Card>
+);
       })}
     </>
   );
