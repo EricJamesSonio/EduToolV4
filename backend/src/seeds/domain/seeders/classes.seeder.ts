@@ -13,6 +13,18 @@ import {
   usedAdd,
 } from '../utils/schedule.util';
 
+interface SchemeComponentTemplate {
+  name: string;
+  type: string;
+  weight: number;
+  max_score: number | null;
+}
+
+interface SchemeTemplate {
+  templateId: string;
+  components: SchemeComponentTemplate[];
+}
+
 export async function seedClasses(
   orgId: string,
   schoolYearId: string,
@@ -73,22 +85,13 @@ export async function seedClasses(
   const programIdToKey: Record<string, string> = {};
   for (const [key, id] of Object.entries(programMap)) programIdToKey[id] = key;
 
-  const schemeTemplateCache = new Map
-    string,
-    {
-      templateId: string;
-      components: {
-        name: string;
-        type: string;
-        weight: number;
-        max_score: number | null;
-      }[];
-    } | null
-  >();
+  const schemeTemplateCache = new Map<string, SchemeTemplate | null>();
 
-  async function getSchemeTemplateForProgKey(progKey: string) {
+  async function getSchemeTemplateForProgKey(
+    progKey: string,
+  ): Promise<SchemeTemplate | null> {
     if (schemeTemplateCache.has(progKey))
-      return schemeTemplateCache.get(progKey)!;
+      return schemeTemplateCache.get(progKey) ?? null;
 
     const presetName = PROGRAM_SCHEME_PRESET_NAME[progKey];
     if (!presetName) {
@@ -106,7 +109,7 @@ export async function seedClasses(
       return null;
     }
 
-    const result = {
+    const result: SchemeTemplate = {
       templateId: template.id,
       components: template.components.map((c) => ({
         name: c.name,
