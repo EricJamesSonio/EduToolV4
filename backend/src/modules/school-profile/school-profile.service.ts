@@ -71,71 +71,11 @@ export class SchoolProfileService {
     }
   }
 
-  if (dto.gradingScales) {
-    const seenTypes = new Set<string>();
-    const seenNames = new Set<string>();
-    for (const gs of dto.gradingScales) {
-      if (!VALID_DEPARTMENT_TYPES.has(gs.programType)) {
-        throw new BadRequestException(`Unknown program type "${gs.programType}" in gradingScales.`);
-      }
-      if (seenTypes.has(gs.programType)) {
-        throw new BadRequestException(`Duplicate grading scale for program type "${gs.programType}". One per department only.`);
-      }
-      if (seenNames.has(gs.name)) {
-        throw new BadRequestException(`Duplicate grading scale name "${gs.name}".`);
-      }
-      seenTypes.add(gs.programType);
-      seenNames.add(gs.name);
-      if (!gs.ranges || gs.ranges.length === 0) {
-        throw new BadRequestException(`Grading scale "${gs.name}" must have at least one range.`);
-      }
-      for (const r of gs.ranges) {
-        if (r.minScore > r.maxScore) throw new BadRequestException(`Range "${r.label}" minScore > maxScore.`);
-      }
-    }
-  }
-  if (dto.gradingSchemes) {
-    const seenTypes = new Set<string>();
-    const seenNames = new Set<string>();
-    for (const scheme of dto.gradingSchemes) {
-      if (!VALID_DEPARTMENT_TYPES.has(scheme.programType)) {
-        throw new BadRequestException(`Unknown program type "${scheme.programType}" in gradingSchemes.`);
-      }
-      if (seenTypes.has(scheme.programType)) {
-        throw new BadRequestException(`Duplicate grading scheme for program type "${scheme.programType}". One per department only.`);
-      }
-      if (seenNames.has(scheme.name)) {
-        throw new BadRequestException(`Duplicate grading scheme name "${scheme.name}".`);
-      }
-      seenTypes.add(scheme.programType);
-      seenNames.add(scheme.name);
-      if (!scheme.components || scheme.components.length === 0) {
-        throw new BadRequestException(`Grading scheme "${scheme.name}" must have at least one component.`);
-      }
-      const sum = scheme.components.reduce((s, c) => s + c.weight, 0);
-      if (Math.abs(sum - 100) > 0.01) {
-        throw new BadRequestException(`Grading scheme "${scheme.name}" weights must sum to 100 (got ${sum}).`);
-      }
-    }
-  }
-  if (dto.semesterTermConfigs) {
-    const seenTypes = new Set<string>();
-    for (const cfg of dto.semesterTermConfigs) {
-      if (!VALID_DEPARTMENT_TYPES.has(cfg.programType)) {
-        throw new BadRequestException(`Unknown program type "${cfg.programType}" in semesterTermConfigs.`);
-      }
-      if (seenTypes.has(cfg.programType)) {
-        throw new BadRequestException(`Duplicate semester term config for program type "${cfg.programType}". One per department only.`);
-      }
-      seenTypes.add(cfg.programType);
-      if (!cfg.terms || cfg.terms.length === 0) {
-        throw new BadRequestException(`Semester term config for "${cfg.programType}" must have at least one term name.`);
-      }
-      for (const t of cfg.terms) {
-        if (!t || !t.trim()) throw new BadRequestException(`Semester term name cannot be empty for "${cfg.programType}".`);
-      }
-    }
-  }
+  // NOTE: dto.gradingScales / gradingSchemes / semesterTermConfigs are
+  // intentionally ignored — global templates live on their dedicated pages,
+  // not in the school profile. Legacy clients may still send them; they are
+  // accepted by the DTO but never written. Existing saved global rows are left
+  // untouched so previously-saved profiles keep working in the seeder.
 
   return this.db.$transaction(async (tx) => {
     const existing = await tx.schoolProfileDepartment.findMany({
@@ -220,47 +160,6 @@ export class SchoolProfileService {
             department_id: department.id,
             name: subjectDto.name,
             subject_type: subjectDto.subjectType,
-          },
-        });
-      }
-    }
-
-    if (dto.gradingScales !== undefined) {
-      await tx.schoolProfileGradingScale.deleteMany({ where: { org_id: orgId } });
-      for (const gs of dto.gradingScales!) {
-        await tx.schoolProfileGradingScale.create({
-          data: {
-            org_id: orgId,
-            program_type: gs.programType,
-            name: gs.name,
-            ranges: gs.ranges as any,
-          },
-        });
-      }
-    }
-
-    if (dto.gradingSchemes !== undefined) {
-      await tx.schoolProfileGradingScheme.deleteMany({ where: { org_id: orgId } });
-      for (const scheme of dto.gradingSchemes!) {
-        await tx.schoolProfileGradingScheme.create({
-          data: {
-            org_id: orgId,
-            program_type: scheme.programType,
-            name: scheme.name,
-            components: scheme.components as any,
-          },
-        });
-      }
-    }
-
-    if (dto.semesterTermConfigs !== undefined) {
-      await tx.schoolProfileSemesterTermConfig.deleteMany({ where: { org_id: orgId } });
-      for (const cfg of dto.semesterTermConfigs!) {
-        await tx.schoolProfileSemesterTermConfig.create({
-          data: {
-            org_id: orgId,
-            program_type: cfg.programType,
-            terms: cfg.terms as any,
           },
         });
       }

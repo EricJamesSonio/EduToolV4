@@ -1,38 +1,75 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Layers,
-  Loader2,
-  Database,
-  Eye,
-  Pencil,
-  Scale,
-  BarChart3,
-  Calendar,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { useNavigationGuard } from "@/context/NavigationGuardContext";
-import { toast } from "sonner";
-import { isAxiosError } from "axios";
-import type { ProgramType } from "@/types/admin/program.types";
-import { PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
-import {
-  useSchoolProfileData,
-  useSaveSchoolProfile,
-} from "@/hooks/admin/useSchoolProfile";
-import { useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft";
-import { DepartmentStep } from "./DepartmentStep";
-import { Card } from "./ui/SectionCard";
-import { SchoolProfileDepartmentStructureSection } from "./SchoolProfileDepartmentStructureSection";
-import { SchoolProfileGradingScaleSection } from "./SchoolProfileGradingScaleSection";
-import { SchoolProfileGradingSchemeSection } from "./SchoolProfileGradingSchemeSection";
-import { SchoolProfileSemesterTermsSection } from "./SchoolProfileSemesterTermsSection";
+import { useEffect, useMemo, useState } from "react"
+import { Layers, LayoutList, Loader2, Database, Eye, Pencil, ChevronDown, ChevronRight } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
+import { useNavigationGuard } from "@/context/NavigationGuardContext"
+import { toast } from "sonner"
+import { isAxiosError } from "axios"
+import type { ProgramType } from "@/types/admin/program.types"
+import { PROGRAM_TYPE_LABELS } from "@/types/admin/program.types"
+import { useSchoolProfileData, useSaveSchoolProfile } from "@/hooks/admin/useSchoolProfile"
+import { useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft"
+import { DepartmentStep } from "./DepartmentStep"
+import { CourseStep } from "./CourseStep"
+import { StrandStep } from "./StrandStep"
+import { LevelStep } from "./LevelStep"
+import { SectionStep } from "./SectionStep"
+import { SubjectStep } from "./SubjectStep"
+import type { DraftDepartment } from "@/hooks/admin/useSchoolProfileDraft"
 
-type Mode = "view" | "edit";
+type Mode = "view" | "edit"
+
+function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className={`icon-container bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] shrink-0 mt-0.5`}>
+          <Icon className="h-4.5 w-4.5" />
+        </div>
+        <h3 className="font-semibold text-lg leading-tight not-interactive">{title}</h3>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function CollapsibleDepartmentCard({
+  id,
+  icon: Icon,
+  title,
+  defaultOpen,
+  children,
+}: {
+  id: string
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false)
+  useEffect(() => setOpen(defaultOpen ?? false), [defaultOpen])
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-start gap-3">
+          <div className={`icon-container bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] shrink-0 mt-0.5`}>
+            <Icon className="h-4.5 w-4.5" />
+          </div>
+          <h3 className="font-semibold text-lg leading-tight not-interactive">{title}</h3>
+        </div>
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+      </button>
+      {open && <div className="px-6 pb-6 space-y-5">{children}</div>}
+    </div>
+  )
+}
 
 export function SchoolProfileCard() {
   const { data: profileData, isLoading } = useSchoolProfileData();
@@ -159,9 +196,6 @@ export function SchoolProfileCard() {
     saveMutation.mutate(
       {
         departments: Object.values(draft.departments),
-        gradingScales: Object.values(draft.gradingScales),
-        gradingSchemes: Object.values(draft.gradingSchemes),
-        semesterTermConfigs: Object.values(draft.semesterConfigs),
       } as any,
       {
         onSuccess: () => {
@@ -241,83 +275,287 @@ export function SchoolProfileCard() {
         />
       </Card>
 
-      <SchoolProfileDepartmentStructureSection
-        departments={visibleDepartments}
-        draft={draft}
-        readOnly={readOnly}
-        savePending={saveMutation.isPending}
-        expandedCourseByDept={expandedCourseByDept}
-        expandedLevelByDept={expandedLevelByDept}
-        onToggleCourse={toggleCourse}
-        onToggleLevel={toggleLevel}
-      />
+      {visibleDepartments.map((department) => {
+        const isCollege = department.type === "college"
+        const isShs = department.type === "shs"
+        const expandedCourseKey = expandedCourseByDept[department.type] ?? null
+        const expandedStrandKey = expandedCourseByDept[department.type] ?? null
+        const expandedLevelKey = expandedLevelByDept[department.type] ?? null
 
-      {visibleDepartments.length > 0 && (
-        <Card id="grading-scales" icon={BarChart3} title="Grading Scales — Configuration">
-          {readOnly ? (
-            <p className="text-xs text-muted-foreground not-interactive">
-              Showing configured grading scales. Switch to Edit to modify.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground not-interactive">
-              One scale per department. Edit name and grade ranges. Changes will
-              be used by the Data Seeder.
-            </p>
-          )}
-          <SchoolProfileGradingScaleSection
-            departments={visibleDepartments}
-            draft={draft}
-            readOnly={readOnly}
-            saveMutationPending={saveMutation.isPending}
-          />
-        </Card>
-      )}
+        const activeCourse = isCollege ? department.courses.find((c) => c.key === expandedCourseKey) ?? null : null
+        const activeStrand = isShs ? department.strands.find((s) => s.key === expandedStrandKey) ?? null : null
 
-      {visibleDepartments.length > 0 && (
-        <Card id="grading-schemes" icon={Scale} title="Grading Schemes — Configuration">
-          {readOnly ? (
-            <p className="text-xs text-muted-foreground not-interactive">
-              Showing configured grading schemes. Switch to Edit to modify.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground not-interactive">
-              One scheme per department. Weights must sum to 100. Configured
-              here, seeded in Data Seeder.
-            </p>
-          )}
-          <SchoolProfileGradingSchemeSection
-            departments={visibleDepartments}
-            draft={draft}
-            readOnly={readOnly}
-            saveMutationPending={saveMutation.isPending}
-          />
-        </Card>
-      )}
+        const getActiveLevel = (): (typeof department.levels)[number] | null => {
+          if (isCollege) {
+            if (!activeCourse) return null
+            return activeCourse.levels.find((l) => l.key === expandedLevelKey) ?? null
+          }
+          if (isShs) {
+            if (!activeStrand) return null
+            return activeStrand.levels.find((l) => l.key === expandedLevelKey) ?? null
+          }
+          return department.levels.find((l) => l.key === expandedLevelKey) ?? null
+        }
+        const activeLevel = getActiveLevel()
 
-      {visibleDepartments.length > 0 && (
-        <Card id="semester-terms" icon={Calendar} title="Semester Terms — Configuration">
-          {readOnly ? (
-            <p className="text-xs text-muted-foreground not-interactive">
-              Showing configured semester term names. Data Seeder generates
-              semesters from the academic calendar; each semester gets these
-              terms.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground not-interactive">
-              One term list per department. Edit term names; the Data Seeder
-              will create N semesters from the calendar, each with these terms.
-              College default: Prelim / Midterm / Finals.
-            </p>
-          )}
-          <SchoolProfileSemesterTermsSection
-            departments={visibleDepartments}
-            draft={draft}
-            readOnly={readOnly}
-            saveMutationPending={saveMutation.isPending}
-          />
-        </Card>
-      )}
+        const content = (
+          <div className="space-y-5">
+            {isCollege && (
+              <CourseStep
+                departmentId={department.type}
+                courses={department.courses}
+                disabled={readOnly || saveMutation.isPending}
+                onAdd={(_, name) => draft.addCourse(department.type, name)}
+                onRename={(courseKey, name) => draft.renameCourse(department.type, courseKey, name)}
+                onDelete={(courseKey) => draft.deleteCourse(department.type, courseKey)}
+              />
+            )}
 
+            {isShs && (
+              <StrandStep
+                departmentId={department.type}
+                strands={department.strands}
+                disabled={readOnly || saveMutation.isPending}
+                onAdd={(_, name) => draft.addStrand(department.type, name)}
+                onRename={(strandKey, name) => draft.renameStrand(department.type, strandKey, name)}
+                onDelete={(strandKey) => draft.deleteStrand(department.type, strandKey)}
+              />
+            )}
+
+            {isCollege &&
+              department.courses.map((course) => (
+                <LevelStep
+                  key={course.key}
+                  parentId={course.key}
+                  groupLabel={course.name}
+                  levels={course.levels}
+                  disabled={readOnly || saveMutation.isPending}
+                  onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
+                  onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
+                  onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
+                />
+              ))}
+
+            {isShs &&
+              department.strands.map((strand) => (
+                <LevelStep
+                  key={strand.key}
+                  parentId={strand.key}
+                  groupLabel={strand.name}
+                  levels={strand.levels}
+                  disabled={readOnly || saveMutation.isPending}
+                  onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
+                  onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
+                  onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
+                />
+              ))}
+
+            {!isCollege && !isShs && (
+              <LevelStep
+                parentId={department.type}
+                groupLabel="Levels"
+                levels={department.levels}
+                disabled={readOnly || saveMutation.isPending}
+                onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
+                onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
+                onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
+              />
+            )}
+
+            {/* Separate pill row — level scoped accordion (course/strand → level) */}
+            {isCollege && department.courses.length > 0 && (
+              <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
+                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a course to view its levels</p>
+                <div className="flex flex-wrap gap-2">
+                  {department.courses.map((course) => {
+                    const selected = expandedCourseKey === course.key
+                    return (
+                      <button
+                        key={course.key}
+                        type="button"
+                        onClick={() => toggleCourse(department.type, course.key)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          selected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "bg-background hover:bg-muted/50 border-muted-foreground/20",
+                        )}
+                      >
+                        {course.name}
+                      </button>
+                    )
+                  })}
+                </div>
+                {activeCourse && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="text-xs font-medium text-muted-foreground not-interactive">Levels in {activeCourse.name}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[...activeCourse.levels]
+                        .sort((a, b) => a.orderIndex - b.orderIndex)
+                        .map((level) => {
+                          const selected = expandedLevelKey === level.key
+                          return (
+                            <button
+                              key={level.key}
+                              type="button"
+                              onClick={() => toggleLevel(department.type, level.key)}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                                selected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "bg-background hover:bg-muted/50 border-muted-foreground/20",
+                              )}
+                            >
+                              {level.name}
+                            </button>
+                          )
+                        })}
+                    </div>
+                    {activeCourse.levels.length === 0 && (
+                      <p className="text-xs text-muted-foreground not-interactive">No levels in this course yet. Add one above.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isShs && department.strands.length > 0 && (
+              <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
+                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a strand to view its levels</p>
+                <div className="flex flex-wrap gap-2">
+                  {department.strands.map((strand) => {
+                    const selected = expandedStrandKey === strand.key
+                    return (
+                      <button
+                        key={strand.key}
+                        type="button"
+                        onClick={() => toggleCourse(department.type, strand.key)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          selected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "bg-background hover:bg-muted/50 border-muted-foreground/20",
+                        )}
+                      >
+                        {strand.name}
+                      </button>
+                    )
+                  })}
+                </div>
+                {activeStrand && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="text-xs font-medium text-muted-foreground not-interactive">Levels in {activeStrand.name}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[...activeStrand.levels]
+                        .sort((a, b) => a.orderIndex - b.orderIndex)
+                        .map((level) => {
+                          const selected = expandedLevelKey === level.key
+                          return (
+                            <button
+                              key={level.key}
+                              type="button"
+                              onClick={() => toggleLevel(department.type, level.key)}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                                selected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "bg-background hover:bg-muted/50 border-muted-foreground/20",
+                              )}
+                            >
+                              {level.name}
+                            </button>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isCollege && !isShs && department.levels.length > 0 && (
+              <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
+                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a level to edit sections & subjects</p>
+                <div className="flex flex-wrap gap-2">
+                  {[...department.levels]
+                    .sort((a, b) => a.orderIndex - b.orderIndex)
+                    .map((level) => {
+                      const selected = expandedLevelKey === level.key
+                      return (
+                        <button
+                          key={level.key}
+                          type="button"
+                          onClick={() => toggleLevel(department.type, level.key)}
+                          className={cn(
+                            "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "bg-background hover:bg-muted/50 border-muted-foreground/20",
+                          )}
+                        >
+                          {level.name}
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Level-scoped editors — single expanded level only (accordion) */}
+            {activeLevel ? (
+              <div className="space-y-3">
+                <SectionStep
+                  levelId={activeLevel.key}
+                  levelLabel={`${activeLevel.name} — Sections`}
+                  sections={activeLevel.sections}
+                  disabled={readOnly || saveMutation.isPending}
+                  onAdd={(levelKey, name, capacity) => draft.addSection(department.type, activeLevel.key, name, capacity)}
+                  onUpdate={(sectionKey, name, capacity) => draft.updateSection(department.type, activeLevel.key, sectionKey, name, capacity)}
+                  onDelete={(sectionKey) => draft.deleteSection(department.type, activeLevel.key, sectionKey)}
+                />
+                <SubjectStep
+                  levelId={activeLevel.key}
+                  levelLabel={`${activeLevel.name} — Subjects`}
+                  subjects={activeLevel.subjects}
+                  disabled={readOnly || saveMutation.isPending}
+                  onAdd={(levelKey, name) => draft.addSubject(department.type, activeLevel.key, name)}
+                  onRename={(subjectKey, name) => draft.renameSubject(department.type, activeLevel.key, subjectKey, name)}
+                  onDelete={(subjectKey) => draft.deleteSubject(department.type, activeLevel.key, subjectKey)}
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground not-interactive rounded-lg border border-dashed p-3 text-center">
+                {isCollege && !activeCourse
+                  ? "Select a course above to see its levels."
+                  : isShs && !activeStrand
+                    ? "Select a strand above to see its levels."
+                    : isCollege || isShs
+                      ? "Select a level to edit its sections & subjects."
+                      : "Select a level above to edit its sections & subjects."}
+              </p>
+            )}
+          </div>
+        )
+        return readOnly ? (
+          <CollapsibleDepartmentCard
+            key={department.type}
+            id="structure"
+            icon={LayoutList}
+            title={PROGRAM_TYPE_LABELS[department.type]}
+            defaultOpen={false}
+          >
+            {content}
+          </CollapsibleDepartmentCard>
+        ) : (
+          <Card key={department.type} id="structure" icon={LayoutList} title={PROGRAM_TYPE_LABELS[department.type]}>
+            {content}
+          </Card>
+        )
+      })}
+
+      {/*
+        Grading scales/schemes and semester terms are global setups managed on
+        their dedicated pages — not part of the school profile.
+      */}
       {!readOnly && draft.selectedTypes.size > 0 && (
         <Card id="save" icon={Database} title="Save Configuration">
           <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">

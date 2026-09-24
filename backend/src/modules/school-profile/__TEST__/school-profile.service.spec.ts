@@ -223,6 +223,31 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
       expect(tx.__store.sections).toHaveLength(2);
     });
 
+    it('ignores legacy global keys and leaves existing globals untouched', async () => {
+      const dto: any = {
+        departments: [
+          {
+            type: 'college',
+            courses: [],
+            strands: [],
+            levels: [],
+            subjects: [],
+          },
+        ],
+        gradingScales: [{ programType: 'college', name: 'Old Scale', ranges: [] }],
+        gradingSchemes: [{ programType: 'college', name: 'Old Scheme', components: [] }],
+        semesterTermConfigs: [{ programType: 'college', terms: ['A'] }],
+      };
+
+      await expect(service.saveProfile(orgId, dto)).resolves.toEqual({ success: true });
+
+      // Structural save still runs; no global-table writes exist on the tx fake.
+      expect(tx.schoolProfileDepartment.create).toHaveBeenCalled();
+      expect((tx as any).schoolProfileGradingScale).toBeUndefined();
+      expect((tx as any).schoolProfileGradingScheme).toBeUndefined();
+      expect((tx as any).schoolProfileSemesterTermConfig).toBeUndefined();
+    });
+
     it('deletes existing departments before recreating (replace semantics)', async () => {
       // Simulate DB already has one department
       const existingDept = { id: 'existing-dept-1' };

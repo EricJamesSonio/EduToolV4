@@ -23,9 +23,6 @@ import type {
 } from "@/types/admin/school-profile.types";
 import type {
   DraftDepartment,
-  DraftGradingScale,
-  DraftGradingScheme,
-  DraftSemesterTermConfig,
 } from "@/hooks/admin/useSchoolProfileDraft"
 
 interface ApiEnvelope<T> {
@@ -195,17 +192,11 @@ export const schoolProfileApi = {
   },
   saveProfile: async (params: {
     departments: DraftDepartment[];
-    gradingScales?: DraftGradingScale[];
-    gradingSchemes?: DraftGradingScheme[];
-    semesterTermConfigs?: DraftSemesterTermConfig[];
   } | DraftDepartment[]): Promise<void> => {
   const isArrayShorthand = Array.isArray(params as any)
   const actualDepartments = isArrayShorthand
     ? (params as unknown as DraftDepartment[])
     : (params as { departments: DraftDepartment[] }).departments
-  const gradingScales = isArrayShorthand ? undefined : (params as any).gradingScales as DraftGradingScale[] | undefined
-  const gradingSchemes = isArrayShorthand ? undefined : (params as any).gradingSchemes as DraftGradingScheme[] | undefined
-  const semesterTermConfigs = isArrayShorthand ? undefined : (params as any).semesterTermConfigs as DraftSemesterTermConfig[] | undefined
 
   const payload = actualDepartments.map((d) => ({
     type: d.type,
@@ -237,20 +228,6 @@ export const schoolProfileApi = {
     subjects: d.subjects.map((s) => ({ name: s.name, subjectType: s.subjectType })),
   }))
   const body: any = { departments: payload }
-  if (gradingScales !== undefined) body.gradingScales = gradingScales.map((g) => ({
-    programType: g.programType,
-    name: g.name,
-    ranges: g.ranges.map((r: any) => ({ label: r.label, minScore: r.minScore, maxScore: r.maxScore, gradeValue: r.gradeValue })),
-  }))
-  if (gradingSchemes !== undefined) body.gradingSchemes = gradingSchemes.map((s) => ({
-    programType: s.programType,
-    name: s.name,
-    components: s.components.map((c: any) => ({ name: c.name, type: c.type, weight: c.weight, isOptional: !!c.isOptional })),
-  }))
-  if (semesterTermConfigs !== undefined) body.semesterTermConfigs = semesterTermConfigs.map((c) => ({
-    programType: c.programType,
-    terms: c.terms.map((t: any) => (typeof t === "string" ? t : t.name)),
-  }))
   await client.post("/school-profile/save", body)
 },
 };

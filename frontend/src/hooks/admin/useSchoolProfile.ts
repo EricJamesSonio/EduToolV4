@@ -20,7 +20,7 @@ import type {
   CreateProfileSubjectRequest,
   UpdateProfileSubjectRequest,
 } from "@/types/admin/school-profile.types";
-import type { DraftDepartment, DraftGradingScale, DraftGradingScheme, DraftSemesterTermConfig } from "./useSchoolProfileDraft"
+import type { DraftDepartment } from "./useSchoolProfileDraft"
 
 
 const profileKey = queryKeys.admin.schoolProfile.list();
@@ -57,7 +57,7 @@ export const useSaveSchoolProfile = () => {
   return useMutationWithInvalidation<
     void,
     Error,
-    DraftDepartment[] | { departments: DraftDepartment[]; gradingScales?: DraftGradingScale[]; gradingSchemes?: DraftGradingScheme[]; semesterTermConfigs?: DraftSemesterTermConfig[] }
+    DraftDepartment[] | { departments: DraftDepartment[] }
   >(
     (payload) => {
       if (Array.isArray(payload)) return schoolProfileApi.saveProfile(payload as DraftDepartment[]);
