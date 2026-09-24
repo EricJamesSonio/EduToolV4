@@ -22,17 +22,12 @@ import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
 import { orgScheduleConfigApi } from "@/api/admin/org-schedule-config.api";
 
 interface ClassSchedulePickerProps {
-  /** Fetched classes of the chosen educator; undefined until one is selected. */
   educatorClasses: Class[] | undefined;
   isLoading?: boolean;
-  /** Fired with true whenever a slot overlaps the educator's schedule. */
   onConflictsChange?: (hasConflict: boolean) => void;
 }
 
 const MAX_SLOTS = 2;
-const FALLBACK_WINDOW_START_MIN = 7 * 60;  // 07:00
-const FALLBACK_WINDOW_END_MIN = 17 * 60;   // 17:00
-const FALLBACK_STEP_MIN = 30;
 
 export function ClassSchedulePicker({
   educatorClasses,
@@ -41,20 +36,19 @@ export function ClassSchedulePicker({
 }: ClassSchedulePickerProps) {
   const { getValues, setValue } = useFormContext<CreateClassForm>();
 
-  const { data: scheduleCfg } = useAsyncQuery(
+  const { data: scheduleCfg, isLoading: cfgLoading } = useAsyncQuery(
     adminQueryKeys.orgScheduleConfig.detail(),
     orgScheduleConfigApi.get,
     { meta: { preset: "static", feature: "organization" } },
   );
 
-  const windowStartMin = scheduleCfg ? timeToMinutes(scheduleCfg.startTime) : FALLBACK_WINDOW_START_MIN;
-  const windowEndMin = scheduleCfg ? timeToMinutes(scheduleCfg.endTime) : FALLBACK_WINDOW_END_MIN;
-  const stepMin = scheduleCfg?.slotDuration ?? FALLBACK_STEP_MIN;
+  const windowStartMin = scheduleCfg ? timeToMinutes(scheduleCfg.startTime) : undefined;
+  const windowEndMin = scheduleCfg ? timeToMinutes(scheduleCfg.endTime) : undefined;
+  const stepMin = scheduleCfg?.slotDuration ?? 30;
 
   const initialSchedules = getValues("schedules") ?? [];
   const initialCount = Math.min(MAX_SLOTS, Math.max(1, initialSchedules.length || 1));
 
-  // Number of slots the user wants, and the committed ranges (null = not set).
   const [slotCount, setSlotCount] = useState<number>(initialCount);
   const [ranges, setRanges] = useState<(ScheduleRange | null)[]>(() => {
     const next: (ScheduleRange | null)[] = new Array(initialCount).fill(null);
@@ -78,7 +72,6 @@ export function ClassSchedulePicker({
   const allFilled = filled.length >= slotCount;
   const hasEducator = educatorClasses !== undefined;
 
-  // Keep the form's schedules array in sync with the picked ranges.
   useEffect(() => {
     const now = getValues("schedules") ?? [];
     const next = filled.map((r) => ({
@@ -103,8 +96,6 @@ export function ClassSchedulePicker({
     return list;
   }, [educatorClasses]);
 
-  // Safety net: only draft-restored values can conflict, since grid picks are
-  // restricted to vacant slots. Keep the gate for parity with the backend rule.
   const hasConflicts = useMemo(
     () =>
       filled.some((r) =>
@@ -118,16 +109,20 @@ export function ClassSchedulePicker({
     [filled, takenSlots],
   );
 
-const outOfWindow = useMemo(
-  () => filled.some((r) => r.startMin < windowStartMin || r.endMin > windowEndMin
-    || (r.startMin - windowStartMin) % stepMin !== 0
-    || (r.endMin - windowStartMin) % stepMin !== 0),
-  [filled, windowStartMin, windowEndMin, stepMin],
-);
+  const outOfWindow = useMemo(() => {
+    if (windowStartMin === undefined || windowEndMin === undefined) return false;
+    return filled.some(
+      (r) =>
+        r.startMin < windowStartMin ||
+        r.endMin > windowEndMin ||
+        (r.startMin - windowStartMin) % stepMin !== 0 ||
+        (r.endMin - windowStartMin) % stepMin !== 0,
+    );
+  }, [filled, windowStartMin, windowEndMin, stepMin]);
 
-useEffect(() => {
-  onConflictsChange?.(hasConflicts || outOfWindow);
-}, [hasConflicts, outOfWindow, onConflictsChange]);
+  useEffect(() => {
+    onConflictsChange?.(hasConflicts || outOfWindow);
+  }, [hasConflicts, outOfWindow, onConflictsChange]);
 
   const handlePickRange = (range: ScheduleRange): void => {
     setRanges((prev) => {
@@ -158,7 +153,7 @@ useEffect(() => {
   const hint = !hasEducator
     ? "Select an educator first."
     : allFilled
-      ? "All slots set — create the class."
+      ? "All slots set. Create the class."
       : draft
         ? `Click a free end time for slot ${filled.length + 1}.`
         : filled.length === 0
@@ -218,14 +213,14 @@ useEffect(() => {
       ) : (
         <EducatorScheduleGrid
           classes={educatorClasses ?? []}
-          isLoading={isLoading}
+          isLoading={isLoading || cfgLoading || !scheduleCfg}
           interactive
           showAllDays
           pickedRanges={filled}
           maxPicks={slotCount}
           draftStart={draft}
-          defaultWindowStartMin={windowStartMin}
-          defaultWindowEndMin={windowEndMin}
+          windowStartMin={windowStartMin}
+          windowEndMin={windowEndMin}
           stepMin={stepMin}
           onDraftStart={setDraft}
           onPickRange={handlePickRange}
