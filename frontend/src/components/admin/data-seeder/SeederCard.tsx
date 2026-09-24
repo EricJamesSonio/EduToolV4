@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database, CheckSquare } from "lucide-react";
+import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, Calendar, Database, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -17,8 +17,6 @@ import { SectionStep } from "./SectionStep";
 import { StrandStep } from "./StrandStep";
 import { CourseStep } from "./CourseStep";
 import { SubjectStep } from "./SubjectStep";
-import { GradingScaleStep } from "./GradingScaleStep";
-import { GradingSchemeStep } from "./GradingSchemeStep";
 import { ProgramCalendarStep } from "./ProgramCalendarStep";
 import { SemesterTemplateStep } from "./SemesterTemplateStep";
 import { LEVEL_DEFS } from "./constants/seed-data";
@@ -85,14 +83,6 @@ export function SeederCard() {
     toSectionKey,
     toggleLevelKey,
     toggleSectionKey,
-    seedGradingScale,
-    setSeedGradingScale,
-    gradingScaleByProgram,
-    setGradingScaleForProgram,
-    seedGradingSchemes,
-    setSeedGradingSchemes,
-    gradingSchemesByProgram,
-    toggleGradingScheme,
     seedSemesterTemplates,
     setSeedSemesterTemplates,
     semesterTemplatesByProgram,
@@ -103,9 +93,7 @@ export function SeederCard() {
     initProgramCalendar,
     updateProgramCalendar,
     selectedSchoolYear,
-      existingGradingScaleNames,
-  existingGradingSchemeNames,
-  existingSemesterTemplateNames,
+    existingSemesterTemplateNames,
   } = useSeederCard(overrides);
 
   // ===== Navigation guard: don't let the user silently lose an in-progress
@@ -283,32 +271,9 @@ export function SeederCard() {
             />
           </Card>
 
-          {/* Grading & Templates */}
+          {/* Academic Calendar & Semester Templates - global template pickers stay per school year */}
           {selectedPrograms.size > 0 && (
             <>
-              <Card id="grading-scale" icon={BarChart3} title="Grading Scale">
-                <GradingScaleStep
-                  selectedPrograms={selectedPrograms}
-                  seedGradingScale={seedGradingScale}
-                  gradingScaleByProgram={gradingScaleByProgram}
-                  disabledScaleNames={existingGradingScaleNames}
-                  onToggleSeed={setSeedGradingScale}
-                  onSelectPreset={setGradingScaleForProgram}
-                  scalesByProgramOverride={overrides.gradingScalesByProgram}
-                />
-              </Card>
-
-              <Card id="grading-scheme" icon={Scale} title="Grading Scheme">
-                <GradingSchemeStep
-                  selectedPrograms={selectedPrograms}
-                  seedGradingSchemes={seedGradingSchemes}
-                  gradingSchemesByProgram={gradingSchemesByProgram}
-                  disabledSchemeNames={existingGradingSchemeNames}
-                  onToggleSeed={setSeedGradingSchemes}
-                  onToggleScheme={toggleGradingScheme}
-                  schemesByProgramOverride={overrides.gradingSchemesByProgram}
-                />
-              </Card>
 
               <Card id="program-calendars" icon={Calendar} title="Academic Calendar">
                 <ProgramCalendarStep
