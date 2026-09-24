@@ -328,8 +328,8 @@ export function SchoolProfileDepartmentStructureSection({
                   levelLabel={`${activeLevel.name} — Subjects`}
                   subjects={activeLevel.subjects}
                   disabled={readOnly || savePending}
-                  onAdd={(levelKey, name) =>
-                    draft.addSubject(department.type, activeLevel.key, name)
+                  onAdd={(levelKey, name, subjectType) =>
+                    draft.addSubject(department.type, activeLevel.key, name, subjectType)
                   }
                   onRename={(subjectKey, name) =>
                     draft.renameSubject(
@@ -344,6 +344,14 @@ export function SchoolProfileDepartmentStructureSection({
                       department.type,
                       activeLevel.key,
                       subjectKey,
+                    )
+                  }
+                  onSetType={(subjectKey, subjectType) =>
+                    draft.setSubjectType(
+                      department.type,
+                      activeLevel.key,
+                      subjectKey,
+                      subjectType,
                     )
                   }
                 />

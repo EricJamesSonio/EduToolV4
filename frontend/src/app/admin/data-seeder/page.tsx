@@ -86,6 +86,18 @@ export default function DataSeederPage(): React.JSX.Element {
           type="button"
           size="sm"
           variant="ghost"
+          className={cn(
+            "rounded-md",
+            mode === "configure" && "bg-background shadow-sm",
+          )}
+          onClick={() => requestMode("configure")}
+        >
+          Configure School Profile
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
           disabled={seedDisabled}
           title={
             seedDisabled
@@ -99,18 +111,6 @@ export default function DataSeederPage(): React.JSX.Element {
           onClick={() => requestMode("seed")}
         >
           Seed a School Year
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className={cn(
-            "rounded-md",
-            mode === "configure" && "bg-background shadow-sm",
-          )}
-          onClick={() => requestMode("configure")}
-        >
-          Configure School Profile
         </Button>
       </div>
 
