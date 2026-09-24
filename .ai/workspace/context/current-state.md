@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-08-27
+Last updated: 2026-09-01
 
 <!--
 One section per major domain/module. Keep status labels consistent:

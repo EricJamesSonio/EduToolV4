@@ -132,14 +132,14 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
     onChange({ ...value, sectionId: id === ALL ? undefined : id });
   }
 
-  if (loadingSY) return <Skeleton className="h-9 w-48" />;
+  if (loadingSY) return <Skeleton className="h-9 flex-1 min-w-44 sm:w-48 sm:flex-none" />;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
 
       {/* School Year */}
       <Select value={value.schoolYearId ?? ALL} onValueChange={(v) => { if (v !== null) selectSchoolYear(v); }}>
-        <SelectTrigger className="w-48 h-9 text-sm">
+        <SelectTrigger className="h-9 text-sm flex-1 min-w-44 sm:w-48 sm:flex-none">
           <span className="truncate text-sm">
             {selectedSY
               ? `${selectedSY.name}${selectedSY.status === "active" ? " (Active)" : ""}`
@@ -158,9 +158,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
 
       {/* Program */}
       {value.schoolYearId && (
-        loadingPrograms ? <Skeleton className="h-9 w-44" /> : (
+        loadingPrograms ? <Skeleton className="h-9 flex-1 min-w-36 sm:w-44 sm:flex-none" /> : (
           <Select value={value.programId ?? ALL} onValueChange={(v) => { if (v !== null) selectProgram(v); }}>
-            <SelectTrigger className="w-44 h-9 text-sm">
+            <SelectTrigger className="h-9 text-sm flex-1 min-w-36 sm:w-44 sm:flex-none">
               <span className="truncate text-sm">
                 {selectedProgram ? selectedProgram.name : "All Departments"}
               </span>
@@ -177,9 +177,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
 
       {/* Course — college only */}
       {value.programId && programType && hasCourses(programType) && (
-        loadingCourses ? <Skeleton className="h-9 w-44" /> : (
+        loadingCourses ? <Skeleton className="h-9 flex-1 min-w-36 sm:w-44 sm:flex-none" /> : (
           <Select value={value.courseId ?? ALL} onValueChange={(v) => { if (v !== null) selectCourse(v); }}>
-            <SelectTrigger className="w-44 h-9 text-sm">
+            <SelectTrigger className="h-9 text-sm flex-1 min-w-36 sm:w-44 sm:flex-none">
               <span className="truncate text-sm">
                 {selectedCourse ? selectedCourse.name : "All Courses"}
               </span>
@@ -196,9 +196,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
 
       {/* Strand — shs only */}
       {value.programId && programType && hasStrands(programType) && (
-        loadingStrands ? <Skeleton className="h-9 w-40" /> : (
+        loadingStrands ? <Skeleton className="h-9 flex-1 min-w-36 sm:w-40 sm:flex-none" /> : (
           <Select value={value.strandId ?? ALL} onValueChange={(v) => { if (v !== null) selectStrand(v); }}>
-            <SelectTrigger className="w-40 h-9 text-sm">
+            <SelectTrigger className="h-9 text-sm flex-1 min-w-36 sm:w-40 sm:flex-none">
               <span className="truncate text-sm">
                 {selectedStrand ? selectedStrand.name : "All Strands"}
               </span>
@@ -215,9 +215,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
 
       {/* Level */}
       {levelsEnabled && (
-        loadingLevels ? <Skeleton className="h-9 w-36" /> : (
+        loadingLevels ? <Skeleton className="h-9 flex-1 min-w-32 sm:w-36 sm:flex-none" /> : (
           <Select value={value.levelId ?? ALL} onValueChange={(v) => { if (v !== null) selectLevel(v); }}>
-            <SelectTrigger className="w-36 h-9 text-sm">
+            <SelectTrigger className="h-9 text-sm flex-1 min-w-32 sm:w-36 sm:flex-none">
               <span className="truncate text-sm">
                 {selectedLevel ? selectedLevel.name : "All Levels"}
               </span>
@@ -234,9 +234,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
 
       {/* Section */}
       {value.levelId && (
-        loadingSections ? <Skeleton className="h-9 w-36" /> : (
+        loadingSections ? <Skeleton className="h-9 flex-1 min-w-32 sm:w-36 sm:flex-none" /> : (
           <Select value={value.sectionId ?? ALL} onValueChange={(v) => { if (v !== null) selectSection(v); }}>
-            <SelectTrigger className="w-36 h-9 text-sm">
+            <SelectTrigger className="h-9 text-sm flex-1 min-w-32 sm:w-36 sm:flex-none">
               <span className="truncate text-sm">
                 {selectedSection ? selectedSection.name : "All Sections"}
               </span>
