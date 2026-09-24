@@ -19,6 +19,7 @@ import {
 } from './dto/school-year.dto';
 
 const TEN_MONTHS_MS = 10 * 30 * 24 * 60 * 60 * 1000;
+const MAX_CONFLICT_NAMES_IN_MESSAGE = 3;
 
 @Injectable()
 export class SchoolYearService {
@@ -60,6 +61,62 @@ export class SchoolYearService {
     return end.getTime() - start.getTime() < TEN_MONTHS_MS;
   }
 
+  /**
+   * Rejects the date range when it intersects any other school year of the
+   * same organization (any status, boundaries inclusive).
+   * Skipped when either date is missing or unparseable, matching the other
+   * date validators. excludeId omits the record being edited.
+   */
+  private async assertNoOverlap(
+    orgId: string,
+    start_date?: string,
+    end_date?: string,
+    excludeId?: string,
+  ): Promise<void> {
+    if (!start_date || !end_date) return;
+
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+
+    const conflicts = await this.schoolYearRepository.findOverlapping(
+      orgId,
+      start,
+      end,
+      excludeId,
+    );
+
+    if (conflicts.length === 0) return;
+
+    const formatDay = (value: Date | null): string =>
+      value ? value.toISOString().slice(0, 10) : 'unset';
+
+    const described = conflicts
+      .slice(0, MAX_CONFLICT_NAMES_IN_MESSAGE)
+      .map(
+        (c) =>
+          `"${c.name}" (${formatDay(c.start_date)} to ${formatDay(c.end_date)})`,
+      )
+      .join(', ');
+    const remaining = conflicts.length - MAX_CONFLICT_NAMES_IN_MESSAGE;
+    const extra = remaining > 0 ? ` and ${remaining} more` : '';
+    const noun = conflicts.length === 1 ? 'school year' : 'school years';
+
+    throw new ConflictException({
+      statusCode: 409,
+      error: 'SCHOOL_YEAR_OVERLAP',
+      message: `The selected dates overlap with existing ${noun} ${described}${extra}. School years cannot overlap.`,
+      conflicts: conflicts.map((c) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+        start_date: c.start_date ? c.start_date.toISOString() : null,
+        end_date: c.end_date ? c.end_date.toISOString() : null,
+      })),
+    });
+  }
+
   private async expireIfNeeded(): Promise<void> {
     try {
       await this.schoolYearRepository.expireAndEndActive();
@@ -80,6 +137,7 @@ export class SchoolYearService {
     await this.expireIfNeeded();
     this.validateDateRange(dto.start_date, dto.end_date);
     this.validateNotInPast(dto.start_date, dto.end_date);
+    await this.assertNoOverlap(orgId, dto.start_date, dto.end_date);
 
     const short = this.isShortDuration(dto.start_date, dto.end_date);
 
@@ -127,7 +185,7 @@ export class SchoolYearService {
     const schoolYears = await this.schoolYearRepository.findAll(orgId);
 
     // Careful: the usage scan is only a UI hint (show/hide the Delete action).
-    // If it fails for any reason we must NOT break the whole list — fall back
+    // If it fails for any reason we must NOT break the whole list. Fall back
     // to "in use = false" and let the server-side check guard deletion.
     let usage: Record<string, number> = {};
     try {
@@ -176,6 +234,19 @@ export class SchoolYearService {
 
     this.validateDateRange(effectiveStart, effectiveEnd);
     this.validateNotInPast(effectiveStart, effectiveEnd);
+
+    // Only re-check overlaps when a date really changes, so renaming a school
+    // year that already overlaps legacy data is not blocked.
+    const startChanged =
+      !!dto.start_date &&
+      new Date(dto.start_date).getTime() !== schoolYear.start_date?.getTime();
+    const endChanged =
+      !!dto.end_date &&
+      new Date(dto.end_date).getTime() !== schoolYear.end_date?.getTime();
+
+    if (startChanged || endChanged) {
+      await this.assertNoOverlap(orgId, effectiveStart, effectiveEnd, id);
+    }
 
     const short = this.isShortDuration(effectiveStart, effectiveEnd);
 
