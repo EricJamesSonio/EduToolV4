@@ -262,6 +262,9 @@ export class SaveSchoolProfileDto {
   @Type(() => SaveProfileDepartmentDto)
   departments!: SaveProfileDepartmentDto[];
 
+  // Deprecated: global templates (grading scales/schemes, semester terms) are
+  // managed on their dedicated pages, not in the school profile. Kept optional
+  // so older clients don't break validation; the service ignores them.
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

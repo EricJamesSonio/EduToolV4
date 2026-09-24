@@ -8,7 +8,7 @@ export function getRoleHomePath(role: Role): string {
     case "platform_owner":
       return "/platform";
     case "admin":
-      return "/admin";
+      return "/admin/dashboard";
     case "educator":
       return "/educator";
     case "student":

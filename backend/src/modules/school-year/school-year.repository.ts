@@ -47,6 +47,36 @@ export class SchoolYearRepository {
     });
   }
 
+  /**
+   * Returns every school year in the org whose date range intersects
+   * [start, end] (inclusive on both ends), regardless of status.
+   * Rows with a null start_date or end_date never match.
+   * Pass excludeId to ignore the record being edited.
+   */
+  async findOverlapping(
+    orgId: string,
+    start: Date,
+    end: Date,
+    excludeId?: string,
+  ) {
+    return this.db.schoolYear.findMany({
+      where: {
+        org_id: orgId,
+        ...(excludeId !== undefined && { id: { not: excludeId } }),
+        start_date: { lte: end },
+        end_date: { gte: start },
+      },
+      select: {
+        id: true,
+        name: true,
+        start_date: true,
+        end_date: true,
+        status: true,
+      },
+      orderBy: { start_date: 'asc' },
+    });
+  }
+
   async updateStatus(id: string, status: 'pending' | 'active' | 'ended') {
     return this.db.schoolYear.update({
       where: { id },

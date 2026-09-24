@@ -27,15 +27,14 @@ export function Footer() {
               Flexible school management for modern educational institutions.
             </p>
             <div className="flex items-center gap-3">
-              {[Globe, MessageCircle, Link2, Mail].map((Icon, i) => (
-                <a
-                  key={i}
-                  href="#"
-                  className="w-9 h-9 rounded-lg bg-secondary/80 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all duration-200"
-                >
-                  <Icon className="h-4 w-4" />
-                </a>
-              ))}
+{[Globe, MessageCircle, Link2, Mail].map((Icon, i) => (
+  <a key={i}
+    href="#"
+    className="w-9 h-9 rounded-lg bg-secondary/80 border border-border/60 flex items-center justify-center text-secondary-foreground hover:text-accent-foreground hover:border-accent hover:bg-accent transition-all duration-200"
+  >
+    <Icon className="h-4 w-4" />
+  </a>
+))}
             </div>
           </div>
 

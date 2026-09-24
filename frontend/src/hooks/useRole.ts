@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/auth.store";
@@ -24,6 +24,15 @@ export function useRole() {
 export type RoleGuardStatus = "loading" | "allowed" | "redirecting";
 
 /**
+ * Re-pushes the current URL so the browser's Back button lands on the same
+ * page (which then triggers the logout prompt). Preserves history.state so
+ * Next.js's internal router state isn't wiped.
+ */
+function lockHistory() {
+  window.history.pushState(window.history.state, "", window.location.href);
+}
+
+/**
  * Protects a route from unauthenticated / unauthorised users.
  *
  * - "loading"    → auth state not resolved yet (session restore in flight).
@@ -39,17 +48,37 @@ export type RoleGuardStatus = "loading" | "allowed" | "redirecting";
  *   3. On bfcache restore (pageshow) → full replace so the cached protected
  *      page is dropped and the user lands on /login.
  */
-export function useRoleGuard(allowedRoles: Role[]): { status: RoleGuardStatus } {
-  const { user, isLoading } = useAuth();
+export function useRoleGuard(allowedRoles: Role[]): {
+  status: RoleGuardStatus;
+  showLogoutPrompt: boolean;
+  confirmLogout: () => void;
+  cancelLogout: () => void;
+} {
+  const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   const redirectedRef = useRef(false);
+  const [showLogoutPrompt, setShowLogoutPrompt] = useState(false);
+
+  // Compare roles by value, not by array identity. Callers usually pass an
+  // inline array literal, which is a new reference on every render and would
+  // otherwise re-run the effects below on every render.
+  const rolesKey = allowedRoles.join(",");
+  const canAccess = !!user && rolesKey.split(",").includes(user.role);
+
+  const cancelLogout = () => {
+    setShowLogoutPrompt(false);
+    lockHistory();
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutPrompt(false);
+    void logout();
+  };
 
   useLayoutEffect(() => {
     if (isLoading) return;
 
-    const isAllowed = !!user && allowedRoles.includes(user.role);
-
-    if (!isAllowed) {
+    if (!canAccess) {
       if (!redirectedRef.current) {
         redirectedRef.current = true;
         router.replace("/login");
@@ -57,7 +86,20 @@ export function useRoleGuard(allowedRoles: Role[]): { status: RoleGuardStatus } 
     } else {
       redirectedRef.current = false;
     }
-  }, [user, isLoading, allowedRoles, router]);
+  }, [canAccess, isLoading, router]);
+
+  useEffect(() => {
+    if (isLoading || !canAccess) return;
+
+    const onPopState = () => {
+      setShowLogoutPrompt(true);
+      lockHistory();
+    };
+
+    lockHistory();
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [canAccess, isLoading]);
 
   /* bfcache restore — the component is not remounted on restore, so the effect
      above is skipped.  pageshow fires even for persisted (cached) restores.
@@ -77,11 +119,11 @@ export function useRoleGuard(allowedRoles: Role[]): { status: RoleGuardStatus } 
   let status: RoleGuardStatus;
   if (isLoading || redirectedRef.current) {
     status = "loading";
-  } else if (user && allowedRoles.includes(user.role)) {
+  } else if (canAccess) {
     status = "allowed";
   } else {
     status = "redirecting";
   }
 
-  return { status };
+  return { status, showLogoutPrompt, confirmLogout, cancelLogout };
 }

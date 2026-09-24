@@ -12,7 +12,10 @@ import { useCreateEducator } from "@/hooks/admin/useEducators";
 import { EducatorCredentialsCard } from "./EducatorCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import { buildFullEmail } from "@/lib/email/buildFullEmail";
-import { validateUsername } from "@/utils/validation.util";
+import {
+  sanitizeUsernameInput,
+  validateUsername,
+} from "@/utils/validation.util";
 
 interface CreateEducatorDialogProps {
   open: boolean;
@@ -117,23 +120,20 @@ export function CreateEducatorDialog({
                 maxLength={30}
                 value={email}
                 onChange={(e) => {
-                  setEmail(e.target.value);
+                  const next = sanitizeUsernameInput(e.target.value);
+                  setEmail(next);
                   setUsernameError(null);
                 }}
                 disabled={createMutation.isPending}
               />
 
-              {email.trim() && emailExtension && (
-                <p className="text-xs text-muted-foreground">
-                  Preview:{" "}
+              {email.trim() && (
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Final Email:</span>{" "}
                   <span className="font-medium">
-                    {buildFullEmail(
-                      email,
-                      emailExtension,
-                      "educator"
-                    )}
+                    {buildFullEmail(email, emailExtension, "educator")}
                   </span>
-                </p>
+                </div>
               )}
 
               {usernameError && (

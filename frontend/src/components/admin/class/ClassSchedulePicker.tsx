@@ -118,9 +118,16 @@ export function ClassSchedulePicker({
     [filled, takenSlots],
   );
 
-  useEffect(() => {
-    onConflictsChange?.(hasConflicts);
-  }, [hasConflicts, onConflictsChange]);
+const outOfWindow = useMemo(
+  () => filled.some((r) => r.startMin < windowStartMin || r.endMin > windowEndMin
+    || (r.startMin - windowStartMin) % stepMin !== 0
+    || (r.endMin - windowStartMin) % stepMin !== 0),
+  [filled, windowStartMin, windowEndMin, stepMin],
+);
+
+useEffect(() => {
+  onConflictsChange?.(hasConflicts || outOfWindow);
+}, [hasConflicts, outOfWindow, onConflictsChange]);
 
   const handlePickRange = (range: ScheduleRange): void => {
     setRanges((prev) => {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Kodchasan, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "../styles/globals.css";
 import { Providers } from "./providers";
@@ -27,6 +27,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Relief-ED",
   description: "Academic management platform",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

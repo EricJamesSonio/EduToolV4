@@ -34,21 +34,26 @@ export function Pagination({
   const from = total === 0 ? 0 : (page - 1) * limit + 1;
   const to = Math.min(page * limit, total);
 
-  // Build visible page numbers (max 5 shown, sliding window)
-  const getPageNumbers = () => {
-    const delta = 2;
-    const range: (number | "ellipsis")[] = [];
-    const left = Math.max(2, page - delta);
-    const right = Math.min(totalPages - 1, page + delta);
+const getPageNumbers = () => {
+  let start = page - 1;
+  let end = page + 1;
 
-    range.push(1);
-    if (left > 2) range.push("ellipsis");
-    for (let i = left; i <= right; i++) range.push(i);
-    if (right < totalPages - 1) range.push("ellipsis");
-    if (totalPages > 1) range.push(totalPages);
+  if (start < 1) {
+    end += 1 - start;
+    start = 1;
+  }
+  if (end > totalPages) {
+    start -= end - totalPages;
+    end = totalPages;
+  }
+  start = Math.max(1, start);
+  end = Math.min(totalPages, end);
 
-    return range;
-  };
+  const range: number[] = [];
+  for (let i = start; i <= end; i++) range.push(i);
+
+  return range;
+};
 
   return (
     <div
@@ -114,26 +119,17 @@ export function Pagination({
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          {getPageNumbers().map((p, i) =>
-            p === "ellipsis" ? (
-              <span
-                key={`ellipsis-${i}`}
-                className="px-1 text-sm text-muted-foreground not-interactive"
-              >
-                …
-              </span>
-            ) : (
-              <Button
-                key={p}
-                variant={p === page ? "default" : "outline"}
-                size="icon"
-                className="h-8 w-8 text-sm"
-                onClick={() => onPageChange(p as number)}
-              >
-                {p}
-              </Button>
-            )
-          )}
+{getPageNumbers().map((p) => (
+  <Button
+    key={p}
+    variant={p === page ? "default" : "outline"}
+    size="icon"
+    className="h-8 w-8 text-sm"
+    onClick={() => onPageChange(p)}
+  >
+    {p}
+  </Button>
+))}
 
           <Button
             variant="outline"

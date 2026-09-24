@@ -151,9 +151,9 @@ export function GradingScaleRangeEditor({
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="grid grid-cols-[80px_80px_120px_1fr_80px_32px] gap-2 px-1">
+      <div className="hidden md:grid md:grid-cols-[minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_40px] md:gap-2 md:px-1">
         {["Min %", "Max %", "Grade", "Remark", "Status", ""].map((h) => (
-          <span key={h} className="text-xs font-medium text-muted-foreground not-interactive">
+          <span key={h} className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground not-interactive">
             {h}
           </span>
         ))}
@@ -167,82 +167,104 @@ export function GradingScaleRangeEditor({
             <div key={i} className="space-y-1">
               <div
                 className={cn(
-                  "grid grid-cols-[80px_80px_120px_1fr_80px_32px] gap-2 items-center",
+                  "rounded-lg border border-border/70 bg-card/70 p-2.5 md:border-0 md:bg-transparent md:p-0",
                   rowErrs.length > 0 &&
-                    "ring-1 ring-destructive/40 rounded-md p-1"
+                    "border-destructive/40 bg-destructive/5 ring-1 ring-destructive/30 md:border-0 md:bg-transparent md:ring-0"
                 )}
               >
-                {/* Min — sanitized, auto-adjusts prev max */}
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={range.minPercent}
-                  disabled={disabled}
-                  className="h-8 text-sm"
-                  onChange={(e) =>
-                    updateSmart(i, { minPercent: sanitizePercent(e.target.value) })
-                  }
-                />
-                {/* Max — sanitized, auto-adjusts next min */}
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={range.maxPercent}
-                  disabled={disabled}
-                  className="h-8 text-sm"
-                  onChange={(e) =>
-                    updateSmart(i, { maxPercent: sanitizePercent(e.target.value) })
-                  }
-                />
-                {/* Grade Value */}
-                <Input
-                  placeholder="e.g. 1.25"
-                  value={range.gradeValue}
-                  disabled={disabled}
-                  className="h-8 text-sm"
-                  onChange={(e) => updateSmart(i, { gradeValue: e.target.value })}
-                />
-                {/* Remark */}
-                <Input
-                  placeholder="e.g. Excellent"
-                  value={range.remark}
-                  disabled={disabled}
-                  className="h-8 text-sm"
-                  onChange={(e) => updateSmart(i, { remark: e.target.value })}
-                />
-                {/* Passing toggle */}
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => updateSmart(i, { isPassing: !range.isPassing })}
-                  className="flex justify-start"
-                >
-                  <Badge
-                    variant={range.isPassing ? "default" : "secondary"}
-                    className={cn(
-                      "cursor-pointer select-none text-xs transition-colors",
-                      disabled && "opacity-50 cursor-not-allowed",
-                      range.isPassing
-                        ? "bg-success/15 text-success hover:bg-success/25 border-success/30"
-                        : "hover:bg-muted"
-                    )}
-                  >
-                    {range.isPassing ? "Passing" : "Failing"}
-                  </Badge>
-                </button>
-                {/* Delete */}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={disabled || ranges.length <= 1}
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => removeRange(i)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex flex-col gap-2 md:grid md:grid-cols-[minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_40px] md:items-center">
+                  <div className="grid grid-cols-3 gap-2 md:contents">
+                    <div className="space-y-1 md:space-y-0">
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground md:hidden">Min %</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={range.minPercent}
+                        disabled={disabled}
+                        className="h-9 text-sm"
+                        onChange={(e) =>
+                          updateSmart(i, { minPercent: sanitizePercent(e.target.value) })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1 md:space-y-0">
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground md:hidden">Max %</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={range.maxPercent}
+                        disabled={disabled}
+                        className="h-9 text-sm"
+                        onChange={(e) =>
+                          updateSmart(i, { maxPercent: sanitizePercent(e.target.value) })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1 md:space-y-0">
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground md:hidden">Grade</label>
+                      <Input
+                        placeholder="e.g. 1.25"
+                        value={range.gradeValue}
+                        disabled={disabled}
+                        className="h-9 text-sm"
+                        onChange={(e) => updateSmart(i, { gradeValue: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 md:contents">
+                    <div className="flex-1 space-y-1 md:space-y-0">
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground md:hidden">Remark</label>
+                      <Input
+                        placeholder="e.g. Excellent"
+                        value={range.remark}
+                        disabled={disabled}
+                        className="h-9 text-sm"
+                        onChange={(e) => updateSmart(i, { remark: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="flex items-center md:justify-start">
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => updateSmart(i, { isPassing: !range.isPassing })}
+                        className="w-full text-left md:w-auto"
+                      >
+                        <Badge
+                          variant={range.isPassing ? "default" : "secondary"}
+                          className={cn(
+                            "w-full justify-center md:w-auto",
+                            "cursor-pointer select-none text-xs transition-colors",
+                            disabled && "opacity-50 cursor-not-allowed",
+                            range.isPassing
+                              ? "bg-success/15 text-success hover:bg-success/25 border-success/30"
+                              : "hover:bg-muted"
+                          )}
+                        >
+                          {range.isPassing ? "Passing" : "Failing"}
+                        </Badge>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-end md:justify-center">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={disabled || ranges.length <= 1}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => removeRange(i)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
               {rowErrs.length > 0 && (
                 <p className="text-xs text-destructive pl-1">

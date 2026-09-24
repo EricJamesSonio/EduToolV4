@@ -1,7 +1,7 @@
 export function buildFullEmail(
   username: string,
   extension: string | null,
-  role: "student" | "educator"
+  role: "student" | "educator" | "registrar"
 ): string {
   const cleanUsername = username
     .trim()
