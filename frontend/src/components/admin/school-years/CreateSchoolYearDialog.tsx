@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 
 import type { CreateForm, ShortDurationWarning } from "./types/types";
-import { isShortDurationError } from "./utils/helpers";
+import { isShortDurationError, getSchoolYearOverlapMessage } from "./utils/helpers";
 import {
   startDatePickerDisabled,
   endDatePickerDisabled,
@@ -66,6 +66,12 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
     },
 
     onError: (err: unknown, variables) => {
+      const overlapMessage = getSchoolYearOverlapMessage(err);
+      if (overlapMessage) {
+        setShortDurationWarning(null);
+        toast.error(overlapMessage);
+        return;
+      }
       if (isShortDurationError(err)) {
         setShortDurationWarning({ pendingValues: variables });
         return;

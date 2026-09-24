@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { ShortDurationWarning } from "./types/types";
-import { isShortDurationError } from "./utils/helpers";
+import { isShortDurationError, getSchoolYearOverlapMessage } from "./utils/helpers";
 
 interface Props {
   schoolYear: SchoolYear;
@@ -57,6 +57,12 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
     },
 
     onError: (err: unknown, variables) => {
+      const overlapMessage = getSchoolYearOverlapMessage(err);
+      if (overlapMessage) {
+        setShortDurationWarning(null);
+        toast.error(overlapMessage);
+        return;
+      }
       if (isShortDurationError(err)) {
         setShortDurationWarning({ pendingValues: variables });
         return;
