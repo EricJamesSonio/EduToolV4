@@ -6,6 +6,9 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { Trash2 } from "lucide-react";
+import { useMemo } from "react";
+import { useOrgScheduleConfig } from "@/hooks/admin/useOrgScheduleConfig";
+import { generateSlots, formatHourLabel, toMinutes } from "@/utils/schedule-slots.utils";
 
 import { classApi } from "@/api/admin/class.api";
 import type { UpdateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
@@ -38,8 +41,11 @@ interface EditClassDialogProps {
   cls: Class;
   open: boolean;
   onClose: () => void;
-  schoolYearId: string; // ✅ ADD THIS
+  schoolYearId: string;
 }
+
+const withCurrent = (opts: string[], v?: string): string[] =>
+  v && !opts.includes(v) ? [v, ...opts] : opts;
 
 export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassDialogProps): React.JSX.Element {
   const { data: educatorsRaw } = useAsyncQuery(
@@ -54,6 +60,20 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
     { enabled: !!schoolYearId },
   );
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
+
+  const { data: scheduleCfg } = useOrgScheduleConfig();
+  const winStart = scheduleCfg?.startTime ?? "07:00";
+  const winEnd = scheduleCfg?.endTime ?? "17:00";
+  const slotMin = scheduleCfg?.slotDuration ?? 30;
+
+  const startOptions = useMemo(
+    () => generateSlots(winStart, winEnd, slotMin),
+    [winStart, winEnd, slotMin],
+  );
+  const endOptions = useMemo(
+    () => [...startOptions.slice(1), winEnd],
+    [startOptions, winEnd],
+  );
 
   const {
     register,
@@ -111,6 +131,20 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
     },
   );
 
+  const handleValid = (v: EditClassForm): void => {
+    const bad = v.schedules.find(
+      (s) =>
+        toMinutes(s.startTime) >= toMinutes(s.endTime) ||
+        toMinutes(s.startTime) < toMinutes(winStart) ||
+        toMinutes(s.endTime) > toMinutes(winEnd),
+    );
+    if (bad) {
+      toast.error(`Schedules must be within ${winStart}–${winEnd}.`);
+      return;
+    }
+    mutation.mutate(v);
+  };
+
   const handleClose = (): void => {
     reset();
     onClose();
@@ -120,10 +154,10 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
     <Modal open={open} onClose={handleClose} title="Edit Class" size="lg">
 
         <form
-          onSubmit={handleSubmit((v) => mutation.mutate(v))}
+          onSubmit={handleSubmit(handleValid)}
           className="space-y-4 mt-1"
         >
-          {/* Subject — read-only, cannot change after creation */}
+          {/* Subject (read-only) */}
           {cls.subjectName && (
             <div className="space-y-1.5">
               <Label>Subject</Label>
@@ -158,7 +192,7 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
             </Select>
           </div>
 
-          {/* Section — filtered by the class's levelId */}
+          {/* Section (filtered by the class levelId) */}
           <div className="space-y-1.5">
             <Label>
               Section{" "}
@@ -207,7 +241,11 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
               <button
                 type="button"
                 onClick={() =>
-                  append({ weekday: "1", startTime: "08:00", endTime: "09:00" })
+                  append({
+                    weekday: "1",
+                    startTime: startOptions[0] ?? "07:00",
+                    endTime: startOptions[1] ?? "08:00",
+                  })
                 }
                 className="text-xs text-primary hover:underline"
               >
@@ -236,17 +274,45 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
                     ))}
                   </SelectContent>
                 </Select>
-                <Input
-                  type="time"
-                  className="h-8 text-xs w-28"
-                  {...register(`schedules.${index}.startTime`)}
-                />
+
+                <Select
+                  value={watch(`schedules.${index}.startTime`)}
+                  onValueChange={(v) =>
+                    setValue(`schedules.${index}.startTime`, v ?? "", { shouldDirty: true })
+                  }
+                >
+                  <SelectTrigger className="w-28 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {withCurrent(startOptions, watch(`schedules.${index}.startTime`)).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {formatHourLabel(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 <span className="text-xs text-muted-foreground">–</span>
-                <Input
-                  type="time"
-                  className="h-8 text-xs w-28"
-                  {...register(`schedules.${index}.endTime`)}
-                />
+
+                <Select
+                  value={watch(`schedules.${index}.endTime`)}
+                  onValueChange={(v) =>
+                    setValue(`schedules.${index}.endTime`, v ?? "", { shouldDirty: true })
+                  }
+                >
+                  <SelectTrigger className="w-28 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {withCurrent(endOptions, watch(`schedules.${index}.endTime`)).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {formatHourLabel(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 {fields.length > 1 && (
                   <button
                     type="button"
