@@ -21,7 +21,7 @@ import {
   CalendarRange,
   UserPlus,
   UserCog,
-  Database,
+  School,
   Inbox,
   LifeBuoy,
 } from "lucide-react";
@@ -32,7 +32,7 @@ const GROUPS = [
     items: [
       { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true, registrarVisible: false },
       { label: "Organization", href: "/admin/organization", icon: Building2, registrarVisible: false },
-      { label: "Data Seeder", href: "/admin/data-seeder", icon: Database, registrarVisible: false },
+      { label: "School Profile", href: "/admin/data-seeder", icon: School, registrarVisible: false },
       { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
       { label: "Enrollment Portal", href: "/admin/enrollment-portal", icon: Inbox },
       
