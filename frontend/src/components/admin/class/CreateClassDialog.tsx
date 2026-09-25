@@ -210,31 +210,32 @@ export function CreateClassDialog({
     formValues.schedules.length === 0;
 
   return (
-    <Modal open={open} onClose={handleClose} title={
-          <span className="flex items-center gap-2">
-            New Class
-            {hasDraft && (
-              <Badge variant="secondary" className="text-xs font-normal">
-                Draft restored
-              </Badge>
-            )}
-            {presetActive && (
-              <Badge variant="secondary" className="text-xs font-normal">
-                Preset applied
-              </Badge>
-            )}
-          </span> 
-        } size="lg">
+  <Modal
+    open={open}
+    onClose={handleClose}
+    size="lg" // kept for fallback/type-safety, but overridden below
+    className="sm:max-w-5xl w-[92vw] h-[85vh] max-h-[85vh] overflow-hidden flex flex-col"
+    title={
+      <span className="flex items-center gap-2">
+        New Class
+        {hasDraft && <Badge variant="secondary" className="text-xs font-normal">Draft restored</Badge>}
+        {presetActive && <Badge variant="secondary" className="text-xs font-normal">Preset applied</Badge>}
+      </span>
+    }
+  >
+    <FormProvider {...methods}>
+      <form
+        onSubmit={handleSubmit((v) => mutation.mutate(v))}
+        className="flex flex-col flex-1 min-h-0"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-[380px_1fr] gap-6 flex-1 min-h-0">
 
-        <FormProvider {...methods}>
-          <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+          {/* LEFT — form fields, own scroll region */}
+          <div className="overflow-y-auto md:pr-6 md:border-r space-y-4">
 
             <div className="space-y-1.5">
               <Label>School Year</Label>
-              <Input
-                value={schoolYearName ?? schoolYearId ?? "No school year selected"}
-                disabled
-              />
+              <Input value={schoolYearName ?? schoolYearId ?? "No school year selected"} disabled />
             </div>
 
             <div className="space-y-1.5">
@@ -245,9 +246,7 @@ export function CreateClassDialog({
                 disabled={!schoolYearId}
               >
                 <SelectTrigger>
-                  <span>
-                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select department"}
-                  </span>
+                  <span>{programs.find((p) => p.id === selectedProgramId)?.name ?? "Select department"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {programs.map((p) => (
@@ -257,9 +256,6 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Don't render the warning until we actually know the answer —
-                otherwise it flashes true (assignedProgramIds momentarily
-                empty) before settling on the correct value. */}
             {!templateAssignmentsLoading && programMissingTemplate && (
               <SemesterTemplateWarning onDiscard={() => { handleDiscard(); router.push("/admin/semester-settings"); }} />
             )}
@@ -286,9 +282,7 @@ export function CreateClassDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {semesters.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No semesters for this department
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No semesters for this department</div>
                   ) : (
                     semesters.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
@@ -317,8 +311,7 @@ export function CreateClassDialog({
                     <span>
                       {!selectedSemesterId
                         ? "Select a semester first"
-                        : tracks.find((t) => t.id === selectedTrackId)?.name ??
-                          `Select ${isCourseTrack ? "course" : "strand"}`}
+                        : tracks.find((t) => t.id === selectedTrackId)?.name ?? `Select ${isCourseTrack ? "course" : "strand"}`}
                     </span>
                   </SelectTrigger>
                   <SelectContent>
@@ -335,17 +328,10 @@ export function CreateClassDialog({
               <Select
                 value={selectedLevelId}
                 onValueChange={(v) => setValue("levelId", v ?? "")}
-                disabled={
-                  !selectedProgramId ||
-                  programMissingTemplate ||
-                  !selectedSemesterId ||
-                  (hasTrack && !selectedTrackId)
-                }
+                disabled={!selectedProgramId || programMissingTemplate || !selectedSemesterId || (hasTrack && !selectedTrackId)}
               >
                 <SelectTrigger>
-                  <span>
-                    {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}
-                  </span>
+                  <span>{levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {levels.length === 0 ? (
@@ -367,15 +353,11 @@ export function CreateClassDialog({
                 disabled={!selectedLevelId || !selectedSemesterId || programMissingTemplate}
               >
                 <SelectTrigger>
-                  <span>
-                    {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}
-                  </span>
+                  <span>{sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {sections.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No sections for this level
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No sections for this level</div>
                   ) : (
                     sections.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -396,15 +378,12 @@ export function CreateClassDialog({
                   <span>
                     {!selectedLevelId
                       ? "Select a level first"
-                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ??
-                          "Select subject")}
+                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ?? "Select subject")}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No subjects for this level
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No subjects for this level</div>
                   ) : (
                     subjects.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
@@ -422,16 +401,11 @@ export function CreateClassDialog({
                 disabled={programMissingTemplate}
               >
                 <SelectTrigger>
-                  <span>
-                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ??
-                      "Select educator"}
-                  </span>
+                  <span>{educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select educator"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {educators.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No educators available
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No educators available</div>
                   ) : (
                     educators.map((e) => (
                       <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>
@@ -452,46 +426,39 @@ export function CreateClassDialog({
                   min: { value: 1, message: "At least 1" },
                 })}
               />
-              {errors.capacity && (
-                <p className="text-xs text-destructive">{errors.capacity.message}</p>
-              )}
+              {errors.capacity && <p className="text-xs text-destructive">{errors.capacity.message}</p>}
             </div>
+          </div>
 
+          {/* RIGHT — schedule, own scroll region, never affected by left column's dropdowns */}
+          <div className="overflow-y-auto">
             <ScheduleSlotFields
               educatorClasses={educatorClasses}
               isLoading={educatorClassesLoading}
               onConflictsChange={handleScheduleConflictsChange}
             />
-
             {scheduleConflicts && (
-              <p className="text-xs text-destructive mt-1">
+              <p className="text-xs text-destructive mt-2">
                 Schedule conflict detected. The class cannot be created due to overlapping educator schedules.
               </p>
             )}
+          </div>
+        </div>
 
-            <div className="flex justify-end gap-2 pt-1">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleDiscard}
-                disabled={mutation.isPending}
-              >
-                Discard
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={mutation.isPending}
-              >
-                Save & Close
-              </Button>
-              <Button type="submit" disabled={isSubmitDisabled}>
-                {mutation.isPending ? "Creating..." : "Create Class"}
-              </Button>
-            </div>
-          </form>
-        </FormProvider>
-    </Modal>
-  );
+        {/* Footer pinned outside the scrolling grid — always visible */}
+        <div className="flex justify-end gap-2 pt-4 mt-2 border-t shrink-0">
+          <Button type="button" variant="ghost" onClick={handleDiscard} disabled={mutation.isPending}>
+            Discard
+          </Button>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
+            Save & Close
+          </Button>
+          <Button type="submit" disabled={isSubmitDisabled}>
+            {mutation.isPending ? "Creating..." : "Create Class"}
+          </Button>
+        </div>
+      </form>
+    </FormProvider>
+  </Modal>
+);
 }
