@@ -1,6 +1,6 @@
 # TICK-INFRA-003 — Perf Phase 0 observability (Prisma log, interceptor timing, request-id wiring, DB health ping)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -50,9 +50,12 @@ Proceeding; assumption: implement DB ping via DatabaseService `$queryRaw SELECT 
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: 5/5 pass (health.controller.spec 3/3, logging.interceptor.spec 2/2); grade recompute-skip guard spec 1/1 still passes
+- Lint: eslint clean on all 6 touched/new files
+- Typecheck: no new errors (3 pre-existing errors on clean development, unchanged: class specs arg count x2, org-schedule-config toMinutes shadow x1)
+- Build: `npm run build` OK (525 files, swc)
+- Full suite: not run (deferred to development integration after merge)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -62,10 +65,12 @@ None.
 
 2026-09-25 — Claimed, creating worktree from development.
 Confidence: 95/100 (Requirement clarity 25, Codebase verification 25, Architecture fit 20, Edge cases 12, Blast radius 13). Gaps: WS-context req shape; prod-gate env verified at runtime. Assumption: reuse DatabaseService for health ping instead of new terminus dep.
+2026-09-25 — Implemented (71f565a9): env-gated Prisma log, finalize+hrtime+statusCode interceptor, RequestIdMiddleware via AppModule.configure, DB-ping /check. Deliberate deviation: used AppModule MiddlewareConsumer instead of app.use() in main.ts (idiomatic Nest, same outcome); skipped @nestjs/terminus dep (reuse DatabaseService per dependencies.md SEARCH→REUSE rule — same DB-ping signal, zero new-dep risk). Verified: 5/5 new specs, lint clean, tsc no-new-errors, build OK.
+2026-09-25 — Ready for review.
 
 ## Commits
 
-None yet.
+- 71f565a9 feat(observability): env-gated Prisma query log, finalize timing with statusCode, request-id wiring, DB health ping (branch agent/TICK-INFRA-003-perf-phase0-observability, PR vs development)
 
 ## Notes
 
