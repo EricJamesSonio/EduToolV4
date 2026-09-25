@@ -165,14 +165,25 @@ export class GradeService {
       orgId,
     );
 
-    let computed = 0;
-    for (const studentId of enrolledStudentIds) {
-      const studentSubmissions = submissions.filter(
-        (s) => s.student_id === studentId,
-      );
-      const studentManuals = manualScores.filter(
-        (m) => m.student_id === studentId,
-      );
+    // Perf Phase 2: group once, compute in memory, persist via one batched
+    // repository call (single lock check + chunked transaction) instead of N
+    // sequential upserts.
+    const subsByStudent = new Map<string, any[]>();
+    for (const s of submissions) {
+      const list = subsByStudent.get(s.student_id);
+      if (list) list.push(s);
+      else subsByStudent.set(s.student_id, [s]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const m of manualScores) {
+      const list = manualsByStudent.get(m.student_id);
+      if (list) list.push(m);
+      else manualsByStudent.set(m.student_id, [m]);
+    }
+
+    const rows = enrolledStudentIds.map((studentId) => {
+      const studentSubmissions = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
 
       const finalScore = this.computeWeightedScore(
         studentSubmissions,
@@ -181,16 +192,15 @@ export class GradeService {
       );
       const finalGrade = this.resolveGrade(finalScore, ranges);
 
-      await this.repo.upsert({
-        orgId,
-        studentId,
-        classId,
-        termId,
-        finalScore,
-        finalGrade,
-      });
-      computed++;
-    }
+      return { studentId, finalScore, finalGrade };
+    });
+
+    const { computed, skippedLocked } = await this.repo.saveComputedGrades({
+      orgId,
+      classId,
+      termId,
+      rows,
+    });
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -198,10 +208,16 @@ export class GradeService {
       action: 'grades_computed',
       entityType: 'class',
       entityId: classId,
-      metadata: { termId, studentsComputed: computed },
+      metadata: { termId, studentsComputed: computed, skippedLocked },
     });
 
-    return { computed, message: `Grades computed for ${computed} student(s).` };
+    return {
+      computed,
+      skippedLocked,
+      message:
+        `Grades computed for ${computed} student(s).` +
+        (skippedLocked > 0 ? ` ${skippedLocked} locked skipped.` : ''),
+    };
   }
 
   async setManualScore(

@@ -130,8 +130,8 @@ describe('GradeEducatorService.getGradesByClass — batching equivalence', () =>
     const s1 = results[0].students[0];
     const quiz = s1.categoryBreakdown.find((c: any) => c.type === 'quiz');
     const exam = s1.categoryBreakdown.find((c: any) => c.type === 'exam');
-    expect(quiz.rawAverage).toBe(50);
-    expect(exam.rawAverage).toBe(75);
+    expect(quiz!.rawAverage).toBe(50);
+    expect(exam!.rawAverage).toBe(75);
 
     // s-2 t-1 submitted only a-1 → a-2 appears as not_started
     const s2 = results[0].students[1];

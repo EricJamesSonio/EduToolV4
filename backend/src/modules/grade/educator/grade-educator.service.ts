@@ -565,21 +565,36 @@ export class GradeEducatorService {
       this.repo.findGradingOverridesByClass(classId, orgId),
     ]);
 
-    let computed = 0;
-    for (const studentId of enrolledStudentIds) {
-      const studentSubmissions = submissions.filter(
-        (s: any) => s.student_id === studentId,
-      );
-      const studentManuals = manualScores.filter(
-        (m: any) => m.student_id === studentId,
-      );
+    // Perf Phase 2: group once + hoist inclusion maps out of the per-student
+    // loop (previously rebuilt per student), then persist in one batched
+    // repository call instead of N sequential upserts.
+    const subsByStudent = new Map<string, any[]>();
+    for (const sub of submissions) {
+      const list = subsByStudent.get(sub.student_id);
+      if (list) list.push(sub);
+      else subsByStudent.set(sub.student_id, [sub]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const manual of manualScores) {
+      const list = manualsByStudent.get(manual.student_id);
+      if (list) list.push(manual);
+      else manualsByStudent.set(manual.student_id, [manual]);
+    }
+    const enrollmentDateByStudent = new Map(
+      enrollmentDates.map((e) => [e.student_id, e.created_at]),
+    );
+    const overridesByKey = new Map(
+      overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
+    );
+
+    const rows = enrolledStudentIds.map((studentId) => {
+      const studentSubmissions = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
 
       const { excludedAssessmentIds } = this.buildInclusionMaps(
         allAssessments,
-        new Map(enrollmentDates.map((e) => [e.student_id, e.created_at])),
-        new Map(
-          overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
-        ),
+        enrollmentDateByStudent,
+        overridesByKey,
         studentId,
       );
 
@@ -592,16 +607,15 @@ export class GradeEducatorService {
       );
       const finalGrade = this.core.resolveGrade(finalScore, ranges);
 
-      await this.repo.upsert({
-        orgId,
-        studentId,
-        classId,
-        termId,
-        finalScore,
-        finalGrade,
-      });
-      computed++;
-    }
+      return { studentId, finalScore, finalGrade };
+    });
+
+    const { computed, skippedLocked } = await this.repo.saveComputedGrades({
+      orgId,
+      classId,
+      termId,
+      rows,
+    });
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -609,10 +623,16 @@ export class GradeEducatorService {
       action: 'grades_computed',
       entityType: 'class',
       entityId: classId,
-      metadata: { termId, studentsComputed: computed },
+      metadata: { termId, studentsComputed: computed, skippedLocked },
     });
 
-    return { computed, message: `Grades computed for ${computed} student(s).` };
+    return {
+      computed,
+      skippedLocked,
+      message:
+        `Grades computed for ${computed} student(s).` +
+        (skippedLocked > 0 ? ` ${skippedLocked} locked skipped.` : ''),
+    };
   }
 
   async setManualScore(
