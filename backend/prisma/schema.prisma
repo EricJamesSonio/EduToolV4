@@ -360,6 +360,7 @@ model Program {
   schoolYear              SchoolYear                 @relation(fields: [school_year_id], references: [id])
   courses                 Course[]
   strands                 Strand[]
+  semesters Semester[]
   levels                  Level[]
   subjects                Subject[]
   studentEnrollments      StudentProgramEnrollment[]
@@ -486,6 +487,7 @@ model SemesterTemplateItem {
 
   template SemesterTemplate       @relation(fields: [template_id], references: [id])
   terms    SemesterTemplateTerm[]
+  semesters Semester[]
 }
 
 model SemesterTemplateTerm {
@@ -569,15 +571,21 @@ model StudentProgramEnrollment {
 }
 
 model Semester {
-  id             String   @id @default(uuid())
-  org_id         String
-  school_year_id String
-  name           String
-  start_date     DateTime
-  end_date       DateTime
+  id                    String @id @default(uuid())
+  org_id                String
+  school_year_id        String
+  program_id            String              // ← new: a Semester belongs to one program
+  template_semester_id  String?             // ← new: which SemesterTemplateItem this fulfills
+  name                  String
+  start_date            DateTime
+  end_date              DateTime
 
-  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
-  terms      Term[]
+  schoolYear       SchoolYear            @relation(fields: [school_year_id], references: [id])
+  program          Program               @relation(fields: [program_id], references: [id])
+  templateSemester SemesterTemplateItem? @relation(fields: [template_semester_id], references: [id])
+  terms            Term[]
+
+  @@unique([org_id, school_year_id, program_id, template_semester_id])
 }
 
 model Term {
