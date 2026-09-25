@@ -72,6 +72,12 @@ export class StudentService {
     };
   }
 
+  /**
+   * Builds an org-scoped email for a student using the org email extension.
+   * Students always get a `student.` prefix immediately after the "@",
+   * followed by the org's extension in full (e.g. student.pinkwell-academy,
+   * or student.pinkwell-academy.com if the extension includes a TLD).
+   */
   private async buildOrgEmail(orgId: string, emailName: string) {
     const org = await this.organizationService.getOwn(orgId);
     const extension = org?.emailExtension?.trim();
@@ -94,15 +100,17 @@ export class StudentService {
       throw new BadRequestException('Username must be at most 30 characters.');
     }
 
+    // Strip any pre-existing role segment (defensive, in case the stored
+    // extension was ever saved with one baked in) before re-prefixing.
     const base = extension
       .replace(/^@/, '')
-      .replace(/\.(student|educator)\./g, '.')
+      .replace(/^(student|educator|registrar)\./, '')
+      .replace(/\.(student|educator|registrar)\./g, '.')
       .trim();
-    const dotIdx = base.indexOf('.');
-    const domain =
-      dotIdx >= 0
-        ? `${base.slice(0, dotIdx)}.student${base.slice(dotIdx)}`
-        : `student.${base}`;
+
+    // Role segment always goes first, immediately after "@", with the full
+    // base (including any TLD) kept intact afterward.
+    const domain = `student.${base}`;
 
     return `${localPart}@${domain}`.toLowerCase();
   }
@@ -527,7 +535,7 @@ export class StudentService {
       } as any;
     }
 
-    const created: Array<
+    const created: Array
       ReturnType<typeof this.formatAccount> & { plainPassword: string }
     > = [];
 

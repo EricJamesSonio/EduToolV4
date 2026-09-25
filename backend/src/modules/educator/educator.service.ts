@@ -98,6 +98,12 @@ export class EducatorService {
     };
   }
 
+  /**
+   * Builds an org-scoped email for an educator using the org email extension.
+   * Educators always get an `educator.` prefix immediately after the "@",
+   * followed by the org's extension in full (e.g. educator.pinkwell-academy,
+   * or educator.pinkwell-academy.com if the extension includes a TLD).
+   */
   private async buildOrgEmail(orgId: string, emailName: string) {
     const org = await this.organizationService.getOwn(orgId);
     const extension = org?.emailExtension?.trim();
@@ -120,15 +126,17 @@ export class EducatorService {
       throw new BadRequestException('Username must be at most 30 characters.');
     }
 
+    // Strip any pre-existing role segment (defensive, in case the stored
+    // extension was ever saved with one baked in) before re-prefixing.
     const base = extension
       .replace(/^@/, '')
-      .replace(/\.(student|educator)\./g, '.')
+      .replace(/^(student|educator|registrar)\./, '')
+      .replace(/\.(student|educator|registrar)\./g, '.')
       .trim();
-    const dotIdx = base.indexOf('.');
-    const domain =
-      dotIdx >= 0
-        ? `${base.slice(0, dotIdx)}.educator${base.slice(dotIdx)}`
-        : `educator.${base}`;
+
+    // Role segment always goes first, immediately after "@", with the full
+    // base (including any TLD) kept intact afterward.
+    const domain = `educator.${base}`;
 
     return `${localPart}@${domain}`.toLowerCase();
   }
