@@ -5,26 +5,57 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { tap } from 'rxjs/operators';
+import { finalize } from 'rxjs/operators';
+
+interface TimedRequest {
+  method?: string;
+  url?: string;
+  requestId?: string;
+}
+
+interface TimedResponse {
+  statusCode?: number;
+}
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
-    const req = context.switchToHttp().getRequest();
-    const { method, url } = req;
-    const requestId = req['requestId'];
+    const type = context.getType<string>();
 
-    const now = Date.now();
+    // finalize() (not tap()) so errored requests are timed too.
+    // hrtime.bigint() for monotonic, sub-ms timing instead of Date.now().
+    const start = process.hrtime.bigint();
 
     return next.handle().pipe(
-      tap(() => {
-        const time = Date.now() - now;
+      finalize(() => {
+        const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+
+        // WS/microservice contexts have no HTTP req/res — guard with try/catch
+        // so the interceptor never breaks non-HTTP handlers.
+        let method: string | undefined;
+        let url: string | undefined;
+        let requestId: string | undefined;
+        let statusCode: number | undefined;
+
+        try {
+          if (type === 'http') {
+            const req = context.switchToHttp().getRequest<TimedRequest>();
+            const res = context.switchToHttp().getResponse<TimedResponse>();
+            method = req?.method;
+            url = req?.url;
+            requestId = req?.requestId;
+            statusCode = res?.statusCode;
+          }
+        } catch {
+          // Never let observability break the request path.
+        }
 
         console.log({
           requestId,
           method,
           url,
-          responseTime: `${time}ms`,
+          statusCode,
+          responseTime: `${durationMs.toFixed(2)}ms`,
         });
       }),
     );
