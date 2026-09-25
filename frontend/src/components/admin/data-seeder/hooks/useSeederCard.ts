@@ -23,6 +23,7 @@ import {
   parseSubjectKey,
 } from "../constants/seed-data";
 import { useSemesterTemplates } from "@/hooks/admin/useSemesterTemplate";
+import type { SeedOutcome, SeedStage } from "../SeedProgressDialog";
 
 interface PendingSchoolYear {
   name: string;
@@ -41,6 +42,9 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
   const [pendingSchoolYear, setPendingSchoolYear] =
     useState<PendingSchoolYear | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
+  // Seed progress: stage list is snapshotted when seeding starts so the modal
+  // keeps its labels after resetAll() clears the selection.
+  const [seedOutcome, setSeedOutcome] = useState<SeedOutcome | null>(null);
 
   const { data: schoolYears = [], isLoading: syLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
@@ -242,6 +246,15 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
     ],
       onSuccess: (result) => {
         const warnings: string[] = result?.result?.warnings ?? [];
+        setSeedOutcome((prev) =>
+          prev
+            ? {
+                status: "success",
+                stages: prev.stages,
+                result: (result?.result ?? {}) as Record<string, unknown>,
+              }
+            : prev,
+        );
         if (warnings.length > 0) {
           warnings.slice(0, 3).forEach((w) => toast.warning(w));
           toast.success("Seed completed with some notices (see above).");
@@ -256,6 +269,9 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
     isAxiosError<{ message?: string }>(err) && err.response?.data?.message
       ? err.response.data.message
       : "Seed failed. Please try again.";
+  setSeedOutcome((prev) =>
+    prev ? { ...prev, status: "error", message } : prev,
+  );
   toast.error(message);
 },
     }
@@ -330,6 +346,33 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
 
     const sectionConfigsPayload = buildSectionConfigsPayload();
 
+    const stages: SeedStage[] = [
+      { key: "programs", label: "Departments", resultKeys: ["programs"] },
+    ];
+    if (selectedPrograms.has("college")) {
+      stages.push({ key: "courses", label: "Courses", resultKeys: ["courses"] });
+    }
+    if (selectedPrograms.has("shs")) {
+      stages.push({ key: "strands", label: "Strands", resultKeys: ["strands"] });
+    }
+    stages.push({ key: "levels", label: "Levels", resultKeys: ["levels"] });
+    stages.push({ key: "sections", label: "Sections", resultKeys: ["sections"] });
+    stages.push({ key: "subjects", label: "Subjects", resultKeys: ["subjects"] });
+    if (seedProgramCalendars) {
+      stages.push({
+        key: "programCalendars",
+        label: "Academic Calendars",
+        resultKeys: ["programCalendars"],
+      });
+    }
+    if (seedSemesterTemplates) {
+      stages.push({
+        key: "semesterTemplates",
+        label: "Semester Templates",
+        resultKeys: ["semesterTemplates"],
+      });
+    }
+    setSeedOutcome({ status: "running", stages });
     const programCalendars =
       seedProgramCalendars
         ? Object.fromEntries(
@@ -532,6 +575,8 @@ seedMutation.mutate({
     summaryText,
     summaryItems,
     derivedSelectedLevels,
+    seedOutcome,
+    dismissSeedOutcome: () => setSeedOutcome(null),
 
     // Existing data (disabled sets)
     existingProgramTypes,
