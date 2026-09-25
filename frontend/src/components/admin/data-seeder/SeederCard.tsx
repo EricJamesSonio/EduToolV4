@@ -21,6 +21,7 @@ import { ProgramCalendarStep } from "./ProgramCalendarStep";
 import { SemesterTemplateStep } from "./SemesterTemplateStep";
 import { LEVEL_DEFS } from "./constants/seed-data";
 import { useSeederCard } from "./hooks/useSeederCard";
+import { SeedProgressDialog } from "./SeedProgressDialog";
 
 function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
   return (
@@ -94,6 +95,8 @@ export function SeederCard() {
     updateProgramCalendar,
     selectedSchoolYear,
     existingSemesterTemplateNames,
+    seedOutcome,
+    dismissSeedOutcome,
   } = useSeederCard(overrides);
 
   // ===== Navigation guard: don't let the user silently lose an in-progress
@@ -268,6 +271,8 @@ export function SeederCard() {
               courseSubjectsOverride={overrides.courseSubjectsByCode}
               strandSubjectsOverride={overrides.strandSubjectsByName}
               levelDefsOverride={overrides.levelDefsByEntity}
+              collegeMinorNamesOverride={overrides.collegeMinorSubjectNames ?? undefined}
+              shsMinorNamesOverride={overrides.shsMinorSubjectNames ?? undefined}
             />
           </Card>
 
@@ -360,6 +365,8 @@ export function SeederCard() {
           </Card>
         </div>
       </div>
+
+      <SeedProgressDialog outcome={seedOutcome} onClose={dismissSeedOutcome} />
 
       <ConfirmDialog
         open={!!pendingSchoolYear}
