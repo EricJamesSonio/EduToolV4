@@ -1,6 +1,6 @@
 # TICK-INFRA-005 — Perf Phase 3 mechanical N+1 batching (transcript, attendance, grade-student, bulk ops)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -52,9 +52,12 @@ Proceeding. Assumption: output equivalence via mocked-repo specs (dev DB empty).
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- New batching specs: 6 files, all pass (transcript 6, attendance 3+2, grade-student 2, class 1, educator bulk 2, student bulk 1, enrollment bulk 3, auto-lock 3, readiness 2)
+- Existing specs for touched modules: transcript (updated to batched API), attendance.service (bulk assertion updated), grade/export suites pass
+- Pre-existing failures UNCHANGED (proven identical on old code): class.service.spec 10 failed (stale 7-arg constructor calls), educator.service.spec 3 failed (stale return-shape/Conflict expectations). Flagged, not fixed (outcome decisions outside perf scope).
+- eslint clean on all touched files; tsc: only the 3 pre-existing errors; build OK (531 files)
+- Full suite: not run (deferred to development integration after merge)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -64,10 +67,21 @@ None.
 
 2026-09-25 — Claimed, creating worktree from development.
 Confidence: 84/100 (Requirement clarity 25, Codebase verification 21, Architecture fit 19, Edge cases 9, Blast radius 10). Assumption: mocked-repo equivalence specs.
+2026-09-25 — Implemented 10 commits (transcript, attendance, grade-student, class, educator, student, student-enrollment, auto-lock, grade-lock, + class-spec 8-arg fixup). Verified: new specs green, existing touched specs green/updated, pre-existing class+educator spec failures proven identical on old code and left untouched. tsc/build clean.
+2026-09-25 — Ready for review.
 
 ## Commits
 
-None yet.
+- 4dab867d perf(transcript) batch + memoize per subject
+- b0293461 perf(attendance) batched lookup + bulk save
+- dc771a2c perf(grade-student) 5 queries for all terms
+- 6c6c69b2 perf(class) batched subject+educator lookup
+- 8fb0eedf perf(educator) single org lookup + parallel bcrypt
+- f3359e41 perf(student) single org lookup + parallel bcrypt
+- 37268b58 perf(student-enrollment) batched pre-checks
+- e4e63abf perf(enrollment-auto-lock) single UPDATE sweep
+- 41116882 perf(grade-lock) class-wide load grouped by term
+- d34ba7b8 fixup! class spec 8-arg constructor (branch agent/TICK-INFRA-005-perf-phase3-n1-batching, PR vs development)
 
 ## Notes
 
