@@ -40,33 +40,72 @@ export class TranscriptStudentService {
 
     if (enrollments.length === 0) return [];
 
-    const classEntries: TranscriptEntry[][] = await Promise.all(
-      enrollments.map(async (enrollment) => {
-        const cls = enrollment.class;
+    // Perf Phase 3: fetch every enrollment's lookups in 4 batched queries
+    // instead of 5 queries per enrollment (1 + 9E for E enrollments).
+    const classes = enrollments.map((enrollment) => enrollment.class);
+    const classIds = [...new Set(classes.map((cls) => cls.id))];
+    const subjectIds = [...new Set(classes.map((cls) => cls.subject_id))];
+    const educatorIds = [...new Set(classes.map((cls) => cls.educator_id))];
+    const schoolYearIds = [...new Set(classes.map((cls) => cls.school_year_id))];
 
-        const [subject, educatorProfile, schoolYear, grades, templateTerms] =
-          await Promise.all([
-            this.db.subject.findFirst({
-              where: { id: cls.subject_id, org_id: orgId },
-              select: { id: true, name: true },
-            }),
-            this.db.profile.findFirst({
-              where: { account: { id: cls.educator_id } },
-              select: { full_name: true },
-            }),
-            this.db.schoolYear.findFirst({
-              where: { id: cls.school_year_id, org_id: orgId },
-              select: { id: true, name: true, status: true },
-            }),
-            this.gradeRepo.findByClass(cls.id, orgId),
-            this.gradeRepo.findTemplateTermsByClass(cls.id, orgId),
-          ]);
+    const [subjects, profiles, schoolYears, allGrades] = await Promise.all([
+      this.db.subject.findMany({
+        where: { id: { in: subjectIds }, org_id: orgId },
+        select: { id: true, name: true },
+      }),
+      this.db.profile.findMany({
+        where: { account_id: { in: educatorIds } },
+        select: { account_id: true, full_name: true },
+      }),
+      this.db.schoolYear.findMany({
+        where: { id: { in: schoolYearIds }, org_id: orgId },
+        select: { id: true, name: true, status: true },
+      }),
+      this.gradeRepo.findByClasses(classIds, orgId),
+    ]);
 
-        const gradeByTerm = new Map(
-          grades
-            .filter((g) => g.student_id === studentId)
-            .map((g) => [g.term_id, g]),
-        );
+    const subjectById = new Map(subjects.map((s) => [s.id, s]));
+    const profileByAccountId = new Map(profiles.map((p) => [p.account_id, p]));
+    const schoolYearById = new Map(schoolYears.map((y) => [y.id, y]));
+    const gradesByClass = new Map<string, typeof allGrades>();
+    for (const grade of allGrades) {
+      const list = gradesByClass.get(grade.class_id);
+      if (list) list.push(grade);
+      else gradesByClass.set(grade.class_id, [grade]);
+    }
+
+    // Template terms resolve through the class → subject → program chain, so
+    // classes sharing a subject share the result — resolve once per subject.
+    const classIdBySubject = new Map<string, string>();
+    for (const cls of classes) {
+      if (!classIdBySubject.has(cls.subject_id)) {
+        classIdBySubject.set(cls.subject_id, cls.id);
+      }
+    }
+    const termsPerSubject = await Promise.all(
+      [...classIdBySubject.entries()].map(async ([subjectId, classId]) => ({
+        subjectId,
+        terms: await this.gradeRepo.findTemplateTermsByClass(classId, orgId),
+      })),
+    );
+    const termsBySubject = new Map(
+      termsPerSubject.map((entry) => [entry.subjectId, entry.terms]),
+    );
+
+    const classEntries: TranscriptEntry[][] = enrollments.map((enrollment) => {
+      const cls = enrollment.class;
+
+      const subject = subjectById.get(cls.subject_id) ?? null;
+      const educatorProfile = profileByAccountId.get(cls.educator_id) ?? null;
+      const schoolYear = schoolYearById.get(cls.school_year_id) ?? null;
+      const grades = gradesByClass.get(cls.id) ?? [];
+      const templateTerms = termsBySubject.get(cls.subject_id) ?? [];
+
+      const gradeByTerm = new Map(
+        grades
+          .filter((g) => g.student_id === studentId)
+          .map((g) => [g.term_id, g]),
+      );
 
         // Group template terms by semester
         const semMap = new Map<string, TermGradeEntry[]>();
@@ -111,7 +150,7 @@ export class TranscriptStudentService {
         }
 
         return semEntries;
-      }),
+      },
     );
 
     // Flatten nested arrays

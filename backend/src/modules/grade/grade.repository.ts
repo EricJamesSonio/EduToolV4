@@ -21,6 +21,20 @@ export class GradeRepository {
     });
   }
 
+  /**
+   * Batched variant of findByClass for transcript-style fan-out: one query
+   * for many classes instead of one findByClass per enrollment.
+   */
+  async findByClasses(classIds: string[], orgId: string) {
+    if (classIds.length === 0) return [];
+    return this.db.grade.findMany({
+      where: {
+        class_id: { in: classIds },
+        org_id: orgId,
+      },
+    });
+  }
+
   async findByClassAndTerm(classId: string, termId: string, orgId: string) {
     return this.db.grade.findMany({
       where: {
