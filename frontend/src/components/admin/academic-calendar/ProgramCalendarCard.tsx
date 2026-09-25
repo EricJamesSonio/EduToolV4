@@ -127,17 +127,17 @@ export function ProgramCalendarCard({
   function padToTwoBreaks(prev: CalendarBreak[]): CalendarBreak[] {
     const base = [...prev];
     while (base.length < 2) {
-      base.push({ label: `Break ${base.length + 1}`, startDate: "", endDate: "" });
+      base.push({ label: `Sem ${base.length + 1}`, startDate: "", endDate: "" });
     }
     return base;
   }
 
-function seedDefaultBreaks(seedStart: string): CalendarBreak[] {
-  return [
-    { label: "Break 1", startDate: seedStart, endDate: "" },
-    { label: "Break 2", startDate: "", endDate: "" },
-  ];
-}
+  function seedDefaultBreaks(seedStart: string): CalendarBreak[] {
+    return [
+      { label: "Sem 1", startDate: seedStart, endDate: "" },
+      { label: "Sem 2", startDate: "", endDate: "" },
+    ];
+  }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const hasCalendar = calendar !== null && calendar !== undefined;
@@ -145,14 +145,14 @@ function seedDefaultBreaks(seedStart: string): CalendarBreak[] {
   const activeBreaks = breaks.filter((b) => b.startDate && b.endDate);
   const validationErrors: string[] = [];
   if (activeBreaks.length < 2) {
-    validationErrors.push("At least two semester breaks are required before saving.");
+    validationErrors.push("Both Sem 1 and Sem 2 timelines are required before saving.");
   }
   if (activeBreaks.length > 0) {
     if (activeBreaks[0].startDate !== startDate) {
-      validationErrors.push("First break start must match the calendar start date.");
+      validationErrors.push("Sem 1 start must match the calendar start date.");
     }
     if (activeBreaks[activeBreaks.length - 1].endDate !== endDate) {
-      validationErrors.push("Last break end must match the calendar end date.");
+      validationErrors.push("Sem 2 end must match the calendar end date.");
     }
   }
 
@@ -231,8 +231,8 @@ function seedDefaultBreaks(seedStart: string): CalendarBreak[] {
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes for this calendar" className="h-8 text-sm" />
               </div>
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">Semester Breaks</p>
-                <p className="text-xs text-muted-foreground not-interactive">Define break periods — terms are auto-computed between them.</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">Semester Timelines</p>
+                <p className="text-xs text-muted-foreground not-interactive">Set the Sem 1 and Sem 2 start/end dates — terms are auto-computed between them.</p>
                 <BreakEditor
                   breaks={breaks}
                   onChange={setBreaks}
@@ -263,7 +263,7 @@ function seedDefaultBreaks(seedStart: string): CalendarBreak[] {
             <div className="space-y-4">
               {calendar!.breaks.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">Breaks</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">Semesters</p>
                   <div className="space-y-1.5">
                     {calendar!.breaks.map((b, i) => (
                       <div key={i} className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2">

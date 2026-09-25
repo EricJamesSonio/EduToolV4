@@ -54,7 +54,7 @@ export function ProgramCalendarsTab({ schoolYearId, schoolYearStart, schoolYearE
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground not-interactive">
-        Define break periods per department — terms are auto-generated and stored for use in semester settings.
+        Define the Sem 1 and Sem 2 timelines per department — terms are auto-generated and stored for use in semester settings.
       </p>
       {programs.map((program) => (
         <ProgramCalendarCard
