@@ -1,6 +1,6 @@
 # TICK-GRADE-003 — Perf Phase 2 grade batching (parallel terms, Map lookups, batched writes)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -48,9 +48,12 @@ Proceeding with disclosed assumption: output-shape equivalence verified via unit
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Grade suite: 58/58 pass (37 core incl. KNOWN-BUG pins, 2 lock-guard proofs, 1 recompute-skip, 2 educator batching, 1 legacy batching, 4 compute batching, rest pre-existing)
+- Equivalence proof: new batching specs run GREEN on pre-refactor code (via checkout of development versions) with zero expectation changes, then green on refactored code
+- Before/after counts (mocked-repo, 2-term fixture): class-level fetches 2x per invariant BEFORE → 1x AFTER (proven by count test failing on old code with "Received 2", passing on new)
+- eslint clean; tsc no new errors (3 pre-existing); `npm run build` OK (526 files)
+- Full suite: not run (grade-scoped change; deferred to development integration after merge)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -60,10 +63,15 @@ None.
 
 2026-09-25 — Claimed, creating worktree from development.
 Confidence: 82/100 (Requirement clarity 25, Codebase verification 20, Architecture fit 18, Edge cases 9, Blast radius 10). Assumption: equivalence via mocked-repo specs (dev DB empty); query counts measured with seeded local volume + Phase 0 logging.
+2026-09-25 — Implemented 4 commits (87bfd855 core maps; 530b161a educator parallel+hoist+group; c3bb67a0 legacy same; 717e14b1 batched computeGrades + saveComputedGrades + spec tsc fix). Legacy GradeService verdict: LIVE (serves GET /classes/:classId/grades) — fixed, not flagged dead. computeGrades now skips locked rows via single batched check (previously overwrote them) — intentional per ticket scope, flagged in handoff. Verified: 58/58 grade tests, equivalence green on old+new, lint/tsc/build clean.
+2026-09-25 — Ready for review.
 
 ## Commits
 
-None yet.
+- 87bfd855 perf(grade): Map lookups in computeWeightedScore/buildCategoryBreakdown
+- 530b161a perf(grade): parallel term builds with hoisted invariants + grouped lookups in educator grid
+- c3bb67a0 perf(grade): parallel term builds with hoisted scheme/profiles + grouped lookups in legacy grid
+- 717e14b1 perf(grade): batched computeGrades writes via saveComputedGrades (branch agent/TICK-GRADE-003-perf-phase2-grade-batching, PR vs development)
 
 ## Notes
 
