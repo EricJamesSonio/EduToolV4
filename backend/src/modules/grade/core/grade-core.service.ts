@@ -33,6 +33,53 @@ export interface GradeComputationOptions {
 @Injectable()
 export class GradeCoreService {
   /**
+   * Group assessments by type once so per-student scoring is O(A) lookups
+   * instead of O(C·A) repeated filters. (Perf Phase 2 — pure refactor.)
+   */
+  private groupAssessmentsByType(allAssessments: any[]): Map<string, any[]> {
+    const byType = new Map<string, any[]>();
+    for (const assessment of allAssessments) {
+      const list = byType.get(assessment.type);
+      if (list) list.push(assessment);
+      else byType.set(assessment.type, [assessment]);
+    }
+    return byType;
+  }
+
+  /**
+   * Index a student's submissions by assessment id once so per-assessment
+   * scoring is O(1) instead of O(N) linear scans. First row wins, matching
+   * the previous Array.find() semantics exactly.
+   */
+  private indexSubmissionsByAssessment(
+    studentSubmissions: any[],
+  ): Map<string, any> {
+    const byAssessment = new Map<string, any>();
+    for (const sub of studentSubmissions) {
+      if (!byAssessment.has(sub.assessment_id)) {
+        byAssessment.set(sub.assessment_id, sub);
+      }
+    }
+    return byAssessment;
+  }
+
+  /**
+   * Index a student's manual scores by lowercased category once. First row
+   * wins, matching the previous Array.find() semantics exactly.
+   */
+  private indexManualsByCategory(
+    studentManualScores: any[],
+  ): Map<string, any> {
+    const byCategory = new Map<string, any>();
+    for (const manual of studentManualScores) {
+      const key = manual.category.toLowerCase();
+      if (!byCategory.has(key)) {
+        byCategory.set(key, manual);
+      }
+    }
+    return byCategory;
+  }
+  /**
    * Compute weighted score for a student considering ALL assessments in the term.
    * Missing assessments (no submission or draft) count as 0.
    * Exempted submissions are skipped entirely; if a category's submissions are
@@ -52,21 +99,25 @@ export class GradeCoreService {
     let totalWeightedScore = 0;
     let totalWeight = 0;
 
+    // Perf Phase 2: build lookup maps once per call instead of
+    // filter()/find() inside the category × assessment loops.
+    const assessmentsByType = this.groupAssessmentsByType(allAssessments);
+    const subByAssessment = this.indexSubmissionsByAssessment(
+      studentSubmissions,
+    );
+    const manualByCategory = this.indexManualsByCategory(studentManualScores);
+
     for (const category of categories) {
       const weight = category.weight;
 
       if (category.type === 'manual') {
-        const manual = studentManualScores.find(
-          (m) => m.category.toLowerCase() === category.name.toLowerCase(),
-        );
+        const manual = manualByCategory.get(category.name.toLowerCase());
         if (manual !== undefined) {
           totalWeightedScore += manual.score * weight;
           totalWeight += weight;
         }
       } else {
-        const categoryAssessments = allAssessments.filter(
-          (a) => a.type === category.type,
-        );
+        const categoryAssessments = assessmentsByType.get(category.type) ?? [];
         if (categoryAssessments.length === 0) continue;
 
         const percentages: number[] = [];
@@ -76,9 +127,7 @@ export class GradeCoreService {
           // Late-enrollment exclusion: skipped like an exempted submission —
           // no percentage pushed, doesn't keep the category "active".
           if (options?.excludedAssessmentIds?.has(assessment.id)) continue;
-          const sub = studentSubmissions.find(
-            (s) => s.assessment_id === assessment.id,
-          );
+          const sub = subByAssessment.get(assessment.id);
           if (!sub) {
             // Missing assessment counts as zero instead of being dropped from
             // the average — handed-out assessments are not optional work.
@@ -153,15 +202,21 @@ export class GradeCoreService {
     totalActiveWeight: number,
     options?: GradeComputationOptions,
   ) {
+    // Perf Phase 2: same lookup maps as computeWeightedScore — O(1) per
+    // assessment instead of filter()/find() inside the loops.
+    const assessmentsByType = this.groupAssessmentsByType(allAssessments);
+    const subByAssessment = this.indexSubmissionsByAssessment(
+      studentSubmissions,
+    );
+    const manualByCategory = this.indexManualsByCategory(studentManualScores);
+
     return categories.map((category) => {
       let rawAverage = 0;
       let manualScore: number | null = null;
       let isAllExempted = false;
 
       if (category.type === 'manual') {
-        const manual = studentManualScores.find(
-          (m) => m.category.toLowerCase() === category.name.toLowerCase(),
-        );
+        const manual = manualByCategory.get(category.name.toLowerCase());
         manualScore = manual?.score ?? null;
         if (manualScore != null) {
           rawAverage = manualScore;
@@ -169,9 +224,7 @@ export class GradeCoreService {
           isAllExempted = true;
         }
       } else {
-        const categoryAssessments = allAssessments.filter(
-          (a) => a.type === category.type,
-        );
+        const categoryAssessments = assessmentsByType.get(category.type) ?? [];
         if (categoryAssessments.length > 0) {
           if (category.maxScore != null && category.maxScore > 0) {
             let totalRawScore = 0;
@@ -179,9 +232,7 @@ export class GradeCoreService {
             for (const assessment of categoryAssessments) {
               // Late-enrollment exclusion mirrors the exempted skip below.
               if (options?.excludedAssessmentIds?.has(assessment.id)) continue;
-              const sub = studentSubmissions.find(
-                (s) => s.assessment_id === assessment.id,
-              );
+              const sub = subByAssessment.get(assessment.id);
               if (!sub) continue;
               if (sub.status === 'exempted' || sub.is_exempted) continue;
               if (sub.is_missed) continue;
@@ -200,9 +251,7 @@ export class GradeCoreService {
             for (const assessment of categoryAssessments) {
               // Late-enrollment exclusion mirrors the exempted skip below.
               if (options?.excludedAssessmentIds?.has(assessment.id)) continue;
-              const sub = studentSubmissions.find(
-                (s) => s.assessment_id === assessment.id,
-              );
+              const sub = subByAssessment.get(assessment.id);
               if (!sub) {
                 // No submission at all — cannot contribute a score
                 continue;
