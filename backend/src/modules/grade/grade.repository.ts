@@ -427,6 +427,25 @@ export class GradeRepository {
     });
   }
 
+  /**
+   * Lean class-wide submissions for readiness-style sweeps: only the fields
+   * the missing-submission check reads, one query for the whole class
+   * instead of one per term.
+   */
+  async findSubmissionsForClass(classId: string, orgId: string) {
+    return this.db.submission.findMany({
+      where: {
+        org_id: orgId,
+        assessment: { class_id: classId, deleted_at: null },
+      },
+      select: {
+        student_id: true,
+        assessment_id: true,
+        status: true,
+      },
+    });
+  }
+
   async findSubjectLevel(subjectId: string, orgId: string) {
     return this.db.subject.findFirst({
       where: { id: subjectId, org_id: orgId },
