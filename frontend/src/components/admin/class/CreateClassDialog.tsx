@@ -90,7 +90,8 @@ export function CreateClassDialog({
 
   const {
     programs, tracks, hasTrack, isCourseTrack, levels, sections, subjects,
-    programMissingTemplate, semesters, educators, educatorClasses, educatorClassesLoading,
+    programMissingTemplate, templateAssignmentsLoading, semesters, educators,
+    educatorClasses, educatorClassesLoading,
   } = useCreateClassData(
     schoolYearId,
     selectedProgramId,
@@ -256,24 +257,31 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {programMissingTemplate && <SemesterTemplateWarning onDiscard={() => { handleDiscard(); router.push("/admin/semester-settings"); }} />}
+            {/* Don't render the warning until we actually know the answer —
+                otherwise it flashes true (assignedProgramIds momentarily
+                empty) before settling on the correct value. */}
+            {!templateAssignmentsLoading && programMissingTemplate && (
+              <SemesterTemplateWarning onDiscard={() => { handleDiscard(); router.push("/admin/semester-settings"); }} />
+            )}
 
             <div className="space-y-1.5">
               <Label>Semester</Label>
               <Select
                 value={selectedSemesterId}
                 onValueChange={(v) => setValue("semesterId", v ?? "")}
-                disabled={!selectedProgramId || programMissingTemplate}
+                disabled={!selectedProgramId || programMissingTemplate || templateAssignmentsLoading}
               >
                 <SelectTrigger>
                   <span>
                     {!selectedProgramId
                       ? "Select a department first"
-                      : programMissingTemplate
-                        ? "No template assigned"
-                        : semesters.length === 0
-                          ? "No semesters available"
-                          : (semesters.find((s) => s.id === selectedSemesterId)?.name ?? "Select semester")}
+                      : templateAssignmentsLoading
+                        ? "Checking template…"
+                        : programMissingTemplate
+                          ? "No template assigned"
+                          : semesters.length === 0
+                            ? "No semesters available"
+                            : (semesters.find((s) => s.id === selectedSemesterId)?.name ?? "Select semester")}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
