@@ -298,6 +298,7 @@ export class GradeRepository {
         id: true,
         title: true,
         type: true,
+        term_id: true,
         total_items: true,
         grading_mode: true,
         release_date: true,
@@ -414,6 +415,7 @@ export class GradeRepository {
             id: true,
             type: true,
             title: true,
+            term_id: true,
             total_items: true,
             grading_mode: true,
             release_date: true,
@@ -541,11 +543,14 @@ export class GradeRepository {
     termId: string,
     orgId: string,
     studentId?: string,
+    termIds?: string[],
   ) {
     return this.db.manualScore.findMany({
       where: {
         class_id: classId,
-        term_id: termId,
+        // Perf Phase 3: optional multi-term fetch so single-student views can
+        // load all terms in one query instead of one per term.
+        ...(termIds && termIds.length > 0 ? { term_id: { in: termIds } } : { term_id: termId }),
         org_id: orgId,
         ...(studentId ? { student_id: studentId } : {}),
       },

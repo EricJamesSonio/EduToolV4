@@ -58,27 +58,57 @@ export class GradeStudentService {
         }));
     }
 
-    const results = await Promise.all(
-      terms.map(async (term) => {
-        const [grade, submissions, manualScores, assessments, scheme] =
-          await Promise.all([
-            this.gradeRepo.findByStudent(studentId, classId, term.id, orgId),
-            this.gradeRepo.findSubmissionsForTerm(classId, term.id, orgId),
-            this.gradeRepo.findManualScores(classId, term.id, orgId),
-            this.gradeRepo.findAssessmentsForTerm(classId, term.id, orgId),
-            this.gradeRepo.findGradingSchemeForClass(classId, orgId),
-          ]);
+    // Perf Phase 3: load this student's whole class-term picture in 5 queries
+    // (grades, submissions, manuals, assessments, scheme) instead of 5 per
+    // term, then assemble per-term rows in memory.
+    const termIds = terms.map((t) => t.id);
+    const [allGrades, allSubmissions, allManuals, allAssessments, scheme] =
+      await Promise.all([
+        this.gradeRepo.findByClass(classId, orgId),
+        this.gradeRepo.findSubmissionsByStudentInClass(
+          classId,
+          studentId,
+          orgId,
+        ),
+        this.gradeRepo.findManualScores(classId, '', orgId, studentId, termIds),
+        this.gradeRepo.findClassAssessments(classId, orgId),
+        this.gradeRepo.findGradingSchemeForClass(classId, orgId),
+      ]);
 
-        const studentSubs = submissions.filter(
-          (s) => s.student_id === studentId,
-        );
-        const studentManuals = manualScores.filter(
-          (m) => m.student_id === studentId,
-        );
+    const gradeByTerm = new Map(
+      allGrades
+        .filter((g) => g.student_id === studentId)
+        .map((g) => [g.term_id, g]),
+    );
+    const subsByTerm = new Map<string, typeof allSubmissions>();
+    for (const sub of allSubmissions) {
+      const termId = (sub.assessment as { term_id?: string })?.term_id;
+      if (!termId || !termIds.includes(termId)) continue;
+      const list = subsByTerm.get(termId);
+      if (list) list.push(sub);
+      else subsByTerm.set(termId, [sub]);
+    }
+    const manualsByTerm = new Map<string, typeof allManuals>();
+    for (const manual of allManuals) {
+      const list = manualsByTerm.get(manual.term_id);
+      if (list) list.push(manual);
+      else manualsByTerm.set(manual.term_id, [manual]);
+    }
+    const assessmentsByTerm = new Map<string, typeof allAssessments>();
+    for (const assessment of allAssessments) {
+      if (!termIds.includes(assessment.term_id)) continue;
+      const list = assessmentsByTerm.get(assessment.term_id);
+      if (list) list.push(assessment);
+      else assessmentsByTerm.set(assessment.term_id, [assessment]);
+    }
 
-        const categories = scheme
-          ? componentsToCategories(scheme.components)
-          : [];
+    const categories = scheme ? componentsToCategories(scheme.components) : [];
+
+    return terms.map((term) => {
+      const grade = gradeByTerm.get(term.id);
+      const studentSubs = subsByTerm.get(term.id) ?? [];
+      const studentManuals = manualsByTerm.get(term.id) ?? [];
+      const assessments = assessmentsByTerm.get(term.id) ?? [];
 
         const totalActiveWeight = categories.reduce((sum, cat) => {
           if (cat.type === 'manual') {
@@ -118,9 +148,7 @@ export class GradeStudentService {
           isReleased: grade?.is_locked ?? false,
           categoryBreakdown,
         };
-      }),
+      },
     );
-
-    return results;
   }
 }
