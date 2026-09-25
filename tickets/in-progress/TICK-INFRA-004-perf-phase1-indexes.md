@@ -1,6 +1,6 @@
 # TICK-INFRA-004 — Perf Phase 1 indexes (new migration + @@index, CONCURRENTLY-safe)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -45,9 +45,13 @@ Proceeding. Assumption: index/migration naming follows `perf_indexes` convention
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- `prisma validate`: schema valid
+- `prisma migrate deploy` vs shared dev DB: all migrations applied successfully (incl. new `20260925120000_perf_hot_path_indexes`)
+- pg_indexes verification: 21/21 new indexes FOUND, 0 MISSING, 0 INVALID (`NOT indisvalid` empty)
+- Row counts at apply time: Enrollment=0, Grade=0, Submission=0, AttendanceRecord=0 (no data touched)
+- tsc: no new errors (same 3 pre-existing as clean development)
+- Full suite: not run (index-only change; deferred to development integration after merge)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -57,10 +61,12 @@ None.
 
 2026-09-25 — Pre-claim live DB snapshot (read-only SELECTs vs shared dev Aiven DB): Enrollment=0, Grade=0, Submission=0, AttendanceRecord=0. Duplicate check (org_id,class_id,student_id): 0 groups, 0 extra rows → unique safe, no cleanup. Claimed, creating worktree from development.
 Confidence: 92/100 (Requirement clarity 25, Codebase verification 23, Architecture fit 20, Edge cases 12, Blast radius 12). Assumption: `perf_indexes` naming.
+2026-09-25 — Implemented (43877439): 11 models +@@index/@@unique, migration.sql (plain CREATE INDEX IF NOT EXISTS, transaction-safe) + scripts/apply-perf-indexes-concurrently.sql (CONCURRENTLY, psql autocommit). Applied via migrate deploy to shared dev DB; verified 21/21 in pg_indexes, 0 invalid. No duplicates existed so unique applied with no cleanup. OrgHolidayConfig skipped per instruction.
+2026-09-25 — Ready for review.
 
 ## Commits
 
-None yet.
+- 43877439 perf(db): hot-path indexes for class/enrollment/assessment/grade/attendance/log tables (branch agent/TICK-INFRA-004-perf-phase1-indexes, PR vs development)
 
 ## Notes
 
