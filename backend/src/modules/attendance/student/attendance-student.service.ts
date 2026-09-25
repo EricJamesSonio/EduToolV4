@@ -25,24 +25,32 @@ export class AttendanceStudentService {
     // Fetch all sessions for the class
     const sessions = await this.attendanceRepo.findSessionsByClass(classId);
 
-    // Fetch all records for this student across all sessions
-    const allRecords = await Promise.all(
-      sessions.map((s) =>
-        this.attendanceRepo.findRecordBySessionAndStudent(s.id, studentId),
-      ),
-    );
+    // Perf Phase 3: one batched query for this student's records across all
+    // sessions instead of one findFirst per session.
+    const records =
+      await this.attendanceRepo.findRecordsByStudentInSessions(
+        sessions.map((s) => s.id),
+        studentId,
+      );
+    // First row wins per session, matching the previous findFirst semantics.
+    const recordBySession = new Map<string, (typeof records)[number]>();
+    for (const record of records) {
+      if (!recordBySession.has(record.session_id)) {
+        recordBySession.set(record.session_id, record);
+      }
+    }
 
     // Zip sessions + their record for this student
-    const sessionRows = sessions.map((session, i) => ({
+    const sessionRows = sessions.map((session) => ({
       sessionId: session.id,
       date: session.date,
       weekNumber: session.week_number,
       subIndex: session.sub_index,
-      status: allRecords[i]?.status ?? null, // null = not yet recorded
+      status: recordBySession.get(session.id)?.status ?? null, // null = not yet recorded
     }));
 
     // Summary counts
-    const recorded = allRecords.filter(Boolean);
+    const recorded = [...recordBySession.values()];
 
     const summary = {
       total: sessions.length,

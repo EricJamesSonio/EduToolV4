@@ -22,6 +22,7 @@ describe('AttendanceService (High-Value Tests)', () => {
     findRecordById: jest.fn(),
     updateRecord: jest.fn(),
     upsertRecord: jest.fn(),
+    saveRecordsBulk: jest.fn(),
     markPresentFromSubmission: jest.fn(),
   };
 
@@ -227,7 +228,14 @@ describe('AttendanceService (High-Value Tests)', () => {
       records: [{ studentId: 's1', status: 'P' }],
     } as any);
 
-    expect(attendanceRepo.upsertRecord).toHaveBeenCalled();
+    // Perf Phase 3: one batched save instead of per-record upserts.
+    expect(attendanceRepo.upsertRecord).not.toHaveBeenCalled();
+    expect(attendanceRepo.saveRecordsBulk).toHaveBeenCalledTimes(1);
+    expect(attendanceRepo.saveRecordsBulk).toHaveBeenCalledWith({
+      orgId: 'org1',
+      sessionId: 's1',
+      entries: [{ studentId: 's1', status: 'P' }],
+    });
   });
 
   // ─────────────────────────────────────────────

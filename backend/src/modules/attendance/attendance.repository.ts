@@ -56,6 +56,87 @@ export class AttendanceRepository {
     });
   }
 
+  /**
+   * Batched variant for student views: all of one student's records across
+   * many sessions in one query instead of one findFirst per session.
+   */
+  async findRecordsByStudentInSessions(
+    sessionIds: string[],
+    studentId: string,
+  ) {
+    if (sessionIds.length === 0) return [];
+    return this.db.attendanceRecord.findMany({
+      where: { session_id: { in: sessionIds }, student_id: studentId },
+    });
+  }
+
+  /**
+   * Bulk-save a whole session's attendance: one SELECT for existing rows,
+   * then a single $transaction of per-status updateMany + one createMany
+   * (skipDuplicates) instead of 2 queries per record. Last entry wins per
+   * student, matching sequential upsert order.
+   */
+  async saveRecordsBulk(args: {
+    orgId: string;
+    sessionId: string;
+    entries: Array<{ studentId: string; status: string }>;
+  }): Promise<{ updated: number; created: number }> {
+    if (args.entries.length === 0) return { updated: 0, created: 0 };
+
+    const existing = await this.db.attendanceRecord.findMany({
+      where: {
+        session_id: args.sessionId,
+        student_id: {
+          in: [...new Set(args.entries.map((e) => e.studentId))],
+        },
+      },
+      select: { student_id: true },
+    });
+    const existingIds = new Set(existing.map((r) => r.student_id));
+
+    const statusByStudent = new Map<string, string>();
+    for (const entry of args.entries) {
+      statusByStudent.set(entry.studentId, entry.status);
+    }
+
+    const idsByStatus = new Map<string, string[]>();
+    const toCreate: string[] = [];
+    for (const [studentId, status] of statusByStudent) {
+      if (existingIds.has(studentId)) {
+        const ids = idsByStatus.get(status);
+        if (ids) ids.push(studentId);
+        else idsByStatus.set(status, [studentId]);
+      } else {
+        toCreate.push(studentId);
+      }
+    }
+
+    const ops: unknown[] = [
+      ...[...idsByStatus.entries()].map(([status, ids]) =>
+        this.db.attendanceRecord.updateMany({
+          where: { session_id: args.sessionId, student_id: { in: ids } },
+          data: { status: status as AttendanceStatus },
+        }),
+      ),
+    ];
+    if (toCreate.length > 0) {
+      ops.push(
+        this.db.attendanceRecord.createMany({
+          data: toCreate.map((studentId) => ({
+            org_id: args.orgId,
+            session_id: args.sessionId,
+            student_id: studentId,
+            status: statusByStudent.get(studentId) as AttendanceStatus,
+          })),
+          skipDuplicates: true,
+        }),
+      );
+    }
+    await this.db.$transaction(ops as any);
+
+    return { updated: statusByStudent.size - toCreate.length, created: toCreate.length };
+  }
+
   async updateRecord(id: string, status: AttendanceStatus) {
     return this.db.attendanceRecord.update({
       where: { id },
