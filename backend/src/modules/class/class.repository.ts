@@ -597,4 +597,40 @@ export class ClassRepository {
       educatorProfile: cls.educator.profile,
     };
   }
+
+  /**
+   * Batched variant of findSubjectWithEducator for student class lists: one
+   * query for many classes, selecting only the name fields the list view
+   * needs. Returns a Map keyed by class id.
+   */
+  async findSubjectsWithEducators(
+    ids: string[],
+  ): Promise<
+    Map<
+      string,
+      {
+        subject: { name: string } | null;
+        educatorProfile: { full_name: string } | null;
+      }
+    >
+  > {
+    if (ids.length === 0) return new Map();
+    const classes = await this.db.class.findMany({
+      where: { id: { in: [...new Set(ids)] } },
+      select: {
+        id: true,
+        subject: { select: { name: true } },
+        educator: { select: { profile: { select: { full_name: true } } } },
+      },
+    });
+    return new Map(
+      classes.map((cls) => [
+        cls.id,
+        {
+          subject: cls.subject,
+          educatorProfile: cls.educator?.profile ?? null,
+        },
+      ]),
+    );
+  }
 }

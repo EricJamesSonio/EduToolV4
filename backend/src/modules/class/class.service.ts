@@ -709,29 +709,34 @@ export class ClassService {
       studentId,
       orgId,
     );
-    return Promise.all(
-      enrollments.map(async (enrollment) => {
-        const cls = (enrollment as any).class;
-        const { subject, educatorProfile } =
-          await this.classRepository.findSubjectWithEducator(cls.id);
-        return {
-          enrollmentId: enrollment.id,
-          enrollmentStatus: enrollment.status,
-          class: {
-            id: cls.id,
-            subjectId: cls.subject_id,
-            subjectName: subject?.name ?? null,
-            educatorId: cls.educator_id,
-            educatorName: educatorProfile?.full_name ?? null,
-            sectionId: cls.section_id,
-            schoolYearId: cls.school_year_id,
-            semesterId: cls.semester_id,
-            capacity: cls.capacity,
-            schedules: cls.schedules,
-          },
-        };
-      }),
-    );
+    // Perf Phase 3: one batched subject+educator lookup instead of one
+    // findSubjectWithEducator per enrollment.
+    const infoByClass =
+      await this.classRepository.findSubjectsWithEducators(
+        enrollments.map((enrollment) => (enrollment as any).class.id),
+      );
+    return enrollments.map((enrollment) => {
+      const cls = (enrollment as any).class;
+      const info = infoByClass.get(cls.id);
+      const subject = info?.subject ?? null;
+      const educatorProfile = info?.educatorProfile ?? null;
+      return {
+        enrollmentId: enrollment.id,
+        enrollmentStatus: enrollment.status,
+        class: {
+          id: cls.id,
+          subjectId: cls.subject_id,
+          subjectName: subject?.name ?? null,
+          educatorId: cls.educator_id,
+          educatorName: educatorProfile?.full_name ?? null,
+          sectionId: cls.section_id,
+          schoolYearId: cls.school_year_id,
+          semesterId: cls.semester_id,
+          capacity: cls.capacity,
+          schedules: cls.schedules,
+        },
+      };
+    });
   }
 
   async getStudentClassById(classId: string, studentId: string, orgId: string) {
