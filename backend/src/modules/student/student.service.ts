@@ -535,9 +535,7 @@ export class StudentService {
       } as any;
     }
 
-    const created: Array
-      ReturnType<typeof this.formatAccount> & { plainPassword: string }
-    > = [];
+const created: Array<ReturnType<typeof this.formatAccount> & { plainPassword: string }> = [];
 
     for (const { data } of validRows) {
       try {
