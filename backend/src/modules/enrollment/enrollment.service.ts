@@ -31,13 +31,33 @@ export class EnrollmentService {
   private async isGradePassing(
     grade: { final_score: number; class: { id: string } },
     orgId: string,
+    scaleCache?: Map<
+      string,
+      Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
+    >,
   ): Promise<boolean> {
     const classId = (grade.class as unknown as { id: string }).id;
+    // Perf Phase 5: per-request memoization — repeated checks in one request
+    // share one scale lookup per class. Failures are never cached.
+    let scale: Awaited<ReturnType<GradingScaleRepository['findByClassId']>>;
+    if (scaleCache?.has(classId)) {
+      // has() guard above narrows away the Map.get() undefined case.
+      scale = scaleCache.get(classId) as Awaited<
+        ReturnType<GradingScaleRepository['findByClassId']>
+      >;
+    } else {
+      try {
+        scale = await this.gradingScaleRepository.findByClassId(
+          classId,
+          orgId,
+        );
+      } catch {
+        // fall through
+        return grade.final_score >= FALLBACK_PASSING_SCORE;
+      }
+      scaleCache?.set(classId, scale);
+    }
     try {
-      const scale = await this.gradingScaleRepository.findByClassId(
-        classId,
-        orgId,
-      );
       if (scale && (scale as unknown as { ranges: unknown }).ranges) {
         const ranges = (scale as unknown as { ranges: unknown[] }).ranges as Array<{
           minPercent: number;
@@ -72,6 +92,10 @@ export class EnrollmentService {
     subjectId: string,
     studentId: string,
     orgId: string,
+    scaleCache?: Map<
+      string,
+      Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
+    >,
   ): Promise<PrerequisiteCheckResultDto> {
     const rows = await this.enrollmentRepository.getPrerequisitesWithGrades(
       subjectId,
@@ -80,6 +104,15 @@ export class EnrollmentService {
     );
 
     if (rows.length === 0) return { eligible: true, missing: [] };
+
+    // Perf Phase 5: one shared scale cache for the whole check (was: one
+    // scale lookup per prerequisite row). Defaults to a fresh per-call cache.
+    const cache =
+      scaleCache ??
+      new Map<
+        string,
+        Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
+      >();
 
     const missing: PrerequisiteCheckResultDto['missing'] = [];
 
@@ -105,6 +138,7 @@ export class EnrollmentService {
       const passed = await this.isGradePassing(
         row.grade as unknown as { final_score: number; class: { id: string } },
         orgId,
+        cache,
       );
       if (!passed) {
         missing.push({

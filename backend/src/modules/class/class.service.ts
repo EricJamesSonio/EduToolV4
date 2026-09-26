@@ -16,7 +16,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 import { OrgScheduleConfigService } from '../org-schedule-config/org-schedule-config.service';
 import { getScheduleViolation } from '../org-schedule-config/schedule-window.util';
 import {
-  resolveSubjectAcademicStructure,
+  resolveSubjectAcademicStructures,
   isEligibleForClassStructure,
 } from '../enrollment/enrollment-eligibility.util';
 import {
@@ -510,6 +510,13 @@ export class ClassService {
     });
 
     const eligible: typeof candidates = [];
+    // Perf Phase 5: resolve every candidate's academic structure with one
+    // batched query instead of up to 6 sequential queries per class.
+    const structuresBySubject = await resolveSubjectAcademicStructures(
+      this.db,
+      candidates.map((cls) => cls.subject_id),
+      orgId,
+    );
     for (const cls of candidates) {
       if (enrolledClassIds.has(cls.id)) continue;
       const dupKey = `${cls.subject_id}::${cls.semester_id}`;
@@ -518,8 +525,12 @@ export class ClassService {
       const studentStructure = placementByYear.get(cls.school_year_id) ?? null;
       if (!studentStructure) continue;
 
-      // Lazy resolve subject structure per class
-      const subjectStructure = await resolveSubjectAcademicStructure(this.db, cls.subject_id, orgId);
+      const subjectStructure = structuresBySubject.get(cls.subject_id) ?? {
+        programId: null,
+        courseIds: [],
+        strandIds: [],
+        levelIds: [],
+      };
       if (!subjectStructure.programId) continue;
 
       const eligibleByStructure = isEligibleForClassStructure(
@@ -533,14 +544,20 @@ export class ClassService {
     }
 
     // Map to same shape as findAll for frontend consumption, plus live prerequisite warnings (soft, never blocks)
-    const withWarnings = await Promise.all(
-      eligible.map(async (cls) => {
-        const eligibility =
-          await this.subjectPrerequisiteService.checkEligibility(
-            cls.subject_id,
-            studentId,
-            orgId,
-          );
+    // Perf Phase 5: ONE batched eligibility check for all eligible subjects
+    // with ONE shared scale cache — was one checkEligibility (2+P×2 queries)
+    // per class.
+    const eligibilityBySubject =
+      await this.subjectPrerequisiteService.checkEligibilityBatch(
+        eligible.map((cls) => cls.subject_id),
+        studentId,
+        orgId,
+      );
+    const withWarnings = eligible.map((cls) => {
+        const eligibility = eligibilityBySubject.get(cls.subject_id) ?? {
+          eligible: true,
+          missing: [],
+        };
         const subject = (cls as unknown as { subject: { name: string; program_id: string | null; program: { name: string } | null; course: { name: string } | null; strand: { name: string } | null; level: { name: string } | null } }).subject;
         const educator = (cls as unknown as { educator: { profile: { full_name: string } | null } }).educator;
         return {
@@ -558,7 +575,7 @@ export class ClassService {
           has_prerequisite_warning: eligibility.missing.length > 0,
           prerequisite_warnings: eligibility.missing,
         };
-      }),
+      },
     );
     return withWarnings;
   }
