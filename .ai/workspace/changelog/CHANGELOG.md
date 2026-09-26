@@ -17,7 +17,7 @@
 
 ### Held / flagged (not merged)
 
-- TICK-GRADE-004 — bulk compute skips locked grades: ready-for-review, needs human sign-off (behavior change).
+- TICK-GRADE-004 — bulk compute skips locked grades: MERGED after human sign-off (dbb61e17). `saveComputedGrades({ skipLocked: true })` on both computeGrades paths; reports `skippedLocked`. Locked-row spec 3/3.
 - Redis/BullMQ queues: parked pending Redis provisioning + topology/policy decisions (no ticket yet).
 - Pre-existing: `next build` red on src/app/admin/page.tsx (server component using client hooks); backend e2e hooks time out in this environment.
 

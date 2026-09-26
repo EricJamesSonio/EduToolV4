@@ -9,7 +9,7 @@ implemented / partially implemented / not implemented / needs investigation
 
 ## Performance work (2026-09-25 → 2026-09-26, 8 tickets merged to development)
 
-Status: implemented (TICK-GRADE-004 held for human review — see below)
+Status: implemented (TICK-GRADE-004 merged to development after human sign-off — see below)
 
 Implemented (all validated on development: backend unit suite holds at 25 pre-existing failures / same 5 suites, tsc pre-existing set only, builds green):
 
@@ -21,10 +21,10 @@ Implemented (all validated on development: backend unit suite holds at 25 pre-ex
 - TICK-CLASS-001 — Eligibility/prerequisite batching + per-request scale memoization; EXPLAIN ANALYZE on scratch volume, no red flags (merge 8995b2fb).
 - TICK-INFRA-007 — In-memory read cache (org/scales/settings/calendar TTLs). Redis/BullMQ parked: no Redis provisioned (merge a84deeae).
 - TICK-INFRA-008 — Frontend: overfetch tracker wired, 30s timeout, memoized tables, list-default query freshness (merge 1ae40a1e).
+- TICK-GRADE-004 — Bulk compute skips locked grades: `saveComputedGrades({ skipLocked: true })` used by both computeGrades paths (grade.service.ts, grade-educator.service.ts), reports `skippedLocked`. Merged after explicit human sign-off (merge dbb61e17). GRADE-003 stays pure-overwrite by design.
 
 On hold (needs human decision):
 
-- TICK-GRADE-004 — Bulk compute skips locked grades (branch agent/TICK-GRADE-004-compute-skip-locked, ready-for-review, DO NOT MERGE without sign-off). Split out of GRADE-003: old bulk compute overwrote locked rows; this ticket changes that.
 - Redis/BullMQ queues (no ticket yet — needs Redis provisioning + worker-topology/retry-policy decisions).
 
 Known pre-existing debt (not from this work, flagged during merges):
@@ -32,6 +32,8 @@ Known pre-existing debt (not from this work, flagged during merges):
 - 25 backend unit failures in 5 suites (class/educator/semester/program/registrar — stale mocks vs evolved code, incl. email-rule spec drift from development's own role-prefix refactor).
 - `next build` red on src/app/admin/page.tsx (server component using useEffect/useRouter; commits 86a2abe6/454cff32).
 - Backend e2e hooks time out in this environment (180s+); not usable as a merge gate here.
+- `tsc --noEmit` on backend is red at baseline (9 errors on origin/development). TICK-INFRA-007 added a 2nd ctor arg to `GradingScaleRepository`, but `grading-scale-batching.spec.ts` (written in the earlier phase5 commit) was never updated → TS2554. Type-only: the spec still passes at runtime, so unit counts hide it. Net 9 → 8 after this push. Filed as a ticket.
+- Junk file `et --hard b1f9964f0e64b173fc94e063a0c33895682fbba6` (Vim help text, 16KB) is tracked at repo root and already on origin/development (commit 1a4d8693) — artifact of a botched `git reset --hard` redirect.
 
 ## Frontend / Landing & Admin UI
 
