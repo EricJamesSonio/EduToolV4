@@ -52,19 +52,15 @@ export class AnalyticsService {
     schoolYearId?: string,
   ) {
     const syId = await this.resolveSchoolYear(orgId, schoolYearId);
-    const grades = await this.repo.getLockedGrades(orgId, syId, query);
+    // Perf Phase 4: stats come from SQL groupBy/aggregate (no row transfer).
+    const stats = await this.repo.getGradeStats(orgId, syId, query);
 
-    if (!grades.length) return { passingRate: 0, distribution: {} };
+    if (!stats.total) return { passingRate: 0, distribution: {} };
 
-    let passCount = 0;
-    const distribution: Record<string, number> = {};
-    for (const g of grades) {
-      if (g.final_score >= 75) passCount++;
-      const key = g.final_grade;
-      distribution[key] = (distribution[key] || 0) + 1;
-    }
-
-    return { passingRate: passCount / grades.length, distribution };
+    return {
+      passingRate: stats.passCount / stats.total,
+      distribution: stats.distribution,
+    };
   }
 
   async getEducatorLoad(orgId: string, schoolYearId?: string) {
