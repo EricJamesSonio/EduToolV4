@@ -106,25 +106,66 @@ export class StudentEnrollmentService {
     dto: BulkEnrollStudentsDto,
     actorId: string,
   ) {
-    const results = await Promise.allSettled(
-      dto.students.map((s) =>
-        this.enrollStudent(schoolYearId, orgId, s, actorId),
-      ),
+    // Perf Phase 3: readiness (same args for every row) + conflict pre-checks
+    // batched into 3 queries; per-student creates stay sequential to preserve
+    // per-row ConflictException semantics. Intra-batch duplicates now fail
+    // with the clean already-enrolled Conflict instead of a raw P2002 race.
+    await this.readinessService.assertReady(orgId, schoolYearId);
+
+    const studentIds = dto.students.map((s) => s.student_id);
+    const [existingRows, activeRows] = await Promise.all([
+      this.repo.findByStudentsAndSchoolYear(studentIds, schoolYearId, orgId),
+      this.repo.findActiveEnrollmentsForStudents(studentIds, orgId),
+    ]);
+    const existingIds = new Set(existingRows.map((r) => r.student_id));
+    const activeByStudent = new Map(
+      activeRows.map((r) => [r.student_id, r] as const),
     );
 
     const enrolled: string[] = [];
     const failed: { student_id: string; reason: string }[] = [];
 
-    results.forEach((result, i) => {
-      if (result.status === 'fulfilled') {
-        enrolled.push(dto.students[i].student_id);
-      } else {
+    for (const s of dto.students) {
+      try {
+        if (existingIds.has(s.student_id)) {
+          throw new ConflictException(
+            'Student is already enrolled in this school year.',
+          );
+        }
+        const activeElsewhere = activeByStudent.get(s.student_id);
+        if (activeElsewhere) {
+          throw new ConflictException(
+            `Student is already actively enrolled in "${activeElsewhere.schoolYear.name}". Unenroll them first.`,
+          );
+        }
+
+        const enrollment = await this.repo.enrollStudent(
+          orgId,
+          schoolYearId,
+          s.student_id,
+          s.notes,
+        );
+        existingIds.add(s.student_id);
+
+        this.auditLogService
+          .logAdminAction({
+            orgId,
+            actorId,
+            action: 'enrollment_created',
+            entityType: 'school_year_enrollment',
+            entityId: enrollment.id,
+            metadata: { studentId: s.student_id, schoolYearId },
+          })
+          .catch(() => {});
+
+        enrolled.push(s.student_id);
+      } catch (err) {
         failed.push({
-          student_id: dto.students[i].student_id,
-          reason: (result.reason as Error)?.message ?? 'Unknown error',
+          student_id: s.student_id,
+          reason: (err as Error)?.message ?? 'Unknown error',
         });
       }
-    });
+    }
 
     return { enrolled, failed };
   }

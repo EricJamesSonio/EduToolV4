@@ -21,6 +21,20 @@ export class GradeRepository {
     });
   }
 
+  /**
+   * Batched variant of findByClass for transcript-style fan-out: one query
+   * for many classes instead of one findByClass per enrollment.
+   */
+  async findByClasses(classIds: string[], orgId: string) {
+    if (classIds.length === 0) return [];
+    return this.db.grade.findMany({
+      where: {
+        class_id: { in: classIds },
+        org_id: orgId,
+      },
+    });
+  }
+
   async findByClassAndTerm(classId: string, termId: string, orgId: string) {
     return this.db.grade.findMany({
       where: {
@@ -340,6 +354,7 @@ export class GradeRepository {
         id: true,
         title: true,
         type: true,
+        term_id: true,
         total_items: true,
         grading_mode: true,
         release_date: true,
@@ -456,6 +471,7 @@ export class GradeRepository {
             id: true,
             type: true,
             title: true,
+            term_id: true,
             total_items: true,
             grading_mode: true,
             release_date: true,
@@ -463,6 +479,25 @@ export class GradeRepository {
             created_at: true,
           },
         },
+      },
+    });
+  }
+
+  /**
+   * Lean class-wide submissions for readiness-style sweeps: only the fields
+   * the missing-submission check reads, one query for the whole class
+   * instead of one per term.
+   */
+  async findSubmissionsForClass(classId: string, orgId: string) {
+    return this.db.submission.findMany({
+      where: {
+        org_id: orgId,
+        assessment: { class_id: classId, deleted_at: null },
+      },
+      select: {
+        student_id: true,
+        assessment_id: true,
+        status: true,
       },
     });
   }
@@ -583,11 +618,14 @@ export class GradeRepository {
     termId: string,
     orgId: string,
     studentId?: string,
+    termIds?: string[],
   ) {
     return this.db.manualScore.findMany({
       where: {
         class_id: classId,
-        term_id: termId,
+        // Perf Phase 3: optional multi-term fetch so single-student views can
+        // load all terms in one query instead of one per term.
+        ...(termIds && termIds.length > 0 ? { term_id: { in: termIds } } : { term_id: termId }),
         org_id: orgId,
         ...(studentId ? { student_id: studentId } : {}),
       },
