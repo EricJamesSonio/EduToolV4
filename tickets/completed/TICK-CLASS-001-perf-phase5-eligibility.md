@@ -1,6 +1,6 @@
 # TICK-CLASS-001 — Perf Phase 5 eligibility/prerequisite batching + EXPLAIN ANALYZE
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-26
 Created by: agent
@@ -63,6 +63,7 @@ None.
 Confidence: 80/100 (Requirement clarity 24, Codebase verification 19, Architecture fit 18, Edge cases 9, Blast radius 10). Assumption: scratch-DB plans + mocked decision specs (dev DB empty, must stay clean).
 2026-09-26 — Implemented 2 commits (7e57241b plumbing: batched structures/scales/rows, memoized isGradePassing both services, checkEligibilityBatch with delegating single; 5e6c25f8 class wiring). Proof spec (a)-2 mocks updated to batch seam (scenario unchanged). EXPLAIN ANALYZE on scratch (200/50/200/50 volume): all sub-ms, no red flags; scratch dropped. Verified: 72 tests green, lint/tsc/build clean.
 2026-09-26 — Ready for review.
+2026-09-26 — Merged to development (8995b2fb, clean). Development validation: unit 758 (733 pass, 25 pre-existing failures in same 5 suites), tsc pre-existing set only, build OK (541 files). Completed.
 
 ## Commits
 
