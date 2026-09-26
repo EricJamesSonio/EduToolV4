@@ -1,6 +1,6 @@
 # TICK-INFRA-003 — Perf Phase 0 observability (Prisma log, interceptor timing, request-id wiring, DB health ping)
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -67,6 +67,7 @@ None.
 Confidence: 95/100 (Requirement clarity 25, Codebase verification 25, Architecture fit 20, Edge cases 12, Blast radius 13). Gaps: WS-context req shape; prod-gate env verified at runtime. Assumption: reuse DatabaseService for health ping instead of new terminus dep.
 2026-09-25 — Implemented (71f565a9): env-gated Prisma log, finalize+hrtime+statusCode interceptor, RequestIdMiddleware via AppModule.configure, DB-ping /check. Deliberate deviation: used AppModule MiddlewareConsumer instead of app.use() in main.ts (idiomatic Nest, same outcome); skipped @nestjs/terminus dep (reuse DatabaseService per dependencies.md SEARCH→REUSE rule — same DB-ping signal, zero new-dep risk). Verified: 5/5 new specs, lint clean, tsc no-new-errors, build OK.
 2026-09-25 — Ready for review.
+2026-09-26 — Merged to development (05e6778a). Development validation: unit 720 (695 pass, 25 pre-existing failures identical to baseline), tsc pre-existing set only, build OK. Completed.
 
 ## Commits
 
