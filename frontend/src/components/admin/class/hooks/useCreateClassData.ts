@@ -44,10 +44,14 @@ export function useCreateClassData(
     { enabled: !!schoolYearId && !!selectedProgramId },
   );
 
+  // NOTE: strand.findAll on the backend short-circuits to [] whenever
+  // schoolYearId is missing (see strand.service.ts), so schoolYearId is
+  // required here — omitting it (as before) silently returned zero strands
+  // for every program, which is what made hasTrack always false for SHS.
   const { data: strandsRaw } = useAsyncQuery(
-    queryKeys.admin.strands.list({ program_id: selectedProgramId! }),
-    () => strandApi.getAll({ program_id: selectedProgramId! }),
-    { enabled: !!selectedProgramId },
+    queryKeys.admin.strands.list({ schoolYearId, program_id: selectedProgramId! }),
+    () => strandApi.getAll({ schoolYearId: schoolYearId!, program_id: selectedProgramId! }),
+    { enabled: !!schoolYearId && !!selectedProgramId },
   );
 
   const courses       = toArray<{ id: string; name: string }>(coursesRaw);
@@ -56,10 +60,13 @@ export function useCreateClassData(
   const hasTrack      = tracks.length > 0;
   const isCourseTrack = courses.length > 0;
 
+  // Scoped to program at the query level (not just filtered client-side
+  // afterward) so we don't pull every level in the school year on every
+  // keystroke/program change.
   const { data: levelsRaw } = useAsyncQuery(
-    queryKeys.admin.levels.list({ schoolYearId }),
-    () => levelApi.getBySchoolYear(schoolYearId!),
-    { enabled: !!schoolYearId },
+    queryKeys.admin.levels.list({ schoolYearId, programId: selectedProgramId }),
+    () => levelApi.getBySchoolYear(schoolYearId!, selectedProgramId || undefined),
+    { enabled: !!schoolYearId && !!selectedProgramId },
   );
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
@@ -100,7 +107,7 @@ export function useCreateClassData(
   );
   const subjects = toArray<Subject>(subjectsRaw);
 
-  const { data: templateAssignments = [] } = useAsyncQuery(
+  const { data: templateAssignments = [], isLoading: templateAssignmentsLoading } = useAsyncQuery(
     queryKeys.admin.semesterTemplateAssignments.list(schoolYearId!),
     () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
     { enabled: !!schoolYearId },
@@ -111,8 +118,13 @@ export function useCreateClassData(
     [templateAssignments],
   );
 
+  // Only trust this once the assignments query has actually resolved —
+  // otherwise assignedProgramIds is momentarily empty on every program
+  // change and this flips true->false a beat later, which is what caused
+  // the "No template assigned" warning + semester field to flash before
+  // settling on the correct state.
   const programMissingTemplate =
-    !!selectedProgramId && !assignedProgramIds.has(selectedProgramId);
+    !!selectedProgramId && !templateAssignmentsLoading && !assignedProgramIds.has(selectedProgramId);
 
   const { data: semesters = [] } = useAsyncQuery(
     [...queryKeys.admin.semesters.all, 'by-program', selectedProgramId, schoolYearId] as const,
@@ -143,6 +155,7 @@ export function useCreateClassData(
     templateAssignments,
     assignedProgramIds,
     programMissingTemplate,
+    templateAssignmentsLoading,
     semesters,
     educators,
     educatorClasses,

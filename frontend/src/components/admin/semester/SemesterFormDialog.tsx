@@ -6,8 +6,9 @@ import {
 } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { semesterApi } from "@/api/admin/semester.api";
+import { programApi } from "@/api/admin/program.api";
 import type { Semester } from "@/types/admin/semester.types";
-import type { TermInput } from "@/api/admin/semester.api";
+import type { TermInput, SemesterSlot } from "@/api/admin/semester.api";
 import { SemesterTermEditor } from "./SemesterTermEditor";
 import { validateSemester, type SemesterDraft } from "./semester.validation";
 import { Button } from "@/components/ui/button";
@@ -74,15 +75,24 @@ export function SemesterFormDialog({
   const [submitted, setSubmitted] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
+  const [schoolYearId, setSchoolYearId] = useState("");
+  const [programId, setProgramId] = useState("");
+
   // Seed draft on open
   useEffect(() => {
     if (open) {
       if (!isEdit) {
         const savedDraft = localStorage.getItem("semesterDraft");
         if (savedDraft) {
-          setDraft(JSON.parse(savedDraft));
+          const parsed = JSON.parse(savedDraft) as SemesterDraft & {
+            schoolYearId?: string;
+          };
+          setDraft(parsed);
+          setProgramId(parsed.programId ?? "");
+          if (parsed.schoolYearId) setSchoolYearId(parsed.schoolYearId);
         } else {
           setDraft(EMPTY_DRAFT);
+          setProgramId("");
         }
       } else if (semester) {
         // Normalise dates → YYYY-MM-DD so <input type="date"> shows them correctly
@@ -111,19 +121,69 @@ export function SemesterFormDialog({
     { enabled: open && !isEdit },
   );
 
-  const [schoolYearId, setSchoolYearId] = useState("");
+  // Programs for the chosen school year — a semester must belong to one.
+  const { data: programsRaw } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId),
+    { enabled: open && !isEdit && !!schoolYearId },
+  );
+  const programs = (programsRaw ?? []) as { id: string; name: string }[];
+
+  // Reset program + slot selection whenever school year changes.
+  useEffect(() => {
+    if (!isEdit) {
+      setProgramId("");
+      setDraft((d) => ({ ...d, templateSemesterId: undefined, name: "" }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolYearId]);
+
+  // The program's template-defined slots (e.g. 1st/2nd Semester, or 3 for
+  // tri-sem) — this replaces free-text naming. Only slots with no Semester
+  // created yet for this school year are selectable.
+  const { data: slots = [], isLoading: slotsLoading } = useAsyncQuery(
+    [...queryKeys.admin.semesters.all, 'slots', programId, schoolYearId] as const,
+    () => semesterApi.getSemesterSlots(programId, schoolYearId),
+    { enabled: open && !isEdit && !!programId && !!schoolYearId },
+  );
+  const availableSlots = (slots as SemesterSlot[]).filter((s) => !s.existingSemesterId);
+  const noTemplateAssigned = !slotsLoading && !!programId && slots.length === 0;
+  const allSlotsFilled = !slotsLoading && slots.length > 0 && availableSlots.length === 0;
+
+  const handleSelectProgram = (v: string) => {
+    setProgramId(v ?? "");
+    setDraft((d) => ({ ...d, templateSemesterId: undefined, name: "" }));
+  };
+
+  const handleSelectSlot = (templateSemesterId: string) => {
+    const slot = availableSlots.find((s) => s.templateSemesterId === templateSemesterId);
+    if (!slot) return;
+    patch("templateSemesterId", slot.templateSemesterId);
+    // Pre-fill the display name from the template slot; still editable —
+    // this is a label only now, not what resolution depends on.
+    patch("name", slot.name);
+  };
 
   const patch = (key: keyof SemesterDraft, value: unknown) => {
-    const next = { ...draft, [key]: value } as SemesterDraft;
-    setDraft(next);
-    if (submitted) setErrors(validateSemester(next));
-    if (!isEdit) localStorage.setItem("semesterDraft", JSON.stringify(next));
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value } as SemesterDraft;
+      if (submitted) setErrors(validateSemester(next));
+      if (!isEdit) {
+        localStorage.setItem(
+          "semesterDraft",
+          JSON.stringify({ ...next, schoolYearId, programId }),
+        );
+      }
+      return next;
+    });
   };
 
   const createMutation = useMutationWithInvalidation(
     () =>
       semesterApi.create({
         schoolYearId,
+        programId,
+        templateSemesterId: draft.templateSemesterId!,
         name: draft.name,
         startDate: draft.startDate,
         endDate: draft.endDate,
@@ -171,10 +231,14 @@ export function SemesterFormDialog({
   const handleSubmit = () => {
     setSubmitted(true);
     const errs = validateSemester(draft);
-    if (!isEdit && !schoolYearId) {
-      setErrors({ ...errs });
-      return;
+
+    if (!isEdit) {
+      if (!schoolYearId || !programId || !draft.templateSemesterId) {
+        setErrors(errs);
+        return;
+      }
     }
+
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
@@ -203,6 +267,10 @@ export function SemesterFormDialog({
     setShowCloseConfirm(false);
     onClose();
   };
+
+  const isSubmitDisabled =
+    isPending ||
+    (!isEdit && (!schoolYearId || !programId || !draft.templateSemesterId));
 
   return (
     <>
@@ -252,53 +320,150 @@ export function SemesterFormDialog({
               </div>
             )}
 
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label>Semester Name</Label>
-              <Input
-                placeholder="e.g. 1st Semester"
-                value={draft.name}
-                onChange={(e) => patch("name", e.target.value)}
-              />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name}</p>
-              )}
-            </div>
+            {/* Program — create only. A semester belongs to exactly one
+                program: its own calendar, its own template, its own dates. */}
+            {!isEdit && (
+              <div className="space-y-1.5">
+                <Label>Department</Label>
+                <Select
+                  value={programId}
+                  onValueChange={handleSelectProgram}
+                  disabled={!schoolYearId}
+                >
+                  <SelectTrigger>
+                    <span>
+                      {!schoolYearId
+                        ? "Select a school year first"
+                        : (programs.find((p) => p.id === programId)?.name ??
+                            "Select department")}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programs.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {submitted && !programId && (
+                  <p className="text-xs text-destructive">
+                    Department is required.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Semester slot — replaces free-text naming. Picking a slot is
+                what ties this Semester to the department's actual template,
+                so a "1st Semester" here can never drift from what that
+                department's template calls its first semester. */}
+            {!isEdit && programId && (
+              <div className="space-y-1.5">
+                <Label>Semester</Label>
+                {noTemplateAssigned ? (
+                  <p className="text-xs text-destructive">
+                    This department has no semester template assigned yet.
+                    Assign one in Semester Settings before creating a semester.
+                  </p>
+                ) : allSlotsFilled ? (
+                  <p className="text-xs text-muted-foreground">
+                    All semesters for this department already exist for this
+                    school year.
+                  </p>
+                ) : (
+                  <>
+                    <Select
+                      value={draft.templateSemesterId ?? ""}
+                      onValueChange={handleSelectSlot}
+                      disabled={slotsLoading}
+                    >
+                      <SelectTrigger>
+                        <span>
+                          {slotsLoading
+                            ? "Loading…"
+                            : (availableSlots.find(
+                                (s) => s.templateSemesterId === draft.templateSemesterId,
+                              )?.name ?? "Select semester")}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableSlots.map((s) => (
+                          <SelectItem key={s.templateSemesterId} value={s.templateSemesterId}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {submitted && !draft.templateSemesterId && (
+                      <p className="text-xs text-destructive">
+                        Select which semester this is for this department.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Name — display label only now. Pre-filled from the chosen
+                slot, still editable, but no longer used to match/resolve
+                anything — program_id + templateSemesterId do that. */}
+            {(isEdit || draft.templateSemesterId) && (
+              <div className="space-y-1.5">
+                <Label>Semester Name</Label>
+                <Input
+                  placeholder="e.g. 1st Semester"
+                  value={draft.name}
+                  onChange={(e) => patch("name", e.target.value)}
+                />
+                {errors.name && (
+                  <p className="text-xs text-destructive">{errors.name}</p>
+                )}
+              </div>
+            )}
 
             {/* Date range */}
-            <div className="space-y-1.5">
-              <Label>Semester date range</Label>
-              <DateRangePicker
-                startDate={draft.startDate}
-                endDate={draft.endDate}
-                onChange={({ startDate, endDate }) => {
-                  const next = { ...draft, startDate, endDate };
-                  setDraft(next);
-                  if (submitted) setErrors(validateSemester(next));
-                  if (!isEdit)
-                    localStorage.setItem("semesterDraft", JSON.stringify(next));
-                }}
-              />
-              {(errors.startDate || errors.endDate || errors.dateRange) && (
-                <p className="text-xs text-destructive">
-                  {errors.startDate ?? errors.endDate ?? errors.dateRange}
-                </p>
-              )}
-            </div>
+            {(isEdit || draft.templateSemesterId) && (
+              <div className="space-y-1.5">
+                <Label>Semester date range</Label>
+                <DateRangePicker
+                  startDate={draft.startDate}
+                  endDate={draft.endDate}
+                  onChange={({ startDate, endDate }) => {
+                    setDraft((prev) => {
+                      const next = { ...prev, startDate, endDate };
+                      if (submitted) setErrors(validateSemester(next));
+                      if (!isEdit) {
+                        localStorage.setItem(
+                          "semesterDraft",
+                          JSON.stringify({ ...next, schoolYearId, programId }),
+                        );
+                      }
+                      return next;
+                    });
+                  }}
+                />
+                {(errors.startDate || errors.endDate || errors.dateRange) && (
+                  <p className="text-xs text-destructive">
+                    {errors.startDate ?? errors.endDate ?? errors.dateRange}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Terms */}
-            <div className="space-y-2">
-              <Label>Terms</Label>
-              <div className="rounded-md border p-3">
-                <SemesterTermEditor
-                  terms={draft.terms}
-                  semesterStartDate={draft.startDate}
-                  semesterEndDate={draft.endDate}
-                  onChange={(terms) => patch("terms", terms)}
-                  errors={errors.terms}
-                />
+            {(isEdit || draft.templateSemesterId) && (
+              <div className="space-y-2">
+                <Label>Terms</Label>
+                <div className="rounded-md border p-3">
+                  <SemesterTermEditor
+                    terms={draft.terms}
+                    semesterStartDate={draft.startDate}
+                    semesterEndDate={draft.endDate}
+                    onChange={(terms) => patch("terms", terms)}
+                    errors={errors.terms}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-1">
               <Button
@@ -309,7 +474,7 @@ export function SemesterFormDialog({
               >
                 Cancel
               </Button>
-              <Button onClick={handleSubmit} disabled={isPending}>
+              <Button onClick={handleSubmit} disabled={isSubmitDisabled}>
                 {isPending
                   ? "Saving..."
                   : isEdit

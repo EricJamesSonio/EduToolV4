@@ -217,7 +217,11 @@ export function EmailExtensionSection(): React.JSX.Element {
               <p className="text-xs text-muted-foreground not-interactive">
                 Preview:{" "}
                 <span className="font-mono text-foreground not-interactive">
-                  username@{extension}
+                  username@student.{extension}
+                </span>{" "}
+                or{" "}
+                <span className="font-mono text-foreground not-interactive">
+                  username@educator.{extension}
                 </span>
               </p>
             )}
@@ -264,7 +268,7 @@ export function EmailExtensionSection(): React.JSX.Element {
         open={confirmOpen}
         title="Set Email Extension?"
         message={`This will set the email extension to ${pendingExtension} for all new accounts in your organization.`}
-        description={`Students will get ${pendingExtension}.student.com and educators will get ${pendingExtension}.educator.com`}
+        description={`Students will get username@student.${pendingExtension.replace(/^@/, "")} and educators will get username@educator.${pendingExtension.replace(/^@/, "")}`}
         confirmLabel="Set Extension"
         isLoading={updateOrganizationMutation.isPending}
         onConfirm={handleConfirmSave}

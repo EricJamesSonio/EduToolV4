@@ -22,9 +22,8 @@ import {
   SECTION_DEFAULTS,
   parseSubjectKey,
 } from "../constants/seed-data";
-import { useGradingScales } from "@/hooks/admin/useGradingScales";
-import { useGradingSchemeTemplates } from "@/hooks/admin/useGradingSchemeTemplates";
 import { useSemesterTemplates } from "@/hooks/admin/useSemesterTemplate";
+import type { SeedOutcome, SeedStage } from "../SeedProgressDialog";
 
 interface PendingSchoolYear {
   name: string;
@@ -43,6 +42,9 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
   const [pendingSchoolYear, setPendingSchoolYear] =
     useState<PendingSchoolYear | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
+  // Seed progress: stage list is snapshotted when seeding starts so the modal
+  // keeps its labels after resetAll() clears the selection.
+  const [seedOutcome, setSeedOutcome] = useState<SeedOutcome | null>(null);
 
   const { data: schoolYears = [], isLoading: syLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
@@ -138,8 +140,6 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
   );
 
   // Org-scoped (not tied to a specific school year), so no school-year gate.
-  const { data: existingGradingScalesList = [] } = useGradingScales();
-  const { data: existingGradingSchemeTemplatesList = [] } = useGradingSchemeTemplates();
   const { data: existingSemesterTemplatesList = [] } = useSemesterTemplates();
 
   const seedState = useSeedState(overrides);
@@ -155,15 +155,6 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
     setSelectedSubjects,
     allSelectableSubjects,
     levelConfigs,
-    resolvedGradingScales,
-    seedGradingScale,
-    setSeedGradingScale,
-    gradingScaleByProgram,
-    setGradingScaleForProgram,
-    seedGradingSchemes,
-    setSeedGradingSchemes,
-    gradingSchemesByProgram,
-    toggleGradingScheme,
     seedSemesterTemplates,
     setSeedSemesterTemplates,
     semesterTemplatesByProgram,
@@ -251,12 +242,19 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
       queryKeys.admin.strands.all,
       queryKeys.admin.levels.all,
       queryKeys.admin.subjects.all,
-      queryKeys.admin.gradingScales.list(),
-      queryKeys.admin.gradingSchemeTemplates.all,
       queryKeys.admin.semesterTemplates.all,
     ],
       onSuccess: (result) => {
         const warnings: string[] = result?.result?.warnings ?? [];
+        setSeedOutcome((prev) =>
+          prev
+            ? {
+                status: "success",
+                stages: prev.stages,
+                result: (result?.result ?? {}) as Record<string, unknown>,
+              }
+            : prev,
+        );
         if (warnings.length > 0) {
           warnings.slice(0, 3).forEach((w) => toast.warning(w));
           toast.success("Seed completed with some notices (see above).");
@@ -271,6 +269,9 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
     isAxiosError<{ message?: string }>(err) && err.response?.data?.message
       ? err.response.data.message
       : "Seed failed. Please try again.";
+  setSeedOutcome((prev) =>
+    prev ? { ...prev, status: "error", message } : prev,
+  );
   toast.error(message);
 },
     }
@@ -345,15 +346,33 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
 
     const sectionConfigsPayload = buildSectionConfigsPayload();
 
-    const gradingScales = seedGradingScale
-      ? Object.fromEntries(
-          Object.entries(resolvedGradingScales).map(([prog, preset]) => [
-            prog,
-            { presetKey: preset.key, name: preset.name, ranges: preset.ranges },
-          ]),
-        )
-      : undefined;
-
+    const stages: SeedStage[] = [
+      { key: "programs", label: "Departments", resultKeys: ["programs"] },
+    ];
+    if (selectedPrograms.has("college")) {
+      stages.push({ key: "courses", label: "Courses", resultKeys: ["courses"] });
+    }
+    if (selectedPrograms.has("shs")) {
+      stages.push({ key: "strands", label: "Strands", resultKeys: ["strands"] });
+    }
+    stages.push({ key: "levels", label: "Levels", resultKeys: ["levels"] });
+    stages.push({ key: "sections", label: "Sections", resultKeys: ["sections"] });
+    stages.push({ key: "subjects", label: "Subjects", resultKeys: ["subjects"] });
+    if (seedProgramCalendars) {
+      stages.push({
+        key: "programCalendars",
+        label: "Academic Calendars",
+        resultKeys: ["programCalendars"],
+      });
+    }
+    if (seedSemesterTemplates) {
+      stages.push({
+        key: "semesterTemplates",
+        label: "Semester Templates",
+        resultKeys: ["semesterTemplates"],
+      });
+    }
+    setSeedOutcome({ status: "running", stages });
     const programCalendars =
       seedProgramCalendars
         ? Object.fromEntries(
@@ -384,9 +403,9 @@ seedMutation.mutate({
   sectionConfigs: sectionConfigsPayload,
   excludedLevelSubjects:
     Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
-  gradingScales,
-  seedGradingScales: seedGradingScale ? true : false,
-  seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
+  // Grading scales/schemes are global setups owned by their own pages.
+  seedGradingScales: false,
+  seedGradingSchemes: false,
   seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
   seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
   programCalendars,
@@ -410,12 +429,10 @@ seedMutation.mutate({
       const strands = overrides?.shsStrands ?? SHS_STRANDS
       seedState.selectAll(strands, setSelectedStrands)
     }
-    // Enable grading scales/schemes (one per department) — semester templates excluded (needs calendar)
-    setSeedGradingScale(true)
-    // auto-select per-program via toggle handlers (sets all to true)
-    setSeedGradingSchemes(true)
+    // Academic calendars can be derived from the school year; semester templates
+    // are excluded because they need a configured calendar first.
     setSeedProgramCalendars(true)
-    toast.success("Selected all configured departments and templates (semester templates excluded — configure calendar first).")
+    toast.success("Selected all configured departments (semester templates excluded — configure calendar first).")
   }
 
   // Derived sets for disabled states
@@ -426,8 +443,6 @@ seedMutation.mutate({
   const existingStrandNames = new Set(existingStrands.map((s) => s.name));
   const existingLevelNames = new Set(existingLevels.map((l) => l.name));
   const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title));
-  const existingGradingScaleNames = new Set(existingGradingScalesList.map((s) => s.name));
-  const existingGradingSchemeNames = new Set(existingGradingSchemeTemplatesList.map((t) => t.name));
   const existingSemesterTemplateNames = new Set(existingSemesterTemplatesList.map((t) => t.name));
 
   // Toggle helpers — select-all respects school-profile overrides when present
@@ -473,9 +488,6 @@ seedMutation.mutate({
   const totalSectionCount = Object.values(sectionConfigsPayload).reduce(
     (sum, sections) => sum + sections.length, 0,
   );
-  const selectedGradingSchemes = Array.from(selectedPrograms).filter(
-    (p) => gradingSchemesByProgram[p] !== false,
-  ).length;
   const selectedSemesterTemplates = Array.from(selectedPrograms).filter(
     (p) => semesterTemplatesByProgram[p] !== false,
   ).length;
@@ -496,8 +508,6 @@ seedMutation.mutate({
           selectedPrograms.has("college") && `${Array.from(selectedCourses).length} course(s)`,
           selectedPrograms.has("shs") && `${Array.from(selectedStrands).length} strand(s)`,
           `${allSelectableSubjects.filter((k) => selectedSubjects.has(k)).length} subject(s)`,
-          seedGradingScale && `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
-          seedState.seedGradingSchemes && `${selectedGradingSchemes} grading scheme(s)`,
           seedState.seedSemesterTemplates && `${selectedSemesterTemplates} semester template(s)`,
           seedProgramCalendars && `${selectedProgramCalendars} department calendar(s)`,
         ]
@@ -516,12 +526,6 @@ seedMutation.mutate({
       label: "Subjects",
       value: allSelectableSubjects.filter((k) => selectedSubjects.has(k)).length,
     },
-    ...(seedGradingScale && Object.keys(resolvedGradingScales).length > 0
-      ? [{ label: "Grading Scales", value: Object.keys(resolvedGradingScales).length }]
-      : []),
-    ...(seedState.seedGradingSchemes && selectedGradingSchemes > 0
-      ? [{ label: "Grading Schemes", value: selectedGradingSchemes }]
-      : []),
     ...(seedState.seedSemesterTemplates && selectedSemesterTemplates > 0
       ? [{ label: "Semester Templates", value: selectedSemesterTemplates }]
       : []),
@@ -571,6 +575,8 @@ seedMutation.mutate({
     summaryText,
     summaryItems,
     derivedSelectedLevels,
+    seedOutcome,
+    dismissSeedOutcome: () => setSeedOutcome(null),
 
     // Existing data (disabled sets)
     existingProgramTypes,
@@ -578,8 +584,6 @@ seedMutation.mutate({
     existingStrandNames,
     existingLevelNames,
     existingSubjectTitles,
-    existingGradingScaleNames,
-    existingGradingSchemeNames,
     existingSemesterTemplateNames,
 
     // Helpers

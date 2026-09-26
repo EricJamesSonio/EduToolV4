@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { EmptyState } from "./EmptyState";
-import { useState } from "react";
+import { useState, memo, type ReactElement } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
@@ -37,7 +37,10 @@ interface DataTableProps<TData, TValue> {
   headerVariant?: "neutral" | "accent";
 }
 
-export function DataTable<TData, TValue>({
+// Perf Phase 7: memoized — identical props skip re-render entirely, so parent
+// state churn (filters, polling) doesn't rebuild the whole grid. Callers must
+// still pass stable data/columns refs for full benefit.
+function DataTableInner<TData, TValue>({
   columns,
   data,
   isLoading = false,
@@ -184,3 +187,10 @@ export function DataTable<TData, TValue>({
     </div>
   );
 }
+
+export const DataTable = memo(DataTableInner) as <
+  TData,
+  TValue,
+>(
+  props: DataTableProps<TData, TValue>,
+) => ReactElement;

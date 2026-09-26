@@ -4,6 +4,9 @@ import { allMajorSubjects, allMinorSubjects, deriveProgramKey } from '../data/su
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
 
+const COLLEGE_MINOR_SCOPE = 'shared:college';
+const SHS_MINOR_SCOPE = 'shared:shs';
+
 @Injectable()
 export class MinorSubjectSeederService {
   constructor(private readonly db: DatabaseService) {}
@@ -78,7 +81,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      ctx.subjectNameToId[s.name] = subjectId;
+      ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId);
 
       for (const [code, courseId] of Object.entries(ctx.courseMap)) {
         if (ctx.excludedLevelSubjects[code]?.includes(s.name)) continue;
@@ -132,7 +135,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      ctx.subjectNameToId[s.name] = subjectId;
+      ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId);
 
       for (const strandName of strandCodes) {
         if (ctx.excludedLevelSubjects[strandName]?.includes(s.name)) continue;
@@ -201,7 +204,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      ctx.subjectNameToId[s.name] = subjectId;
+      ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId);
 
       for (const [code, courseId] of Object.entries(ctx.courseMap)) {
         const isExcluded = ctx.excludedLevelSubjects[code]?.includes(s.name);
@@ -303,7 +306,7 @@ export class MinorSubjectSeederService {
         }
 
         seenShsMinors.set(dedupeKey, subjectId);
-        ctx.subjectNameToId[s.name] = subjectId;
+        ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId);
       }
 
       if (

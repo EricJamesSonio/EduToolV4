@@ -6,6 +6,10 @@ import {
 import { OrgScheduleConfigRepository } from './org-schedule-config.repository';
 import { UpsertOrgScheduleConfigDto } from './dto/org-schedule-config.dto';
 import { DatabaseService } from '@/core/database/database.provider';
+import {
+  AppCacheService,
+  APP_CACHE_TTL,
+} from '@/core/cache/app-cache.service';
 import { getScheduleViolation, toMinutes } from './schedule-window.util';
 
 function toMinutes(hhmm: string): number {
@@ -24,11 +28,19 @@ export class OrgScheduleConfigService {
   constructor(
     private readonly repo: OrgScheduleConfigRepository,
     private readonly db: DatabaseService,
+    private readonly cache: AppCacheService,
   ) {}
 
   async getByOrg(orgId: string) {
-    const cfg = await this.repo.upsertDefaults(orgId);
-    return this.map(cfg);
+    // Perf Phase 6: config changes rarely — 30-minute TTL, invalidated on upsert.
+    return this.cache.cached(
+      this.cache.key('org', orgId, 'schedule-config'),
+      APP_CACHE_TTL.orgSettings,
+      async () => {
+        const cfg = await this.repo.upsertDefaults(orgId);
+        return this.map(cfg);
+      },
+    );
   }
 
   async upsert(orgId: string, dto: UpsertOrgScheduleConfigDto) {
@@ -71,6 +83,7 @@ export class OrgScheduleConfigService {
       end_time: dto.endTime,
       slot_duration: dto.slotDuration,
     });
+    await this.cache.del(this.cache.key('org', orgId, 'schedule-config'));
     return this.map(saved);
   }
 

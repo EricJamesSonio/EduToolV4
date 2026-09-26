@@ -11,8 +11,13 @@ export const QUERY_PRESETS = {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: QUERY_PRESETS.static.staleTime,
-      gcTime: QUERY_PRESETS.static.gcTime,
+      // Perf Phase 7: default to the 'list' preset (60s stale) instead of
+      // 'static' (30m stale). Hooks that forgot meta.preset silently inherited
+      // static freshness — correct for reference data, stale for lists. Static
+      // owners must now declare preset: 'static' explicitly (useAppQuery
+      // throws in dev without a preset; useAsyncQuery warns).
+      staleTime: QUERY_PRESETS.list.staleTime,
+      gcTime: QUERY_PRESETS.list.gcTime,
       // Fail fast: list/detail queries should resolve to a terminal state as
       // soon as possible so the UI can render empty/error instead of sitting on
       // a spinner while retries exhaust with exponential backoff. Only transient

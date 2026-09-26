@@ -21,6 +21,20 @@ export class GradeRepository {
     });
   }
 
+  /**
+   * Batched variant of findByClass for transcript-style fan-out: one query
+   * for many classes instead of one findByClass per enrollment.
+   */
+  async findByClasses(classIds: string[], orgId: string) {
+    if (classIds.length === 0) return [];
+    return this.db.grade.findMany({
+      where: {
+        class_id: { in: classIds },
+        org_id: orgId,
+      },
+    });
+  }
+
   async findByClassAndTerm(classId: string, termId: string, orgId: string) {
     return this.db.grade.findMany({
       where: {
@@ -79,6 +93,89 @@ export class GradeRepository {
         final_grade: data.finalGrade,
       },
     });
+  }
+
+  // ───────── BATCH SAVE (Perf Phase 2) ─────────
+
+  /**
+   * Persist a whole class-term compute in bulk: chunked $transaction batches
+   * of upserts (one round trip per chunk instead of one per student).
+   *
+   * Default is pure overwrite semantics — identical to looping upsert().
+   *
+   * TICK-GRADE-004 (business-logic change, NOT perf): with
+   * `{ skipLocked: true }`, rows whose existing grade is locked are left
+   * untouched (single batched lock check) and reported as skippedLocked —
+   * mirroring the recomputeStudentGrade locked-skip guard. Bulk compute
+   * previously overwrote locked grades.
+   * New callers must use this instead of looping upsert().
+   */
+  async saveComputedGrades(
+    args: {
+      orgId: string;
+      classId: string;
+      termId: string;
+      rows: Array<{
+        studentId: string;
+        finalScore: number;
+        finalGrade: string;
+      }>;
+    },
+    options?: { skipLocked?: boolean },
+  ): Promise<{ computed: number; skippedLocked: number }> {
+    if (args.rows.length === 0) {
+      return { computed: 0, skippedLocked: 0 };
+    }
+
+    let writable = args.rows;
+    if (options?.skipLocked) {
+      const existing = await this.db.grade.findMany({
+        where: {
+          org_id: args.orgId,
+          class_id: args.classId,
+          term_id: args.termId,
+        },
+        select: { student_id: true, is_locked: true },
+      });
+      const lockedIds = new Set(
+        existing.filter((g) => g.is_locked).map((g) => g.student_id),
+      );
+      writable = args.rows.filter((r) => !lockedIds.has(r.studentId));
+    }
+
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < writable.length; i += CHUNK_SIZE) {
+      const chunk = writable.slice(i, i + CHUNK_SIZE).map((r) =>
+        this.db.grade.upsert({
+          where: {
+            org_id_student_id_class_id_term_id: {
+              org_id: args.orgId,
+              student_id: r.studentId,
+              class_id: args.classId,
+              term_id: args.termId,
+            },
+          },
+          update: {
+            final_score: r.finalScore,
+            final_grade: r.finalGrade,
+          },
+          create: {
+            org_id: args.orgId,
+            student_id: r.studentId,
+            class_id: args.classId,
+            term_id: args.termId,
+            final_score: r.finalScore,
+            final_grade: r.finalGrade,
+          },
+        }),
+      );
+      await this.db.$transaction(chunk);
+    }
+
+    return {
+      computed: writable.length,
+      skippedLocked: args.rows.length - writable.length,
+    };
   }
 
   // ───────── LOCK / UNLOCK ─────────
@@ -284,6 +381,7 @@ export class GradeRepository {
         id: true,
         title: true,
         type: true,
+        term_id: true,
         total_items: true,
         grading_mode: true,
         release_date: true,
@@ -400,6 +498,7 @@ export class GradeRepository {
             id: true,
             type: true,
             title: true,
+            term_id: true,
             total_items: true,
             grading_mode: true,
             release_date: true,
@@ -407,6 +506,25 @@ export class GradeRepository {
             created_at: true,
           },
         },
+      },
+    });
+  }
+
+  /**
+   * Lean class-wide submissions for readiness-style sweeps: only the fields
+   * the missing-submission check reads, one query for the whole class
+   * instead of one per term.
+   */
+  async findSubmissionsForClass(classId: string, orgId: string) {
+    return this.db.submission.findMany({
+      where: {
+        org_id: orgId,
+        assessment: { class_id: classId, deleted_at: null },
+      },
+      select: {
+        student_id: true,
+        assessment_id: true,
+        status: true,
       },
     });
   }
@@ -527,11 +645,14 @@ export class GradeRepository {
     termId: string,
     orgId: string,
     studentId?: string,
+    termIds?: string[],
   ) {
     return this.db.manualScore.findMany({
       where: {
         class_id: classId,
-        term_id: termId,
+        // Perf Phase 3: optional multi-term fetch so single-student views can
+        // load all terms in one query instead of one per term.
+        ...(termIds && termIds.length > 0 ? { term_id: { in: termIds } } : { term_id: termId }),
         org_id: orgId,
         ...(studentId ? { student_id: studentId } : {}),
       },

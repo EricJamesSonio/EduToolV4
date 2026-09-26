@@ -102,8 +102,52 @@ export class ProgramService {
     return updated;
   }
 
+  /**
+   * Semesters actually belonging to this program in this school year.
+   *
+   * Resolved by the real `program_id` FK on Semester — no more resolving
+   * "this program's semesters" by matching Semester.name against a
+   * template's semester names. A single scoped query, not a two-step
+   * lookup-then-intersect.
+   */
   async getSemesters(programId: string, schoolYearId: string, orgId: string) {
-    // Find the semester template assignment for this program
+    const semesters = await this.db.semester.findMany({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        program_id: programId,
+      },
+      include: {
+        terms: { orderBy: { order_index: 'asc' as const } },
+      },
+      orderBy: { start_date: 'asc' as const },
+    });
+
+    return semesters.map((s) => ({
+      id: s.id,
+      school_year_id: s.school_year_id,
+      program_id: s.program_id,
+      name: s.name,
+      start_date: s.start_date,
+      end_date: s.end_date,
+      terms: (s.terms ?? []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        order_index: t.order_index,
+        start_date: t.start_date,
+        end_date: t.end_date,
+      })),
+    }));
+  }
+
+  /**
+   * The semester "slots" this program's assigned template defines
+   * (e.g. 1st/2nd Semester, or 1st/2nd/3rd for a tri-sem program), each
+   * annotated with whether an actual Semester has been created for it yet
+   * in this school year. Drives the semester-creation UI: instead of a
+   * free-text name field, the admin picks an open slot.
+   */
+  async getSemesterSlots(programId: string, schoolYearId: string, orgId: string) {
     const assignment = await this.db.programSemesterAssignment.findFirst({
       where: { program_id: programId, org_id: orgId },
       include: {
@@ -117,105 +161,53 @@ export class ProgramService {
 
     if (!assignment) return [];
 
-    const templateSemesterNames = new Set(
-      assignment.template.semesters.map((s: { name: string }) => s.name),
+    const existing = await this.db.semester.findMany({
+      where: { org_id: orgId, school_year_id: schoolYearId, program_id: programId },
+      select: {
+        id: true,
+        template_semester_id: true,
+        start_date: true,
+        end_date: true,
+      },
+    });
+    const existingByTemplateSemesterId = new Map(
+      existing.map((s) => [s.template_semester_id, s]),
     );
 
-    // Find actual Semester records matching those names + school year
-    const semesters = await this.db.semester.findMany({
-      where: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        name: { in: [...templateSemesterNames] },
-      },
-      include: {
-        terms: { orderBy: { order_index: 'asc' as const } },
-      },
-      orderBy: { start_date: 'asc' as const },
+    return assignment.template.semesters.map((templateSemester) => {
+      const match = existingByTemplateSemesterId.get(templateSemester.id);
+      return {
+        templateSemesterId: templateSemester.id,
+        name: templateSemester.name,
+        orderIndex: templateSemester.order_index,
+        existingSemesterId: match?.id ?? null,
+        startDate: match?.start_date ?? null,
+        endDate: match?.end_date ?? null,
+      };
     });
-
-    return semesters.map((s) => ({
-      id: s.id,
-      school_year_id: s.school_year_id,
-      name: s.name,
-      start_date: s.start_date,
-      end_date: s.end_date,
-      terms: (s.terms ?? []).map((t: any) => ({
-        id: t.id,
-        name: t.name,
-        order_index: t.order_index,
-        start_date: t.start_date,
-        end_date: t.end_date,
-      })),
-    }));
   }
 
   // ✅ NEW: for the Classes page "All Departments" semester filter.
-  // Returns one row per (program, semester) pairing that actually exists for
-  // this school year, so the frontend can render disambiguated labels like
-  // "1st - College" / "1st - Daycare" and — since a semester name can
-  // resolve to the SAME physical Semester row across different departments'
-  // templates — select both filterProgramId and filterSemesterId together
-  // when the user picks one, instead of a semesterId alone.
+  // Returns one row per (program, semester) pairing — now a direct read off
+  // Semester.program_id, no template/name intersection needed.
   async getSemestersGroupedByProgram(orgId: string, schoolYearId: string) {
-    const assignments = await this.db.programSemesterAssignment.findMany({
-      where: { org_id: orgId },
+    const semesters = await this.db.semester.findMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
       include: {
         program: { select: { id: true, name: true } },
-        template: {
-          include: {
-            semesters: { orderBy: { order_index: 'asc' as const } },
-          },
-        },
-      },
-    });
-
-    if (assignments.length === 0) return [];
-
-    // Collect every distinct semester name referenced by any template, then
-    // resolve them all to actual Semester rows in one query.
-    const allNames = new Set<string>();
-    for (const a of assignments) {
-      for (const s of a.template.semesters) allNames.add(s.name);
-    }
-
-    const semesterRows = await this.db.semester.findMany({
-      where: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        name: { in: [...allNames] },
       },
       orderBy: { start_date: 'asc' as const },
     });
 
-    const semesterByName = new Map(semesterRows.map((s) => [s.name, s]));
+    const result = semesters.map((s) => ({
+      semesterId: s.id,
+      semesterName: s.name,
+      startDate: s.start_date,
+      endDate: s.end_date,
+      programId: s.program_id,
+      programName: s.program.name,
+    }));
 
-    const result: Array<{
-      semesterId: string;
-      semesterName: string;
-      startDate: Date;
-      endDate: Date;
-      programId: string;
-      programName: string;
-    }> = [];
-
-    for (const a of assignments) {
-      for (const templateSemester of a.template.semesters) {
-        const row = semesterByName.get(templateSemester.name);
-        if (!row) continue; // no actual semester created yet for this school year
-        result.push({
-          semesterId: row.id,
-          semesterName: row.name,
-          startDate: row.start_date,
-          endDate: row.end_date,
-          programId: a.program.id,
-          programName: a.program.name,
-        });
-      }
-    }
-
-    // Order by semester start date, then department name, for a stable,
-    // readable dropdown.
     result.sort((x, y) => {
       const byDate = x.startDate.getTime() - y.startDate.getTime();
       if (byDate !== 0) return byDate;

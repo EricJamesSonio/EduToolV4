@@ -13,6 +13,7 @@ export interface UpdateStrandRequest {
 }
 
 export interface GetStrandsQuery {
+  schoolYearId?: string;
   program_id?: string;
 }
 

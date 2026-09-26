@@ -124,8 +124,11 @@ export class RegistrarService {
 
   /**
    * Builds an org-scoped email for a registrar using the org email extension.
-   * Registrars live on their own subdomain segment (e.g. registrar.school.edu.ph)
-   * so they can never collide with student/educator accounts.
+   * Registrars always get a `registrar.` prefix immediately after the "@",
+   * followed by the org's extension in full (e.g. registrar.pinkwell-academy,
+   * or registrar.pinkwell-academy.com if the extension includes a TLD).
+   * This keeps registrar accounts distinct from student/educator accounts,
+   * which get the equivalent `student.`/`educator.` prefix instead.
    */
   private async buildOrgEmail(orgId: string, username: string) {
     const org = await this.organizationService.getOwn(orgId);
@@ -149,16 +152,17 @@ export class RegistrarService {
       throw new BadRequestException('Username must be at most 30 characters.');
     }
 
+    // Strip any pre-existing role segment (defensive, in case the stored
+    // extension was ever saved with one baked in) before re-prefixing.
     const base = extension
       .replace(/^@/, '')
+      .replace(/^(student|educator|registrar)\./, '')
       .replace(/\.(student|educator|registrar)\./g, '.')
       .trim();
 
-    const dotIdx = base.indexOf('.');
-    const domain =
-      dotIdx >= 0
-        ? `${base.slice(0, dotIdx)}.registrar${base.slice(dotIdx)}`
-        : `registrar.${base}`;
+    // Role segment always goes first, immediately after "@", with the full
+    // base (including any TLD) kept intact afterward.
+    const domain = `registrar.${base}`;
 
     return `${localPart}@${domain}`.toLowerCase();
   }

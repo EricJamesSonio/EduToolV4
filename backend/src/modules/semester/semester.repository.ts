@@ -11,6 +11,8 @@ export class SemesterRepository {
   async create(data: {
     orgId: string;
     schoolYearId: string;
+    programId: string;
+    templateSemesterId: string;
     name: string;
     startDate: Date;
     endDate: Date;
@@ -19,6 +21,8 @@ export class SemesterRepository {
       data: {
         org_id: data.orgId,
         school_year_id: data.schoolYearId,
+        program_id: data.programId,
+        template_semester_id: data.templateSemesterId,
         name: data.name,
         start_date: data.startDate,
         end_date: data.endDate,
@@ -29,7 +33,7 @@ export class SemesterRepository {
   async findAll(orgId: string) {
     return this.db.semester.findMany({
       where: { org_id: orgId },
-      include: { terms: true }, // Phase 3: add relation to schema
+      include: { terms: true },
       orderBy: { start_date: 'asc' },
     });
   }
@@ -37,6 +41,19 @@ export class SemesterRepository {
   async findBySchoolYear(orgId: string, schoolYearId: string) {
     return this.db.semester.findMany({
       where: { org_id: orgId, school_year_id: schoolYearId },
+      include: { terms: true },
+      orderBy: { start_date: 'asc' },
+    });
+  }
+
+  /** Semesters for one program in one school year — the actual per-department calendar. */
+  async findByProgramAndSchoolYear(
+    orgId: string,
+    schoolYearId: string,
+    programId: string,
+  ) {
+    return this.db.semester.findMany({
+      where: { org_id: orgId, school_year_id: schoolYearId, program_id: programId },
       include: { terms: true },
       orderBy: { start_date: 'asc' },
     });
@@ -50,29 +67,34 @@ export class SemesterRepository {
   }
 
   /**
-   * Find all semesters in the same school year (for overlap checking).
-   * Excludes the current semester if updating.
+   * Find all semesters for the SAME program in the same school year (for
+   * overlap checking). Scoped by program — two different programs' semesters
+   * are allowed to overlap in real dates, since each department runs its own
+   * academic calendar. Excludes the current semester if updating.
    */
   async findSiblingsInSchoolYear(
     orgId: string,
     schoolYearId: string,
+    programId: string,
     excludeId?: string,
   ) {
     return this.db.semester.findMany({
       where: {
         org_id: orgId,
         school_year_id: schoolYearId,
+        program_id: programId,
         ...(excludeId ? { id: { not: excludeId } } : {}),
       },
     });
   }
 
-  async countBySchoolYear(
+  async countByProgramAndSchoolYear(
     orgId: string,
     schoolYearId: string,
+    programId: string,
   ): Promise<number> {
     return this.db.semester.count({
-      where: { org_id: orgId, school_year_id: schoolYearId },
+      where: { org_id: orgId, school_year_id: schoolYearId, program_id: programId },
     });
   }
 

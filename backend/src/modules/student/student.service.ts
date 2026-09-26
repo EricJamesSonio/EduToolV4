@@ -72,7 +72,25 @@ export class StudentService {
     };
   }
 
+  /**
+   * Builds an org-scoped email for a student using the org email extension.
+   * Students always get a `student.` prefix immediately after the "@",
+   * followed by the org's extension in full (e.g. student.pinkwell-academy,
+   * or student.pinkwell-academy.com if the extension includes a TLD).
+   */
   private async buildOrgEmail(orgId: string, emailName: string) {
+    const domain = await this.resolveStudentDomain(orgId);
+    return this.formatOrgEmail(domain, emailName);
+  }
+
+  /**
+   * Org email domain, fetched once per bulk operation. Split out of
+   * buildOrgEmail (Perf Phase 3) so bulkCreate does 1 org lookup instead of
+   * N — same missing-extension error as before. Domain computation follows
+   * development's role-prefix rule (pre-existing role segments stripped,
+   * `student.` always first).
+   */
+  private async resolveStudentDomain(orgId: string): Promise<string> {
     const org = await this.organizationService.getOwn(orgId);
     const extension = org?.emailExtension?.trim();
     if (!extension) {
@@ -81,6 +99,20 @@ export class StudentService {
       );
     }
 
+    // Strip any pre-existing role segment (defensive, in case the stored
+    // extension was ever saved with one baked in) before re-prefixing.
+    const base = extension
+      .replace(/^@/, '')
+      .replace(/^(student|educator|registrar)\./, '')
+      .replace(/\.(student|educator|registrar)\./g, '.')
+      .trim();
+
+    // Role segment always goes first, immediately after "@", with the full
+    // base (including any TLD) kept intact afterward.
+    return `student.${base}`;
+  }
+
+  private formatOrgEmail(domain: string, emailName: string): string {
     const localPart = emailName.trim().replace(/^@+/, '').toLowerCase();
     if (!localPart || localPart.includes('@')) {
       throw new BadRequestException(
@@ -93,16 +125,6 @@ export class StudentService {
     if (localPart.length > 30) {
       throw new BadRequestException('Username must be at most 30 characters.');
     }
-
-    const base = extension
-      .replace(/^@/, '')
-      .replace(/\.(student|educator)\./g, '.')
-      .trim();
-    const dotIdx = base.indexOf('.');
-    const domain =
-      dotIdx >= 0
-        ? `${base.slice(0, dotIdx)}.student${base.slice(dotIdx)}`
-        : `student.${base}`;
 
     return `${localPart}@${domain}`.toLowerCase();
   }
@@ -131,12 +153,13 @@ export class StudentService {
       return { ...e, emailName };
     });
 
-    const withEmails = await Promise.all(
-      withEmailName.map(async (e) => ({
-        ...e,
-        email: await this.buildOrgEmail(orgId, e.emailName),
-      })),
-    );
+    // Perf Phase 3: pure string formatting off a single org-domain lookup
+    // (was: one org DB fetch per entry).
+    const domain = await this.resolveStudentDomain(orgId);
+    const withEmails = withEmailName.map((e) => ({
+      ...e,
+      email: this.formatOrgEmail(domain, e.emailName),
+    }));
 
     const allEmails = withEmails.map((e) => e.email);
     const existingEmails = await this.studentRepository.findEmailsInBatch(
@@ -171,11 +194,19 @@ export class StudentService {
       plainPassword: string;
     }> = [];
 
-    for (const { fullName, email, id } of toCreate) {
-      try {
+    // Perf Phase 3: bcrypt-hash all passwords in parallel, then create
+    // sequentially to preserve the per-row P2002 race-condition skip
+    // semantics (first non-P2002 error still aborts, same as before).
+    const withPasswords = await Promise.all(
+      toCreate.map(async (entry) => {
         const plainPassword = generateSystemPassword();
         const hashedPassword = await hashPassword(plainPassword);
+        return { ...entry, plainPassword, hashedPassword };
+      }),
+    );
 
+    for (const { fullName, email, id, plainPassword, hashedPassword } of withPasswords) {
+      try {
         await this.studentRepository.create({
           orgId,
           email,
@@ -527,9 +558,7 @@ export class StudentService {
       } as any;
     }
 
-    const created: Array<
-      ReturnType<typeof this.formatAccount> & { plainPassword: string }
-    > = [];
+const created: Array<ReturnType<typeof this.formatAccount> & { plainPassword: string }> = [];
 
     for (const { data } of validRows) {
       try {

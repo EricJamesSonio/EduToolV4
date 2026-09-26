@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Layers, LayoutList, Loader2, Database, Eye, Pencil, ChevronDown, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -18,9 +18,21 @@ import { StrandStep } from "./StrandStep"
 import { LevelStep } from "./LevelStep"
 import { SectionStep } from "./SectionStep"
 import { SubjectStep } from "./SubjectStep"
-import type { DraftDepartment } from "@/hooks/admin/useSchoolProfileDraft"
+import { SharedSubjectStep } from "./SharedSubjectStep"
+import type { DraftDepartment, DraftLevel } from "@/hooks/admin/useSchoolProfileDraft"
 
 type Mode = "view" | "edit"
+
+function LevelPillLabel({ level }: { level: DraftLevel }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span>{level.name}</span>
+      <span className="text-[10px] font-normal opacity-70">
+        {level.sections.length} sec · {level.subjects.length} subj
+      </span>
+    </span>
+  );
+}
 
 function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
   return (
@@ -160,6 +172,46 @@ export function SchoolProfileCard() {
     );
   }, [readOnly, draft.departments, savedTypes]);
 
+  // Open the first course/strand + its first level automatically so the
+  // Sections & Subjects editors are visible without hunting for a pill.
+  // The ref guard makes this a one-time action per department: once the user
+  // collapses a pill we must not fight them and re-expand it.
+  const autoOpenedDepartments = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const nextCourses: Record<string, string> = {};
+    const nextLevels: Record<string, string> = {};
+
+    for (const dept of Object.values(draft.departments)) {
+      if (autoOpenedDepartments.current.has(dept.type)) continue;
+
+      const groups =
+        dept.type === "college"
+          ? dept.courses
+          : dept.type === "shs"
+            ? dept.strands
+            : [];
+      const firstGroup = groups[0];
+      const levels = firstGroup ? firstGroup.levels : dept.levels;
+
+      if (firstGroup && expandedCourseByDept[dept.type] === undefined) {
+        nextCourses[dept.type] = firstGroup.key;
+      }
+      if (levels.length > 0 && expandedLevelByDept[dept.type] === undefined) {
+        const sorted = [...levels].sort((a, b) => a.orderIndex - b.orderIndex);
+        nextLevels[dept.type] = sorted[0].key;
+      }
+
+      autoOpenedDepartments.current.add(dept.type);
+    }
+
+    if (Object.keys(nextCourses).length > 0) {
+      setExpandedCourseByDept((prev) => ({ ...prev, ...nextCourses }));
+    }
+    if (Object.keys(nextLevels).length > 0) {
+      setExpandedLevelByDept((prev) => ({ ...prev, ...nextLevels }));
+    }
+  }, [draft.departments, expandedCourseByDept, expandedLevelByDept]);
   const handleToggleDepartment = (type: ProgramType) => {
     if (readOnly) return;
     if (draft.selectedTypes.has(type)) {
@@ -296,6 +348,15 @@ export function SchoolProfileCard() {
           }
           return department.levels.find((l) => l.key === expandedLevelKey) ?? null
         }
+        const levelOptions = isCollege
+          ? department.courses.flatMap((c) =>
+              c.levels.map((l) => ({ key: l.key, label: `${c.name} · ${l.name}` })),
+            )
+          : isShs
+            ? department.strands.flatMap((s) =>
+                s.levels.map((l) => ({ key: l.key, label: `${s.name} · ${l.name}` })),
+              )
+            : department.levels.map((l) => ({ key: l.key, label: l.name }))
         const activeLevel = getActiveLevel()
 
         const content = (
@@ -365,7 +426,7 @@ export function SchoolProfileCard() {
             {/* Separate pill row — level scoped accordion (course/strand → level) */}
             {isCollege && department.courses.length > 0 && (
               <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
-                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a course to view its levels</p>
+                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a course, then a level to edit its sections &amp; subjects</p>
                 <div className="flex flex-wrap gap-2">
                   {department.courses.map((course) => {
                     const selected = expandedCourseKey === course.key
@@ -388,7 +449,7 @@ export function SchoolProfileCard() {
                 </div>
                 {activeCourse && (
                   <div className="space-y-2 pt-2 border-t">
-                    <p className="text-xs font-medium text-muted-foreground not-interactive">Levels in {activeCourse.name}</p>
+                    <p className="text-xs font-medium text-muted-foreground not-interactive">Levels in {activeCourse.name} — sections &amp; subjects</p>
                     <div className="flex flex-wrap gap-2">
                       {[...activeCourse.levels]
                         .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -406,7 +467,7 @@ export function SchoolProfileCard() {
                                   : "bg-background hover:bg-muted/50 border-muted-foreground/20",
                               )}
                             >
-                              {level.name}
+                              <LevelPillLabel level={level} />
                             </button>
                           )
                         })}
@@ -421,7 +482,7 @@ export function SchoolProfileCard() {
 
             {isShs && department.strands.length > 0 && (
               <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
-                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a strand to view its levels</p>
+                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a strand, then a level to edit its sections &amp; subjects</p>
                 <div className="flex flex-wrap gap-2">
                   {department.strands.map((strand) => {
                     const selected = expandedStrandKey === strand.key
@@ -444,7 +505,7 @@ export function SchoolProfileCard() {
                 </div>
                 {activeStrand && (
                   <div className="space-y-2 pt-2 border-t">
-                    <p className="text-xs font-medium text-muted-foreground not-interactive">Levels in {activeStrand.name}</p>
+                    <p className="text-xs font-medium text-muted-foreground not-interactive">Levels in {activeStrand.name} — sections &amp; subjects</p>
                     <div className="flex flex-wrap gap-2">
                       {[...activeStrand.levels]
                         .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -462,7 +523,7 @@ export function SchoolProfileCard() {
                                   : "bg-background hover:bg-muted/50 border-muted-foreground/20",
                               )}
                             >
-                              {level.name}
+                              <LevelPillLabel level={level} />
                             </button>
                           )
                         })}
@@ -474,7 +535,7 @@ export function SchoolProfileCard() {
 
             {!isCollege && !isShs && department.levels.length > 0 && (
               <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
-                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a level to edit sections & subjects</p>
+                <p className="text-xs font-medium text-muted-foreground not-interactive">Select a level to edit its sections &amp; subjects</p>
                 <div className="flex flex-wrap gap-2">
                   {[...department.levels]
                     .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -492,7 +553,7 @@ export function SchoolProfileCard() {
                               : "bg-background hover:bg-muted/50 border-muted-foreground/20",
                           )}
                         >
-                          {level.name}
+                          <LevelPillLabel level={level} />
                         </button>
                       )
                     })}
@@ -517,22 +578,36 @@ export function SchoolProfileCard() {
                   levelLabel={`${activeLevel.name} — Subjects`}
                   subjects={activeLevel.subjects}
                   disabled={readOnly || saveMutation.isPending}
-                  onAdd={(levelKey, name) => draft.addSubject(department.type, activeLevel.key, name)}
+                  onAdd={(levelKey, name, subjectType) => draft.addSubject(department.type, activeLevel.key, name, subjectType)}
                   onRename={(subjectKey, name) => draft.renameSubject(department.type, activeLevel.key, subjectKey, name)}
                   onDelete={(subjectKey) => draft.deleteSubject(department.type, activeLevel.key, subjectKey)}
+                  onSetType={(subjectKey, subjectType) => draft.setSubjectType(department.type, activeLevel.key, subjectKey, subjectType)}
                 />
               </div>
             ) : (
               <p className="text-xs text-muted-foreground not-interactive rounded-lg border border-dashed p-3 text-center">
-                {isCollege && !activeCourse
-                  ? "Select a course above to see its levels."
-                  : isShs && !activeStrand
-                    ? "Select a strand above to see its levels."
-                    : isCollege || isShs
-                      ? "Select a level to edit its sections & subjects."
-                      : "Select a level above to edit its sections & subjects."}
+                {isCollege && department.courses.length === 0
+                  ? "This department has no courses yet. Add a course above to create its levels, sections & subjects."
+                  : isShs && department.strands.length === 0
+                    ? "This department has no strands yet. Add a strand above to create its levels, sections & subjects."
+                    : isCollege && activeCourse && activeCourse.levels.length === 0
+                      ? "This course has no levels yet. Add one above to create its sections & subjects."
+                      : isShs && activeStrand && activeStrand.levels.length === 0
+                        ? "This strand has no levels yet. Add one above to create its sections & subjects."
+                        : isCollege || isShs
+                          ? "Select a level above to edit its sections & subjects."
+                          : "Select a level above to edit its sections & subjects."}
               </p>
             )}
+            <SharedSubjectStep
+              subjects={department.subjects}
+              levelOptions={levelOptions}
+              disabled={readOnly || saveMutation.isPending}
+              onAdd={(name) => draft.addSubject(department.type, activeLevel?.key ?? "", name, "minor")}
+              onRename={(subjectKey, name) => draft.renameSharedSubject(department.type, subjectKey, name)}
+              onDelete={(subjectKey) => draft.deleteSharedSubject(department.type, subjectKey)}
+              onPromote={(subjectKey, levelKey) => draft.promoteSharedSubjectToLevel(department.type, subjectKey, levelKey)}
+            />
           </div>
         )
         return readOnly ? (

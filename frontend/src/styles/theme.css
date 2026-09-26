@@ -79,9 +79,17 @@
 }
 
 :root {
-  --radius: 1.25rem;
-  --radius-sm: 0.75rem;
-  --radius-lg: 1.75rem;
+  /* Corner radius scale — lowered from 1.25rem/0.75rem/1.75rem. The old
+     scale made rounded-lg/md/sm (used by buttons, the view/edit switcher,
+     department rows, cards, dialogs — basically everything) resolve to
+     16-20px, which reads as fully pill-shaped on anything under ~40px tall.
+     This is the single shared token every one of those maps to via
+     tailwind.config.ts's borderRadius (lg/md/sm all derive from --radius),
+     so tightening it here is a one-line change that carries through the
+     whole app instead of hunting down each usage. */
+  --radius: 0.625rem;
+  --radius-sm: 0.5rem;
+  --radius-lg: 0.875rem;
 
   /* College of Mary Immaculate — higher-contrast cards (white cards pop on bg) */
   --background: #E8EEF6;

@@ -69,11 +69,18 @@ export class MajorSubjectSeederService {
         continue;
       }
 
+      // Real ownership scope for this subject: its own course, its own
+      // strand, or (for daycare/kinder/elementary/jhs, which have neither)
+      // the bare program key. This is what keeps BSIT's "Operating Systems"
+      // and BSCS's "Operating Systems" as two distinct lookups even though
+      // they share a name.
+      const scopeKey = s.courseCode ?? s.strandName ?? progKey;
+
       const id = seedId('subject', s.levelName, s.courseCode ?? 'none', s.strandName ?? 'none', s.name, ctx.orgId);
       const existing = await this.db.subject.findFirst({ where: { id } });
 
       if (existing) {
-        ctx.subjectNameToId[s.name] = existing.id;
+        ctx.registerSubjectId(scopeKey, s.name, existing.id);
         ctx.result.subjects.already_exists++;
       } else {
         const created = await this.db.subject.create({
@@ -91,7 +98,7 @@ export class MajorSubjectSeederService {
             is_locked: false,
           },
         });
-        ctx.subjectNameToId[s.name] = created.id;
+        ctx.registerSubjectId(scopeKey, s.name, created.id);
         ctx.result.subjects.seeded++;
       }
     }
@@ -119,6 +126,8 @@ export class MajorSubjectSeederService {
       const courseId = courseCode ? ctx.courseMap[courseCode] : null;
       const strandId = strandName ? ctx.strandMap[strandName] : null;
 
+      const scopeKey = courseCode ?? strandName ?? progKey;
+
       for (const subj of level.subjects.filter((s) => s.subjectType === 'major')) {
         if (!ctx.shouldSeedSubject(subj.name, level.name, strandName ?? undefined, courseCode ?? undefined)) {
           ctx.result.subjects.skipped++;
@@ -129,7 +138,7 @@ export class MajorSubjectSeederService {
         const existing = await this.db.subject.findFirst({ where: { id } });
 
         if (existing) {
-          ctx.subjectNameToId[subj.name] = existing.id;
+          ctx.registerSubjectId(scopeKey, subj.name, existing.id);
           ctx.result.subjects.already_exists++;
         } else {
           const created = await this.db.subject.create({
@@ -147,7 +156,7 @@ export class MajorSubjectSeederService {
               is_locked: false,
             },
           });
-          ctx.subjectNameToId[subj.name] = created.id;
+          ctx.registerSubjectId(scopeKey, subj.name, created.id);
           ctx.result.subjects.seeded++;
         }
       }

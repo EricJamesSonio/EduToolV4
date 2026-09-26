@@ -10,12 +10,21 @@ import {
   UpdateCalendarEventDto,
   QueryCalendarEventDto,
 } from './dto/academic-calendar.dto';
+import {
+  AppCacheService,
+  APP_CACHE_TTL,
+} from '@/core/cache/app-cache.service';
 
 @Injectable()
 export class AcademicCalendarService {
   constructor(
     private readonly calendarRepository: AcademicCalendarRepository,
+    private readonly cache: AppCacheService,
   ) {}
+
+  private calendarPrefix(orgId: string): string {
+    return this.cache.key('org', orgId, 'calendar');
+  }
 
   // ── POST /academic-calendar ─────────────────────────────────────────────────
 
@@ -44,6 +53,8 @@ export class AcademicCalendarService {
       description: dto.description,
     });
 
+    await this.cache.delByPrefix(this.calendarPrefix(orgId));
+
     // Return with retroactive warning flag so the client can surface it
     return {
       ...event,
@@ -56,7 +67,14 @@ export class AcademicCalendarService {
   // ── GET /academic-calendar?schoolYearId= ───────────────────────────────────
 
   async findAll(orgId: string, query: QueryCalendarEventDto) {
-    return this.calendarRepository.findAll(orgId, query.schoolYearId);
+    // Perf Phase 6: calendar changes rarely — 30-minute TTL per
+    // org+schoolYear, invalidated on create/update/remove.
+    const schoolYearId = query.schoolYearId ?? 'all';
+    return this.cache.cached(
+      this.cache.key(this.calendarPrefix(orgId), schoolYearId),
+      APP_CACHE_TTL.orgSettings,
+      () => this.calendarRepository.findAll(orgId, query.schoolYearId),
+    );
   }
 
   // ── PATCH /academic-calendar/:id ───────────────────────────────────────────
@@ -92,6 +110,8 @@ export class AcademicCalendarService {
       description: dto.description,
     });
 
+    await this.cache.delByPrefix(this.calendarPrefix(orgId));
+
     return {
       ...updated,
       warning: isRetroactive
@@ -110,6 +130,7 @@ export class AcademicCalendarService {
     }
 
     await this.calendarRepository.delete(id);
+    await this.cache.delByPrefix(this.calendarPrefix(orgId));
   }
 
   // ── Utility (used by class module in Phase 3) ───────────────────────────────
@@ -119,9 +140,11 @@ export class AcademicCalendarService {
    * Called by class session generation to skip affected dates.
    */
   async getSessionBlockingEvents(orgId: string, schoolYearId: string) {
-    return this.calendarRepository.findSessionBlockingEvents(
-      orgId,
-      schoolYearId,
+    return this.cache.cached(
+      this.cache.key(this.calendarPrefix(orgId), 'blocking', schoolYearId),
+      APP_CACHE_TTL.orgSettings,
+      () =>
+        this.calendarRepository.findSessionBlockingEvents(orgId, schoolYearId),
     );
   }
 

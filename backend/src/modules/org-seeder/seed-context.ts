@@ -18,7 +18,7 @@ export interface SeedResult {
   gradingSchemeTemplates: SeedCount;
   semesterTemplates: SeedCount;
   programCalendars: SeedCount;
-  
+
   /** Non-fatal issues surfaced to the admin (e.g. template not auto-registered due to calendar mismatch). */
   warnings: string[];
 }
@@ -97,7 +97,27 @@ export class SeedContext {
   readonly courseMap: Record<string, string> = {};
   readonly strandMap: Record<string, string> = {};
   readonly levelMap: Record<string, string> = {};
-  readonly subjectNameToId: Record<string, string> = {};
+
+  /**
+   * Subject ids grouped by scope, then by subject name.
+   *
+   * Scope is the real ownership boundary a subject belongs to: a courseCode
+   * (college major, e.g. "BSIT"), a strandName (SHS major), a bare
+   * programKey (daycare/kinder/elementary/jhs, which have no course/strand
+   * split), or `shared:${programKey}` for minor subjects that are genuinely
+   * shared across a program's courses/strands via SubjectSharing
+   * (college GE, SHS core subjects).
+   *
+   * Two courses can legitimately both define a major subject named
+   * "Business Law" — they are two different Subject rows with different
+   * ids. A flat name-only map collapses them into one (last write wins);
+   * scoping by course/strand keeps them distinct while still letting
+   * prerequisite resolution fall back to the shared bucket for
+   * cross-references such as "Business Statistics" (major, BSBA) →
+   * "Mathematics in the Modern World" (minor, shared:college).
+   */
+  readonly subjectIdsByScope: Record<string, Record<string, string>> = {};
+
   readonly profileDepartments: Record<string, SchoolProfileDepartmentData | null> = {};
   readonly profileGradingScales: Record<string, { name: string; ranges: GradingScaleRangeOption[] }> = {};
   readonly profileGradingSchemes: Record<string, { name: string; components: { name: string; type: string; weight: number; isOptional?: boolean }[] }> = {};
@@ -167,5 +187,21 @@ export class SeedContext {
     if (courseCode && this.excludedLevelSubjects[courseCode]?.includes(name))
       return false;
     return true;
+  }
+
+  /** Register a subject's id under its real ownership scope (course/strand/programKey/shared bucket). */
+  registerSubjectId(scope: string, name: string, id: string): void {
+    if (!this.subjectIdsByScope[scope]) {
+      this.subjectIdsByScope[scope] = {};
+    }
+    this.subjectIdsByScope[scope][name] = id;
+  }
+
+  /** Look up a subject id by scope first, falling back to another scope (e.g. the shared minor bucket) when not found. */
+  getSubjectId(scope: string, name: string, fallbackScope?: string): string | undefined {
+    const direct = this.subjectIdsByScope[scope]?.[name];
+    if (direct) return direct;
+    if (fallbackScope) return this.subjectIdsByScope[fallbackScope]?.[name];
+    return undefined;
   }
 }
