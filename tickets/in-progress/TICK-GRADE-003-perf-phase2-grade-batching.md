@@ -65,6 +65,7 @@ None.
 Confidence: 82/100 (Requirement clarity 25, Codebase verification 20, Architecture fit 18, Edge cases 9, Blast radius 10). Assumption: equivalence via mocked-repo specs (dev DB empty); query counts measured with seeded local volume + Phase 0 logging.
 2026-09-25 — Implemented 4 commits (87bfd855 core maps; 530b161a educator parallel+hoist+group; c3bb67a0 legacy same; 717e14b1 batched computeGrades + saveComputedGrades + spec tsc fix). Legacy GradeService verdict: LIVE (serves GET /classes/:classId/grades) — fixed, not flagged dead. computeGrades now skips locked rows via single batched check (previously overwrote them) — intentional per ticket scope, flagged in handoff. Verified: 58/58 grade tests, equivalence green on old+new, lint/tsc/build clean.
 2026-09-25 — Ready for review.
+2026-09-26 — REVIEW RESOLUTION (locked-row question): the skip was implemented per scope text, which had conflated recompute's guard with compute (unguarded overwrite). Split out: this ticket reworked to pure-overwrite batching (e17fa9a0 — saveComputedGrades returns {computed}, services return original {computed,message}, spec pins overwrite incl. locked rows). Behavior change lives ONLY in TICK-GRADE-004 (held for human review). This ticket is now pure perf, mergeable. Verified: 58/58 grade tests, lint/tsc clean.
 
 ## Commits
 
@@ -72,6 +73,7 @@ Confidence: 82/100 (Requirement clarity 25, Codebase verification 20, Architectu
 - 530b161a perf(grade): parallel term builds with hoisted invariants + grouped lookups in educator grid
 - c3bb67a0 perf(grade): parallel term builds with hoisted scheme/profiles + grouped lookups in legacy grid
 - 717e14b1 perf(grade): batched computeGrades writes via saveComputedGrades (branch agent/TICK-GRADE-003-perf-phase2-grade-batching, PR vs development)
+- e17fa9a0 perf(grade): pure-overwrite batch writes; locked-skip split to TICK-GRADE-004
 
 ## Notes
 

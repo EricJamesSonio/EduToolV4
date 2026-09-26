@@ -18,7 +18,7 @@ Worktree: `../EduToolV4-worktrees/TICK-GRADE-003-perf-phase2-grade-batching` (ke
 - New specs run GREEN on pre-refactor code (checked out development versions) with zero expectation changes → output equivalence proven, not assumed.
 - eslint clean; tsc no new errors; build OK (526 files).
 
-## ⚠️ One intentional behavior adjustment (flagged, not silent)
-`computeGrades` previously **overwrote locked grades** (no guard; only `recomputeStudentGrade` had one). It now **skips locked rows** via the single batched check and returns additive `skippedLocked` + extended message + `skippedLocked` in the audit metadata. If overwriting locked grades on bulk compute was ever intended, say so and I'll revert to pure-overwrite batching. No other output changes.
+## ⚠️ Locked-row resolution (2026-09-26 review — RESOLVED BY SPLIT)
+Review question (intentional fix or accidental change?): implemented per scope text, which had wrongly conflated `recomputeStudentGrade`'s guard with `computeGrades`. Old code overwrote locked rows unconditionally (loop + bare upsert, no is_locked read); only recompute had the guard. This ticket no longer changes that: `e17fa9a0` restored pure-overwrite batching (spec pins locked-row overwrite). The skip lives ONLY in TICK-GRADE-004 (held, unmerged). No other output changes.
 
 ## No bugs fixed inline. Next: Phase 3 (separate ticket/branch).
