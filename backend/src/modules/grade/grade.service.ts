@@ -195,12 +195,17 @@ export class GradeService {
       return { studentId, finalScore, finalGrade };
     });
 
-    const { computed } = await this.repo.saveComputedGrades({
-      orgId,
-      classId,
-      termId,
-      rows,
-    });
+    // TICK-GRADE-004: bulk compute honors grade locks (skip, don't
+    // overwrite) — mirroring recomputeStudentGrade. Business-logic change.
+    const { computed, skippedLocked } = await this.repo.saveComputedGrades(
+      {
+        orgId,
+        classId,
+        termId,
+        rows,
+      },
+      { skipLocked: true },
+    );
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -208,10 +213,16 @@ export class GradeService {
       action: 'grades_computed',
       entityType: 'class',
       entityId: classId,
-      metadata: { termId, studentsComputed: computed },
+      metadata: { termId, studentsComputed: computed, skippedLocked },
     });
 
-    return { computed, message: `Grades computed for ${computed} student(s).` };
+    return {
+      computed,
+      skippedLocked,
+      message:
+        `Grades computed for ${computed} student(s).` +
+        (skippedLocked > 0 ? ` ${skippedLocked} locked skipped.` : ''),
+    };
   }
 
   async setManualScore(

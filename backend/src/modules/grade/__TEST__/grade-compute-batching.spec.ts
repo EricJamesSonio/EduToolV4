@@ -44,7 +44,7 @@ describe('GradeRepository.saveComputedGrades', () => {
       termId: 't',
       rows: [],
     });
-    expect(res).toEqual({ computed: 0 });
+    expect(res).toEqual({ computed: 0, skippedLocked: 0 });
     expect(db.$transaction).not.toHaveBeenCalled();
   });
 
@@ -56,7 +56,7 @@ describe('GradeRepository.saveComputedGrades', () => {
       termId: 't',
       rows,
     });
-    expect(res).toEqual({ computed: 2 });
+    expect(res).toEqual({ computed: 2, skippedLocked: 0 });
     // No lock-state SELECT — pure batch.
     expect(db.$transaction).toHaveBeenCalledTimes(1);
     expect(txCalls[0][0]).toHaveLength(2);
@@ -75,7 +75,7 @@ describe('GradeRepository.saveComputedGrades', () => {
       termId: 't',
       rows: big,
     });
-    expect(res).toEqual({ computed: 120 });
+    expect(res).toEqual({ computed: 120, skippedLocked: 0 });
     expect(db.$transaction).toHaveBeenCalledTimes(3);
   });
 });
@@ -118,7 +118,7 @@ describe('GradeEducatorService.computeGrades — batched persist', () => {
       findEnrollmentDatesByClass: jest.fn().mockResolvedValue([]),
       findGradingOverridesByClass: jest.fn().mockResolvedValue([]),
       upsert: jest.fn(),
-      saveComputedGrades: jest.fn().mockResolvedValue({ computed: 2 }),
+      saveComputedGrades: jest.fn().mockResolvedValue({ computed: 2, skippedLocked: 0 }),
     };
     const auditLog = { logActivityEvent: jest.fn().mockResolvedValue(undefined) };
     const service = new GradeEducatorService(
@@ -142,12 +142,13 @@ describe('GradeEducatorService.computeGrades — batched persist', () => {
     expect(payload.rows[1]).toMatchObject({ studentId: 's-2', finalScore: 0 });
     expect(res).toEqual({
       computed: 2,
+      skippedLocked: 0,
       message: 'Grades computed for 2 student(s).',
     });
     expect(auditLog.logActivityEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'grades_computed',
-        metadata: { termId: 't-1', studentsComputed: 2 },
+        metadata: { termId: 't-1', studentsComputed: 2, skippedLocked: 0 },
       }),
     );
   });
