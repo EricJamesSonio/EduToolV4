@@ -15,6 +15,10 @@ import {
   SeedOrganizationDto,
 } from './dto/organization.dto';
 import { getDefaultEnabledKeys } from '@/modules/academic-calendar/data/holidays.data';
+import {
+  AppCacheService,
+  APP_CACHE_TTL,
+} from '@/core/cache/app-cache.service';
 
 @Injectable()
 export class OrganizationService {
@@ -23,6 +27,7 @@ export class OrganizationService {
     private readonly orgSeeder: OrgSeederService,
     private readonly auditLogService: AuditLogService,
     private readonly db: DatabaseService,
+    private readonly cache: AppCacheService,
   ) {}
 
   async create(adminId: string, dto: CreateOrganizationDto) {
@@ -65,16 +70,24 @@ export class OrganizationService {
 
   async getOwn(orgId: string | null) {
     if (!orgId) return null;
-    const org = await this.orgRepository.findById(orgId);
-    if (!org) return null;
-    return {
-      id: org.id,
-      name: org.name,
-      description: org.description,
-      address: org.address,
-      logoUrl: org.logo_url ?? null,
-      emailExtension: org.email_extension ?? null,
-    };
+    // Perf Phase 6: org row is read on hot paths (email building, guards) and
+    // changes rarely — 5-minute TTL, invalidated on update.
+    return this.cache.cached(
+      this.cache.key('org', orgId, 'own'),
+      APP_CACHE_TTL.referenceData,
+      async () => {
+        const org = await this.orgRepository.findById(orgId);
+        if (!org) return null;
+        return {
+          id: org.id,
+          name: org.name,
+          description: org.description,
+          address: org.address,
+          logoUrl: org.logo_url ?? null,
+          emailExtension: org.email_extension ?? null,
+        };
+      },
+    );
   }
 
   async update(orgId: string, dto: UpdateOrganizationDto, actorId: string) {
@@ -101,6 +114,9 @@ export class OrganizationService {
           metadata: { name: dto.name },
         })
         .catch(() => {});
+
+      // Perf Phase 6: drop the cached org row so the next getOwn re-reads.
+      await this.cache.del(this.cache.key('org', orgId, 'own'));
 
       return updated;
     } catch (e: any) {
