@@ -10,8 +10,8 @@ import {
   SHS_STRANDS,
   SECTION_DEFAULTS,
   LEVEL_SUBJECTS,
-  COURSE_SUBJECTS,
-  SHS_STRAND_SUBJECTS,
+  COURSE_SUBJECT_YEARS,   // ← add
+  SHS_MAJOR_YEARS,        // ← add
   COLLEGE_GE_SUBJECTS,
   SHS_MINOR_SUBJECTS,
 } from "@/components/admin/data-seeder/constants/seed-data"
@@ -95,24 +95,27 @@ function buildMajorSubjectsFor(levelName: string): DraftSubject[] {
 
 function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
   if (type === "college") {
-    const courses: DraftCourse[] = COLLEGE_COURSES.map((course) => ({
-      key: makeKey("course"),
-      name: course.name,
-      code: course.code,
-      levels: Array.from({ length: course.years }, (_, i) => {
-        const levelName = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"][i] ?? `Year ${i + 1}`
-        const majorNames = COURSE_SUBJECTS[course.code] ?? []
-        return {
-          key: makeKey("level"),
-          name: levelName,
-          orderIndex: i,
-          sections: buildSectionsFor(levelName),
-          subjects: majorNames
-            .filter((n) => !COLLEGE_GE_SUBJECTS.includes(n as (typeof COLLEGE_GE_SUBJECTS)[number]))
-            .map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
-        }
-      }),
-    }))
+    const courses: DraftCourse[] = COLLEGE_COURSES.map((course) => {
+      const yearMap = COURSE_SUBJECT_YEARS[course.code] ?? {}
+      return {
+        key: makeKey("course"),
+        name: course.name,
+        code: course.code,
+        levels: Array.from({ length: course.years }, (_, i) => {
+          const levelName = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"][i] ?? `Year ${i + 1}`
+          const namesForLevel = Object.entries(yearMap)
+            .filter(([, year]) => year === levelName)
+            .map(([name]) => name)
+          return {
+            key: makeKey("level"),
+            name: levelName,
+            orderIndex: i,
+            sections: buildSectionsFor(levelName),
+            subjects: namesForLevel.map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
+          }
+        }),
+      }
+    })
 
     const subjects: DraftSubject[] = COLLEGE_GE_SUBJECTS.map((name) => ({
       key: makeKey("subject"),
@@ -125,19 +128,22 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
 
   if (type === "shs") {
     const strands: DraftStrand[] = SHS_STRANDS.map((strandName) => {
-      const majorNames = (SHS_STRAND_SUBJECTS[strandName] ?? []).filter(
-        (n) => !SHS_MINOR_SUBJECTS.includes(n as (typeof SHS_MINOR_SUBJECTS)[number]),
-      )
+      const yearMap = SHS_MAJOR_YEARS[strandName] ?? {}
       return {
         key: makeKey("strand"),
         name: strandName,
-        levels: (LEVEL_DEFS["shs"] ?? []).map((levelName, i) => ({
-          key: makeKey("level"),
-          name: levelName,
-          orderIndex: i,
-          sections: buildSectionsFor(levelName),
-          subjects: majorNames.map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
-        })),
+        levels: (LEVEL_DEFS["shs"] ?? []).map((levelName, i) => {
+          const namesForLevel = Object.entries(yearMap)
+            .filter(([, year]) => year === levelName)
+            .map(([name]) => name)
+          return {
+            key: makeKey("level"),
+            name: levelName,
+            orderIndex: i,
+            sections: buildSectionsFor(levelName),
+            subjects: namesForLevel.map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
+          }
+        }),
       }
     })
 
@@ -150,7 +156,8 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
     return { type, courses: [], strands, levels: [], subjects }
   }
 
-  // daycare / kinder / elementary / jhs — department-level only, no course/strand
+  // daycare / kinder / elementary / jhs — unchanged, these never had the bug
+  // since LEVEL_SUBJECTS is already keyed per individual level, not per strand.
   const levelNames = LEVEL_DEFS[type] ?? []
   const levels: DraftLevel[] = levelNames.map((levelName, i) => ({
     key: makeKey("level"),
