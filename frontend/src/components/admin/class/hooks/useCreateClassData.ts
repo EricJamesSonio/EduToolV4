@@ -60,30 +60,59 @@ export function useCreateClassData(
   const hasTrack      = tracks.length > 0;
   const isCourseTrack = courses.length > 0;
 
-  // Scoped to program at the query level (not just filtered client-side
-  // afterward) so we don't pull every level in the school year on every
-  // keystroke/program change.
+  // ── Levels ────────────────────────────────────────────────────────────────
+  // IMPORTANT: which level.api method we call depends on whether this
+  // department has courses/strands (hasTrack) and whether one is selected yet.
+  //
+  // The backend's GET /levels?schoolYearId=&programId= route (levelApi.getBySchoolYear
+  // with a programId) hits LevelController's "programId && schoolYearId" branch,
+  // which calls levelService.getByProgram -> findByProgramAndSchoolYear. That
+  // repository method explicitly filters `course_id: null, strand_id: null` —
+  // i.e. it ONLY returns "bare" department-level levels (daycare/kinder/
+  // elementary/jhs, which have no course/strand split). For College/SHS, every
+  // level has a course_id or strand_id set, so hitting that endpoint always
+  // returned [] regardless of which course/strand was picked — that was the
+  // actual bug, not a client-side filtering issue.
+  //
+  // The fix: once a track is selected, call the endpoints that are actually
+  // built for that case — getByCourse / getByStrand — which query by
+  // course_id/strand_id directly and correctly return the seeded levels.
   const { data: levelsRaw } = useAsyncQuery(
-    queryKeys.admin.levels.list({ schoolYearId, programId: selectedProgramId }),
-    () => levelApi.getBySchoolYear(schoolYearId!, selectedProgramId || undefined),
-    { enabled: !!schoolYearId && !!selectedProgramId },
+    queryKeys.admin.levels.list({
+      schoolYearId,
+      programId: selectedProgramId,
+      trackId: selectedTrackId || null,
+      isCourseTrack,
+    }),
+    () => {
+      if (hasTrack && selectedTrackId) {
+        return isCourseTrack
+          ? levelApi.getByCourse(schoolYearId!, selectedTrackId)
+          : levelApi.getByStrand(schoolYearId!, selectedTrackId);
+      }
+      // No track needed (daycare/kinder/elementary/jhs) — this path correctly
+      // hits the program-scoped, course/strand-null-filtered endpoint.
+      return levelApi.getBySchoolYear(schoolYearId!, selectedProgramId || undefined);
+    },
+    {
+      // Don't fetch at all once we know a track is required but not chosen yet
+      // (hasTrack && !selectedTrackId) — there is nothing valid to show until
+      // then, and hitting the program-only endpoint in that state would just
+      // return [] anyway (or, worse, an unrelated program-level level).
+      enabled:
+        !!schoolYearId &&
+        !!selectedProgramId &&
+        (!hasTrack || !!selectedTrackId),
+    },
   );
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
     if (!selectedProgramId) return [];
-
-    let result = all.filter((l) => l.program_id === selectedProgramId);
-
-    if (hasTrack && selectedTrackId && isCourseTrack) {
-      result = result.filter((l) => !l.course_id || l.course_id === selectedTrackId);
-    } else if (hasTrack && selectedTrackId && !isCourseTrack) {
-      result = result.filter((l) => !l.strand_id || l.strand_id === selectedTrackId);
-    } else if (hasTrack && !selectedTrackId) {
-      result = result.filter((l) => isCourseTrack ? !l.course_id : !l.strand_id);
-    }
-
-    return result;
-  }, [levelsRaw, selectedProgramId, hasTrack, isCourseTrack, selectedTrackId]);
+    // The dedicated endpoints above already scope by course/strand/program
+    // correctly, so this is just a defensive extra filter, not the primary
+    // scoping mechanism it used to be.
+    return all.filter((l) => l.program_id === selectedProgramId);
+  }, [levelsRaw, selectedProgramId]);
 
   const { data: sectionsRaw } = useAsyncQuery(
     queryKeys.admin.sections.list({ schoolYearId, levelId: selectedLevelId! }),
