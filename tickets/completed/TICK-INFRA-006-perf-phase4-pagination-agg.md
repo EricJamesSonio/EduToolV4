@@ -1,6 +1,6 @@
 # TICK-INFRA-006 — Perf Phase 4 pagination + SQL aggregation
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -62,6 +62,7 @@ None.
 Confidence: 83/100 (Requirement clarity 24, Codebase verification 21, Architecture fit 19, Edge cases 9, Blast radius 10). Assumption: offset pagination unless cursor infra exists.
 2026-09-25 — Decision: offset page/limit + {data,meta} (matches getEnrollmentBreakdown precedent + existing PaginationBar/Pagination UI; no cursor infra exists). Implemented 3 commits (backend pagination, frontend pagination, analytics aggregation). Found + fixed-as-necessity one pre-existing bug (educator activity client unwrapping). Verified: backend 14/14, frontend tsc/eslint clean, build OK.
 2026-09-25 — Ready for review.
+2026-09-26 — Merged to development (ea66ee99). Development validation: backend unit 750 (725 pass, 25 pre-existing failures in same 5 suites), frontend jest 102/102, tsc pre-existing sets only (both projects), backend build OK (538 files). NOTE: `next build` fails on development due to pre-existing broken src/app/admin/page.tsx (server component using useEffect/useRouter; untouched by this work — commits 86a2abe6/454cff32) — flagged separately, not fixed inline. Completed.
 
 ## Commits
 
