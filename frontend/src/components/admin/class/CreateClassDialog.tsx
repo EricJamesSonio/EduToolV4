@@ -214,7 +214,7 @@ export function CreateClassDialog({
     open={open}
     onClose={handleClose}
     size="lg" // kept for fallback/type-safety, but overridden below
-    className="sm:max-w-5xl w-[92vw] h-[85vh] max-h-[85vh] overflow-hidden flex flex-col"
+    className="w-[92vw] lg:w-[90vw] xl:max-w-6xl h-[85vh] lg:h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
     title={
       <span className="flex items-center gap-2">
         New Class

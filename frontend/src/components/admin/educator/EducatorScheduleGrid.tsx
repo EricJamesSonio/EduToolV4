@@ -49,8 +49,9 @@ interface PositionedBlock extends ScheduleBlock {
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const MIN_INTERVAL_CANDIDATES = [30, 15, 10, 5, 1];
-const PX_PER_MINUTE = 1.1;
-const TIME_COL_WIDTH = 64;
+const PX_PER_MINUTE = 0.85;
+const TIME_COL_WIDTH = 44;
+const DAY_COL_MIN_WIDTH = 40; // slim day columns — Mon/Tue/etc no longer need to be wide
 
 const BLOCK_COLORS = [
   "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
@@ -301,11 +302,10 @@ export function EducatorScheduleGrid({
   return (
     <div className="border rounded-md overflow-x-auto bg-card">
       <div
-        className={interactive ? "grid" : "grid min-w-[640px]"}
+        className={interactive ? "grid w-full" : "grid min-w-[640px]"}
         style={{
-          gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${totalDataCols}, 1fr)`,
+          gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${totalDataCols}, minmax(${DAY_COL_MIN_WIDTH}px, 1fr))`,
           gridTemplateRows: `auto repeat(${numRows}, ${interval * PX_PER_MINUTE}px)`,
-          minWidth: interactive ? 900 : undefined,
         }}
       >
         {/* Header row */}
@@ -315,7 +315,7 @@ export function EducatorScheduleGrid({
           return (
             <div
               key={`head-${d}`}
-              className="sticky top-0 z-10 bg-card border-b border-r py-2 text-center text-xs font-semibold text-muted-foreground not-interactive"
+              className="sticky top-0 z-10 bg-card border-b border-r py-1 px-0.5 text-center text-[10px] font-semibold text-muted-foreground not-interactive truncate"
               style={{ gridColumn: `${startCol} / span ${colCount}` }}
             >
               {WEEKDAYS[d]}
