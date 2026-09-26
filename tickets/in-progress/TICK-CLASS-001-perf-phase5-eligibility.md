@@ -1,6 +1,6 @@
 # TICK-CLASS-001 — Perf Phase 5 eligibility/prerequisite batching + EXPLAIN ANALYZE
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-26
 Created by: agent
@@ -47,9 +47,11 @@ Proceeding at the 80% floor with disclosed assumption: scratch-DB EXPLAIN stands
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- New batching specs 8/8 (structures 3, scales 2, batch decisions 3); proof specs 4/4 incl. real-repo latest-wins on the batch path; enrollment 52/52 with memoized scales; class-assignment-request + grade-lock suites green (72 total in scope)
+- EXPLAIN ANALYZE on seeded scratch DB (200 classes / 50 enrollments / 200 prereqs incl. 3-deep chain / 50 locked grades): all batched queries sub-ms, no unexpected plans (details in handoff); scratch DB dropped afterwards
+- eslint clean; tsc no new errors (pre-existing set only); build OK (526 files)
+- Full suite: not run (deferred to development integration after merge)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -59,10 +61,13 @@ None.
 
 2026-09-26 — Claimed (first CLASS ticket, counter created at 1), creating worktree from development.
 Confidence: 80/100 (Requirement clarity 24, Codebase verification 19, Architecture fit 18, Edge cases 9, Blast radius 10). Assumption: scratch-DB plans + mocked decision specs (dev DB empty, must stay clean).
+2026-09-26 — Implemented 2 commits (7e57241b plumbing: batched structures/scales/rows, memoized isGradePassing both services, checkEligibilityBatch with delegating single; 5e6c25f8 class wiring). Proof spec (a)-2 mocks updated to batch seam (scenario unchanged). EXPLAIN ANALYZE on scratch (200/50/200/50 volume): all sub-ms, no red flags; scratch dropped. Verified: 72 tests green, lint/tsc/build clean.
+2026-09-26 — Ready for review.
 
 ## Commits
 
-None yet.
+- 7e57241b perf(prereq): batched structures/scales/rows + memoized eligibility checks
+- 5e6c25f8 perf(class): single batched structure + eligibility pass for eligible classes (branch agent/TICK-CLASS-001-perf-phase5-eligibility, PR vs development)
 
 ## Notes
 
