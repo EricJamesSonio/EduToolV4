@@ -8,9 +8,14 @@ export interface CreateOrganizationRequest {
 }
 
 export interface UpdateOrganizationRequest {
-  name?:           string
-  description?:    string
-  emailExtension?: string | null
+  name?:                    string
+  description?:             string
+  emailExtension?:          string | null
+  /**
+   * When true, every newly created school year is automatically seeded with
+   * the org's saved School Profile configuration — no confirmation prompt.
+   */
+  autoSeedNewSchoolYears?:  boolean
 }
 
 export interface GradingScaleRangePayload {
