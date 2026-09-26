@@ -12,6 +12,7 @@ import { envValidationSchema } from '../configs/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
 import { AiModule } from './ai/ai.module';
+import { AppCacheModule } from './cache/app-cache.module';
 import { MailModule } from '@/modules/mail/mail.module';
 import { PersonalEmailRegistryModule } from '@/commons/services/personal-email-registry.module';
 
@@ -27,9 +28,10 @@ import { PersonalEmailRegistryModule } from '@/commons/services/personal-email-r
     DatabaseModule,
     LoggerModule,
     AiModule,
+    AppCacheModule,
     MailModule,
     PersonalEmailRegistryModule,
   ],
-  exports: [DatabaseModule, LoggerModule, ConfigModule, AiModule],
+  exports: [DatabaseModule, LoggerModule, ConfigModule, AiModule, AppCacheModule],
 })
 export class CoreModule {}

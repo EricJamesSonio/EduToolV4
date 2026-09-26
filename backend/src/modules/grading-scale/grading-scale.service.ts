@@ -134,6 +134,8 @@ export class GradingScaleService {
       ranges: dto.ranges,
     });
 
+    await this.gradingScaleRepository.invalidateScaleCache(orgId);
+
     return this.mapToEntity(scale);
   }
 
@@ -175,6 +177,8 @@ export class GradingScaleService {
       ranges: dto.ranges,
     });
 
+    await this.gradingScaleRepository.invalidateScaleCache(orgId);
+
     return this.mapToEntity(updated);
   }
 
@@ -190,6 +194,7 @@ export class GradingScaleService {
     }
 
     const locked = await this.gradingScaleRepository.lock(id);
+    await this.gradingScaleRepository.invalidateScaleCache(orgId);
     return this.mapToEntity(locked);
   }
 
@@ -201,6 +206,7 @@ export class GradingScaleService {
     }
 
     const unlocked = await this.gradingScaleRepository.unlock(id);
+    await this.gradingScaleRepository.invalidateScaleCache(orgId);
     return this.mapToEntity(unlocked);
   }
 
@@ -235,6 +241,7 @@ export class GradingScaleService {
     }
 
     await this.gradingScaleRepository.delete(id);
+    await this.gradingScaleRepository.invalidateScaleCache(orgId);
   }
 
   async resolveGrade(
@@ -315,6 +322,8 @@ export class GradingScaleService {
       schoolYearId,
     );
 
+    await this.gradingScaleRepository.invalidateScaleCache(orgId);
+
     return this.mapToEntity(scale);
   }
 
@@ -341,5 +350,6 @@ export class GradingScaleService {
     schoolYearId: string,
   ): Promise<void> {
     await this.assignmentRepository.remove(orgId, programId, schoolYearId);
+    await this.gradingScaleRepository.invalidateScaleCache(orgId);
   }
 }

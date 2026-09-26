@@ -26,6 +26,8 @@ describe('GradingScaleService', () => {
       delete: jest.fn(),
       isUsedInGrades: jest.fn(),
       findByClassId: jest.fn(),
+      // Perf Phase 6: mutators invalidate the class→scale cache.
+      invalidateScaleCache: jest.fn().mockResolvedValue(undefined),
     };
     assignRepo = {
       findByScaleId: jest.fn(),

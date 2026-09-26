@@ -1,9 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import {
+  AppCacheService,
+  APP_CACHE_TTL,
+} from '@/core/cache/app-cache.service';
 
 @Injectable()
 export class GradingScaleRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly cache: AppCacheService,
+  ) {}
+
+  private scaleKey(orgId: string, classId: string): string {
+    return this.cache.key('org', orgId, 'scale', 'class', classId);
+  }
+
+  /** Drop all cached class→scale resolutions for an org after any scale or
+   * assignment write. Call from GradingScaleService mutators. */
+  async invalidateScaleCache(orgId: string): Promise<void> {
+    await this.cache.delByPrefix(this.cache.key('org', orgId, 'scale'));
+  }
 
   async create(data: {
     orgId: string;
@@ -76,6 +93,17 @@ export class GradingScaleRepository {
   }
 
   async findByClassId(classId: string, orgId: string) {
+    // Perf Phase 6: class→scale resolution is on the eligibility hot path
+    // and changes rarely — 5-minute TTL. Nulls are never cached (see
+    // AppCacheService), so newly-assigned scales resolve immediately.
+    return this.cache.cached(
+      this.scaleKey(orgId, classId),
+      APP_CACHE_TTL.gradingScale,
+      () => this.loadScaleByClassId(classId, orgId),
+    );
+  }
+
+  private async loadScaleByClassId(classId: string, orgId: string) {
     const cls = await this.db.class.findFirst({
       where: { id: classId, org_id: orgId, deleted_at: null },
       select: {

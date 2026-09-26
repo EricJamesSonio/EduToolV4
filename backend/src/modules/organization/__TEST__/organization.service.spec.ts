@@ -7,6 +7,7 @@ describe('OrganizationService', () => {
   let orgSeeder: any;
   let auditLogService: any;
   let db: any;
+  let cache: any;
 
   const adminId = 'admin-1';
   const orgId = 'org-1';
@@ -27,7 +28,15 @@ describe('OrganizationService', () => {
       account: { count: jest.fn() },
       orgHolidayConfig: { upsert: jest.fn().mockResolvedValue({}) },
     };
-    service = new OrganizationService(orgRepository, orgSeeder, auditLogService, db);
+    // Pass-through cache mock: no stored entries (each test controls hits
+    // via cached mockImplementation when needed).
+    cache = {
+      key: jest.fn((...parts: Array<string | number>) => parts.join(':')),
+      cached: jest.fn(async (_key: string, _ttl: number, loader: () => Promise<unknown>) => loader()),
+      del: jest.fn().mockResolvedValue(undefined),
+      delByPrefix: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new OrganizationService(orgRepository, orgSeeder, auditLogService, db, cache);
     jest.clearAllMocks();
   });
 
@@ -84,6 +93,17 @@ describe('OrganizationService', () => {
       expect(res?.logoUrl).toBeNull();
       expect(res?.emailExtension).toBeNull();
     });
+    it('Perf Phase 6: serves repeated getOwn from cache (one repo read)', async () => {
+      orgRepository.findById.mockResolvedValue({ id: orgId, name: 'A', description: null, address: null, logo_url: null, email_extension: null });
+      const store = new Map<string, unknown>();
+      cache.cached.mockImplementation(async (key: string, _ttl: number, loader: () => Promise<unknown>) => {
+        if (!store.has(key)) store.set(key, await loader());
+        return store.get(key);
+      });
+      await service.getOwn(orgId);
+      await service.getOwn(orgId);
+      expect(orgRepository.findById).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('update', () => {
@@ -113,6 +133,12 @@ describe('OrganizationService', () => {
       err.meta = { target: ['email_extension'] };
       orgRepository.update.mockRejectedValue(err);
       await expect(service.update(orgId, { name: 'X', emailExtension: '@dup' } as any, adminId)).rejects.toBeInstanceOf(ConflictException);
+    });
+    it('Perf Phase 6: update invalidates the cached org row', async () => {
+      orgRepository.findById.mockResolvedValue({ id: orgId });
+      orgRepository.update.mockResolvedValue({ id: orgId, name: 'New' });
+      await service.update(orgId, { name: 'New' } as any, adminId);
+      expect(cache.del).toHaveBeenCalledWith(`org:${orgId}:own`);
     });
   });
 
