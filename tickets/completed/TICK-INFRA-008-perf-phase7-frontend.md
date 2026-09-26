@@ -1,6 +1,6 @@
 # TICK-INFRA-008 — Perf Phase 7 frontend cleanup
 
-Status: ready-for-review
+Status: completed
 Priority: medium
 Created: 2026-09-26
 Created by: agent
@@ -63,6 +63,7 @@ None.
 Confidence: 88/100 (Requirement clarity 24, Codebase verification 22, Architecture fit 19, Edge cases 11, Blast radius 12). Assumptions: 30s timeout; list global default.
 2026-09-26 — Implemented 4 commits (overfetch wiring, 30s timeout, table memoization, list default). Verified: 102/102 jest, tsc/eslint clean (pre-existing errors only).
 2026-09-26 — Ready for review.
+2026-09-26 — Merged to development (1ae40a1e, clean). Development validation: frontend jest 102/102, backend unit 772 (747 pass, 25 pre-existing failures in same 5 suites), tsc pre-existing sets only (both projects), backend build OK. Completed.
 
 ## Commits
 
