@@ -81,6 +81,62 @@ export class GradeRepository {
     });
   }
 
+  // ───────── BATCH SAVE (Perf Phase 2) ─────────
+
+  /**
+   * Persist a whole class-term compute in bulk: chunked $transaction batches
+   * of upserts (one round trip per chunk instead of one per student).
+   * Pure overwrite semantics — identical to looping upsert(), including for
+   * locked rows. Locked-row skipping is a separate business-logic decision
+   * (TICK-GRADE-004) and deliberately NOT handled here.
+   * New callers must use this instead of looping upsert().
+   */
+  async saveComputedGrades(args: {
+    orgId: string;
+    classId: string;
+    termId: string;
+    rows: Array<{
+      studentId: string;
+      finalScore: number;
+      finalGrade: string;
+    }>;
+  }): Promise<{ computed: number }> {
+    if (args.rows.length === 0) {
+      return { computed: 0 };
+    }
+
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < args.rows.length; i += CHUNK_SIZE) {
+      const chunk = args.rows.slice(i, i + CHUNK_SIZE).map((r) =>
+        this.db.grade.upsert({
+          where: {
+            org_id_student_id_class_id_term_id: {
+              org_id: args.orgId,
+              student_id: r.studentId,
+              class_id: args.classId,
+              term_id: args.termId,
+            },
+          },
+          update: {
+            final_score: r.finalScore,
+            final_grade: r.finalGrade,
+          },
+          create: {
+            org_id: args.orgId,
+            student_id: r.studentId,
+            class_id: args.classId,
+            term_id: args.termId,
+            final_score: r.finalScore,
+            final_grade: r.finalGrade,
+          },
+        }),
+      );
+      await this.db.$transaction(chunk);
+    }
+
+    return { computed: args.rows.length };
+  }
+
   // ───────── LOCK / UNLOCK ─────────
 
   async publishByClass(classId: string, orgId: string) {

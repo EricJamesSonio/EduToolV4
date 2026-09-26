@@ -78,21 +78,30 @@ export class GradeService {
       terms.map((t) => ({ id: t.id, name: t.name })),
     );
 
-    const results: any[] = [];
+    // Perf Phase 2: class-level scheme/profiles are identical for every term —
+    // fetch once and build terms in parallel instead of awaiting sequentially.
+    const enrolledStudentIds: string[] = cls.enrollments.map(
+      (e: any) => e.student_id,
+    );
+    const [scheme, studentProfiles] = await Promise.all([
+      this.repo.findGradingSchemeForClass(classId, orgId),
+      this.repo.findStudentProfiles(enrolledStudentIds),
+    ]);
+    const shared = { scheme, studentProfiles };
 
-    for (const term of terms) {
-      const termResult = await this.buildTermResult(
-        classId,
-        term.id,
-        term.name,
-        orgId,
-        cls,
-        { id: term.semesterIndex.toString(), name: term.semesterName },
-      );
-      results.push(termResult);
-    }
-
-    return results;
+    return Promise.all(
+      terms.map((term) =>
+        this.buildTermResult(
+          classId,
+          term.id,
+          term.name,
+          orgId,
+          cls,
+          { id: term.semesterIndex.toString(), name: term.semesterName },
+          shared,
+        ),
+      ),
+    );
   }
 
   async getGradesByTerm(
@@ -156,14 +165,25 @@ export class GradeService {
       orgId,
     );
 
-    let computed = 0;
-    for (const studentId of enrolledStudentIds) {
-      const studentSubmissions = submissions.filter(
-        (s) => s.student_id === studentId,
-      );
-      const studentManuals = manualScores.filter(
-        (m) => m.student_id === studentId,
-      );
+    // Perf Phase 2: group once, compute in memory, persist via one batched
+    // repository call (single lock check + chunked transaction) instead of N
+    // sequential upserts.
+    const subsByStudent = new Map<string, any[]>();
+    for (const s of submissions) {
+      const list = subsByStudent.get(s.student_id);
+      if (list) list.push(s);
+      else subsByStudent.set(s.student_id, [s]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const m of manualScores) {
+      const list = manualsByStudent.get(m.student_id);
+      if (list) list.push(m);
+      else manualsByStudent.set(m.student_id, [m]);
+    }
+
+    const rows = enrolledStudentIds.map((studentId) => {
+      const studentSubmissions = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
 
       const finalScore = this.computeWeightedScore(
         studentSubmissions,
@@ -172,16 +192,15 @@ export class GradeService {
       );
       const finalGrade = this.resolveGrade(finalScore, ranges);
 
-      await this.repo.upsert({
-        orgId,
-        studentId,
-        classId,
-        termId,
-        finalScore,
-        finalGrade,
-      });
-      computed++;
-    }
+      return { studentId, finalScore, finalGrade };
+    });
+
+    const { computed } = await this.repo.saveComputedGrades({
+      orgId,
+      classId,
+      termId,
+      rows,
+    });
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -245,42 +264,60 @@ export class GradeService {
     orgId: string,
     cls: any,
     semesterInfo?: { id: string; name: string },
+    shared?: {
+      scheme: any;
+      studentProfiles: Map<string, { name: string; code: string }>;
+    },
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map(
       (e: any) => e.student_id,
     );
 
-    const [
-      submissions,
-      grades,
-      manualScores,
-      scheme,
-      studentProfiles,
-      termAssessments,
-    ] = await Promise.all([
-      this.repo.findSubmissionsForTerm(classId, termId, orgId),
-      this.repo.findByClassAndTerm(classId, termId, orgId),
-      this.repo.findManualScores(classId, termId, orgId),
-      this.repo.findGradingSchemeForClass(classId, orgId),
-      this.repo.findStudentProfiles(enrolledStudentIds),
-      this.repo.findAssessmentsForTerm(classId, termId, orgId), // was dropped before
-    ]);
+    // Term-level rows vary per term; scheme/profiles are reused when hoisted.
+    const [submissions, grades, manualScores, termAssessments] =
+      await Promise.all([
+        this.repo.findSubmissionsForTerm(classId, termId, orgId),
+        this.repo.findByClassAndTerm(classId, termId, orgId),
+        this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findAssessmentsForTerm(classId, termId, orgId), // was dropped before
+      ]);
+
+    let scheme: any;
+    let studentProfiles: Map<string, { name: string; code: string }>;
+    if (shared) {
+      ({ scheme, studentProfiles } = shared);
+    } else {
+      [scheme, studentProfiles] = await Promise.all([
+        this.repo.findGradingSchemeForClass(classId, orgId),
+        this.repo.findStudentProfiles(enrolledStudentIds),
+      ]);
+    }
 
     const categories = scheme ? componentsToCategories(scheme.components) : [];
     const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
 
     // Key: `${studentId}:${assessmentId}` → submission row
     const subLookup = new Map<string, any>();
+    // Perf Phase 2: per-student groups built once instead of filter() per
+    // student (O(S²·A) → O(S·A)). subLookup kept for the per-assessment join.
+    const subsByStudent = new Map<string, any[]>();
     for (const s of submissions) {
       subLookup.set(`${s.student_id}:${s.assessment_id}`, s);
+      const list = subsByStudent.get(s.student_id);
+      if (list) list.push(s);
+      else subsByStudent.set(s.student_id, [s]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const m of manualScores) {
+      const list = manualsByStudent.get(m.student_id);
+      if (list) list.push(m);
+      else manualsByStudent.set(m.student_id, [m]);
     }
 
     const students = enrolledStudentIds.map((studentId) => {
       const profile = studentProfiles.get(studentId);
-      const studentSubs = submissions.filter((s) => s.student_id === studentId);
-      const studentManuals = manualScores.filter(
-        (m) => m.student_id === studentId,
-      );
+      const studentSubs = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
 
       // Build one entry per term assessment regardless of submission existence
       const assessmentScores = termAssessments.map((a) => {
