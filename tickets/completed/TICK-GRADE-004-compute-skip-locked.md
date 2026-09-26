@@ -1,6 +1,6 @@
 # TICK-GRADE-004 — Bulk compute skips locked grades (business-logic change, NOT perf)
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-26
 Created by: agent
@@ -61,6 +61,7 @@ Needs human review before merge (by design — see Goal §4).
 Confidence: 90/100 (Requirement clarity 24, Codebase verification 24, Architecture fit 18, Edge cases 12, Blast radius 12). No open assumption.
 2026-09-26 — Implemented (4bf068ef): skipLocked option on saveComputedGrades + both computeGrades pass it; dedicated locked-row spec 3/3; GRADE-003 batching spec updated to new shape on this branch; full grade suite 9/9 green. Pushed, ready for HUMAN REVIEW — HOLD, do not merge.
 2026-09-26 — Ready for review (merge held).
+2026-09-26 — Human decision: MERGE (skip-locked is default bulk behavior). Merged to development (dbb61e17). Development validation: backend unit 775 (750 pass, 25 pre-existing failures in same 5 suites), locked-row spec 3/3, frontend 102/102, tsc no grade errors, backend build OK (548 files). Completed.
 
 ## Commits
 
