@@ -193,6 +193,8 @@ model Account {
   classes Class[] @relation("EducatorClasses")
 
   @@unique([org_id, email])
+  @@index([org_id, role, status])
+  @@index([org_id, status, created_at])
 }
 
 model Profile {
@@ -685,6 +687,10 @@ model Class {
   gradingSchemes  GradingScheme[]
   gradeLockEvents GradeLockEvent[]
   groupyMessages  GroupyMessage[]
+
+  @@index([org_id, school_year_id, semester_id])
+  @@index([org_id, educator_id])
+  @@index([org_id, created_at])
 }
 
 model ClassSchedule {
@@ -726,6 +732,10 @@ model Enrollment {
   shiftEvent     ProgramShiftEvent?      @relation(fields: [shift_event_id], references: [id])
 
   class Class @relation(fields: [class_id], references: [id])
+
+  @@index([org_id, class_id, status])
+  @@index([org_id, student_id, status])
+  @@unique([org_id, class_id, student_id])
 }
 
 model ProgramShiftEvent {
@@ -1067,6 +1077,9 @@ model Assessment {
 
   submissions      Submission[]
   gradingOverrides AssessmentGradingOverride[]
+
+  @@index([org_id, class_id, term_id])
+  @@index([org_id, class_id, type])
 }
 
 model AssessmentGradingOverride {
@@ -1118,6 +1131,9 @@ model Submission {
   is_exempted          Boolean @default(false)
 
   assessment Assessment @relation(fields: [assessment_id], references: [id])
+
+  @@index([assessment_id, student_id])
+  @@index([org_id, assessment_id])
 }
 
 model SubmissionAnswer {
@@ -1147,6 +1163,8 @@ model Grade {
   class Class @relation(fields: [class_id], references: [id])
 
   @@unique([org_id, student_id, class_id, term_id])
+  @@index([org_id, class_id, term_id])
+  @@index([org_id, class_id])
 }
 
 model GradeLock {
@@ -1205,6 +1223,8 @@ model AttendanceSession {
   date        DateTime
   week_number Int
   sub_index   Int
+
+  @@index([class_id, week_number])
 }
 
 model AttendanceRecord {
@@ -1213,6 +1233,8 @@ model AttendanceRecord {
   session_id String
   student_id String
   status     AttendanceStatus
+
+  @@index([session_id, student_id])
 }
 
 //////////////////////
@@ -1259,6 +1281,8 @@ model GroupyMessage {
   class     Class            @relation(fields: [class_id], references: [id])
   poll      GroupyPoll?      @relation(fields: [poll_id], references: [id])
   reactions GroupyReaction[]
+
+  @@index([org_id, class_id, created_at])
 }
 
 // Read receipt — the newest message each member has seen. Unique per class+member
@@ -1363,6 +1387,9 @@ model Notification {
   read_at     DateTime?
   archived_at DateTime?
   created_at  DateTime  @default(now())
+
+  @@index([org_id, account_id, created_at])
+  @@index([archived_at, created_at])
 }
 
 model AuditLog {
@@ -1375,6 +1402,9 @@ model AuditLog {
   entity_id   String
   metadata    Json?
   created_at  DateTime @default(now())
+
+  @@index([org_id, created_at])
+  @@index([org_id, log_type, created_at])
 }
 
 model MeetingChatMessage {
