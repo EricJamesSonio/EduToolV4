@@ -384,6 +384,30 @@ export class AuthService {
       throw new UnauthorizedException('Account not found');
     }
 
+    // studentId / educatorId are not dedicated columns — both the Student and
+    // Educator repositories stash their system-generated ID inside
+    // profile.metadata (see StudentRepository.create / EducatorRepository.create).
+    // Pull them out here, scoped to the account's actual role, so the frontend
+    // gets a clean typed field instead of having to dig through raw metadata.
+    const metadata = (account.profile?.metadata ?? null) as Record<
+      string,
+      unknown
+    > | null;
+
+    const studentId =
+      account.role === 'student' &&
+      metadata &&
+      typeof metadata.studentId === 'string'
+        ? metadata.studentId
+        : null;
+
+    const educatorId =
+      account.role === 'educator' &&
+      metadata &&
+      typeof metadata.educatorId === 'string'
+        ? metadata.educatorId
+        : null;
+
     return {
       id: account.id,
       orgId: account.org_id,
@@ -396,6 +420,8 @@ export class AuthService {
       personalEmail: account.profile?.personal_email ?? null,
       profileImage: account.profile?.profile_image ?? null,
       isRegistrar: account.is_registrar ?? false,
+      studentId,
+      educatorId,
     };
   }
 
