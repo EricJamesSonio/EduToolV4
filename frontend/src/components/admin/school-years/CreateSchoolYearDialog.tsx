@@ -1,4 +1,4 @@
-// frontend/src/app/admin/school-years/CreateSchoolYearDialog.tsx
+
 
 "use client";
 
@@ -12,7 +12,6 @@ import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -28,6 +27,14 @@ interface Props {
   onClose: () => void;
 }
 
+function previewName(start: string, end: string): string | null {
+  if (!start || !end) return null;
+  const startYear = new Date(start).getFullYear();
+  const endYear = new Date(end).getFullYear();
+  if (isNaN(startYear) || isNaN(endYear)) return null;
+  return `SY ${startYear}-${endYear}`;
+}
+
 export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
 
@@ -35,23 +42,22 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
     useState<ShortDurationWarning | null>(null);
 
   const {
-    register,
     handleSubmit,
     reset,
     watch,
     setValue,
     formState: { errors },
   } = useForm<CreateForm>({
-    defaultValues: { name: "", start_date: "", end_date: "" },
+    defaultValues: { start_date: "", end_date: "" },
   });
 
   const startDate = watch("start_date");
   const endDate = watch("end_date");
+  const namePreview = previewName(startDate, endDate);
 
   const mutation = useMutation({
     mutationFn: (payload: CreateForm & { confirm_short_duration?: boolean }) =>
       schoolYearApi.create({
-        name: payload.name,
         start_date: payload.start_date || undefined,
         end_date: payload.end_date || undefined,
         confirm_short_duration: payload.confirm_short_duration,
@@ -100,58 +106,55 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
     <>
       <Modal open={open} onClose={handleClose} title="New School Year" size="sm">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="sy-name">Title</Label>
-            <Input
-              id="sy-name"
-              placeholder="e.g. School Year 2026-2027"
-              {...register("name", {
-                required: "Title is required",
-                minLength: { value: 2, message: "At least 2 characters" },
-                maxLength: { value: 100, message: "Max 100 characters" },
-              })}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Start Date</Label>
+              <DatePicker
+                value={startDate || ""}
+                onChange={(v) =>
+                  setValue("start_date", v, { shouldValidate: true, shouldDirty: true })
+                }
+                disabled={startDatePickerDisabled}
+              />
+              <input
+                type="hidden"
+                value={startDate}
+                onChange={() => {}}
+                required
+              />
+              {errors.start_date && (
+                <p className="text-xs text-destructive">{errors.start_date.message}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>End Date</Label>
+              <DatePicker
+                value={endDate || ""}
+                onChange={(v) =>
+                  setValue("end_date", v, { shouldValidate: true, shouldDirty: true })
+                }
+                disabled={(date) => endDatePickerDisabled(date, startDate)}
+              />
+              <input
+                type="hidden"
+                value={endDate}
+                onChange={() => {}}
+                required
+              />
+              {errors.end_date && (
+                <p className="text-xs text-destructive">{errors.end_date.message}</p>
+              )}
+            </div>
           </div>
 
-<div className="grid grid-cols-2 gap-3">
-  <div className="space-y-1.5">
-    <Label>Start Date</Label>
-    <DatePicker
-      value={startDate || ""}
-      onChange={(v) =>
-        setValue("start_date", v, { shouldValidate: true, shouldDirty: true })
-      }
-      disabled={startDatePickerDisabled}
-    />
-    <input
-      type="hidden"
-      {...register("start_date", { required: "Start date is required" })}
-    />
-    {errors.start_date && (
-      <p className="text-xs text-destructive">{errors.start_date.message}</p>
-    )}
-  </div>
-  <div className="space-y-1.5">
-    <Label>End Date</Label>
-    <DatePicker
-      value={endDate || ""}
-      onChange={(v) =>
-        setValue("end_date", v, { shouldValidate: true, shouldDirty: true })
-      }
-      disabled={(date) => endDatePickerDisabled(date, startDate)}
-    />
-    <input
-      type="hidden"
-      {...register("end_date", { required: "End date is required" })}
-    />
-    {errors.end_date && (
-      <p className="text-xs text-destructive">{errors.end_date.message}</p>
-    )}
-  </div>
-</div>
+          <div className="rounded-md border bg-muted/30 px-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              School year name
+            </p>
+            <p className="text-sm font-medium">
+              {namePreview ?? "Select both dates to generate the name"}
+            </p>
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button
@@ -162,7 +165,10 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              disabled={mutation.isPending || !startDate || !endDate}
+            >
               {mutation.isPending ? "Creating..." : "Create"}
             </Button>
           </div>

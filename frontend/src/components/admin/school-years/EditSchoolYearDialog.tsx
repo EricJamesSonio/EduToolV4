@@ -23,6 +23,19 @@ interface Props {
   onClose: () => void;
 }
 
+interface EditForm {
+  start_date: string;
+  end_date: string;
+}
+
+function previewName(start: string, end: string): string | null {
+  if (!start || !end) return null;
+  const startYear = new Date(start).getFullYear();
+  const endYear = new Date(end).getFullYear();
+  if (isNaN(startYear) || isNaN(endYear)) return null;
+  return `SY ${startYear}-${endYear}`;
+}
+
 export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
 
@@ -32,19 +45,21 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm<{ name: string; start_date: string; end_date: string }>({
+    watch,
+  } = useForm<EditForm>({
     defaultValues: {
-      name: schoolYear.name,
       start_date: schoolYear.start_date ?? "",
       end_date: schoolYear.end_date ?? "",
     },
   });
 
+  const startDate = watch("start_date");
+  const endDate = watch("end_date");
+  const namePreview = previewName(startDate, endDate) ?? schoolYear.name;
+
   const mutation = useMutation({
-    mutationFn: (payload: { name: string; start_date: string; end_date: string; confirm_short_duration?: boolean }) =>
+    mutationFn: (payload: EditForm & { confirm_short_duration?: boolean }) =>
       schoolYearApi.update(schoolYear.id, {
-        name: payload.name,
         start_date: payload.start_date || null,
         end_date: payload.end_date || null,
         confirm_short_duration: payload.confirm_short_duration,
@@ -71,8 +86,7 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
     },
   });
 
-  const onSubmit = (values: { name: string; start_date: string; end_date: string }) =>
-    mutation.mutate(values);
+  const onSubmit = (values: EditForm) => mutation.mutate(values);
 
   const handleConfirmShortDuration = () => {
     if (!shortDurationWarning) return;
@@ -87,21 +101,6 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
       <Modal open={open} onClose={onClose} title="Edit School Year" size="sm">
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="sy-name">Title</Label>
-              <Input
-                id="sy-name"
-                {...register("name", {
-                  required: "Title is required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                  maxLength: { value: 100, message: "Max 100 characters" },
-                })}
-              />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
-            </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Start Date</Label>
@@ -117,6 +116,13 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
                   {...register("end_date")}
                 />
               </div>
+            </div>
+
+            <div className="rounded-md border bg-muted/30 px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                School year name
+              </p>
+              <p className="text-sm font-medium">{namePreview}</p>
             </div>
 
             <div className="flex justify-end gap-2">
