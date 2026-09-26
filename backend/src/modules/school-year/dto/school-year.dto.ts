@@ -11,11 +11,11 @@ import {
 } from 'class-validator';
 
 export class CreateSchoolYearDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MinLength(2)
   @MaxLength(100)
-  name!: string;
+  name?: string;
 
   @IsOptional()
   @IsDateString()
@@ -29,7 +29,6 @@ export class CreateSchoolYearDto {
   @IsBoolean()
   confirm_short_duration?: boolean;
 }
-
 export class UpdateSchoolYearDto {
   @IsOptional()
   @IsString()
