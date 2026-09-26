@@ -1,6 +1,6 @@
 # TICK-INFRA-008 — Perf Phase 7 frontend cleanup
 
-Status: in-progress
+Status: ready-for-review
 Priority: medium
 Created: 2026-09-26
 Created by: agent
@@ -48,9 +48,10 @@ Proceeding. Assumptions: 30s timeout (AI paths poll, don't hold requests); list 
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Frontend jest: 102/102 pass (11 suites, incl. client interceptor tests exercising the rewired tracker)
+- tsc: only the 3 pre-existing semester errors (identical on clean development); eslint clean on all touched files
+- Full suite: not run (deferred to development integration after merge)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -60,10 +61,15 @@ None.
 
 2026-09-26 — Claimed, creating worktree from development.
 Confidence: 88/100 (Requirement clarity 24, Codebase verification 22, Architecture fit 19, Edge cases 11, Blast radius 12). Assumptions: 30s timeout; list global default.
+2026-09-26 — Implemented 4 commits (overfetch wiring, 30s timeout, table memoization, list default). Verified: 102/102 jest, tsc/eslint clean (pre-existing errors only).
+2026-09-26 — Ready for review.
 
 ## Commits
 
-None yet.
+- 46ab6441 perf(frontend): route overfetch tracking through shared detect-overfetch util
+- 06738d08 perf(frontend): 30s default request timeout so hung backend fails fast
+- 0003d037 perf(frontend): memoize heavy tables and index grade lookups by id
+- 61c15b41 perf(frontend): default query freshness to list preset instead of static (branch agent/TICK-INFRA-008-perf-phase7-frontend, PR vs development)
 
 ## Notes
 
