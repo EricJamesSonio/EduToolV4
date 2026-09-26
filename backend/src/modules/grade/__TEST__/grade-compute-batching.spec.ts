@@ -3,17 +3,18 @@ import { GradeEducatorService } from '../educator/grade-educator.service';
 import { GradeCoreService } from '../core/grade-core.service';
 
 // Perf Phase 2 commit 4: computeGrades persists via one batched
-// saveComputedGrades() (single lock check + chunked transaction) instead of
-// N sequential upserts. Locked rows are skipped, mirroring the
-// recomputeStudentGrade locked-skip guard.
+// saveComputedGrades() (chunked transaction) instead of N sequential upserts.
+// Pure overwrite semantics — identical to looping upsert(), including for
+// locked rows. Locked-row skipping is a separate business-logic decision
+// (TICK-GRADE-004) and deliberately NOT covered here: this spec pins that a
+// locked row IS still overwritten, matching the pre-batch behavior.
 
 describe('GradeRepository.saveComputedGrades', () => {
-  const makeRepo = (existing: Array<{ student_id: string; is_locked: boolean }>) => {
+  const makeRepo = () => {
     const upsertCalls: unknown[][] = [];
     const txCalls: unknown[][] = [];
     const db = {
       grade: {
-        findMany: jest.fn().mockResolvedValue(existing),
         // Emulate Prisma batch-tx input: upsert() returns a "pending op"
         // object synchronously (no promise) until $transaction executes it.
         upsert: jest.fn((args: unknown) => {
@@ -36,41 +37,33 @@ describe('GradeRepository.saveComputedGrades', () => {
   ];
 
   it('fast path: no rows → no queries at all', async () => {
-    const { repo, db } = makeRepo([]);
+    const { repo, db } = makeRepo();
     const res = await repo.saveComputedGrades({
       orgId: 'o',
       classId: 'c',
       termId: 't',
       rows: [],
     });
-    expect(res).toEqual({ computed: 0, skippedLocked: 0 });
-    expect(db.grade.findMany).not.toHaveBeenCalled();
+    expect(res).toEqual({ computed: 0 });
     expect(db.$transaction).not.toHaveBeenCalled();
   });
 
-  it('single lock check + single transaction chunk; locked rows skipped', async () => {
-    const { repo, db, txCalls } = makeRepo([
-      { student_id: 's-2', is_locked: true },
-    ]);
+  it('persists all rows in a single transaction chunk (no lock filtering)', async () => {
+    const { repo, db, txCalls } = makeRepo();
     const res = await repo.saveComputedGrades({
       orgId: 'o',
       classId: 'c',
       termId: 't',
       rows,
     });
-    expect(res).toEqual({ computed: 1, skippedLocked: 1 });
-    expect(db.grade.findMany).toHaveBeenCalledTimes(1);
-    expect(db.grade.findMany).toHaveBeenCalledWith({
-      where: { org_id: 'o', class_id: 'c', term_id: 't' },
-      select: { student_id: true, is_locked: true },
-    });
-    // 2 writable rows would fit one chunk; here only s-1 is writable.
+    expect(res).toEqual({ computed: 2 });
+    // No lock-state SELECT — pure batch.
     expect(db.$transaction).toHaveBeenCalledTimes(1);
-    expect(txCalls[0][0]).toHaveLength(1);
+    expect(txCalls[0][0]).toHaveLength(2);
   });
 
   it('chunks transactions at 50 ops', async () => {
-    const { repo, db } = makeRepo([]);
+    const { repo, db } = makeRepo();
     const big = Array.from({ length: 120 }, (_, i) => ({
       studentId: `s-${i}`,
       finalScore: 75,
@@ -82,7 +75,7 @@ describe('GradeRepository.saveComputedGrades', () => {
       termId: 't',
       rows: big,
     });
-    expect(res).toEqual({ computed: 120, skippedLocked: 0 });
+    expect(res).toEqual({ computed: 120 });
     expect(db.$transaction).toHaveBeenCalledTimes(3);
   });
 });
@@ -125,9 +118,7 @@ describe('GradeEducatorService.computeGrades — batched persist', () => {
       findEnrollmentDatesByClass: jest.fn().mockResolvedValue([]),
       findGradingOverridesByClass: jest.fn().mockResolvedValue([]),
       upsert: jest.fn(),
-      saveComputedGrades: jest
-        .fn()
-        .mockResolvedValue({ computed: 2, skippedLocked: 0 }),
+      saveComputedGrades: jest.fn().mockResolvedValue({ computed: 2 }),
     };
     const auditLog = { logActivityEvent: jest.fn().mockResolvedValue(undefined) };
     const service = new GradeEducatorService(
@@ -149,6 +140,15 @@ describe('GradeEducatorService.computeGrades — batched persist', () => {
     // s-1: single quiz sub 10/20 → 50%; s-2: missing → 0%
     expect(payload.rows[0]).toMatchObject({ studentId: 's-1', finalScore: 50 });
     expect(payload.rows[1]).toMatchObject({ studentId: 's-2', finalScore: 0 });
-    expect(res).toMatchObject({ computed: 2, skippedLocked: 0 });
+    expect(res).toEqual({
+      computed: 2,
+      message: 'Grades computed for 2 student(s).',
+    });
+    expect(auditLog.logActivityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'grades_computed',
+        metadata: { termId: 't-1', studentsComputed: 2 },
+      }),
+    );
   });
 });

@@ -610,7 +610,7 @@ export class GradeEducatorService {
       return { studentId, finalScore, finalGrade };
     });
 
-    const { computed, skippedLocked } = await this.repo.saveComputedGrades({
+    const { computed } = await this.repo.saveComputedGrades({
       orgId,
       classId,
       termId,
@@ -623,16 +623,10 @@ export class GradeEducatorService {
       action: 'grades_computed',
       entityType: 'class',
       entityId: classId,
-      metadata: { termId, studentsComputed: computed, skippedLocked },
+      metadata: { termId, studentsComputed: computed },
     });
 
-    return {
-      computed,
-      skippedLocked,
-      message:
-        `Grades computed for ${computed} student(s).` +
-        (skippedLocked > 0 ? ` ${skippedLocked} locked skipped.` : ''),
-    };
+    return { computed, message: `Grades computed for ${computed} student(s).` };
   }
 
   async setManualScore(

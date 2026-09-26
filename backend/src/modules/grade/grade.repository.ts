@@ -84,11 +84,12 @@ export class GradeRepository {
   // ───────── BATCH SAVE (Perf Phase 2) ─────────
 
   /**
-   * Persist a whole class-term compute in bulk: one SELECT for existing lock
-   * state, then chunked $transaction batches of upserts (one round trip per
-   * chunk instead of one per student). Locked rows are skipped — mirroring
-   * the recomputeStudentGrade locked-skip guard — and reported so callers can
-   * surface the count. New callers must use this instead of looping upsert().
+   * Persist a whole class-term compute in bulk: chunked $transaction batches
+   * of upserts (one round trip per chunk instead of one per student).
+   * Pure overwrite semantics — identical to looping upsert(), including for
+   * locked rows. Locked-row skipping is a separate business-logic decision
+   * (TICK-GRADE-004) and deliberately NOT handled here.
+   * New callers must use this instead of looping upsert().
    */
   async saveComputedGrades(args: {
     orgId: string;
@@ -99,28 +100,14 @@ export class GradeRepository {
       finalScore: number;
       finalGrade: string;
     }>;
-  }): Promise<{ computed: number; skippedLocked: number }> {
+  }): Promise<{ computed: number }> {
     if (args.rows.length === 0) {
-      return { computed: 0, skippedLocked: 0 };
+      return { computed: 0 };
     }
 
-    const existing = await this.db.grade.findMany({
-      where: {
-        org_id: args.orgId,
-        class_id: args.classId,
-        term_id: args.termId,
-      },
-      select: { student_id: true, is_locked: true },
-    });
-    const lockedIds = new Set(
-      existing.filter((g) => g.is_locked).map((g) => g.student_id),
-    );
-
-    const writable = args.rows.filter((r) => !lockedIds.has(r.studentId));
-
     const CHUNK_SIZE = 50;
-    for (let i = 0; i < writable.length; i += CHUNK_SIZE) {
-      const chunk = writable.slice(i, i + CHUNK_SIZE).map((r) =>
+    for (let i = 0; i < args.rows.length; i += CHUNK_SIZE) {
+      const chunk = args.rows.slice(i, i + CHUNK_SIZE).map((r) =>
         this.db.grade.upsert({
           where: {
             org_id_student_id_class_id_term_id: {
@@ -147,10 +134,7 @@ export class GradeRepository {
       await this.db.$transaction(chunk);
     }
 
-    return {
-      computed: writable.length,
-      skippedLocked: args.rows.length - writable.length,
-    };
+    return { computed: args.rows.length };
   }
 
   // ───────── LOCK / UNLOCK ─────────
