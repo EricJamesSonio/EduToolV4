@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState } from "react";
@@ -8,6 +6,8 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { organizationApi } from "@/api/admin/organization.api";
+import { useSchoolProfileData } from "@/hooks/admin/useSchoolProfile";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
@@ -35,11 +35,26 @@ function previewName(start: string, end: string): string | null {
   return `SY ${startYear}-${endYear}`;
 }
 
+interface PendingSeedPrompt {
+  schoolYearId: string;
+  schoolYearName: string;
+}
+
 export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
 
   const [shortDurationWarning, setShortDurationWarning] =
     useState<ShortDurationWarning | null>(null);
+
+  // Only offer to seed the newly created school year if there's actually a
+  // School Profile configured — otherwise the prompt would just lead to a
+  // seed call with nothing to seed.
+  const { data: profileData } = useSchoolProfileData();
+  const savedDepartments = profileData?.departments ?? [];
+  const hasProfile = savedDepartments.length > 0;
+
+  const [pendingSeedPrompt, setPendingSeedPrompt] =
+    useState<PendingSeedPrompt | null>(null);
 
   const {
     handleSubmit,
@@ -63,11 +78,31 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
         confirm_short_duration: payload.confirm_short_duration,
       }),
 
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       toast.success("School year created.");
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.list() });
+
+      // NOTE: assumes schoolYearApi.create() resolves to the backend's
+      // SchoolYearCreateResult shape ({ data, warning, seeded }). If your
+      // school-year.api.ts already unwraps to just the school year row,
+      // adjust the two lines below to read from `result` directly instead.
+      const createdSchoolYear = result?.data ?? result;
+      const alreadySeeded = !!result?.seeded;
+
       reset();
       setShortDurationWarning(null);
+
+      if (!alreadySeeded && hasProfile && createdSchoolYear?.id) {
+        // Org's auto-seed setting is off (or the call didn't report seeded)
+        // but a School Profile exists — offer to seed this school year now
+        // instead of leaving it structurally empty.
+        setPendingSeedPrompt({
+          schoolYearId: createdSchoolYear.id,
+          schoolYearName: createdSchoolYear.name ?? namePreview ?? "this school year",
+        });
+        return; // keep the create modal closed but don't fully reset flow yet
+      }
+
       onClose();
     },
 
@@ -83,6 +118,31 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
         return;
       }
       toast.error("Failed to create school year.");
+    },
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: (schoolYearId: string) =>
+      organizationApi.seedOrg({
+        schoolYearId,
+        programs: savedDepartments.map((d) => d.type),
+        seedGradingScales: true,
+        seedGradingSchemes: true,
+        // Semester templates/program calendars need per-year dates the admin
+        // still has to enter — skipped here just like the org auto-seed path.
+        seedSemesterTemplates: false,
+        seedProgramCalendars: false,
+      }),
+    onSuccess: () => {
+      toast.success("School year seeded from your School Profile.");
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.list() });
+      setPendingSeedPrompt(null);
+      onClose();
+    },
+    onError: () => {
+      toast.error("Failed to seed the school year. You can seed it later from Data Seeder.");
+      setPendingSeedPrompt(null);
+      onClose();
     },
   });
 
@@ -185,6 +245,28 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
         onConfirm={handleConfirmShortDuration}
         onOpenChange={(o) => {
           if (!o) setShortDurationWarning(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!pendingSeedPrompt}
+        title="Seed this school year?"
+        message={
+          pendingSeedPrompt
+            ? `Seed "${pendingSeedPrompt.schoolYearName}" with your School Profile configuration (departments, courses/strands, levels, sections, subjects, grading scales/schemes)? You can also do this later from Data Seeder.`
+            : ""
+        }
+        confirmLabel="Yes, seed it"
+        destructive={false}
+        isLoading={seedMutation.isPending}
+        onConfirm={() => {
+          if (pendingSeedPrompt) seedMutation.mutate(pendingSeedPrompt.schoolYearId);
+        }}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPendingSeedPrompt(null);
+            onClose();
+          }
         }}
       />
     </>
