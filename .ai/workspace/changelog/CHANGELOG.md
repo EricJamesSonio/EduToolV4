@@ -2,6 +2,25 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-26
+
+### Performance (8 tickets merged to development, each validated: unit suite at 25 pre-existing failures / same 5 suites, tsc pre-existing set, builds green)
+
+- Perf observability (TICK-INFRA-003, merge 05e6778a): env-gated Prisma query logging, error-inclusive request timing, request-id wiring, DB-ping health check.
+- Hot-path indexes (TICK-INFRA-004, merge 72a787a1): 21 indexes incl. Enrollment unique (dup-free); CONCURRENTLY script for prod.
+- Grade batching, pure overwrite (TICK-GRADE-003, merge 35f4fab2): parallel terms, Map lookups, chunked batch writes. Locked-skip behavior split to TICK-GRADE-004 (held).
+- Mechanical N+1 batching (TICK-INFRA-005, merge e16965a6): 9 modules; email-domain merge conflicts resolved to development's role-prefix rule.
+- Pagination + SQL aggregation (TICK-INFRA-006, merge ea66ee99): server-paged logs/notifications, analytics groupBy/aggregate; fixed pre-existing broken educator activity-log unwrapping.
+- Eligibility batching (TICK-CLASS-001, merge 8995b2fb): batched structures/scales/prereqs + memoization; EXPLAIN ANALYZE clean on scratch volume (dropped after).
+- In-memory read cache (TICK-INFRA-007, merge a84deeae): org/scales/settings/calendar TTLs. Redis/BullMQ parked (no Redis provisioned).
+- Frontend cleanup (TICK-INFRA-008, merge 1ae40a1e): overfetch tracker wired, 30s timeout, memoized tables, list-default freshness.
+
+### Held / flagged (not merged)
+
+- TICK-GRADE-004 — bulk compute skips locked grades: ready-for-review, needs human sign-off (behavior change).
+- Redis/BullMQ queues: parked pending Redis provisioning + topology/policy decisions (no ticket yet).
+- Pre-existing: `next build` red on src/app/admin/page.tsx (server component using client hooks); backend e2e hooks time out in this environment.
+
 ## 2026-09-01
 
 ### Fixed
