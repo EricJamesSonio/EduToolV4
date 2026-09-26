@@ -63,6 +63,7 @@ Redis/BullMQ (see Goal §2) — flagged, not implemented. Details in handoff.
 2026-09-26 — Infra survey (no Redis/env/compose/hosting manifests, no local docker) → rescoped to memory cache + decision package. Claimed, creating worktree from development.
 Confidence: 82/100 (Requirement clarity 24, Codebase verification 20, Architecture fit 18, Edge cases 10, Blast radius 10). Assumption: memory store OK as 6a.
 2026-09-26 — Implemented 5 commits (cache infra+dep, organization, org-config x2, grading-scale, academic-calendar). Verified: 89/89 tests, lint/tsc/build clean. Redis/BullMQ left as flagged decisions (handoff).
+2026-09-26 — REVIEW SPLIT CONFIRMATION: branch verified caching-only via `git grep -i bullmq|nestjs/bull|redis` (hits = upgrade-path comments + pre-existing concern-module TODO text only) and package diff (only the 2 cache-manager deps). Zero queue/Redis code. No BullMQ/Redis work exists to split out — the queue track was never implemented, only proposed in the handoff. Queue work stays PARKED pending Redis provisioning + topology/policy approval; no new ticket until then. This branch merges as the caching-only piece.
 2026-09-26 — Ready for review.
 
 ## Commits
