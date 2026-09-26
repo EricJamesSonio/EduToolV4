@@ -1,6 +1,6 @@
 # TICK-GRADE-004 — Bulk compute skips locked grades (business-logic change, NOT perf)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-26
 Created by: agent
@@ -46,9 +46,10 @@ Proceeding. No assumption beyond: skip (not error) on locked, mirroring recomput
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- New locked-row spec 3/3 (locked untouched, all-locked no-write, default-path overwrite preserved); full grade suite 9/9 incl. GRADE-003 pure-batch specs
+- eslint clean; tsc no new errors; build verified via grade suite run (full build on development integration after GRADE-003 merge)
+- Full suite: not run (awaiting human review decision first)
+- Development integration: not run (HOLD — do not merge without human sign-off)
 
 ## Blocker
 
@@ -58,10 +59,12 @@ Needs human review before merge (by design — see Goal §4).
 
 2026-09-26 — Split from TICK-GRADE-003 per review (bulk compute overwrote locked rows; scope text had conflated recompute's guard with compute). GRADE-003 reworked to pure-overwrite batching (e17fa9a0). Claimed; worktree stacked on GRADE-003 tip (needs saveComputedGrades; merges after GRADE-003).
 Confidence: 90/100 (Requirement clarity 24, Codebase verification 24, Architecture fit 18, Edge cases 12, Blast radius 12). No open assumption.
+2026-09-26 — Implemented (4bf068ef): skipLocked option on saveComputedGrades + both computeGrades pass it; dedicated locked-row spec 3/3; GRADE-003 batching spec updated to new shape on this branch; full grade suite 9/9 green. Pushed, ready for HUMAN REVIEW — HOLD, do not merge.
+2026-09-26 — Ready for review (merge held).
 
 ## Commits
 
-None yet.
+- 4bf068ef feat(grade-lock): bulk compute skips locked grades via opt-in batch option (branch agent/TICK-GRADE-004-compute-skip-locked, stacked on GRADE-003 @ e17fa9a0, PR vs development after GRADE-003 merges — HOLD for human review, do not merge)
 
 ## Notes
 
