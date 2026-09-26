@@ -1,6 +1,6 @@
 # TICK-INFRA-007 — Perf Phase 6 caching (memory now; Redis/BullMQ flagged)
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-26
 Created by: agent
@@ -65,6 +65,7 @@ Confidence: 82/100 (Requirement clarity 24, Codebase verification 20, Architectu
 2026-09-26 — Implemented 5 commits (cache infra+dep, organization, org-config x2, grading-scale, academic-calendar). Verified: 89/89 tests, lint/tsc/build clean. Redis/BullMQ left as flagged decisions (handoff).
 2026-09-26 — REVIEW SPLIT CONFIRMATION: branch verified caching-only via `git grep -i bullmq|nestjs/bull|redis` (hits = upgrade-path comments + pre-existing concern-module TODO text only) and package diff (only the 2 cache-manager deps). Zero queue/Redis code. No BullMQ/Redis work exists to split out — the queue track was never implemented, only proposed in the handoff. Queue work stays PARKED pending Redis provisioning + topology/policy approval; no new ticket until then. This branch merges as the caching-only piece.
 2026-09-26 — Ready for review.
+2026-09-26 — Merged to development (a84deeae) as the caching-only piece (queue track parked — no queue/Redis code in branch, verified). Development validation: unit 772 (747 pass, 25 pre-existing failures in same 5 suites); note: node_modules was missing the cache-manager packages at first (23 suite-load failures) — resolved via `npm install` from the merged lockfile (lockfile itself unchanged), then green. tsc pre-existing set only, build OK (547 files). Completed. Queue work parked pending Redis provisioning + topology/policy approval (no ticket until then).
 
 ## Commits
 
