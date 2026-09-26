@@ -1,6 +1,6 @@
 # TICK-INFRA-004 — Perf Phase 1 indexes (new migration + @@index, CONCURRENTLY-safe)
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -63,6 +63,7 @@ None.
 Confidence: 92/100 (Requirement clarity 25, Codebase verification 23, Architecture fit 20, Edge cases 12, Blast radius 12). Assumption: `perf_indexes` naming.
 2026-09-25 — Implemented (43877439): 11 models +@@index/@@unique, migration.sql (plain CREATE INDEX IF NOT EXISTS, transaction-safe) + scripts/apply-perf-indexes-concurrently.sql (CONCURRENTLY, psql autocommit). Applied via migrate deploy to shared dev DB; verified 21/21 in pg_indexes, 0 invalid. No duplicates existed so unique applied with no cleanup. OrgHolidayConfig skipped per instruction.
 2026-09-25 — Ready for review.
+2026-09-26 — Merged to development (72a787a1). Development validation: unit 720 (695 pass, 25 pre-existing failures identical to baseline), prisma validate OK, tsc pre-existing set only, build OK (525 files). Completed.
 
 ## Commits
 
