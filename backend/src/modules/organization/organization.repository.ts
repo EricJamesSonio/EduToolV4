@@ -62,6 +62,7 @@ export class OrganizationRepository {
       description?: string;
       address?: string;
       email_extension?: string;
+      auto_seed_new_school_years?: boolean;
     },
   ) {
     return this.db.organization.update({

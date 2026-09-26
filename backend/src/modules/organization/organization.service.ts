@@ -85,6 +85,7 @@ export class OrganizationService {
           address: org.address,
           logoUrl: org.logo_url ?? null,
           emailExtension: org.email_extension ?? null,
+          autoSeedNewSchoolYears: org.auto_seed_new_school_years ?? false,
         };
       },
     );
@@ -101,6 +102,9 @@ export class OrganizationService {
         address: dto.address,
         ...(dto.emailExtension !== undefined && {
           email_extension: dto.emailExtension ?? undefined,
+        }),
+        ...(dto.autoSeedNewSchoolYears !== undefined && {
+          auto_seed_new_school_years: dto.autoSeedNewSchoolYears,
         }),
       });
 
