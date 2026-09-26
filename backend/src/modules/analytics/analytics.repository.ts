@@ -63,13 +63,32 @@ export class AnalyticsRepository {
   }
 
   async getEducatorLoad(orgId: string, schoolYearId: string) {
-    const classes = await this.db.class.findMany({
-      where: { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
-      select: {
-        educator_id: true,
-        enrollments: { select: { id: true } },
-      },
-    });
+    // Perf Phase 4: server-side counts (groupBy) instead of hydrating every
+    // enrollment row into Node. Same output shape as before.
+    const classWhere = {
+      org_id: orgId,
+      school_year_id: schoolYearId,
+      deleted_at: null,
+    };
+
+    const [classes, enrollmentCounts] = await Promise.all([
+      this.db.class.findMany({
+        where: classWhere,
+        select: { id: true, educator_id: true },
+      }),
+      this.db.enrollment.groupBy({
+        by: ['class_id'],
+        where: {
+          org_id: orgId,
+          class: { school_year_id: schoolYearId, deleted_at: null },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const studentsByClass = new Map(
+      enrollmentCounts.map((row) => [row.class_id, row._count._all]),
+    );
 
     const map: Record<string, { totalClasses: number; totalStudents: number }> =
       {};
@@ -78,7 +97,8 @@ export class AnalyticsRepository {
         map[cls.educator_id] = { totalClasses: 0, totalStudents: 0 };
       }
       map[cls.educator_id].totalClasses += 1;
-      map[cls.educator_id].totalStudents += cls.enrollments.length;
+      map[cls.educator_id].totalStudents +=
+        studentsByClass.get(cls.id) ?? 0;
     }
 
     return Object.entries(map).map(([educatorId, data]) => ({
@@ -87,21 +107,58 @@ export class AnalyticsRepository {
     }));
   }
 
-  async getLockedGrades(
+  private lockedGradeWhere(
     orgId: string,
     schoolYearId: string,
     query: GradeAnalyticsQueryDto,
   ) {
-    return this.db.grade.findMany({
-      where: {
-        org_id: orgId,
-        is_locked: true,
-        class: { school_year_id: schoolYearId, deleted_at: null },
-        ...(query.classId && { class_id: query.classId }),
-        ...(query.termId && { term_id: query.termId }),
-      },
-      select: { final_score: true, final_grade: true },
-    });
+    return {
+      org_id: orgId,
+      is_locked: true,
+      class: { school_year_id: schoolYearId, deleted_at: null },
+      ...(query.classId && { class_id: query.classId }),
+      ...(query.termId && { term_id: query.termId }),
+    };
+  }
+
+  /**
+   * Perf Phase 4: grade stats computed in SQL (groupBy + aggregates) instead
+   * of transferring every locked-grade row into Node for JS reduce.
+   */
+  async getGradeStats(
+    orgId: string,
+    schoolYearId: string,
+    query: GradeAnalyticsQueryDto,
+  ) {
+    const where = this.lockedGradeWhere(orgId, schoolYearId, query);
+    const [groups, totals, passing] = await Promise.all([
+      this.db.grade.groupBy({
+        by: ['final_grade'],
+        where,
+        _count: { _all: true },
+      }),
+      this.db.grade.aggregate({
+        where,
+        _count: { _all: true },
+        _avg: { final_score: true },
+      }),
+      this.db.grade.aggregate({
+        where: { ...where, final_score: { gte: 75 } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const distribution: Record<string, number> = {};
+    for (const group of groups) {
+      distribution[group.final_grade] = group._count._all;
+    }
+
+    return {
+      total: totals._count._all,
+      averageScore: totals._avg.final_score,
+      passCount: passing._count._all,
+      distribution,
+    };
   }
 
   async getEnrollmentBreakdown(

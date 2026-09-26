@@ -24,6 +24,8 @@ export class NotificationService {
       accountId,
       orgId,
       query.unreadOnly,
+      query.page,
+      query.limit,
     );
   }
 
