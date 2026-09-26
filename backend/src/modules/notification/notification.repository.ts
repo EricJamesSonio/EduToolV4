@@ -23,19 +23,37 @@ export class NotificationRepository {
   }
 
   /**
-   * Find all active (non-archived) notifications for a user.
-   * Sorted newest first.
+   * Active (non-archived) notifications for a user, newest first.
+   * Perf Phase 4: paginated {data, meta} instead of the full inbox.
    */
-  async findByUser(accountId: string, orgId: string, unreadOnly = false) {
-    return this.db.notification.findMany({
-      where: {
-        account_id: accountId,
-        org_id: orgId,
-        archived_at: null,
-        ...(unreadOnly ? { read_at: null } : {}),
-      },
-      orderBy: { created_at: 'desc' },
-    });
+  async findByUser(
+    accountId: string,
+    orgId: string,
+    unreadOnly = false,
+    page = 1,
+    limit = 20,
+  ) {
+    const where = {
+      account_id: accountId,
+      org_id: orgId,
+      archived_at: null,
+      ...(unreadOnly ? { read_at: null } : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.db.notification.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.db.notification.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findById(id: string, accountId: string) {
