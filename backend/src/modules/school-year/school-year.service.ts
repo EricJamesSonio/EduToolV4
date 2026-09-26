@@ -32,6 +32,17 @@ export class SchoolYearService {
     private readonly readinessService: SchoolYearReadinessService,
   ) {}
 
+    private deriveSchoolYearName(start_date?: string, end_date?: string): string {
+    if (!start_date || !end_date) {
+      throw new BadRequestException(
+        'Both start_date and end_date are required to generate the school year name.',
+      );
+    }
+    const startYear = new Date(start_date).getFullYear();
+    const endYear = new Date(end_date).getFullYear();
+    return `SY ${startYear}-${endYear}`;
+  }
+
   // ---------------------------------------------------------------------------
   // Date validation helpers
   // ---------------------------------------------------------------------------
@@ -139,6 +150,8 @@ export class SchoolYearService {
     this.validateNotInPast(dto.start_date, dto.end_date);
     await this.assertNoOverlap(orgId, dto.start_date, dto.end_date);
 
+    const name = dto.name?.trim() || this.deriveSchoolYearName(dto.start_date, dto.end_date);
+
     const short = this.isShortDuration(dto.start_date, dto.end_date);
 
     if (short && !dto.confirm_short_duration) {
@@ -152,7 +165,7 @@ export class SchoolYearService {
 
     const schoolYear = await this.schoolYearRepository.create({
       orgId,
-      name: dto.name,
+      name,
       start_date: dto.start_date,
       end_date: dto.end_date,
     });
@@ -167,7 +180,7 @@ export class SchoolYearService {
         entityType: 'school_year',
         entityId: schoolYear.id,
         metadata: {
-          name: dto.name,
+          name,
           start_date: dto.start_date,
           end_date: dto.end_date,
         },
@@ -259,8 +272,17 @@ export class SchoolYearService {
       });
     }
 
+    // Keep the name in sync with the dates whenever either changes, unless an
+    // explicit name override was sent. This mirrors create()'s auto-naming so
+    // editing dates never leaves a stale "SY 2025-2026" label behind.
+    const name =
+      dto.name?.trim() ||
+      (startChanged || endChanged
+        ? this.deriveSchoolYearName(effectiveStart, effectiveEnd)
+        : schoolYear.name);
+
     const updated = await this.schoolYearRepository.update(id, {
-      name: dto.name,
+      name,
       start_date: dto.start_date,
       end_date: dto.end_date,
     });
@@ -272,7 +294,7 @@ export class SchoolYearService {
         action: 'school_year_updated',
         entityType: 'school_year',
         entityId: id,
-        metadata: { name: dto.name },
+        metadata: { name },
       })
       .catch(() => {});
 
