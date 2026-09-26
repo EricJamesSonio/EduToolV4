@@ -51,7 +51,7 @@ enum ProgramEnrollmentEndReason {
   completed
   withdrawn
   dropped
-  admin_correction
+  admin_correctionorganiz
   other
 }
 
@@ -151,6 +151,13 @@ model Organization {
   slug            String? @unique
 
   admin_account_id String? @unique
+
+  // When true, every newly created SchoolYear is automatically seeded with
+  // the org's saved School Profile configuration (structure only — grading
+  // scales/schemes seeded, semester templates/program calendars skipped
+  // since those need per-year dates the admin still has to enter). When
+  // false, the admin is prompted after creating a school year instead.
+  auto_seed_new_school_years Boolean @default(false)
 
   accounts Account[]
 }
