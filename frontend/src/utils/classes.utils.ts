@@ -38,26 +38,34 @@ export function toArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    const hours = d.getHours();
-    const minutes = d.getMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
-    const h = hours % 12 || 12;
-    const m = minutes.toString().padStart(2, "0");
-    return `${h}:${m} ${ampm}`;
-  } catch {
-    return iso;
-  }
+/**
+ * Formats a wall-clock "HH:mm" time (e.g. "07:00", "13:30") as 12-hour with
+ * AM/PM (e.g. "7:00 AM", "1:30 PM"). Schedule slot times are plain "HH:mm"
+ * strings, not ISO datetimes — the previous implementation tried
+ * `new Date(iso)` on them, which is invalid for a bare "HH:mm" string and
+ * silently fell back to returning the raw string unchanged (why the table
+ * showed plain 24h "07:00" instead of a formatted time).
+ */
+function formatTime(hhmm: string): string {
+  const parts = hhmm.split(":");
+  if (parts.length < 2) return hhmm;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return hhmm;
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const h = hours % 12 || 12;
+  const m = minutes.toString().padStart(2, "0");
+  return `${h}:${m} ${ampm}`;
 }
 
 export function formatSchedule(
-  schedules: Array<{ weekday: number; startTime: string }> | undefined
+  schedules: Array<{ weekday: number; startTime: string; endTime: string }> | undefined
 ): string {
   if (!schedules?.length) return "—";
   return schedules
-    .map((s) => `${WEEKDAY_LABELS[s.weekday]} ${formatTime(s.startTime)}`)
+    .map(
+      (s) =>
+        `${WEEKDAY_LABELS[s.weekday]} ${formatTime(s.startTime)}–${formatTime(s.endTime)}`,
+    )
     .join(", ");
 }
