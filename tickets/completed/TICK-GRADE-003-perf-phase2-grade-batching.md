@@ -1,6 +1,6 @@
 # TICK-GRADE-003 — Perf Phase 2 grade batching (parallel terms, Map lookups, batched writes)
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -66,6 +66,7 @@ Confidence: 82/100 (Requirement clarity 25, Codebase verification 20, Architectu
 2026-09-25 — Implemented 4 commits (87bfd855 core maps; 530b161a educator parallel+hoist+group; c3bb67a0 legacy same; 717e14b1 batched computeGrades + saveComputedGrades + spec tsc fix). Legacy GradeService verdict: LIVE (serves GET /classes/:classId/grades) — fixed, not flagged dead. computeGrades now skips locked rows via single batched check (previously overwrote them) — intentional per ticket scope, flagged in handoff. Verified: 58/58 grade tests, equivalence green on old+new, lint/tsc/build clean.
 2026-09-25 — Ready for review.
 2026-09-26 — REVIEW RESOLUTION (locked-row question): the skip was implemented per scope text, which had conflated recompute's guard with compute (unguarded overwrite). Split out: this ticket reworked to pure-overwrite batching (e17fa9a0 — saveComputedGrades returns {computed}, services return original {computed,message}, spec pins overwrite incl. locked rows). Behavior change lives ONLY in TICK-GRADE-004 (held for human review). This ticket is now pure perf, mergeable. Verified: 58/58 grade tests, lint/tsc clean.
+2026-09-26 — Merged to development (35f4fab2). Development validation: unit 727 (702 pass, 25 pre-existing failures in the same 5 suites as baseline), tsc pre-existing set only (no grade files), build OK (528 files). Completed. Locked-skip follow-up: TICK-GRADE-004 (held).
 
 ## Commits
 
