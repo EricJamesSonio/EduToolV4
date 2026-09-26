@@ -1,6 +1,6 @@
 # TICK-INFRA-006 — Perf Phase 4 pagination + SQL aggregation
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -46,9 +46,11 @@ Proceeding. Assumption: offset `page/limit` + total (matches existing repo pagin
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Backend: audit-log pagination spec 3/3, analytics specs 11/11 (service + aggregation) pass
+- Frontend: tsc clean, eslint clean on 8 touched files
+- Backend tsc: only pre-existing errors (identical set on clean development); build OK (525 files)
+- Full suite: not run (deferred to development integration after merge)
+- Development integration: not run (await merge)
 
 ## Blocker
 
@@ -58,10 +60,14 @@ None.
 
 2026-09-25 — Claimed, creating worktree from development.
 Confidence: 83/100 (Requirement clarity 24, Codebase verification 21, Architecture fit 19, Edge cases 9, Blast radius 10). Assumption: offset pagination unless cursor infra exists.
+2026-09-25 — Decision: offset page/limit + {data,meta} (matches getEnrollmentBreakdown precedent + existing PaginationBar/Pagination UI; no cursor infra exists). Implemented 3 commits (backend pagination, frontend pagination, analytics aggregation). Found + fixed-as-necessity one pre-existing bug (educator activity client unwrapping). Verified: backend 14/14, frontend tsc/eslint clean, build OK.
+2026-09-25 — Ready for review.
 
 ## Commits
 
-None yet.
+- 292af770 perf(logs): server-side pagination for audit/activity logs and notification inbox
+- d6485ba7 perf(frontend): server-side log pagination, drop 15s full-log polling
+- 9c5c39ec perf(analytics): SQL groupBy/aggregate for grade stats and educator load (branch agent/TICK-INFRA-006-perf-phase4-pagination-agg, PR vs development)
 
 ## Notes
 
