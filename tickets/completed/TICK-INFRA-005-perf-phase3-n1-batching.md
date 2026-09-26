@@ -1,6 +1,6 @@
 # TICK-INFRA-005 — Perf Phase 3 mechanical N+1 batching (transcript, attendance, grade-student, bulk ops)
 
-Status: ready-for-review
+Status: completed
 Priority: high
 Created: 2026-09-25
 Created by: agent
@@ -69,6 +69,7 @@ None.
 Confidence: 84/100 (Requirement clarity 25, Codebase verification 21, Architecture fit 19, Edge cases 9, Blast radius 10). Assumption: mocked-repo equivalence specs.
 2026-09-25 — Implemented 10 commits (transcript, attendance, grade-student, class, educator, student, student-enrollment, auto-lock, grade-lock, + class-spec 8-arg fixup). Verified: new specs green, existing touched specs green/updated, pre-existing class+educator spec failures proven identical on old code and left untouched. tsc/build clean.
 2026-09-25 — Ready for review.
+2026-09-26 — Merged to development (e16965a6) with conflict resolution in educator/student email-domain code (development's role-prefix rule `educator.${base}`/`student.${base}` preserved verbatim inside the perf split structure; my bulk specs updated to the new rule). Development validation: unit 745 (720 pass; 25 failed in the same 5 suites — proven zero-new-failures via pre-merge checkout comparison: educator+registrar+program = 10 failed both before and after; the email-rule spec failures come from development's own refactor-vs-spec drift, incl. 1 registrar + 1 educator email test), tsc pre-existing set only (no touched files), build OK (536 files). Completed.
 
 ## Commits
 
