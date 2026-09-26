@@ -12,6 +12,7 @@ import {
   Tabs, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
 import { DataTable } from "@/components/shared/DataTable";
+import { SearchInput } from "@/components/shared/SearchInput";
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,7 @@ interface EnrollStudentPanelProps {
   updateProgEnrollPending: boolean;
   /** Enroll Student tab */
   search: string;
+  onSearchChange: (value: string) => void;
   filtered: Student[];
   selected: Set<string>;
   onToggleAll: () => void;
@@ -65,6 +67,7 @@ export function EnrollStudentPanel({
   onSectionAssign,
   updateProgEnrollPending,
   search,
+  onSearchChange,
   filtered,
   selected,
   onToggleAll,
@@ -175,6 +178,19 @@ export function EnrollStudentPanel({
 
       {leftTab === "enroll" && (
         <div>
+          <div className="px-5 py-3 border-b bg-muted/10 flex items-center justify-between gap-3">
+            <SearchInput
+              value={search}
+              onChange={onSearchChange}
+              placeholder="Search by name, student ID, or email..."
+              disabled={pageLoading}
+              className="w-full max-w-md"
+            />
+            <span className="text-xs text-muted-foreground shrink-0">
+              {selected.size} of {filtered.length} selected
+            </span>
+          </div>
+
           {pageLoading ? (
             <div className="space-y-0 divide-y">
               {[1, 2, 3, 4, 5].map((i) => (
