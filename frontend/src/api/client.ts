@@ -15,6 +15,9 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true,
+  // Perf Phase 7: fail a hung backend after 30s instead of hanging the UI
+  // forever. Per-request override: apiClient.get(url, { timeout: 120000 }).
+  timeout: 30000,
 });
 
 const pendingRequests = new Map<string, Promise<unknown>>();
