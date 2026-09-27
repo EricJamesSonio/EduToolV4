@@ -2,6 +2,20 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-27
+
+### Fixed (verification follow-up — 3 tickets merged, each validated on development)
+
+- Bulk compute skips locked grades (TICK-GRADE-004, merge dbb61e17): opt-in `{ skipLocked: true }` now default in both computeGrades paths; locked-row spec 3/3. Merged after explicit human sign-off.
+- Grading-scale batching spec tsc error (TICK-INFRA-011, fast-forward 2b51620b): cache double supplied; grading-scale suites 30/30, error gone.
+- Corrupted `ProgramEnrollmentEndReason` enum value (TICK-INFRA-012, merge 624ada61): another agent's migration had shipped `'admin_correctionorganiz'` to schema + live DB; repaired via metadata-only `ALTER TYPE … RENAME VALUE` migration, verified live enum labels, rows untouched, student-enrollment suites green.
+- Organization spec drift (TICK-INFRA-013, merge 62446907): expectations synced to `autoSeedNewSchoolYears` field; suite 25/25.
+
+### Held / flagged (not merged, not started)
+
+- Redis/BullMQ queues: parked pending Redis provisioning + topology/policy decisions (no ticket yet).
+- Dirty working tree (level/section feature WIP, uncommitted, breaks level/section/school-year specs): another agent's active work — do not touch.
+
 ## 2026-09-26
 
 ### Performance (8 tickets merged to development, each validated: unit suite at 25 pre-existing failures / same 5 suites, tsc pre-existing set, builds green)

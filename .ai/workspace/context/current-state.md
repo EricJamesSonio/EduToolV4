@@ -22,17 +22,21 @@ Implemented (all validated on development: backend unit suite holds at 25 pre-ex
 - TICK-INFRA-007 — In-memory read cache (org/scales/settings/calendar TTLs). Redis/BullMQ parked: no Redis provisioned (merge a84deeae).
 - TICK-INFRA-008 — Frontend: overfetch tracker wired, 30s timeout, memoized tables, list-default query freshness (merge 1ae40a1e).
 - TICK-GRADE-004 — Bulk compute skips locked grades: `saveComputedGrades({ skipLocked: true })` used by both computeGrades paths (grade.service.ts, grade-educator.service.ts), reports `skippedLocked`. Merged after explicit human sign-off (merge dbb61e17). GRADE-003 stays pure-overwrite by design.
+- TICK-INFRA-011 — Grading-scale batching spec tsc error fixed (cache double supplied; 30/30 green).
+- TICK-INFRA-012 — Repaired corrupted `ProgramEnrollmentEndReason` enum value (`admin_correctionorganiz` → `admin_correction`) via metadata-only rename migration; verified live enum, rows untouched, student-enrollment suites green. Dev DB migrated; prod rollout is a separate human decision.
+- TICK-INFRA-013 — Organization spec synced to `autoSeedNewSchoolYears` field (25/25 green).
 
 On hold (needs human decision):
 
 - Redis/BullMQ queues (no ticket yet — needs Redis provisioning + worker-topology/retry-policy decisions).
+- Dirty working tree (16 files, level/section feature WIP, uncommitted as of 2026-09-27 — breaks level/section/school-year specs): another agent's active work, do not touch.
 
 Known pre-existing debt (not from this work, flagged during merges):
 
 - 25 backend unit failures in 5 suites (class/educator/semester/program/registrar — stale mocks vs evolved code, incl. email-rule spec drift from development's own role-prefix refactor).
 - `next build` red on src/app/admin/page.tsx (server component using useEffect/useRouter; commits 86a2abe6/454cff32).
 - Backend e2e hooks time out in this environment (180s+); not usable as a merge gate here.
-- `tsc --noEmit` on backend is red at baseline (9 errors on origin/development). TICK-INFRA-007 added a 2nd ctor arg to `GradingScaleRepository`, but `grading-scale-batching.spec.ts` (written in the earlier phase5 commit) was never updated → TS2554. Type-only: the spec still passes at runtime, so unit counts hide it. Net 9 → 8 after this push. Filed as a ticket.
+- `tsc --noEmit` on backend is red at baseline (pre-existing errors in class/semester specs, org-schedule toMinutes shadow, semester-template/seeder program_id drift, e2e fixtures). The phase5→6 stale-constructor error is fixed (TICK-INFRA-011 above).
 - Junk file `et --hard b1f9964f0e64b173fc94e063a0c33895682fbba6` (Vim help text, 16KB) is tracked at repo root and already on origin/development (commit 1a4d8693) — artifact of a botched `git reset --hard` redirect.
 
 ## Frontend / Landing & Admin UI
