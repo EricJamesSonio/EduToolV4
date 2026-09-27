@@ -150,6 +150,23 @@ export class AttendanceRepository {
     student_id: string;
     status: string;
   }) {
+    // Phase 1: single-round-trip native upsert on
+    // @@unique([session_id, student_id]). Gated by NATIVE_UPSERT_ENABLED
+    // (default off) until migration 20260928000000_* is applied to the DB.
+    // TODO(Phase-1-cleanup): remove legacy read-then-write path below.
+    if (process.env.NATIVE_UPSERT_ENABLED === 'true') {
+      return this.db.attendanceRecord.upsert({
+        where: {
+          session_id_student_id: {
+            session_id: data.session_id,
+            student_id: data.student_id,
+          },
+        },
+        update: { status: data.status as any },
+        create: { ...data, status: data.status as any },
+      });
+    }
+
     const existing = await this.findRecordBySessionAndStudent(
       data.session_id,
       data.student_id,

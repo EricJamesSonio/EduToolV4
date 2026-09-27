@@ -1139,7 +1139,9 @@ model Submission {
 
   assessment Assessment @relation(fields: [assessment_id], references: [id])
 
-  @@index([assessment_id, student_id])
+  // Phase 1: native upsert key — replaces the plain index above so concurrent
+  // double-submits collapse into one row instead of racing read-then-write.
+  @@unique([assessment_id, student_id])
   @@index([org_id, assessment_id])
 }
 
@@ -1241,7 +1243,9 @@ model AttendanceRecord {
   student_id String
   status     AttendanceStatus
 
-  @@index([session_id, student_id])
+  // Phase 1: native upsert key — replaces the plain index above so concurrent
+  // mark-present calls collapse into one row instead of racing read-then-write.
+  @@unique([session_id, student_id])
 }
 
 //////////////////////

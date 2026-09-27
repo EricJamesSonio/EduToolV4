@@ -199,6 +199,54 @@ export class AssessmentRepository {
     isMissed?: boolean;
     isExempted?: boolean;
   }) {
+    // Phase 1: single-round-trip native upsert on
+    // @@unique([assessment_id, student_id]). Gated by NATIVE_UPSERT_ENABLED
+    // (default off) until migration 20260928000000_* is applied to the DB.
+    // TODO(Phase-1-cleanup): remove legacy read-then-write path below.
+    if (process.env.NATIVE_UPSERT_ENABLED === 'true') {
+      return this.db.submission.upsert({
+        where: {
+          assessment_id_student_id: {
+            assessment_id: data.assessmentId,
+            student_id: data.studentId,
+          },
+        },
+        update: {
+          status: data.status as any,
+          ...(data.score !== undefined ? { score: data.score } : {}),
+          ...(data.manualScore !== undefined
+            ? { manual_score: data.manualScore }
+            : {}),
+          ...(data.manualSectionScore !== undefined
+            ? { manual_section_score: data.manualSectionScore }
+            : {}),
+          ...(data.systemSectionScore !== undefined
+            ? { system_section_score: data.systemSectionScore }
+            : {}),
+          ...(data.isMissed !== undefined ? { is_missed: data.isMissed } : {}),
+          ...(data.isExempted !== undefined
+            ? { is_exempted: data.isExempted }
+            : {}),
+          ...(data.submittedAt !== undefined
+            ? { submitted_at: data.submittedAt }
+            : {}),
+        },
+        create: {
+          org_id: data.orgId,
+          assessment_id: data.assessmentId,
+          student_id: data.studentId,
+          status: data.status as any,
+          score: data.score ?? null,
+          manual_score: data.manualScore ?? null,
+          manual_section_score: data.manualSectionScore ?? null,
+          system_section_score: data.systemSectionScore ?? null,
+          is_missed: data.isMissed ?? false,
+          is_exempted: data.isExempted ?? false,
+          submitted_at: data.submittedAt ?? null,
+        },
+      });
+    }
+
     const existing = await this.findSubmissionByStudent(
       data.assessmentId,
       data.studentId,
