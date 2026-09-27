@@ -13,23 +13,12 @@ import {
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ComponentType } from '../constants/assessment-type.constants';
 
-export enum ComponentType {
-  WRITTEN_WORK = 'written_work',
-  PERFORMANCE_TASK = 'performance_task',
-  QUARTERLY_ASSESSMENT = 'quarterly_assessment',
-  EXAM = 'exam',
-  QUIZ = 'quiz',
-  ASSIGNMENT = 'assignment',
-  PROJECT = 'project',
-  RECITATION = 'recitation',
-  PARTICIPATION = 'participation',
-  BEHAVIOR = 'behavior',
-  ATTENDANCE = 'attendance',
-  ACTIVITY = 'activity',
-  CUSTOM = 'custom',
-  OTHER = 'other',
-}
+// Re-exported so existing importers
+// (`grading-scheme-template` DTO/entity, org-seeder data) keep working.
+// The values are declared once in `constants/assessment-type.constants.ts`.
+export { ComponentType };
 
 export class GradingSchemeComponentDto {
   @IsString()

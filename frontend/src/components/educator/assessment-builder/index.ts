@@ -10,5 +10,5 @@ export { ManualStep1 } from "./ManualStep1";
 export { ManualStep2 } from "./ManualStep2";
 
 export { getConceptContent, getSectionsForRanges } from "./utils";
-export { TYPE_LABELS } from "./constants";
+export { TYPE_LABELS, ASSESSMENT_TYPE_VALUES } from "./constants";
 export type { BuilderState, ConceptContent, ConceptItemInfo } from "./types";

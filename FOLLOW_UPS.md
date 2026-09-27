@@ -11,8 +11,7 @@
 - Rule: each phase must only keep its own specs green and not worsen the baseline.
 
 ## Deferred cleanups from perf phases
-- [ ] Phase-1-cleanup: remove legacy read-then-write paths in
-  `assessment-core.repository.ts` (`upsertSubmission`) and
+- [ ] Phase-1-cleanup: remove legacy read-then-write paths in  `assessment-core.repository.ts` (`upsertSubmission`) and
   `attendance.repository.ts` (`upsertRecord`) once migration
   `20260928000000_submission_attendance_native_upsert_unique` is applied
   everywhere; then flip `NATIVE_UPSERT_ENABLED=true` and delete the flag.
@@ -25,3 +24,17 @@
   skipped deliberately): `StudentSchoolYear(org_id, status)`,
   `Concern(org_id, created_at)` for the digest sweep — revisit if those paths
   stay hot after Phases 1–3 land.
+
+## TICK-ASSESS-001 (2026-09-28) — `manual` DTO-vs-entity mismatch (deliberately untouched)
+- `backend/src/modules/grading-scheme/entity/grading-scheme.entity.ts`
+  `ComponentType` historically included `'manual'`, which the canonical
+  `ComponentType` enum (`constants/assessment-type.constants.ts`, 14 values)
+  and `@IsEnum` DTO validation do NOT accept. The entity type now reads
+  `AssessmentComponentType | 'manual'` to preserve existing behavior.
+- Open decision needed: should `'manual'` be a creatable scheme-component
+  type (then add it to the canonical enum + DTO + frontend lists), or is it
+  legacy/stale data that should be migrated away (then remove from the
+  entity)? Related: frontend seeder
+  `components/admin/data-seeder/constants/grading-schemes.ts` hardcodes
+  `type: 'manual'` for Participation/Behavior — also rejects under the DTO.
+- Do NOT resolve inline in a future ASSESS phase without that decision.

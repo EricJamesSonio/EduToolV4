@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { TYPE_LABELS } from "@/components/educator/assessment-builder/constants";
 import type { AssessmentType } from "@/types/educator/assessment.types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -11,19 +12,8 @@ const STATUS_COLORS: Record<string, string> = {
   closed: "badge-muted",
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  written_work: "Written Work",
-  performance_task: "Performance Task",
-  quarterly_assessment: "Quarterly Assessment",
-  exam: "Exam",
-  quiz: "Quiz",
-  project: "Project",
-  recitation: "Recitation",
-  attendance: "Attendance",
-  activity: "Activity",
-  custom: "Custom",
-  other: "Other",
-};
+// Type labels come from the shared assessment-builder constants so every
+// canonical type (incl. assignment/participation/behavior) renders correctly.
 
 interface AssessmentBadgesProps {
   type: AssessmentType;

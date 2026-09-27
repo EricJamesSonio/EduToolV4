@@ -27,6 +27,7 @@ import {
   getConceptContent,
   getSectionsForRanges,
   TYPE_LABELS,
+  ASSESSMENT_TYPE_VALUES,
 } from "@/components/educator/assessment-builder";
 import type { BuilderState, ConceptItemInfo } from "@/components/educator/assessment-builder";
 import type { AssessmentType, GradingMode } from "@/types/educator/assessment.types";
@@ -52,13 +53,9 @@ export default function NewAssessmentPage() {
     queryKeys.educator.gradingSchemes.detail(classId),
     () => educatorGradingSchemeApi.getForClass(classId),
   );
-  const ASSESSMENT_TYPE_VALUES: AssessmentType[] = [
-    "written_work", "performance_task", "quarterly_assessment", "exam", "quiz",
-    "project", "recitation", "attendance", "activity", "custom", "other",
-  ];
   const schemeTypes = (gradingScheme?.components
     ?.map((c) => c.type) ?? []).filter(
-      (t): t is AssessmentType => (ASSESSMENT_TYPE_VALUES as string[]).includes(t),
+      (t): t is AssessmentType => (ASSESSMENT_TYPE_VALUES as readonly string[]).includes(t),
     );
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
