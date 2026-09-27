@@ -1,6 +1,6 @@
 # TICK-ASSESS-002 — Block past dates in assessment creation (frontend + backend)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-28
 Created by: agent
@@ -44,9 +44,9 @@ Branch: agent/TICK-ASSESS-002-past-dates
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: PASS — backend assessment 4 suites/41 tests (new assessment-date.validation.spec: 7 tests incl. service-level create/update bypass rejection + close-early untouched); grading-scheme+grade regression 13 suites/99 tests PASS. Frontend: new datetime-local.test 8/8; FULL frontend suite 12 suites/110 tests PASS. tsc: 0 errors in touched files. ESLint exit 0 on all touched files.
+- Full suite: not run (pre-existing baseline failures per FOLLOW_UPS.md; scoped suites green)
+- Development integration: not run (awaiting reviewer merge; merge after TICK-ASSESS-001)
 
 ## Blocker
 
@@ -55,10 +55,11 @@ None.
 ## Activity Log
 
 - 2026-09-28: Claimed, counter ASSESS=2. Confidence 88/100 as above.
+- 2026-09-28: Implemented. Shared `frontend/src/lib/datetime-local.ts` (minDateTimeLocal/isPastDateTime/parse+format); wired min+guard+messages into Step6, ManualStep2, ReopenDialog (Input forwards min — verified). Backend `assertReleaseDateNotPast` in creation helper, called from create + update (AI publish path); reopen past-check in submission helper. Fixed 2 self-made test bugs (min truncation semantics, Date-overflow fail-closed now in parser). Commit 53b162a5. Ready for review.
 
 ## Commits
 
-None yet.
+- 53b162a5 feat(assess): block past dates in assessment creation (shared util + server guard) (branch agent/TICK-ASSESS-002-past-dates)
 
 ## Notes
 
