@@ -1,6 +1,6 @@
 # TICK-INFRA-013 — Update organization spec for autoSeedNewSchoolYears field
 
-Status: in-progress
+Status: completed
 Priority: low
 Created: 2026-09-26
 Created by: agent
@@ -36,9 +36,9 @@ Proceeding.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: organization suite 25/25 green (incl. null-default assertion)
+- Full suite: verified on development post-merge (see merge validation)
+- Development integration: merged (62446907)
 
 ## Blocker
 
@@ -48,6 +48,7 @@ None.
 
 2026-09-26 — Claimed (new INFRA-013, counter 12→13) during verification follow-up. One-line expectation drift from another agent's field addition; spec-only fix.
 Confidence: 96/100. No open assumption.
+2026-09-27 — Implemented (d99a9e07): expectations synced incl. null→false default; suite 25/25 green, lint clean. Merged to development (62446907). Completed.
 
 ## Commits
 
