@@ -1,12 +1,13 @@
 # TICK-INFRA-011 — Fix TS2554 in grading-scale-batching.spec.ts (stale ctor after cache refactor)
 
-Status: pending
+Status: in-progress
 Priority: medium
 Created: 2026-09-26
 Created by: agent
-Assigned to: unassigned
-Worktree: (filled in when claimed)
-Branch: (filled in when claimed)
+Assigned to: agent
+Started: 2026-09-26
+Worktree: ../EduToolV4-worktrees/TICK-INFRA-011-grading-scale-spec-tsc
+Branch: agent/TICK-INFRA-011-grading-scale-spec-tsc
 
 ## Problem
 
