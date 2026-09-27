@@ -1,6 +1,6 @@
 # TICK-ASSESS-001 — Grading scheme type gap (assignment/participation/behavior filtered)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-28
 Created by: agent
@@ -45,9 +45,9 @@ Frontend `new/page.tsx:55-58` hardcoded `ASSESSMENT_TYPE_VALUES` omits `assignme
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: PASS — backend 5 suites/45 tests (2 new specs: assessment-type.constants, assessment-creation.helper; plus grading-scheme.service, assessment-educator, assessment-inclusion). Grade module regression: 11 suites/65 tests PASS. Frontend tsc: 0 errors in touched files (pre-existing admin errors untouched). ESLint exit 0 on all 11 touched/new source files (backend + frontend).
+- Full suite: not run (pre-existing baseline failures documented in FOLLOW_UPS.md; scoped suites green, no worsening)
+- Development integration: not run (awaiting reviewer merge)
 
 ## Blocker
 
@@ -56,10 +56,11 @@ None.
 ## Activity Log
 
 - 2026-09-28: Claimed, counter ASSESS=1. Confidence 92/100 as above.
+- 2026-09-28: Implemented. Backend canonical `grading-scheme/constants/assessment-type.constants.ts` (enum + derived values + union type); dto/entity/assessment.dto import it. Frontend `ASSESSMENT_TYPE_VALUES` in builder constants; `AssessmentType` derived; allow-list in new/page.tsx deleted; badges use shared labels. New specs green (45/45 incl. neighbors; grade 65/65). Commit db689a1e. Ready for review.
 
 ## Commits
 
-None yet.
+- db689a1e feat(assess): canonical assessment type list incl assignment/participation/behavior (branch agent/TICK-ASSESS-001-grading-type-gap)
 
 ## Notes
 
