@@ -1,12 +1,13 @@
 # TICK-INFRA-009 — Fix broken `next build` on src/app/admin/page.tsx
 
-Status: pending
+Status: in-progress
 Priority: high
 Created: 2026-09-26
 Created by: agent
-Assigned to: unassigned
-Worktree: (filled in when claimed)
-Branch: (filled in when claimed)
+Assigned to: agent
+Started: 2026-09-27
+Worktree: ../EduToolV4-worktrees/TICK-INFRA-009-admin-page-next-build
+Branch: agent/TICK-INFRA-009-admin-page-next-build
 
 ## Problem
 
