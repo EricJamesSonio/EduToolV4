@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-27 (evening)
+
+### Fixed
+
+- Broken `next build` on `src/app/admin/page.tsx` (TICK-INFRA-009, fast-forward 171be060): removed unused `useEffect`/`useRouter` imports; Turbopack errors eliminated. NOTE: end-to-end build still stops at pre-existing semester type errors (semester.api `programId`, SemesterFormDialog Select signatures — another agent's in-flight rework) — follow-up needed, not this ticket.
+
 ## 2026-09-27
 
 ### Fixed (verification follow-up — 3 tickets merged, each validated on development)

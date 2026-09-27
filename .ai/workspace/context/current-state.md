@@ -25,6 +25,7 @@ Implemented (all validated on development: backend unit suite holds at 25 pre-ex
 - TICK-INFRA-011 — Grading-scale batching spec tsc error fixed (cache double supplied; 30/30 green).
 - TICK-INFRA-012 — Repaired corrupted `ProgramEnrollmentEndReason` enum value (`admin_correctionorganiz` → `admin_correction`) via metadata-only rename migration; verified live enum, rows untouched, student-enrollment suites green. Dev DB migrated; prod rollout is a separate human decision.
 - TICK-INFRA-013 — Organization spec synced to `autoSeedNewSchoolYears` field (25/25 green).
+- TICK-INFRA-009 — Broken `next build` on `src/app/admin/page.tsx` fixed (unused client-only imports removed; Turbopack errors gone). End-to-end build still stops at pre-existing semester type errors — follow-up needed.
 
 On hold (needs human decision):
 
