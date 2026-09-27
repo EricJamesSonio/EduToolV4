@@ -11,9 +11,37 @@ import { Server, Socket } from 'socket.io';
 import { forwardRef, Inject, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { validateSync } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
 import { MeetingRepository } from './meeting.repository';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GroupyGateway } from '../groupy/groupy.gateway';
+import {
+  SOCKET_CONNECT_LIMIT,
+  SocketRateLimiter,
+  type SocketRateLimitOptions,
+} from '@/commons/utils/socket-rate-limiter.util';
+import {
+  isSignalingPayloadTooLarge,
+  MeetingChatSendDto,
+  MeetingPresentationStartDto,
+  MeetingReactionDto,
+  MeetingSlideChangeDto,
+  WebrtcTargetDto,
+} from './dto/meeting-socket.dto';
+
+// Phase 2 (realtime safety): per-socket token buckets. Chat mirrors ~1/s with
+// burst 2; reaction mirrors the client limiter (3 per 5s) server-side so raw
+// socket emits can't bypass it; signaling allows ICE trickle bursts.
+export const MEETING_SOCKET_LIMITS: Record<string, SocketRateLimitOptions> = {
+  chat: { capacity: 2, refillMs: 2_000 },
+  reaction: { capacity: 3, refillMs: 5_000 },
+  hand: { capacity: 2, refillMs: 4_000 },
+  slide: { capacity: 10, refillMs: 2_000 },
+  presentation: { capacity: 4, refillMs: 5_000 },
+  screen: { capacity: 4, refillMs: 5_000 },
+  signaling: { capacity: 40, refillMs: 10_000 },
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -80,6 +108,35 @@ export class MeetingGateway
   // meetingId → RoomState
   private rooms = new Map<string, RoomState>();
 
+  // Phase 2: shared token-bucket limiter (one instance per gateway).
+  private readonly rateLimiter = new SocketRateLimiter();
+
+  /**
+   * Returns true when the socket is throttled (caller must drop the event).
+   * Notifies the sender so burst clients get feedback instead of silence.
+   */
+  private hitRateLimit(client: Socket, bucket: string): boolean {
+    const allowed = this.rateLimiter.checkLimit(
+      client.id,
+      bucket,
+      MEETING_SOCKET_LIMITS[bucket],
+    );
+    if (!allowed) client.emit('rate_limited', { event: bucket });
+    return !allowed;
+  }
+
+  /** class-validator check for inbound socket payloads (no ValidationPipe on WS). */
+  private isValidDto<T extends object>(
+    cls: new () => T,
+    data: unknown,
+  ): data is T {
+    if (typeof data !== 'object' || data === null) return false;
+    return (
+      validateSync(plainToInstance(cls, data), { whitelist: true }).length ===
+      0
+    );
+  }
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
@@ -108,6 +165,17 @@ export class MeetingGateway
 
       const meetingId = client.handshake.query?.meetingId as string;
       if (!meetingId) return this.kick(client, 'Missing meetingId');
+
+      // Phase 2: reconnect-storm guard (thundering-herd after server restart).
+      if (
+        !this.rateLimiter.checkLimit(
+          payload.sub,
+          'meeting:connect',
+          SOCKET_CONNECT_LIMIT,
+        )
+      ) {
+        return this.kick(client, 'Reconnecting too often — retry in a minute');
+      }
 
       const meeting = await this.meetingRepo.findById(
         meetingId,
@@ -192,8 +260,8 @@ export class MeetingGateway
         presentationId: room.presentationId,
       });
 
-      // Notify others
-      this.server.to(meetingId).emit('room:participant_joined', {
+      // Notify others (broadcast excludes the joiner, who already got room:state)
+      client.broadcast.to(meetingId).emit('room:participant_joined', {
         userId: payload.sub,
         name,
         role: payload.role,
@@ -208,6 +276,9 @@ export class MeetingGateway
   }
 
   async handleDisconnect(client: Socket) {
+    // Phase 2: drop dead-socket buckets so disconnect storms don't pin memory.
+    this.rateLimiter.clearSocket(client.id);
+
     const meetingId = client.data?.meetingId;
     if (!meetingId) return;
 
@@ -218,7 +289,7 @@ export class MeetingGateway
     room.participants.delete(client.id);
 
     if (participant) {
-      this.server.to(meetingId).emit('room:participant_left', {
+      client.broadcast.to(meetingId).emit('room:participant_left', {
         userId: participant.userId,
         name: participant.name,
         participants: room.getParticipantList(),
@@ -252,7 +323,11 @@ export class MeetingGateway
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || !auth || !auth.org_id) return;
 
-    const text = (data?.message ?? '').trim();
+    // Phase 2: burst guard first (cheapest), then shared length validation.
+    if (this.hitRateLimit(client, 'chat')) return;
+    if (!this.isValidDto(MeetingChatSendDto, data)) return;
+
+    const text = data.message.trim();
     if (!text) return;
 
     // Persist to DB
@@ -278,8 +353,8 @@ export class MeetingGateway
     const room = this.rooms.get(meetingId);
     if (room) room.chatHistory.push(msg);
 
-    // Broadcast to all in room
-    this.server.to(meetingId).emit('chat:message', msg);
+    // Broadcast to everyone except the sender (sender uses its optimistic copy)
+    client.broadcast.to(meetingId).emit('chat:message', msg);
   }
 
   // ── Raise hand ────────────────────────────────────────────────────────────
@@ -299,13 +374,16 @@ export class MeetingGateway
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || !auth) return;
 
+    // Phase 2: hand toggles fan out the full participant list — throttle them.
+    if (this.hitRateLimit(client, 'hand')) return;
+
     const room = this.rooms.get(meetingId);
     const participant = room?.participants.get(client.id);
     if (!participant) return;
 
     participant.handRaised = raised;
 
-    this.server.to(meetingId).emit('hand:update', {
+    client.broadcast.to(meetingId).emit('hand:update', {
       userId: auth.sub,
       name: client.data.name,
       handRaised: raised,
@@ -324,11 +402,13 @@ export class MeetingGateway
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || !auth) return;
 
-    const allowed = ['👍', '👏', '❤️', '😂', '😮', '🎉'];
-    const emoji = data?.emoji;
-    if (!allowed.includes(emoji)) return;
+    // Phase 2: server-enforced mirror of the client 3-per-5s limiter +
+    // allowlist validation via the shared schema (no inline list).
+    if (this.hitRateLimit(client, 'reaction')) return;
+    if (!this.isValidDto(MeetingReactionDto, data)) return;
+    const emoji = data.emoji;
 
-    this.server.to(meetingId).emit('reaction:received', {
+    client.broadcast.to(meetingId).emit('reaction:received', {
       userId: auth.sub,
       name: client.data.name,
       emoji,
@@ -346,6 +426,10 @@ export class MeetingGateway
     @MessageBody()
     data: { targetUserId: string; offer: RTCSessionDescriptionInit },
   ) {
+    // Phase 2: throttle trickle bursts + cap SDP bytes before relaying verbatim.
+    if (this.hitRateLimit(client, 'signaling')) return;
+    if (!this.isValidDto(WebrtcTargetDto, data)) return;
+    if (isSignalingPayloadTooLarge(data.offer)) return;
     this.relayToUser(client, data.targetUserId, 'webrtc:offer', {
       fromUserId: client.data.auth?.sub,
       offer: data.offer,
@@ -358,6 +442,9 @@ export class MeetingGateway
     @MessageBody()
     data: { targetUserId: string; answer: RTCSessionDescriptionInit },
   ) {
+    if (this.hitRateLimit(client, 'signaling')) return;
+    if (!this.isValidDto(WebrtcTargetDto, data)) return;
+    if (isSignalingPayloadTooLarge(data.answer)) return;
     this.relayToUser(client, data.targetUserId, 'webrtc:answer', {
       fromUserId: client.data.auth?.sub,
       answer: data.answer,
@@ -370,6 +457,9 @@ export class MeetingGateway
     @MessageBody()
     data: { targetUserId: string; candidate: RTCIceCandidateInit },
   ) {
+    if (this.hitRateLimit(client, 'signaling')) return;
+    if (!this.isValidDto(WebrtcTargetDto, data)) return;
+    if (isSignalingPayloadTooLarge(data.candidate)) return;
     this.relayToUser(client, data.targetUserId, 'webrtc:ice', {
       fromUserId: client.data.auth?.sub,
       candidate: data.candidate,
@@ -389,11 +479,15 @@ export class MeetingGateway
     if (!meetingId || !auth) return;
     if (auth.role !== 'educator') return; // students cannot control slides
 
+    // Phase 2: shared int/range validation (rejects NaN, negative, huge).
+    if (this.hitRateLimit(client, 'slide')) return;
+    if (!this.isValidDto(MeetingSlideChangeDto, data)) return;
+
     const room = this.rooms.get(meetingId);
     if (!room) return;
 
     room.currentSlide = data.slide;
-    this.server.to(meetingId).emit('lesson:slide_sync', {
+    client.broadcast.to(meetingId).emit('lesson:slide_sync', {
       slide: data.slide,
       controlledBy: auth.sub,
     });
@@ -408,12 +502,20 @@ export class MeetingGateway
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || auth?.role !== 'educator') return;
 
+    // Phase 2: throttle presentation toggles + bound optional presentationId.
+    if (this.hitRateLimit(client, 'presentation')) return;
+    if (
+      data !== undefined &&
+      !this.isValidDto(MeetingPresentationStartDto, data)
+    )
+      return;
+
     const room = this.rooms.get(meetingId);
     if (!room) return;
 
     room.isPresenting = true;
     room.presentationId = data?.presentationId ?? room.presentationId;
-    this.server.to(meetingId).emit('lesson:presentation_started', {
+    client.broadcast.to(meetingId).emit('lesson:presentation_started', {
       educatorId: auth.sub,
       currentSlide: room.currentSlide,
       presentationId: room.presentationId,
@@ -431,7 +533,7 @@ export class MeetingGateway
 
     room.isPresenting = false;
     room.presentationId = undefined;
-    this.server.to(meetingId).emit('lesson:presentation_stopped', {
+    client.broadcast.to(meetingId).emit('lesson:presentation_stopped', {
       educatorId: auth.sub,
     });
   }
@@ -446,7 +548,10 @@ export class MeetingGateway
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || !auth) return;
 
-    this.server.to(meetingId).emit('screen:sharing', {
+    // Phase 2: throttle share-toggle awareness broadcasts.
+    if (this.hitRateLimit(client, 'screen')) return;
+
+    client.broadcast.to(meetingId).emit('screen:sharing', {
       userId: auth.sub,
       name: client.data.name,
       sharing: true,
@@ -459,7 +564,9 @@ export class MeetingGateway
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || !auth) return;
 
-    this.server.to(meetingId).emit('screen:sharing', {
+    if (this.hitRateLimit(client, 'screen')) return;
+
+    client.broadcast.to(meetingId).emit('screen:sharing', {
       userId: auth.sub,
       name: client.data.name,
       sharing: false,

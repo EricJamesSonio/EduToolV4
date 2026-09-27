@@ -10,6 +10,10 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GroupyRepository } from './groupy.repository';
+import {
+  SOCKET_CONNECT_LIMIT,
+  SocketRateLimiter,
+} from '@/commons/utils/socket-rate-limiter.util';
 
 interface AuthPayload {
   sub: string;
@@ -25,6 +29,9 @@ interface AuthPayload {
 export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(GroupyGateway.name);
+
+  // Phase 2: shared token-bucket limiter (same module as meeting gateway).
+  private readonly rateLimiter = new SocketRateLimiter();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -56,6 +63,17 @@ export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const classId = client.handshake.query?.classId as string;
       if (!classId) return this.kick(client, 'Missing classId');
+
+      // Phase 2: reconnect-storm guard keyed by account (stable across reconnects).
+      if (
+        !this.rateLimiter.checkLimit(
+          payload.sub,
+          'groupy:connect',
+          SOCKET_CONNECT_LIMIT,
+        )
+      ) {
+        return this.kick(client, 'Reconnecting too often — retry in a minute');
+      }
 
       // Membership check — reject non-members before they join the room.
       const isMember = await this.groupyRepo.isClassMember(
@@ -90,6 +108,8 @@ export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleDisconnect(client: Socket) {
+    // Phase 2: drop dead-socket buckets so disconnect storms don't pin memory.
+    this.rateLimiter.clearSocket(client.id);
     const classId = client.data?.classId;
     if (!classId) return;
     await client.leave(this.roomName(classId));
