@@ -1,6 +1,6 @@
 # TICK-INFRA-011 — Fix TS2554 in grading-scale-batching.spec.ts (stale ctor after cache refactor)
 
-Status: in-progress
+Status: completed
 Priority: medium
 Created: 2026-09-26
 Created by: agent
@@ -81,9 +81,9 @@ error attributable to the perf work.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: grading-scale suites 30/30 green; tsc error for this file gone, no new errors
+- Full suite: verified on development post-merge (see merge validation)
+- Development integration: merged (fast-forward 2b51620b)
 
 ## Blocker
 
@@ -97,6 +97,7 @@ diffing `tsc --noEmit` output, rather than trusting a single run (a single run
 cannot distinguish a pre-existing error from a new one when both live in files
 the push also touched). Human decision at the time: push as-is and file, since
 the push improves the aggregate 9 -> 8.
+2026-09-27 — Implemented (2b51620b): cache double supplied per sibling pattern; verified grading-scale suites 30/30 green and tsc error gone (no other phase5/6 spec has the same staleness). Merged to development (fast-forward to 2b51620b). Completed.
 
 ## Commits
 
