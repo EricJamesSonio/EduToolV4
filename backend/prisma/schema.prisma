@@ -51,7 +51,7 @@ enum ProgramEnrollmentEndReason {
   completed
   withdrawn
   dropped
-  admin_correctionorganiz
+  admin_correction
   other
 }
 
