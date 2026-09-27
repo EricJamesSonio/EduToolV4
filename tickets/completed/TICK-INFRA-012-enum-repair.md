@@ -1,6 +1,6 @@
 # TICK-INFRA-012 — Repair corrupted ProgramEnrollmentEndReason enum value
 
-Status: in-progress
+Status: completed
 Priority: high
 Created: 2026-09-26
 Created by: agent
@@ -50,9 +50,10 @@ Proceeding. Assumption: dev DB may be migrated (standard dev flow); production r
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: student-enrollment suites 8/8 green (phase2 previously failing on the corrupted enum); tsc student-enrollment errors gone
+- Full suite on development post-merge: failures drop vs pre-merge (phase2 + org suites green); no new failures (level/section/school-year group stable at 11, dirty-tree/drift owned by others)
+- Live DB verified: pg_enum labels exactly [shifted, completed, withdrawn, dropped, admin_correction, other]; 2 NULL rows untouched; repair in _prisma_migrations ledger; no invalid indexes
+- Development integration: merged (624ada61); prisma validate OK; build OK (549 files)
 
 ## Blocker
 
@@ -62,6 +63,7 @@ None.
 
 2026-09-26 — Claimed (new INFRA-012, counter 11→12) during verification follow-up. Issue found while attributing post-merge test failures; verified against live DB, ledger, and git history before touching anything.
 Confidence: 88/100 (Requirement clarity 24, Codebase verification 23, Architecture fit 18, Edge cases 11, Blast radius 12). Assumption: dev-DB migrate is standard flow; prod rollout separate.
+2026-09-27 — Implemented (502256a4): schema value restored + repair migration (ALTER TYPE RENAME VALUE, metadata-only); regenerated client; applied to dev DB; verified live enum, rows untouched, ledger recorded, phase2 8/8 green. Merged to development (624ada61). Prod rollout NOT executed — separate human decision. Completed.
 
 ## Commits
 
