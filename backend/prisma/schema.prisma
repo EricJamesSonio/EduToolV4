@@ -1059,6 +1059,9 @@ model ManualScore {
   updated_at DateTime @updatedAt
 
   @@unique([org_id, class_id, student_id, term_id, category])
+  // Phase 3: class-wide manual-score sweeps filter (org, class, term) — the
+  // unique above only prefixes (org, class).
+  @@index([org_id, class_id, term_id])
 }
 
 model Assessment {
@@ -1118,6 +1121,9 @@ model Question {
   // Phase 1: Hybrid grading additions
   is_manual    Boolean @default(false)
   section_type String?
+
+  // Phase 3: every findQuestions call filters by assessment (was seq-scan).
+  @@index([assessment_id])
 }
 
 model Submission {
@@ -1143,6 +1149,11 @@ model Submission {
   // double-submits collapse into one row instead of racing read-then-write.
   @@unique([assessment_id, student_id])
   @@index([org_id, assessment_id])
+  // Phase 3: student-transcript prereq lookups filter (org, student); the
+  // unique above prefixes (assessment_id) and can't serve them.
+  @@index([org_id, student_id])
+  // Phase 3: draft-sweep + educator submission lists filter (assessment, status).
+  @@index([assessment_id, status])
 }
 
 model SubmissionAnswer {
@@ -1152,6 +1163,9 @@ model SubmissionAnswer {
   question_id   String
   answer        String
   is_correct    Boolean?
+
+  // Phase 3: every findAnswers call filters by submission (was seq-scan).
+  @@index([submission_id])
 }
 
 //////////////////////
@@ -1174,6 +1188,8 @@ model Grade {
   @@unique([org_id, student_id, class_id, term_id])
   @@index([org_id, class_id, term_id])
   @@index([org_id, class_id])
+  // Phase 3: grade prereq lookups filter (org, student, is_locked).
+  @@index([org_id, student_id, is_locked])
 }
 
 model GradeLock {
@@ -1234,6 +1250,8 @@ model AttendanceSession {
   sub_index   Int
 
   @@index([class_id, week_number])
+  // Phase 3: markPresentFromSubmission ranges on (class, date).
+  @@index([class_id, date])
 }
 
 model AttendanceRecord {
@@ -1270,6 +1288,9 @@ model Meeting {
   class         Class                @relation(fields: [class_id], references: [id])
   invites       MeetingInvite[]
   join_requests MeetingJoinRequest[]
+
+  // Phase 3: ephemeral-meeting lookup filters (class, ephemeral, status).
+  @@index([class_id, is_ephemeral, status])
 }
 
 // ── GROUPY (per-class group chat) ──────────────────────────────────────────
@@ -1416,6 +1437,9 @@ model AuditLog {
 
   @@index([org_id, created_at])
   @@index([org_id, log_type, created_at])
+  // Phase 3: admin-log explorer filters by entity + actor.
+  @@index([org_id, entity_type, entity_id])
+  @@index([org_id, actor_id])
 }
 
 model MeetingChatMessage {
