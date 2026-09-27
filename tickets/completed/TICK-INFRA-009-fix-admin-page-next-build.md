@@ -1,6 +1,6 @@
 # TICK-INFRA-009 — Fix broken `next build` on src/app/admin/page.tsx
 
-Status: in-progress
+Status: completed
 Priority: high
 Created: 2026-09-26
 Created by: agent
@@ -61,9 +61,10 @@ merge or the perf-phase pushes.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: file tsc clean, eslint clean, frontend jest 102/102 (worktree + development post-merge)
+- `next build` in worktree with clean install: admin/page.tsx Turbopack errors ELIMINATED (compile succeeds); build now stops at unrelated pre-existing semester type errors (semester.api programId + SemesterFormDialog Select signatures — another agent's in-flight semester rework, out of scope)
+- Full suite: frontend 102/102 on development post-merge
+- Development integration: merged (fast-forward 171be060)
 
 ## Blocker
 
@@ -78,6 +79,7 @@ empty. Reproduced in a fresh clone at `dbb61e17`: the build emits exactly one
 erroring file, `src/app/admin/page.tsx` (lines 3 and 4), and nothing else.
 Explicitly out of scope for the GRADE-004 merge — do not start without a
 claim.
+2026-09-27 — Claimed and implemented (171be060): deleted the two unused imports, keeping the server component + redirect() semantics. Verified: no admin/page errors in tsc/build output, eslint clean, jest 102/102. Merged to development (fast-forward). NOTE: end-to-end `next build` still stops at pre-existing semester type errors (separate drift, recommend follow-up ticket) — partial acceptance, flagged honestly. Completed.
 
 ## Commits
 
