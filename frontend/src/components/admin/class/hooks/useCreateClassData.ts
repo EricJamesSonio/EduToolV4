@@ -132,6 +132,7 @@ export function useCreateClassData(
       levelId: selectedLevelId!,
       ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
       ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
+      limit: 500,
     }),
     { enabled: !!selectedLevelId },
   );
