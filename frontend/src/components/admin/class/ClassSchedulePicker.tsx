@@ -5,8 +5,11 @@ import { useFormContext } from "react-hook-form";
 import { X } from "lucide-react";
 import {
   EducatorScheduleGrid,
+  SOURCE_LABELS,
+  SOURCE_STYLES,
   type DraftCell,
   type ScheduleRange,
+  type ScheduleSource,
 } from "@/components/admin/educator/EducatorScheduleGrid";
 import type { Class } from "@/types/admin/class.types";
 import {
@@ -91,7 +94,13 @@ export function ClassSchedulePicker({
   );
   const [draft, setDraft] = useState<DraftCell | null>(null);
 
+  // The educator query stays disabled until an educator is picked, so
+  // educatorClasses is undefined for most of this form's life. Gating the
+  // grid on it alone hid the section's schedule entirely. Either source is
+  // enough context to render the grid and pick free time.
   const hasEducator = educatorClasses !== undefined;
+  const hasSection = sectionClasses !== undefined;
+  const hasContext = hasEducator || hasSection;
   const atCap = maxSlots != null && ranges.length >= maxSlots;
   const canAddMore = !atCap;
 
@@ -123,6 +132,26 @@ export function ClassSchedulePicker({
     for (const cls of sectionClasses ?? []) map.set(cls.id, cls);
     return Array.from(map.values());
   }, [educatorClasses, sectionClasses]);
+
+  // Tag each block by which source(s) contributed it, so a section block is
+  // visually distinct from an educator's busy time — and a class contended by
+  // both is flagged in red.
+  const classTags = useMemo(() => {
+    const tags: Record<string, ScheduleSource> = {};
+    for (const c of sectionClasses ?? []) tags[c.id] = "section";
+    for (const c of educatorClasses ?? []) {
+      tags[c.id] = tags[c.id] === "section" ? "both" : "educator";
+    }
+    return tags;
+  }, [educatorClasses, sectionClasses]);
+
+  // Only advertise a legend entry for a source that is actually loaded,
+  // otherwise "Section & educator" would appear before an educator is picked.
+  const legendKeys: ScheduleSource[] = [
+    ...(hasSection ? (["section"] as const) : []),
+    ...(hasEducator ? (["educator"] as const) : []),
+    ...(hasSection && hasEducator ? (["both"] as const) : []),
+  ];
 
   const outOfWindow = useMemo(() => {
     if (windowStartMin === undefined || windowEndMin === undefined) return false;
@@ -185,15 +214,17 @@ export function ClassSchedulePicker({
     setDraft(null);
   };
 
-  const hint = !hasEducator
-    ? "Select an educator first."
+  const hint = !hasContext
+    ? "Select a section first."
     : !isAddingSlot
       ? canAddMore
         ? 'Click "+ Add slot" to schedule a time.'
         : `Maximum of ${maxSlots} slot${maxSlots === 1 ? "" : "s"} reached.`
       : draft
         ? "Click a free end time to finish this slot."
-        : "Click a free day & time for the start.";
+        : hasEducator
+          ? "Click a free day & time for the start."
+          : "Click a free time. Select an educator to also avoid their busy times.";
 
   return (
     <div className="space-y-2">
@@ -201,7 +232,7 @@ export function ClassSchedulePicker({
         <button
           type="button"
           onClick={handleAddSlotClick}
-          disabled={!hasEducator || isAddingSlot || !canAddMore}
+          disabled={!hasContext || isAddingSlot || !canAddMore}
           className="text-xs text-primary hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
         >
           + Add slot
@@ -233,25 +264,36 @@ export function ClassSchedulePicker({
         </div>
       )}
 
-      {!hasEducator && !isLoading ? (
+      {!hasContext && !isLoading ? (
         <div className="flex items-center justify-center border rounded-md py-8 text-sm text-muted-foreground">
-          Select an educator to view their schedule and pick a free time.
+          Select a section to view its schedule, then an educator to see their availability.
         </div>
       ) : (
-        <EducatorScheduleGrid
-          classes={gridClasses}
-          isLoading={isLoading || cfgLoading || !scheduleCfg}
-          interactive
-          showAllDays
-          pickedRanges={ranges}
-          maxPicks={isAddingSlot ? ranges.length + 1 : ranges.length}
-          draftStart={draft}
-          windowStartMin={windowStartMin}
-          windowEndMin={windowEndMin}
-          stepMin={stepMin}
-          onDraftStart={setDraft}
-          onPickRange={handlePickRange}
-        />
+        <>
+          <EducatorScheduleGrid
+            classes={gridClasses}
+            classTags={classTags}
+            isLoading={isLoading || cfgLoading || !scheduleCfg}
+            interactive
+            showAllDays
+            pickedRanges={ranges}
+            maxPicks={isAddingSlot ? ranges.length + 1 : ranges.length}
+            draftStart={draft}
+            windowStartMin={windowStartMin}
+            windowEndMin={windowEndMin}
+            stepMin={stepMin}
+            onDraftStart={setDraft}
+            onPickRange={handlePickRange}
+          />
+          <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground not-interactive">
+            {legendKeys.map((k) => (
+              <span key={k} className="inline-flex items-center gap-1">
+                <span className={`h-2.5 w-2.5 rounded-sm border ${SOURCE_STYLES[k]}`} />
+                {SOURCE_LABELS[k]}
+              </span>
+            ))}
+          </div>
+        </>
       )}
 
       {hasEducatorConflict && (
