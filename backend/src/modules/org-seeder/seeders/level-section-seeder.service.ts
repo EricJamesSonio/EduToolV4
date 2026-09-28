@@ -3,6 +3,10 @@ import { DatabaseService } from '@/core/database/database.provider';
 import { buildLevelDefs, type LevelDef } from '../data/levels.data';
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
+import {
+  restoreLevelIfArchived,
+  restoreSectionIfArchived,
+} from '@/commons/utils/seed-restore';
 
 @Injectable()
 export class LevelSectionSeederService {
@@ -126,7 +130,12 @@ export class LevelSectionSeederService {
         let levelId: string;
         if (existing) {
           levelId = existing.id;
-          ctx.result.levels.already_exists++;
+          // Re-seeding restores an archived level instead of leaving it hidden.
+          if (await restoreLevelIfArchived(this.db, existing.id)) {
+            ctx.result.levels.seeded++;
+          } else {
+            ctx.result.levels.already_exists++;
+          }
         } else {
           const rec = await this.db.level.create({
             data: {
@@ -171,7 +180,12 @@ export class LevelSectionSeederService {
           });
 
           if (existingSec) {
-            ctx.result.sections.already_exists++;
+            // Re-seeding restores an archived section instead of leaving it hidden.
+            if (await restoreSectionIfArchived(this.db, existingSec.id)) {
+              ctx.result.sections.seeded++;
+            } else {
+              ctx.result.sections.already_exists++;
+            }
           } else {
             await this.db.section.create({
               data: {
@@ -234,7 +248,12 @@ export class LevelSectionSeederService {
         let levelId: string;
         if (existing) {
           levelId = existing.id;
-          ctx.result.levels.already_exists++;
+          // Re-seeding restores an archived level instead of leaving it hidden.
+          if (await restoreLevelIfArchived(this.db, existing.id)) {
+            ctx.result.levels.seeded++;
+          } else {
+            ctx.result.levels.already_exists++;
+          }
         } else {
           const rec = await this.db.level.create({
             data: {
@@ -276,7 +295,12 @@ export class LevelSectionSeederService {
           });
 
           if (existingSec) {
-            ctx.result.sections.already_exists++;
+            // Re-seeding restores an archived section instead of leaving it hidden.
+            if (await restoreSectionIfArchived(this.db, existingSec.id)) {
+              ctx.result.sections.seeded++;
+            } else {
+              ctx.result.sections.already_exists++;
+            }
           } else {
             await this.db.section.create({
               data: {
@@ -325,7 +349,12 @@ export class LevelSectionSeederService {
       let levelId: string;
       if (existing) {
         levelId = existing.id;
-        ctx.result.levels.already_exists++;
+        // Re-seeding restores an archived level instead of leaving it hidden.
+        if (await restoreLevelIfArchived(this.db, existing.id)) {
+          ctx.result.levels.seeded++;
+        } else {
+          ctx.result.levels.already_exists++;
+        }
       } else {
         const rec = await this.db.level.create({
           data: {
@@ -364,7 +393,12 @@ export class LevelSectionSeederService {
         });
 
         if (existingSec) {
-          ctx.result.sections.already_exists++;
+          // Re-seeding restores an archived section instead of leaving it hidden.
+          if (await restoreSectionIfArchived(this.db, existingSec.id)) {
+            ctx.result.sections.seeded++;
+          } else {
+            ctx.result.sections.already_exists++;
+          }
         } else {
           await this.db.section.create({
             data: {
