@@ -64,10 +64,11 @@ const invalidate = () => {
   queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.all });
 };
 
-  const createMutation = useMutation({
-    mutationFn: (name: string) => levelApi.create({ programId, name, schoolYearId, courseId, strandId }),
-    onSuccess: invalidate,
-  });
+const createMutation = useMutation({
+  mutationFn: (count: number) =>
+    levelApi.create({ programId, count, schoolYearId, courseId, strandId }),
+  onSuccess: invalidate,
+});
 
   const generateMutation = useMutation({
     mutationFn: (count: number) => levelApi.bulkGenerate({ programId, schoolYearId, count, courseId, strandId }),
@@ -112,7 +113,7 @@ const invalidate = () => {
             <Button
               size="sm"
               className="h-8 text-xs px-3"
-              onClick={() => createMutation.mutate(`Level ${levels.length + 1}`)}
+              onClick={() => createMutation.mutate(levels.length + 1)}
               disabled={createMutation.isPending}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
