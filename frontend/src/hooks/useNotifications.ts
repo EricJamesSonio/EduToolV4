@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   notificationApi,
   type Notification as ApiNotification,
@@ -107,20 +112,31 @@ export function useNotificationSummary() {
 }
 
 /** Recent notifications; mirrored into the zustand store the bell reads. */
+/** Paginated notifications; flattened into the zustand store the bell reads. */
 export function useNotificationFeed() {
   const token = useAuthStore((s) => s.accessToken);
   const setNotifications = useNotificationStore((s) => s.setNotifications);
 
-  const query = useQuery({
+  const query = useInfiniteQuery({
     queryKey: KEYS.list,
-    queryFn: async () => (await notificationApi.getAll(undefined, 1, LIST_LIMIT)).data,
+    queryFn: ({ pageParam }) =>
+      notificationApi.getAll(undefined, pageParam, LIST_LIMIT),
+    initialPageParam: 1,
+    getNextPageParam: (last) =>
+      last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,
     enabled: !!token,
     refetchInterval: POLL_MS,
     refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
-    if (query.data) setNotifications(query.data.map(toStoreNotification));
+    if (!query.data) return;
+    // Dedupe by id: new arrivals shift page boundaries during a refetch.
+    const byId = new Map<string, Notification>();
+    for (const page of query.data.pages) {
+      for (const n of page.data) byId.set(n.id, toStoreNotification(n));
+    }
+    setNotifications([...byId.values()]);
   }, [query.data, setNotifications]);
 
   return query;
