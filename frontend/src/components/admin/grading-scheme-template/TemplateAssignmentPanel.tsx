@@ -209,7 +209,7 @@ export function TemplateAssignmentPanel({
       {
         programId: assignTarget.id,
         templateId: selectedTemplateId,
-        overwriteExisting,
+        overwriteExisting: overrideExisting,
       },
       {
         onSuccess: (res) => {
