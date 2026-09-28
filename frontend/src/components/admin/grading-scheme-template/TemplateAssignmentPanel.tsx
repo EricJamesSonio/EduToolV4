@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -97,6 +98,10 @@ export function TemplateAssignmentPanel({
   const [assignTarget, setAssignTarget] = useState<ProgramRow | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [removeTarget, setRemoveTarget] = useState<ProgramRow | null>(null);
+  // When true (default), applying overwrites every class scheme in the
+  // department. When false, only classes without any scheme are stamped —
+  // existing template assignments and educator-customized schemes are kept.
+  const [overrideExisting, setOverrideExisting] = useState(true);
 
   const [classTemplates, setClassTemplates] = useState<Record<string, string>>({});
   const [appliedClasses, setAppliedClasses] = useState<Set<string>>(new Set());
@@ -201,12 +206,29 @@ export function TemplateAssignmentPanel({
   const confirmApplyToProgram = () => {
     if (!assignTarget || !selectedTemplateId) return;
     applyToProgram.mutate(
-      { programId: assignTarget.id, templateId: selectedTemplateId },
+      {
+        programId: assignTarget.id,
+        templateId: selectedTemplateId,
+        overwriteExisting,
+      },
       {
         onSuccess: (res) => {
-          toast.success(
-            `Applied "${getTemplateName(selectedTemplateId)}" to ${res.appliedCount ?? 0} classes.`,
-          );
+          const name = getTemplateName(selectedTemplateId);
+          const applied = res.appliedCount ?? 0;
+          const skipped = res.skippedCount ?? 0;
+          if (applied === 0 && skipped === 0) {
+            toast.success(
+              `"${name}" set as default for ${assignTarget.name}. Future classes will use it automatically.`,
+            );
+          } else if (skipped > 0) {
+            toast.success(
+              `Applied "${name}" to ${applied} class${applied !== 1 ? "es" : ""} — ${skipped} kept their existing template. Set as department default for new classes.`,
+            );
+          } else {
+            toast.success(
+              `Applied "${name}" to ${applied} class${applied !== 1 ? "es" : ""}. Set as department default — new classes will use it automatically.`,
+            );
+          }
           refreshAssignments();
           setClassTemplates((prev) => {
             const next = { ...prev };
@@ -314,6 +336,7 @@ export function TemplateAssignmentPanel({
               onClick={() => {
                 setAssignTarget(row.original);
                 setSelectedTemplateId(row.original.assignedTemplateId ?? "");
+                setOverrideExisting(true);
               }}
             >
               <Check className="h-3.5 w-3.5" />
@@ -506,6 +529,7 @@ export function TemplateAssignmentPanel({
             if (!o) {
               setAssignTarget(null);
               setSelectedTemplateId("");
+              setOverrideExisting(true);
             }
           }}
         >
@@ -582,13 +606,50 @@ export function TemplateAssignmentPanel({
 
             <div className="rounded-md bg-info/10 border border-info/20 p-3">
               <p className="text-xs text-info not-interactive">
-                This will apply the template to all{" "}
-                <span className="font-medium">{assignTarget.classCount}</span> class
-                {assignTarget.classCount !== 1 ? "es" : ""} in{" "}
-                <span className="font-medium">{assignTarget.name}</span>. Existing grading
-                schemes on those classes will be overwritten.
+                {overrideExisting ? (
+                  <>
+                    This will apply the template to all{" "}
+                    <span className="font-medium">{assignTarget.classCount}</span> class
+                    {assignTarget.classCount !== 1 ? "es" : ""} in{" "}
+                    <span className="font-medium">{assignTarget.name}</span>. Existing grading
+                    schemes on those classes will be overwritten.
+                  </>
+                ) : (
+                  <>
+                    Only classes without a grading scheme will be updated
+                    {(() => {
+                      const kept = assignTarget.classes.filter((c) =>
+                        appliedClasses.has(c.id),
+                      ).length;
+                      return kept > 0
+                        ? ` — ${kept} of ${assignTarget.classCount} already have one and will be kept`
+                        : "";
+                    })()}
+                    . It also becomes the department default, so new classes use it automatically.
+                  </>
+                )}
               </p>
             </div>
+
+            <label
+              htmlFor="override-existing"
+              className="flex cursor-pointer items-start gap-2.5 rounded-md border p-3"
+            >
+              <Checkbox
+                id="override-existing"
+                checked={overrideExisting}
+                onCheckedChange={(v) => setOverrideExisting(v === true)}
+              />
+              <span className="space-y-0.5">
+                <span className="block text-xs font-medium">
+                  Override classes that already have a template
+                </span>
+                <span className="block text-[11px] text-muted-foreground not-interactive">
+                  Off = only classes without a scheme are affected; existing
+                  assignments and educator-customized schemes stay untouched.
+                </span>
+              </span>
+            </label>
 
             <DialogFooter>
               <Button
@@ -617,7 +678,7 @@ export function TemplateAssignmentPanel({
         <ConfirmDialog
           open
           title="Remove template assignment?"
-          message={`This will remove the template from all classes in "${removeTarget.name}". Educator-customized grading schemes and schemes from other templates will be kept.`}
+          message={`This will remove the template from all classes in "${removeTarget.name}" and clear its department default, so new classes stop inheriting it. Educator-customized grading schemes and schemes from other templates will be kept.`}
           confirmLabel="Yes, Remove"
           destructive
           isLoading={removeAssignment.isPending}

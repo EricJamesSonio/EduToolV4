@@ -375,6 +375,7 @@ model Program {
   studentEnrollments      StudentProgramEnrollment[]
   semesterAssignment      ProgramSemesterAssignment?
   gradingScaleAssignments GradingScaleAssignment[]
+  gradingSchemeProgramAssignments GradingSchemeProgramAssignment[]
   programCalendars        ProgramCalendar[]
   enrollmentApplications  EnrollmentApplication[]
 }
@@ -468,6 +469,7 @@ model SchoolYear {
   levels                  Level[]
   sections                Section[]
   gradingScaleAssignments GradingScaleAssignment[]
+  gradingSchemeProgramAssignments GradingSchemeProgramAssignment[]
   studentEnrollments      StudentSchoolYear[]
   semesters               Semester[]
   classes                 Class[]
@@ -930,6 +932,25 @@ model GradingSchemeTemplate {
   created_at   DateTime @default(now())
 
   components GradingSchemeTemplateComponent[]
+  programAssignments GradingSchemeProgramAssignment[]
+}
+
+model GradingSchemeProgramAssignment {
+  id             String   @id @default(uuid())
+  org_id         String
+  program_id     String
+  school_year_id String
+  template_id    String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  program     Program               @relation(fields: [program_id], references: [id], onDelete: Cascade)
+  school_year SchoolYear            @relation(fields: [school_year_id], references: [id], onDelete: Restrict)
+  template    GradingSchemeTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@unique([program_id, school_year_id])
+  @@index([org_id])
+  @@index([template_id])
 }
 
 model GradingSchemeTemplateComponent {

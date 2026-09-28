@@ -97,9 +97,30 @@ export class GradingSchemeTemplateService {
   }
 
   /**
+   * Stored department default: the template an admin assigned to the program
+   * itself (visible even with zero classes, inherited by future classes).
+   */
+  private async findStoredProgramDefault(
+    orgId: string,
+    programId: string,
+    schoolYearId?: string,
+  ) {
+    return this.db.gradingSchemeProgramAssignment.findFirst({
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+      },
+      include: { template: { select: { id: true, name: true } } },
+      orderBy: { updated_at: 'desc' },
+    });
+  }
+
+  /**
    * Resolve the grading-scheme template currently "in effect" for a program.
-   * Derived from the template_id stamped on the grading schemes of the program's
-   * classes: the template used by the most classes (ties → most recently applied).
+   * The stored department default wins when present; otherwise it is derived
+   * from the template_id stamped on the program's classes: the template used
+   * by the most classes (ties → most recently applied).
    */
   private async resolveProgramTemplate(
     orgId: string,
@@ -115,6 +136,20 @@ export class GradingSchemeTemplateService {
       orgId,
       schoolYearId,
     );
+
+    const stored = await this.findStoredProgramDefault(
+      orgId,
+      programId,
+      schoolYearId,
+    );
+    if (stored?.template) {
+      return {
+        templateId: stored.template.id,
+        templateName: stored.template.name,
+        classCount: classIds.length,
+      };
+    }
+
     if (classIds.length === 0) return null;
 
     const schemes = await this.db.gradingScheme.findMany({
@@ -263,6 +298,17 @@ export class GradingSchemeTemplateService {
     programId: string,
     schoolYearId?: string,
   ) {
+    // Clear the stored department default first so future classes stop
+    // inheriting it. Done before the early return so departments with zero
+    // classes can still be unassigned.
+    await this.db.gradingSchemeProgramAssignment.deleteMany({
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+      },
+    });
+
     const classIds = await this.gradingSchemeRepo.findClassIdsByProgram(
       programId,
       orgId,
@@ -389,7 +435,7 @@ export class GradingSchemeTemplateService {
     // Guard: template program type must match the target program type
     const program = await this.db.program.findFirst({
       where: { id: dto.programId, org_id: orgId },
-      select: { type: true },
+      select: { type: true, school_year_id: true },
     });
     if (!program) {
       throw new NotFoundException('Program not found.');
@@ -400,6 +446,25 @@ export class GradingSchemeTemplateService {
       );
     }
 
+    // Persist the department default first — this is the durable part of the
+    // assignment: it shows as "Assigned" even with zero classes and is what
+    // newly created classes inherit via autoApplyForNewClass.
+    await this.db.gradingSchemeProgramAssignment.upsert({
+      where: {
+        program_id_school_year_id: {
+          program_id: dto.programId,
+          school_year_id: program.school_year_id,
+        },
+      },
+      create: {
+        org_id: orgId,
+        program_id: dto.programId,
+        school_year_id: program.school_year_id,
+        template_id: dto.templateId,
+      },
+      update: { org_id: orgId, template_id: dto.templateId },
+    });
+
     // Get all class IDs under the program
     const classIds = await this.gradingSchemeRepo.findClassIdsByProgram(
       dto.programId,
@@ -407,12 +472,25 @@ export class GradingSchemeTemplateService {
     );
 
     if (classIds.length === 0) {
-      return { success: true, appliedCount: 0 };
+      return { success: true, appliedCount: 0, skippedCount: 0 };
     }
 
-    // Create/update grading scheme for each class
+    // overwriteExisting=false: only stamp classes that have no grading scheme
+    // at all — classes with a template (or an educator-customized scheme) keep
+    // theirs. One batched lookup, never a per-class check.
+    let targetIds = classIds;
+    if (dto.overwriteExisting === false) {
+      const withSchemes = await this.db.gradingScheme.findMany({
+        where: { org_id: orgId, class_id: { in: classIds } },
+        select: { class_id: true },
+      });
+      const hasScheme = new Set(withSchemes.map((s) => s.class_id));
+      targetIds = classIds.filter((id) => !hasScheme.has(id));
+    }
+
+    // Create/update grading scheme for each targeted class
     const results = await Promise.all(
-      classIds.map((classId) =>
+      targetIds.map((classId) =>
         this.gradingSchemeRepo.upsertForClass(
           orgId,
           classId,
@@ -429,6 +507,10 @@ export class GradingSchemeTemplateService {
       ),
     );
 
-    return { success: true, appliedCount: results.length };
+    return {
+      success: true,
+      appliedCount: results.length,
+      skippedCount: classIds.length - targetIds.length,
+    };
   }
 }
