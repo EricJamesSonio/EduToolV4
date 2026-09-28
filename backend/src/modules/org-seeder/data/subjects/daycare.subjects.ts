@@ -1,4 +1,4 @@
-import { SubjectDef, subj } from './index';
+import { subj, type SubjectDef } from './subject-def';
 
 const DAYCARE_AREAS = [
   'Language and Literacy',

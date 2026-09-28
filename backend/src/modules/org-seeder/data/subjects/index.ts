@@ -1,3 +1,4 @@
+import type { SubjectDef } from './subject-def';
 import { daycareSubjects } from './daycare.subjects';
 import { kinderSubjects } from './kinder.subjects';
 import { elementarySubjects } from './elementary.subjects';
@@ -5,38 +6,7 @@ import { jhsSubjects } from './jhs.subjects';
 import { shsSubjects } from './shs.subjects';
 import { collegeMajorSubjects, collegeMinorSubjects } from './college.subjects';
 
-export type SubjectDef = {
-  levelName: string;
-  courseCode: string | null;
-  strandName: string | null;
-  name: string;
-  yearLevel: string;
-  termLabel: string;
-  prereqNames: string[];
-  isMinor: boolean; // ← new: true = subject_type 'minor'
-};
-
-export function subj(
-  levelName: string,
-  courseCode: string | null,
-  strandName: string | null,
-  name: string,
-  yearLevel: string,
-  termLabel: string,
-  prereqNames: string[] = [],
-  isMinor = false, // ← new param, defaults to false
-): SubjectDef {
-  return {
-    levelName,
-    courseCode,
-    strandName,
-    name,
-    yearLevel,
-    termLabel,
-    prereqNames,
-    isMinor,
-  };
-}
+export * from './subject-def';
 
 /** All subjects that should be seeded as major subjects */
 export function allMajorSubjects(): SubjectDef[] {

@@ -1,4 +1,4 @@
-import { SubjectDef, subj } from './index';
+import { subj, type SubjectDef } from './subject-def';
 import { BSED_MAJORS, COLLEGE_COURSES } from '../courses.data';
 
 type CollegeSubjRaw = {
