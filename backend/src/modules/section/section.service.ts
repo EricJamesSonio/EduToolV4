@@ -20,13 +20,22 @@ export class SectionService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
+  private letterForIndex(i: number): string {
+    let n = i;
+    let s = '';
+    do {
+      s = String.fromCharCode(65 + (n % 26)) + s;
+      n = Math.floor(n / 26) - 1;
+    } while (n >= 0);
+    return s;
+  }
+
   async create(orgId: string, dto: CreateSectionDto, actorId: string) {
     const level = await this.db.level.findFirst({
       where: { id: dto.levelId, org_id: orgId },
     });
     if (!level) throw new NotFoundException('Level not found.');
 
-    // Validate course if provided
     if (dto.courseId) {
       const course = await this.db.course.findFirst({
         where: { id: dto.courseId, org_id: orgId },
@@ -34,7 +43,6 @@ export class SectionService {
       if (!course) throw new NotFoundException('Course not found.');
     }
 
-    // Validate strand if provided
     if (dto.strandId) {
       const strand = await this.db.strand.findFirst({
         where: { id: dto.strandId, org_id: orgId },
@@ -42,25 +50,19 @@ export class SectionService {
       if (!strand) throw new NotFoundException('Strand not found.');
     }
 
-    // Check for duplicate section name (case-insensitive, scoped to level + school year + course/strand)
-    const existingSection = await this.db.section.findFirst({
+    // Name is always auto-derived — the next unused letter in this exact
+    // level/course/strand/school-year scope. Ignores any name the client sent.
+    const existingCount = await this.db.section.count({
       where: {
         org_id: orgId,
-        name: {
-          equals: dto.name.trim().toLowerCase(),
-          mode: 'insensitive' as const,
-        },
-        ...(dto.levelId ? { level_id: dto.levelId } : {}),
-        ...(dto.schoolYearId ? { school_year_id: dto.schoolYearId } : {}),
-        ...(dto.courseId ? { course_id: dto.courseId } : {}),
-        ...(dto.strandId ? { strand_id: dto.strandId } : {}),
+        level_id: dto.levelId,
+        school_year_id: dto.schoolYearId,
+        course_id: dto.courseId ?? null,
+        strand_id: dto.strandId ?? null,
+        deleted_at: null,
       },
     });
-    if (existingSection) {
-      throw new ConflictException(
-        `Section name already exists in this program and level.`,
-      );
-    }
+    const name = this.letterForIndex(existingCount);
 
     const section = await this.sectionRepository.create({
       orgId,
@@ -68,7 +70,7 @@ export class SectionService {
       schoolYearId: dto.schoolYearId,
       courseId: dto.courseId,
       strandId: dto.strandId,
-      name: dto.name,
+      name,
       capacity: dto.capacity,
     });
 
@@ -79,12 +81,13 @@ export class SectionService {
         action: 'section_created',
         entityType: 'section',
         entityId: section.id,
-        metadata: { name: dto.name, capacity: dto.capacity },
+        metadata: { name, capacity: dto.capacity },
       })
       .catch(() => {});
 
     return section;
   }
+  // update/remove/findAll/findById/countStudentsInSection unchanged
 
   async findAll(orgId: string, query: QuerySectionDto) {
     const page = query.page ?? 1;
