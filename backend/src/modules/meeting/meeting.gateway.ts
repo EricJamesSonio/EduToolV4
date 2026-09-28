@@ -251,14 +251,27 @@ export class MeetingGateway
         }
       }
 
-      // Send room state to the joining client
-      client.emit('room:state', {
-        participants: room.getParticipantList(),
-        chatHistory: room.chatHistory.slice(-50),
-        currentSlide: room.currentSlide,
-        isPresenting: room.isPresenting,
-        presentationId: room.presentationId,
-      });
+// Send room state to the joining client
+const rows = await this.db.meetingChatMessage.findMany({
+  where: { meeting_id: meetingId, org_id: payload.org_id },
+  orderBy: { created_at: 'desc' },
+  take: 50,
+});
+const chatHistory: ChatMessage[] = rows.reverse().map((r) => ({
+  id: r.id,
+  senderId: r.sender_id,
+  senderName: r.sender_name,
+  message: r.message,
+  createdAt: r.created_at.toISOString(),
+}));
+
+client.emit('room:state', {
+  participants: room.getParticipantList(),
+  chatHistory,
+  currentSlide: room.currentSlide,
+  isPresenting: room.isPresenting,
+  presentationId: room.presentationId,
+});
 
       // Notify others (broadcast excludes the joiner, who already got room:state)
       client.broadcast.to(meetingId).emit('room:participant_joined', {
@@ -354,7 +367,7 @@ export class MeetingGateway
     if (room) room.chatHistory.push(msg);
 
     // Broadcast to everyone except the sender (sender uses its optimistic copy)
-    client.broadcast.to(meetingId).emit('chat:message', msg);
+   this.server.to(meetingId).emit('chat:message', msg);
   }
 
   // ── Raise hand ────────────────────────────────────────────────────────────
