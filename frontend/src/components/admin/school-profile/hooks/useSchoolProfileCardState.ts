@@ -6,6 +6,8 @@ import type { useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft"
 
 export type SchoolProfileCardMode = "view" | "edit"
 
+export type SchoolProfileSubTab = "structure" | "levels" | "subjects"
+
 /**
  * All the page-level UI state for SchoolProfileCard that isn't data-fetching:
  * view/edit mode (with its "discard unsaved changes?" gate), which
@@ -43,6 +45,15 @@ export function useSchoolProfileCardState(
   // Level-scoped accordion: single expanded course/strand and level per department.
   const [expandedCourseByDept, setExpandedCourseByDept] = useState<Record<string, string | null>>({})
   const [expandedLevelByDept, setExpandedLevelByDept] = useState<Record<string, string | null>>({})
+
+  // Scoped tab navigation: one visible department at a time + one inner
+  // sub-tab per department (structure / levels & sections / subjects).
+  const [activeDeptType, setActiveDeptType] = useState<string | null>(null)
+  const [activeSubTabByDept, setActiveSubTabByDept] = useState<Record<string, SchoolProfileSubTab>>({})
+
+  function setSubTab(deptType: string, tab: SchoolProfileSubTab): void {
+    setActiveSubTabByDept((prev) => (prev[deptType] === tab ? prev : { ...prev, [deptType]: tab }))
+  }
 
   function toggleCourse(deptType: string, courseKey: string): void {
     setExpandedCourseByDept((prev) => {
@@ -91,6 +102,20 @@ export function useSchoolProfileCardState(
     return Object.values(draft.departments).filter((d) => savedTypes.has(d.type))
   }, [readOnly, draft.departments, savedTypes])
 
+  // Keep the active department tab pointing at a visible department.
+  // New selections switch to the new dept; deselecting the active one falls
+  // back to the first remaining; otherwise the choice is sticky.
+  useEffect(() => {
+    const types = visibleDepartments.map((d) => d.type)
+    if (types.length === 0) {
+      if (activeDeptType !== null) setActiveDeptType(null)
+      return
+    }
+    if (!activeDeptType || !types.includes(activeDeptType as ProgramType)) {
+      setActiveDeptType(types[types.length - 1] ?? types[0])
+    }
+  }, [visibleDepartments, activeDeptType])
+
   // Open the first course/strand + its first level automatically so the
   // Sections & Subjects editors are visible without hunting for a pill.
   // The ref guard makes this a one-time action per department: once the user
@@ -134,7 +159,12 @@ export function useSchoolProfileCardState(
       setPendingDeselect(type)
     } else {
       draft.selectDepartment(type)
+      setActiveDeptType(type)
     }
+  }
+
+  function handleSelectDept(type: string): void {
+    setActiveDeptType(type)
   }
 
   function confirmDeselect(): void {
@@ -181,6 +211,11 @@ export function useSchoolProfileCardState(
     expandedLevelByDept,
     toggleCourse,
     toggleLevel,
+
+    activeDeptType,
+    setActiveDeptType: handleSelectDept,
+    activeSubTabByDept,
+    setSubTab,
 
     handleToggleDepartment,
   }

@@ -13,6 +13,7 @@ import { useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft"
 import { useSchoolProfileCardState } from "./hooks/useSchoolProfileCardState"
 import { DepartmentStep } from "./DepartmentStep"
 import { DepartmentSection } from "./DepartmentSection"
+import { DepartmentTabs } from "./DepartmentTabs"
 import { Card } from "./ui/ProfileCard"
 
 export function SchoolProfileCard() {
@@ -39,9 +40,14 @@ export function SchoolProfileCard() {
     toggleCourse,
     toggleLevel,
     handleToggleDepartment,
+    activeDeptType,
+    setActiveDeptType,
+    activeSubTabByDept,
+    setSubTab,
   } = useSchoolProfileCardState(draft, savedDepartments, isLoading)
 
   const hasSavedConfig = savedDepartments.length > 0
+  const activeDepartment = visibleDepartments.find((d) => d.type === activeDeptType) ?? null
 
   function handleSave(): void {
     saveMutation.mutate(
@@ -129,19 +135,29 @@ export function SchoolProfileCard() {
         </div>
       )}
 
-      {visibleDepartments.map((department) => (
+      {visibleDepartments.length > 1 && (
+        <DepartmentTabs
+          departments={visibleDepartments}
+          activeType={activeDeptType}
+          onSelect={setActiveDeptType}
+        />
+      )}
+
+      {activeDepartment && (
         <DepartmentSection
-          key={department.type}
-          department={department}
+          key={activeDepartment.type}
+          department={activeDepartment}
           readOnly={readOnly}
           saving={saveMutation.isPending}
-          expandedCourseKey={expandedCourseByDept[department.type] ?? null}
-          expandedLevelKey={expandedLevelByDept[department.type] ?? null}
-          onToggleCourse={(key) => toggleCourse(department.type, key)}
-          onToggleLevel={(key) => toggleLevel(department.type, key)}
+          expandedCourseKey={expandedCourseByDept[activeDepartment.type] ?? null}
+          expandedLevelKey={expandedLevelByDept[activeDepartment.type] ?? null}
+          onToggleCourse={(key) => toggleCourse(activeDepartment.type, key)}
+          onToggleLevel={(key) => toggleLevel(activeDepartment.type, key)}
           draft={draft}
+          subTab={activeSubTabByDept[activeDepartment.type] ?? "levels"}
+          onSubTabChange={(tab) => setSubTab(activeDepartment.type, tab)}
         />
-      ))}
+      )}
 
       {/*
         Grading scales/schemes and semester terms are global setups managed on
