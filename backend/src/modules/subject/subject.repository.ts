@@ -2,6 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class SubjectRepository {
@@ -270,18 +271,53 @@ export class SubjectRepository {
 
     // ── Pagination: build the FULL ordered/deduped id list first (cheap),
     //    then fetch the heavy include/enrich only for the current page. ──────
+    const selectedLevel = filters.levelId
+      ? await this.db.level.findFirst({
+          where: { id: filters.levelId, org_id: orgId },
+          select: { name: true, program_id: true, school_year_id: true },
+        })
+      : null;
+
+    const sharedMatchers: Prisma.SubjectWhereInput[] = [];
+    if (filters.levelId) {
+      sharedMatchers.push({
+        sharings: { some: { level_id: filters.levelId } },
+      });
+    }
+    if (selectedLevel) {
+      const sameYear: Prisma.SubjectWhereInput = {
+        program_id: selectedLevel.program_id,
+        level: {
+          school_year_id: selectedLevel.school_year_id,
+          name: { equals: selectedLevel.name, mode: 'insensitive' },
+        },
+      };
+      if (filters.courseId) {
+        sharedMatchers.push({
+          ...sameYear,
+          sharings: { some: { course_id: filters.courseId } },
+        });
+      }
+      if (filters.strandId) {
+        sharedMatchers.push({
+          ...sameYear,
+          sharings: { some: { strand_id: filters.strandId } },
+        });
+      }
+    }
+
     const [mainIds, sharedIds] = await Promise.all([
       this.db.subject.findMany({
         where: baseWhere,
         select: { id: true },
         orderBy: subjectOrderBy,
       }),
-      filters.levelId
+      sharedMatchers.length > 0
         ? this.db.subject.findMany({
             where: {
               org_id: orgId,
               subject_type: 'minor',
-              sharings: { some: { level_id: filters.levelId } },
+              OR: sharedMatchers,
               ...(filters.search
                 ? {
                     name: {
