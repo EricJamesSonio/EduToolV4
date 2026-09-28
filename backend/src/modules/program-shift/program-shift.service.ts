@@ -109,7 +109,7 @@ export class ProgramShiftService {
       if (dto.strandId && section.strand_id !== dto.strandId) {
         throw new BadRequestException('Section does not belong to specified strand.');
       }
-      const enrolled = await this.sectionService.countStudentsInSection(section.id);
+      const enrolled = await this.sectionService.countStudentsInSection(orgId, section.id);
       if (enrolled >= section.capacity) {
         throw new ConflictException(`Section "${section.name}" is full.`);
       }
