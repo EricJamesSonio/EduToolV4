@@ -18,7 +18,6 @@ import type { Class } from "@/types/admin/class.types";
 
 import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -35,7 +34,6 @@ import { toArray } from "../utils/classDetail.utils";
 interface EditClassForm {
   educatorId: string;
   sectionId: string;
-  capacity: string;
   schedules: { weekday: string; startTime: string; endTime: string }[];
 }
 
@@ -72,7 +70,6 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
     defaultValues: {
       educatorId: cls.educatorId ?? "",
       sectionId: cls.sectionId ?? "",
-      capacity: String(cls.capacity),
       schedules:
         cls.schedules?.map((s) => ({
           weekday: String(s.weekday),
@@ -82,14 +79,7 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
     },
   });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = methods;
+  const { handleSubmit, reset, setValue, watch } = methods;
 
   const selectedEducatorId = watch("educatorId");
   const selectedSectionId = watch("sectionId");
@@ -120,7 +110,6 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
       const payload: UpdateClassRequest = {
         educatorId: values.educatorId || undefined,
         sectionId: values.sectionId || undefined,
-        capacity: Number(values.capacity),
         schedules: values.schedules.map((s) => ({
           weekday: Number(s.weekday),
           startTime: s.startTime,
@@ -238,22 +227,9 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Capacity */}
-          <div className="space-y-1.5">
-            <Label>Capacity</Label>
-            <Input
-              type="number"
-              min={1}
-              {...register("capacity", {
-                required: "Capacity is required",
-                min: { value: 1, message: "At least 1" },
-              })}
-            />
-            {errors.capacity && (
-              <p className="text-xs text-destructive">{errors.capacity.message}</p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              Changing the section updates the class capacity to match it.
+            </p>
           </div>
 
           {/* Schedule — same educator + section aware grid as Create, with
