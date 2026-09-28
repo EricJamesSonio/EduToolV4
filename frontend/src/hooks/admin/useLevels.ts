@@ -65,18 +65,8 @@ export const useLevelsByYear = (
 
 export const useUpdateLevel = () => {
   return useMutationWithInvalidation(
-    ({
-      id,
-      name,
-    }: {
-      id: string;
-      name: string;
-    }) =>
-      levelApi.updateOne(
-        id,
-        name,
-      ),
-
+    ({ id, count }: { id: string; count: number }) =>
+      levelApi.updateOne(id, count),
     {
       invalidateKeys: [
         queryKeys.admin.levels.all,
