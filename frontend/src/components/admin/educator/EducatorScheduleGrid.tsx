@@ -16,6 +16,20 @@ export interface DraftCell {
   minute: number;
 }
 
+export type ScheduleSource = "section" | "educator" | "both";
+
+export const SOURCE_STYLES: Record<ScheduleSource, string> = {
+  section:  "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
+  educator: "bg-chart-4/15 border-dashed border-[var(--chart-4)]/60 text-[var(--chart-4)]",
+  both:     "bg-destructive/15 border-destructive/40 text-destructive",
+};
+
+export const SOURCE_LABELS: Record<ScheduleSource, string> = {
+  section:  "Section",
+  educator: "Educator busy",
+  both:     "Section & educator",
+};
+
 interface EducatorScheduleGridProps {
   classes: Class[];
   isLoading?: boolean;
@@ -30,6 +44,8 @@ interface EducatorScheduleGridProps {
   stepMin?: number;
   onDraftStart?: (cell: DraftCell) => void;
   onPickRange?: (range: ScheduleRange) => void;
+  /** Per-class origin, used to tint/label blocks. Omit for the plain per-class colors. */
+  classTags?: Record<string, ScheduleSource>;
 }
 
 interface ScheduleBlock {
@@ -40,6 +56,7 @@ interface ScheduleBlock {
   endMin: number;
   label: string;
   sublabel: string;
+  tag?: ScheduleSource;
 }
 
 interface PositionedBlock extends ScheduleBlock {
@@ -143,6 +160,7 @@ export function EducatorScheduleGrid({
   stepMin = 30,
   onDraftStart,
   onPickRange,
+  classTags,
 }: EducatorScheduleGridProps) {
   const [hover, setHover] = useState<DraftCell | null>(null);
 
@@ -158,11 +176,12 @@ export function EducatorScheduleGrid({
           endMin: toMinutes(s.endTime),
           label: cls.subjectName ?? cls.title ?? "Class",
           sublabel: cls.sectionName ?? "",
+          tag: classTags?.[cls.id],
         });
       }
     }
     return result;
-  }, [classes]);
+  }, [classes, classTags]);
 
   const days = useMemo(() => {
     if (interactive && showAllDays) return DAY_ORDER;
@@ -394,7 +413,10 @@ export function EducatorScheduleGrid({
             return (
               <div
                 key={b.key}
-                className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${colorForClass(b.classId)}`}
+                title={`${b.label}${b.sublabel ? ` · ${b.sublabel}` : ""}${b.tag ? ` — ${SOURCE_LABELS[b.tag]}` : ""}`}
+                className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${
+                  b.tag ? SOURCE_STYLES[b.tag] : colorForClass(b.classId)
+                }`}
                 style={{
                   gridRow: `${rowStart} / span ${rowSpan}`,
                   gridColumn: startCol + b.col,
@@ -411,6 +433,11 @@ export function EducatorScheduleGrid({
                 <p className="text-[9px] opacity-70 leading-tight not-interactive">
                   {toLabel(b.startMin)}–{toLabel(b.endMin)}
                 </p>
+                {b.tag && (
+                  <p className="text-[9px] font-medium opacity-80 leading-tight truncate not-interactive">
+                    {SOURCE_LABELS[b.tag]}
+                  </p>
+                )}
               </div>
             );
           });
