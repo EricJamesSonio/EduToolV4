@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import {
+  ProgramEnrollmentStatus,
+  SchoolYearEnrollmentStatus,
+} from '@prisma/client';
 
 export interface UpdateProfileData {
   fullName?: string;
@@ -11,25 +15,23 @@ export interface UpdateProfileData {
 export class ProfileRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async findCurrentProgramEnrollments(accountId: string, orgId: string) {
+async findCurrentProgramEnrollments(accountId: string) {
   return this.db.studentProgramEnrollment.findMany({
     where: {
-      org_id: orgId,
-      status: 'active',
+      status: ProgramEnrollmentStatus.active,
       studentSchoolYear: {
-        student_id: accountId, // ASSUMPTION: student_id == account.id
-        org_id: orgId,
-        status: 'active',
+        student_id: accountId,
+        status: SchoolYearEnrollmentStatus.active,
       },
     },
     include: {
-      program: true,
-      level: true,
-      course: true,
-      strand: true,
-      section: true,
+      program: { select: { type: true } },
+      level: { select: { name: true } },
+      course: { select: { code: true, name: true } },
+      strand: { select: { name: true } },
+      section: { select: { name: true } },
     },
-    orderBy: { created_at: 'desc' }, // ASSUMPTION: field exists
+    orderBy: { enrolled_at: 'desc' },
   });
 }
   async updatePersonalEmail(accountId: string, personalEmail: string | null) {

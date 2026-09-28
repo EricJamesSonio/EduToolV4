@@ -38,34 +38,38 @@ export class ProfileService {
 
     return this.toProfileResponse(account);
   }
-async getCurrentEnrollment(accountId: string, orgId: string | null) {
-  if (!orgId) return { label: null };
-  const rows = await this.profileRepository.findCurrentProgramEnrollments(
-    accountId,
-    orgId,
-  );
-  if (rows.length === 0) return { label: null };
+async getCurrentEnrollment(accountId: string) {
+  const rows =
+    await this.profileRepository.findCurrentProgramEnrollments(accountId);
 
-  const labels = rows.map((pe) => {
-    const type = pe.program?.type as string | undefined; // ASSUMPTION
-    const section = pe.section?.name;
-    const levelName = pe.level?.name;
+  const labels = rows
+    .map((pe) => {
+      const section = pe.section?.name;
+      const levelName = pe.level?.name;
 
-    if (type === 'college') {
-      const course = pe.course?.code ?? pe.course?.name;
-      const year = levelName ? extractLevelNumber('college', levelName) : null;
-      return [course, [year, section].filter(Boolean).join(' ')]
-        .filter(Boolean)
-        .join(' - ');
-    }
-    if (type === 'shs') {
-      const strand = pe.strand?.code ?? pe.strand?.name;
-      return [strand, levelName, section].filter(Boolean).join(' - ');
-    }
-    return [levelName, section].filter(Boolean).join(' - ');
-  });
+      switch (pe.program.type) {
+        case 'college': {
+          // "BSCS - 1 A"
+          const course = pe.course?.code ?? pe.course?.name;
+          const year = levelName
+            ? String(extractLevelNumber('college', levelName))
+            : undefined;
+          const yearSection = [year, section].filter(Boolean).join(' ');
+          return [course, yearSection].filter(Boolean).join(' - ');
+        }
+        case 'shs':
+          // "STEM - Grade 11 - A"
+          return [pe.strand?.name, levelName, section]
+            .filter(Boolean)
+            .join(' - ');
+        default:
+          // "Grade 7 - A"
+          return [levelName, section].filter(Boolean).join(' - ');
+      }
+    })
+    .filter(Boolean);
 
-  return { label: labels.filter(Boolean).join(' · ') || null };
+  return { label: labels.length ? labels.join(' · ') : null };
 }
 
   async updatePersonalEmail(accountId: string, dto: UpdatePersonalEmailDto) {
