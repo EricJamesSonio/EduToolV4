@@ -152,7 +152,7 @@ export const useEnrollInProgram = (
   );
 };
 
-// Update program enrollment
+// Update program enrollment — also used to assign / move / remove sections.
 
 export const useUpdateProgramEnrollment = (
   schoolYearId: string,
@@ -174,6 +174,10 @@ export const useUpdateProgramEnrollment = (
     {
       invalidateKeys: [
         queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+        // Section detail tabs and the sections table read through the section
+        // query root; without this a section reassignment leaves the Students
+        // tab and the occupancy counts stale until a full reload.
+        queryKeys.admin.sections.all,
       ],
     },
   );
@@ -194,6 +198,10 @@ export const useRemoveProgramEnrollment = (
     {
       invalidateKeys: [
         queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+        // Section detail tabs and the sections table read through the section
+        // query root; without this a program-enrollment removal leaves stale
+        // section occupancy/students behind.
+        queryKeys.admin.sections.all,
       ],
     },
   );

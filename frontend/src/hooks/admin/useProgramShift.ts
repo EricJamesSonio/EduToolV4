@@ -9,6 +9,9 @@ export const useProgramShift = (schoolYearId: string, studentSchoolYearId: strin
       invalidateKeys: [
         queryKeys.admin.students.detail(studentSchoolYearId),
         queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+        // Program shifts can move a student between sections; section-scoped
+        // caches (detail Students tabs, sections table) must refresh too.
+        queryKeys.admin.sections.all,
       ],
     },
   );
