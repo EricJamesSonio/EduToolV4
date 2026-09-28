@@ -396,6 +396,9 @@ model Course {
   sections               Section[]
   levels                 Level[]
   enrollmentApplications EnrollmentApplication[]
+
+  deleted_at DateTime?
+  @@index([org_id, school_year_id, deleted_at])
 }
 
 model Strand {
@@ -413,6 +416,9 @@ model Strand {
   sections               Section[]
   levels                 Level[]
   enrollmentApplications EnrollmentApplication[]
+
+  deleted_at DateTime?
+  @@index([org_id, school_year_id, deleted_at])
 }
 
 model Level {
@@ -426,13 +432,16 @@ model Level {
 
   schoolYear             SchoolYear                 @relation(fields: [school_year_id], references: [id])
   program                Program                    @relation(fields: [program_id], references: [id])
-  course                 Course?                    @relation(fields: [course_id], references: [id])
-  strand                 Strand?                    @relation(fields: [strand_id], references: [id])
+  course                 Course?                    @relation(fields: [course_id], references: [id], onDelete: Restrict)
+  strand                 Strand?                    @relation(fields: [strand_id], references: [id], onDelete: Restrict)
   sections               Section[]
   sharings               SubjectSharing[]
   studentEnrollments     StudentProgramEnrollment[]
   subjects               Subject[]
   enrollmentApplications EnrollmentApplication[]
+
+  deleted_at DateTime?
+  @@index([org_id, school_year_id, deleted_at])
 }
 
 model Section {
@@ -448,8 +457,8 @@ model Section {
   deleted_at     DateTime?
 
   level                  Level                      @relation(fields: [level_id], references: [id])
-  course                 Course?                    @relation(fields: [course_id], references: [id])
-  strand                 Strand?                    @relation(fields: [strand_id], references: [id])
+  course                 Course?                    @relation(fields: [course_id], references: [id], onDelete: Restrict)
+  strand                 Strand?                    @relation(fields: [strand_id], references: [id], onDelete: Restrict)
   schoolYear             SchoolYear                 @relation(fields: [school_year_id], references: [id])
   studentEnrollments     StudentProgramEnrollment[]
   enrollmentApplications EnrollmentApplication[]
