@@ -12,18 +12,29 @@ describe('StrandService', () => {
       findAll: jest.fn(),
       findOne: jest.fn(),
       existsInOrg: jest.fn(),
+      findByIdIncludingArchived: jest.fn(),
+      programExistsInOrg: jest.fn(),
       update: jest.fn(),
-      delete: jest.fn(),
+      remove: jest.fn(),
     };
     service = new StrandService(repo);
     jest.clearAllMocks();
   });
 
   it('create maps', async () => {
+    repo.programExistsInOrg.mockResolvedValue(true);
     repo.create.mockResolvedValue({ id: 's-1', org_id: orgId, program_id: 'prog-1', name: 'STEM' });
     const res = await service.create(orgId, { programId: 'prog-1', name: 'STEM', schoolYearId: 'sy-1' } as any);
     expect(repo.create).toHaveBeenCalled();
     expect(res.name).toBe('STEM');
+  });
+
+  it('create throws NotFound when the program is not in the org', async () => {
+    repo.programExistsInOrg.mockResolvedValue(false);
+    await expect(
+      service.create(orgId, { programId: 'nope', name: 'STEM', schoolYearId: 'sy-1' } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.create).not.toHaveBeenCalled();
   });
 
   it('findAll returns [] when no schoolYearId', async () => {
@@ -60,14 +71,29 @@ describe('StrandService', () => {
   });
 
   it('remove throws NotFound', async () => {
-    repo.existsInOrg.mockResolvedValue(false);
+    repo.findByIdIncludingArchived.mockResolvedValue(null);
     await expect(service.remove('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.remove).not.toHaveBeenCalled();
   });
 
-  it('remove succeeds', async () => {
-    repo.existsInOrg.mockResolvedValue(true);
-    repo.delete.mockResolvedValue({});
-    expect(await service.remove('s-1', orgId)).toEqual({ deleted: true });
+  it('remove hard-deletes an empty strand and reports deleted', async () => {
+    repo.findByIdIncludingArchived.mockResolvedValue({ id: 's-1', deleted_at: null });
+    repo.remove.mockResolvedValue('deleted');
+    expect(await service.remove('s-1', orgId)).toBe('deleted');
+    expect(repo.remove).toHaveBeenCalledWith('s-1', orgId);
+  });
+
+  it('remove archives a strand that has data and reports archived', async () => {
+    repo.findByIdIncludingArchived.mockResolvedValue({ id: 's-1', deleted_at: null });
+    repo.remove.mockResolvedValue('archived');
+    expect(await service.remove('s-1', orgId)).toBe('archived');
+    expect(repo.remove).toHaveBeenCalledWith('s-1', orgId);
+  });
+
+  it('remove is idempotent on an already-archived strand', async () => {
+    repo.findByIdIncludingArchived.mockResolvedValue({ id: 's-1', deleted_at: new Date() });
+    expect(await service.remove('s-1', orgId)).toBe('archived');
+    expect(repo.remove).not.toHaveBeenCalled();
   });
 
   it('maps subjects undefined when not array', async () => {
