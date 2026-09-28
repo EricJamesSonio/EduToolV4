@@ -1,14 +1,14 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { Trash2 } from "lucide-react";
-import { useMemo } from "react";
 import { useOrgScheduleConfig } from "@/hooks/admin/useOrgScheduleConfig";
-import { generateSlots, formatHourLabel, toMinutes } from "@/utils/schedule-slots.utils";
+import { useClassScheduleContext } from "@/hooks/admin/useClassScheduleContext";
+import { toMinutes } from "@/utils/schedule-slots.utils";
 
 import { classApi } from "@/api/admin/class.api";
 import type { UpdateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
@@ -28,7 +28,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { WEEKDAY_LABELS, toArray } from "../utils/classDetail.utils";
+import { ScheduleSlotFields } from "../ScheduleSlotFields";
+import type { ScheduleConflictState } from "../ClassSchedulePicker";
+import { toArray } from "../utils/classDetail.utils";
 
 interface EditClassForm {
   educatorId: string;
@@ -44,8 +46,7 @@ interface EditClassDialogProps {
   schoolYearId: string;
 }
 
-const withCurrent = (opts: string[], v?: string): string[] =>
-  v && !opts.includes(v) ? [v, ...opts] : opts;
+const NO_CONFLICTS: ScheduleConflictState = { educator: false, section: false };
 
 export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassDialogProps): React.JSX.Element {
   const { data: educatorsRaw } = useAsyncQuery(
@@ -61,29 +62,13 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
   );
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
+  // Safety-net bounds check on submit — ClassSchedulePicker already restricts
+  // clickable cells to this window, but this guards against stale state.
   const { data: scheduleCfg } = useOrgScheduleConfig();
   const winStart = scheduleCfg?.startTime ?? "07:00";
   const winEnd = scheduleCfg?.endTime ?? "17:00";
-  const slotMin = scheduleCfg?.slotDuration ?? 30;
 
-  const startOptions = useMemo(
-    () => generateSlots(winStart, winEnd, slotMin),
-    [winStart, winEnd, slotMin],
-  );
-  const endOptions = useMemo(
-    () => [...startOptions.slice(1), winEnd],
-    [startOptions, winEnd],
-  );
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    control,
-    formState: { errors },
-  } = useForm<EditClassForm>({
+  const methods = useForm<EditClassForm>({
     defaultValues: {
       educatorId: cls.educatorId ?? "",
       sectionId: cls.sectionId ?? "",
@@ -93,14 +78,42 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
           weekday: String(s.weekday),
           startTime: s.startTime,
           endTime: s.endTime,
-        })) ?? [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+        })) ?? [],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "schedules" });
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = methods;
 
   const selectedEducatorId = watch("educatorId");
   const selectedSectionId = watch("sectionId");
+
+  // Same shared fetch CreateClassDialog uses — the educator's other classes
+  // AND this section's (e.g. "BSCS 1-A") other classes, this school year.
+  // This class's own current slots are excluded from both so they don't
+  // register as conflicts with themselves.
+  const { educatorClasses, sectionClasses, isLoading: scheduleContextLoading } = useClassScheduleContext({
+    schoolYearId,
+    educatorId: selectedEducatorId,
+    sectionId: selectedSectionId,
+    excludeClassId: cls.id,
+    enabled: open,
+  });
+
+  // ── Schedule conflict gating ────────────────────────────────────────────────
+  const [scheduleConflicts, setScheduleConflicts] = useState<ScheduleConflictState>(NO_CONFLICTS);
+  const handleScheduleConflictsChange = useCallback((conflicts: ScheduleConflictState) => {
+    setScheduleConflicts(conflicts);
+  }, []);
+  useEffect(() => {
+    if (open) setScheduleConflicts(NO_CONFLICTS);
+  }, [open]);
 
   const mutation = useMutationWithInvalidation(
     (values: EditClassForm) => {
@@ -132,6 +145,10 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
   );
 
   const handleValid = (v: EditClassForm): void => {
+    if (v.schedules.length === 0) {
+      toast.error("Add at least one schedule slot.");
+      return;
+    }
     const bad = v.schedules.find(
       (s) =>
         toMinutes(s.startTime) >= toMinutes(s.endTime) ||
@@ -150,9 +167,14 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
     onClose();
   };
 
+  const isSubmitDisabled =
+    mutation.isPending ||
+    scheduleConflicts.educator ||
+    scheduleConflicts.section;
+
   return (
     <Modal open={open} onClose={handleClose} title="Edit Class" size="lg">
-
+      <FormProvider {...methods}>
         <form
           onSubmit={handleSubmit(handleValid)}
           className="space-y-4 mt-1"
@@ -234,97 +256,14 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
             )}
           </div>
 
-          {/* Schedules */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Schedule</Label>
-              <button
-                type="button"
-                onClick={() =>
-                  append({
-                    weekday: "1",
-                    startTime: startOptions[0] ?? "07:00",
-                    endTime: startOptions[1] ?? "08:00",
-                  })
-                }
-                className="text-xs text-primary hover:underline"
-              >
-                + Add slot
-              </button>
-            </div>
-            {fields.map((field, index) => (
-              <div
-                key={field.id}
-                className="flex items-center gap-2 rounded-md border bg-muted/30 p-2"
-              >
-                <Select
-                  value={watch(`schedules.${index}.weekday`)}
-                  onValueChange={(v) =>
-                    setValue(`schedules.${index}.weekday`, v ?? "")
-                  }
-                >
-                  <SelectTrigger className="w-24 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WEEKDAY_LABELS.map((day, i) => (
-                      <SelectItem key={i} value={String(i)}>
-                        {day}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={watch(`schedules.${index}.startTime`)}
-                  onValueChange={(v) =>
-                    setValue(`schedules.${index}.startTime`, v ?? "", { shouldDirty: true })
-                  }
-                >
-                  <SelectTrigger className="w-28 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {withCurrent(startOptions, watch(`schedules.${index}.startTime`)).map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {formatHourLabel(t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <span className="text-xs text-muted-foreground">–</span>
-
-                <Select
-                  value={watch(`schedules.${index}.endTime`)}
-                  onValueChange={(v) =>
-                    setValue(`schedules.${index}.endTime`, v ?? "", { shouldDirty: true })
-                  }
-                >
-                  <SelectTrigger className="w-28 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {withCurrent(endOptions, watch(`schedules.${index}.endTime`)).map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {formatHourLabel(t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {fields.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* Schedule — same educator + section aware grid as Create, with
+              "+ Add slot" to grow past the class's current slot count. */}
+          <ScheduleSlotFields
+            educatorClasses={educatorClasses}
+            sectionClasses={sectionClasses}
+            isLoading={scheduleContextLoading}
+            onConflictsChange={handleScheduleConflictsChange}
+          />
 
           <div className="flex justify-end gap-2 pt-1">
             <Button
@@ -335,11 +274,12 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={isSubmitDisabled}>
               {mutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>
+      </FormProvider>
     </Modal>
   );
 }
