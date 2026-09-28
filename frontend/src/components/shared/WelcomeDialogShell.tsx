@@ -22,15 +22,7 @@ export function WelcomeDialogShell({
         className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[640px]"
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:flex-row sm:overflow-hidden">
-          <div className="relative h-44 shrink-0 bg-primary/5 sm:h-auto sm:w-[40%]">
-            <img
-              src="/robot.png"
-              alt=""
-              fetchPriority="high"
-              className="absolute inset-0 h-full w-full object-contain p-2 sm:p-3"
-            />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-popover/50 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-popover/60" />
-          </div>
+          <RobotPanel />
 
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-4 p-5 sm:gap-5 sm:overflow-y-auto sm:p-8">
             {children}
@@ -38,6 +30,21 @@ export function WelcomeDialogShell({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RobotPanel() {
+  return (
+    <div className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-blue-50 dark:bg-blue-950/30 sm:h-auto sm:w-[40%]">
+      <div className="relative aspect-[0.68] h-full overflow-hidden [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_100%)] sm:absolute sm:inset-0 sm:aspect-auto sm:h-auto sm:w-full">
+        <img
+          src="/robot.png"
+          alt=""
+          fetchPriority="high"
+          className="absolute top-0 left-0 h-full w-auto max-w-none sm:top-1/2 sm:h-auto sm:w-[225%] sm:-translate-y-1/2"
+        />
+      </div>
+    </div>
   );
 }
 
