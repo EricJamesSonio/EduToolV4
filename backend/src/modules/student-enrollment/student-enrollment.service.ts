@@ -329,6 +329,7 @@ export class StudentEnrollmentService {
         }
 
         const enrolled = await this.sectionService.countStudentsInSection(
+          orgId,
           section.id,
         );
         if (enrolled >= section.capacity) {
