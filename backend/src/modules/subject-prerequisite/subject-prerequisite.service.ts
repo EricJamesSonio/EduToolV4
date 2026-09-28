@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common'; // ✅ added semicolon
+import { violatesLowerLevelRule } from './subject-prerequisite.utils';
 
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradingScaleRepository } from '../grading-scale/grading-scale.repository';
@@ -54,6 +55,9 @@ export class SubjectPrerequisiteService {
         'Immediate cycle detected: the prerequisite already requires this subject',
       );
     }
+        await this.assertPrerequisitesAreLowerLevel(orgId, dto.subject_id, [
+      dto.prerequisite_id,
+    ]);
 
     return this.prereqRepository.create(orgId, dto);
   }
@@ -78,12 +82,60 @@ export class SubjectPrerequisiteService {
         );
       }
     }
+        const existingLinks = await this.prereqRepository.findBySubject(
+      dto.subject_id,
+      orgId,
+    );
+    const existingIds = new Set(existingLinks.map((l) => l.prerequisite_id));
+    await this.assertPrerequisitesAreLowerLevel(
+      orgId,
+      dto.subject_id,
+      dto.prerequisite_ids.filter((id) => !existingIds.has(id)),
+    );
 
     return this.prereqRepository.bulkCreate(
       orgId,
       dto.subject_id,
       dto.prerequisite_ids,
     );
+  }
+    /**
+   * A prerequisite must come from a strictly LOWER year level than the
+   * subject. Same-year and higher-year subjects are rejected.
+   */
+  private async assertPrerequisitesAreLowerLevel(
+    orgId: string,
+    subjectId: string,
+    prerequisiteIds: string[],
+  ) {
+    if (prerequisiteIds.length === 0) return;
+
+    const rows = await this.prereqRepository.findSubjectsForLevelCheck(orgId, [
+      subjectId,
+      ...prerequisiteIds,
+    ]);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+
+    const subject = byId.get(subjectId);
+    if (!subject) throw new NotFoundException('Subject not found');
+
+    const info = (r: (typeof rows)[number]) => ({
+      level: r.level?.name ?? r.year_level ?? null,
+      program: r.program?.type ?? null,
+    });
+
+    for (const id of prerequisiteIds) {
+      const prereq = byId.get(id);
+      if (!prereq) throw new NotFoundException('Prerequisite subject not found');
+
+      if (violatesLowerLevelRule(info(prereq), info(subject))) {
+        throw new BadRequestException(
+          `"${prereq.name}" (${info(prereq).level}) can't be a prerequisite of ` +
+            `"${subject.name}" (${info(subject).level}). ` +
+            `A prerequisite must be from a lower year level.`,
+        );
+      }
+    }
   }
 
   async findBySubject(subject_id: string, org_id: string) {
