@@ -1,6 +1,11 @@
 # TICK-INFRA-014 - Unified border-radius token system (Relief-ED)
 
-Status: in-progress
+Status: ready-for-review
+Reviewed: 2026-09-28
+Branch head: e451b312 (5 commits, phases 0-6)
+Tests: tsc 6 pre-existing errors (zero delta vs baseline), eslint 0 errors
+  (1 pre-existing warning), jest 102/102, lint:radius clean, next build
+  compiles CSS (type-check gate red at baseline too: semester.api.ts)
 Priority: high
 Created: 2026-09-28
 Created by: agent
@@ -40,8 +45,9 @@ Retuning the look requires hunting down hundreds of usages.
 ## Acceptance Criteria
 
 - [x] Phases 0-5 committed (5 commits); tsc/eslint/jest match baseline
-- [ ] Authenticated before/after screenshots reviewed; regressions fixed
-- [ ] `lint:radius`, eslint, jest green on final tree
+- [x] Authenticated before/after screenshots reviewed; zero radius
+  regressions (see handoffs/TICK-INFRA-014.md for the full matrix)
+- [x] `lint:radius`, eslint, jest green on final tree
 
 ## Confidence
 
