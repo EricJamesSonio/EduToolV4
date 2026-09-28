@@ -21,17 +21,40 @@ import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
 import { orgScheduleConfigApi } from "@/api/admin/org-schedule-config.api";
 
-interface ClassSchedulePickerProps {
-  educatorClasses: Class[] | undefined;
-  isLoading?: boolean;
-  onConflictsChange?: (hasConflict: boolean) => void;
+export interface ScheduleConflictState {
+  /** A picked slot overlaps one of the educator's other classes. */
+  educator: boolean;
+  /** A picked slot overlaps another class already scheduled for this section. */
+  section: boolean;
 }
 
-const MAX_SLOTS = 2;
+interface ClassSchedulePickerProps {
+  /** The selected educator's other classes this school year (drives one of the two conflict checks + grid blocks). */
+  educatorClasses: Class[] | undefined;
+  /** The selected section's other classes this school year (drives the other conflict check + grid blocks). Section is optional on a class, so this may be undefined/empty. */
+  sectionClasses?: Class[] | undefined;
+  isLoading?: boolean;
+  /** Caps the number of slots. Omit for unlimited — grow with "+ Add slot". */
+  maxSlots?: number;
+  /** Fired whenever the picked slots' conflict status changes, split by source. */
+  onConflictsChange?: (conflicts: ScheduleConflictState) => void;
+}
+
+function toTaken(classes: Class[] | undefined): SlotInput[] {
+  const list: SlotInput[] = [];
+  for (const cls of classes ?? []) {
+    for (const s of cls.schedules ?? []) {
+      list.push({ weekday: s.weekday, startTime: s.startTime, endTime: s.endTime });
+    }
+  }
+  return list;
+}
 
 export function ClassSchedulePicker({
   educatorClasses,
+  sectionClasses,
   isLoading,
+  maxSlots,
   onConflictsChange,
 }: ClassSchedulePickerProps) {
   const { getValues, setValue } = useFormContext<CreateClassForm>();
@@ -47,34 +70,34 @@ export function ClassSchedulePicker({
   const stepMin = scheduleCfg?.slotDuration ?? 30;
 
   const initialSchedules = getValues("schedules") ?? [];
-  const initialCount = Math.min(MAX_SLOTS, Math.max(1, initialSchedules.length || 1));
 
-  const [slotCount, setSlotCount] = useState<number>(initialCount);
-  const [ranges, setRanges] = useState<(ScheduleRange | null)[]>(() => {
-    const next: (ScheduleRange | null)[] = new Array(initialCount).fill(null);
-    initialSchedules.slice(0, initialCount).forEach((s, i) => {
-      if (s?.weekday && s?.startTime && s?.endTime) {
-        next[i] = {
-          weekday: Number(s.weekday),
-          startMin: timeToMinutes(s.startTime),
-          endMin: timeToMinutes(s.endTime),
-        };
-      }
-    });
-    return next;
-  });
+  const [ranges, setRanges] = useState<ScheduleRange[]>(() =>
+    initialSchedules
+      .filter((s) => s?.weekday && s?.startTime && s?.endTime)
+      .map((s) => ({
+        weekday: Number(s.weekday),
+        startMin: timeToMinutes(s.startTime),
+        endMin: timeToMinutes(s.endTime),
+      })),
+  );
+
+  // Whether the grid currently accepts one more click-to-place slot. Starts
+  // true only when there's nothing picked yet, so a brand-new class can be
+  // scheduled immediately without an extra click. Any further slot needs an
+  // explicit "+ Add slot" press, and existing slots are edited by removing
+  // (✕) and re-adding rather than dragging in place.
+  const [isAddingSlot, setIsAddingSlot] = useState<boolean>(
+    () => initialSchedules.length === 0,
+  );
   const [draft, setDraft] = useState<DraftCell | null>(null);
 
-  const filled = useMemo(
-    () => ranges.filter((r): r is ScheduleRange => r !== null),
-    [ranges],
-  );
-  const allFilled = filled.length >= slotCount;
   const hasEducator = educatorClasses !== undefined;
+  const atCap = maxSlots != null && ranges.length >= maxSlots;
+  const canAddMore = !atCap;
 
   useEffect(() => {
     const now = getValues("schedules") ?? [];
-    const next = filled.map((r) => ({
+    const next = ranges.map((r) => ({
       weekday: String(r.weekday),
       startTime: minutesToTime(r.startMin),
       endTime: minutesToTime(r.endMin),
@@ -84,107 +107,111 @@ export function ClassSchedulePicker({
     )) {
       setValue("schedules", next, { shouldDirty: true });
     }
-  }, [filled, setValue, getValues]);
+  }, [ranges, setValue, getValues]);
 
-  const takenSlots = useMemo<SlotInput[]>(() => {
-    const list: SlotInput[] = [];
-    for (const cls of educatorClasses ?? []) {
-      for (const s of cls.schedules ?? []) {
-        list.push({ weekday: s.weekday, startTime: s.startTime, endTime: s.endTime });
-      }
-    }
-    return list;
-  }, [educatorClasses]);
+  const educatorTaken = useMemo(() => toTaken(educatorClasses), [educatorClasses]);
+  const sectionTaken = useMemo(() => toTaken(sectionClasses), [sectionClasses]);
 
-  const hasConflicts = useMemo(
-    () =>
-      filled.some((r) =>
-        takenSlots.some((t) =>
-          slotsOverlap(
-            { weekday: r.weekday, startTime: minutesToTime(r.startMin), endTime: minutesToTime(r.endMin) },
-            t,
-          ),
-        ),
-      ),
-    [filled, takenSlots],
-  );
+  // Merge both sources for the visual grid — every block contending for
+  // either the educator's week or the section's week shows up in one place.
+  // Each block's own subject/section sublabel (from EducatorScheduleGrid)
+  // already distinguishes "this is the educator's other class" from "this is
+  // the section's other class" without needing extra color-coding.
+  const gridClasses = useMemo(() => {
+    const map = new Map<string, Class>();
+    for (const cls of educatorClasses ?? []) map.set(cls.id, cls);
+    for (const cls of sectionClasses ?? []) map.set(cls.id, cls);
+    return Array.from(map.values());
+  }, [educatorClasses, sectionClasses]);
 
   const outOfWindow = useMemo(() => {
     if (windowStartMin === undefined || windowEndMin === undefined) return false;
-    return filled.some(
+    return ranges.some(
       (r) =>
         r.startMin < windowStartMin ||
         r.endMin > windowEndMin ||
         (r.startMin - windowStartMin) % stepMin !== 0 ||
         (r.endMin - windowStartMin) % stepMin !== 0,
     );
-  }, [filled, windowStartMin, windowEndMin, stepMin]);
+  }, [ranges, windowStartMin, windowEndMin, stepMin]);
+
+  const hasEducatorConflict = useMemo(
+    () =>
+      ranges.some((r) =>
+        educatorTaken.some((t) =>
+          slotsOverlap(
+            { weekday: r.weekday, startTime: minutesToTime(r.startMin), endTime: minutesToTime(r.endMin) },
+            t,
+          ),
+        ),
+      ),
+    [ranges, educatorTaken],
+  );
+
+  const hasSectionConflict = useMemo(
+    () =>
+      ranges.some((r) =>
+        sectionTaken.some((t) =>
+          slotsOverlap(
+            { weekday: r.weekday, startTime: minutesToTime(r.startMin), endTime: minutesToTime(r.endMin) },
+            t,
+          ),
+        ),
+      ),
+    [ranges, sectionTaken],
+  );
 
   useEffect(() => {
-    onConflictsChange?.(hasConflicts || outOfWindow);
-  }, [hasConflicts, outOfWindow, onConflictsChange]);
+    onConflictsChange?.({
+      educator: hasEducatorConflict || outOfWindow,
+      section: hasSectionConflict || outOfWindow,
+    });
+  }, [hasEducatorConflict, hasSectionConflict, outOfWindow, onConflictsChange]);
 
   const handlePickRange = (range: ScheduleRange): void => {
-    setRanges((prev) => {
-      const idx = prev.findIndex((r) => r === null);
-      if (idx === -1) return prev;
-      const next = [...prev];
-      next[idx] = range;
-      return next;
-    });
+    setRanges((prev) => [...prev, range]);
+    setDraft(null);
+    setIsAddingSlot(false);
+  };
+
+  const handleRemoveSlot = (index: number): void => {
+    setRanges((prev) => prev.filter((_, i) => i !== index));
     setDraft(null);
   };
 
-  const handleClearSlot = (index: number): void => {
-    setRanges((prev) => prev.map((r, i) => (i === index ? null : r)));
-    setDraft(null);
-  };
-
-  const handleSlotCountChange = (count: number): void => {
-    setSlotCount(count);
-    setRanges((prev) => {
-      const next = prev.slice(0, count);
-      while (next.length < count) next.push(null);
-      return next;
-    });
+  const handleAddSlotClick = (): void => {
+    if (!canAddMore) return;
+    setIsAddingSlot(true);
     setDraft(null);
   };
 
   const hint = !hasEducator
     ? "Select an educator first."
-    : allFilled
-      ? "All slots set. Create the class."
+    : !isAddingSlot
+      ? canAddMore
+        ? 'Click "+ Add slot" to schedule a time.'
+        : `Maximum of ${maxSlots} slot${maxSlots === 1 ? "" : "s"} reached.`
       : draft
-        ? `Click a free end time for slot ${filled.length + 1}.`
-        : filled.length === 0
-          ? "Click a free day & time for the start, then click the end time."
-          : `Slot ${filled.length + 1}: click a free day & time for the start, then the end.`;
+        ? "Click a free end time to finish this slot."
+        : "Click a free day & time for the start.";
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground not-interactive">Slots:</span>
-          {[1, 2].map((count) => (
-            <button
-              key={count}
-              type="button"
-              aria-pressed={slotCount === count}
-              onClick={() => handleSlotCountChange(count)}
-              className={slotCount === count
-                ? "h-7 min-w-7 px-2 text-xs font-medium rounded-md bg-primary text-primary-foreground"
-                : "h-7 min-w-7 px-2 text-xs rounded-md border border-border text-muted-foreground hover:bg-muted"}
-            >
-              {count}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={handleAddSlotClick}
+          disabled={!hasEducator || isAddingSlot || !canAddMore}
+          className="text-xs text-primary hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+        >
+          + Add slot
+        </button>
         <span className="text-xs text-muted-foreground not-interactive">{hint}</span>
       </div>
 
-      {filled.length > 0 && (
+      {ranges.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {filled.map((range, index) => (
+          {ranges.map((range, index) => (
             <div
               key={`${range.weekday}-${range.startMin}-${index}`}
               className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-0.5 text-xs"
@@ -195,8 +222,8 @@ export function ClassSchedulePicker({
               </span>
               <button
                 type="button"
-                aria-label="Clear slot"
-                onClick={() => handleClearSlot(index)}
+                aria-label="Remove slot"
+                onClick={() => handleRemoveSlot(index)}
                 className="text-muted-foreground hover:text-destructive transition-colors"
               >
                 <X className="h-3 w-3" />
@@ -212,12 +239,12 @@ export function ClassSchedulePicker({
         </div>
       ) : (
         <EducatorScheduleGrid
-          classes={educatorClasses ?? []}
+          classes={gridClasses}
           isLoading={isLoading || cfgLoading || !scheduleCfg}
           interactive
           showAllDays
-          pickedRanges={filled}
-          maxPicks={slotCount}
+          pickedRanges={ranges}
+          maxPicks={isAddingSlot ? ranges.length + 1 : ranges.length}
           draftStart={draft}
           windowStartMin={windowStartMin}
           windowEndMin={windowEndMin}
@@ -227,10 +254,14 @@ export function ClassSchedulePicker({
         />
       )}
 
-      {hasConflicts && (
+      {hasEducatorConflict && (
         <p className="text-xs text-destructive">
-          One or more slots overlap the educator&apos;s existing classes. Pick a different day/time
-          for those slots.
+          Conflicts with the educator&apos;s existing schedule. Pick a different day/time.
+        </p>
+      )}
+      {hasSectionConflict && (
+        <p className="text-xs text-destructive">
+          Conflicts with this section&apos;s existing schedule. Pick a different day/time.
         </p>
       )}
     </div>

@@ -17,6 +17,7 @@ import { Label }    from "@/components/ui/label";
 import { Badge }    from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
+import type { ScheduleConflictState } from "./ClassSchedulePicker";
 import { useCreateClassData } from "./hooks/useCreateClassData";
 import { SemesterTemplateWarning } from "./SemesterTemplateWarning";
 import type { CreateClassForm, CreateClassDialogProps } from "./CreateClassDialog.types";
@@ -26,6 +27,8 @@ import {
   clearClassDraft,
   saveClassDraft,
 } from "@/components/admin/class/hooks//useClassDraft";
+
+const NO_CONFLICTS: ScheduleConflictState = { educator: false, section: false };
 
 export function CreateClassDialog({
   open,
@@ -91,27 +94,29 @@ export function CreateClassDialog({
   const {
     programs, tracks, hasTrack, isCourseTrack, levels, sections, subjects,
     programMissingTemplate, templateAssignmentsLoading, semesters, educators,
-    educatorClasses, educatorClassesLoading,
+    educatorClasses, sectionClasses, educatorClassesLoading,
   } = useCreateClassData(
     schoolYearId,
     selectedProgramId,
     selectedSemesterId,
     selectedTrackId,
     selectedLevelId,
+    selectedSectionId,
     selectedEducatorId,
     open,
   );
 
   // ── Schedule conflict gating ───────────────────────────────────────────────
   // ScheduleSlotFields reports whether any currently-entered slot overlaps the
-  // selected educator's existing schedules; while true, submission is blocked
-  // so backend conflicts are prevented up front rather than surfaced as errors.
-  const [scheduleConflicts, setScheduleConflicts] = useState(false);
-  const handleScheduleConflictsChange = useCallback((hasConflict: boolean) => {
-    setScheduleConflicts(hasConflict);
+  // selected educator's existing schedule and/or the selected section's
+  // existing schedule; while either is true, submission is blocked so
+  // backend conflicts are prevented up front rather than surfaced as errors.
+  const [scheduleConflicts, setScheduleConflicts] = useState<ScheduleConflictState>(NO_CONFLICTS);
+  const handleScheduleConflictsChange = useCallback((conflicts: ScheduleConflictState) => {
+    setScheduleConflicts(conflicts);
   }, []);
   useEffect(() => {
-    if (open) setScheduleConflicts(false);
+    if (open) setScheduleConflicts(NO_CONFLICTS);
   }, [open]);
 
   // ── Cascade resets ──────────────────────────────────────────────────────────
@@ -198,7 +203,8 @@ export function CreateClassDialog({
 
   const isSubmitDisabled =
     mutation.isPending        ||
-    scheduleConflicts        ||
+    scheduleConflicts.educator ||
+    scheduleConflicts.section ||
     !selectedProgramId        ||
     programMissingTemplate    ||
     !selectedSemesterId       ||
@@ -434,14 +440,10 @@ export function CreateClassDialog({
           <div className="overflow-y-auto">
             <ScheduleSlotFields
               educatorClasses={educatorClasses}
+              sectionClasses={sectionClasses}
               isLoading={educatorClassesLoading}
               onConflictsChange={handleScheduleConflictsChange}
             />
-            {scheduleConflicts && (
-              <p className="text-xs text-destructive mt-2">
-                Schedule conflict detected. The class cannot be created due to overlapping educator schedules.
-              </p>
-            )}
           </div>
         </div>
 
