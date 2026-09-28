@@ -77,17 +77,17 @@ getByStrand: async (
     return res.data.data;
   },
 
-  updateOne: async (id: string, name: string): Promise<Level> => {
+  updateOne: async (id: string, count: number): Promise<Level> => {
     const res = await client.patch<{ success: boolean; data: Level }>(
       `/levels/${id}`,
-      { name }
+      { count }
     );
     return res.data.data;
   },
 
   create: async (data: {
     programId: string;
-    name: string;
+    count: number;
     schoolYearId: string;
     courseId?: string;
     strandId?: string;
