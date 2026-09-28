@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -29,9 +29,17 @@ import {
 } from "@/components/shared/ListItemCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import type { EducatorClass } from "@/types/educator/class.types";
 import type { Subject } from "@/types/admin/subject.types";
+import type { Semester } from "@/types/admin/semester.types";
 
 interface EnrichedClass extends EducatorClass {
   subjectName:  string | null;
@@ -43,6 +51,38 @@ interface EnrichedClass extends EducatorClass {
   levelName:    string | null;
   courseName:   string | null;
   strandName:   string | null;
+}
+
+/**
+ * Picks the semester that should be selected by default, in priority order:
+ * 1. A semester whose date range contains today ("currently active" by date).
+ * 2. If none is currently active, the next upcoming semester (earliest
+ *    start date that's still in the future).
+ * 3. If nothing is upcoming either (every semester has already ended),
+ *    fall back to the most recently ended one so the view isn't empty.
+ * Returns null only when there are no semesters at all.
+ */
+function getDefaultSemesterId(semesters: Pick<Semester, "id" | "startDate" | "endDate">[]): string | null {
+  if (semesters.length === 0) return null;
+
+  const now = Date.now();
+
+  const current = semesters.find((s) => {
+    const start = new Date(s.startDate).getTime();
+    const end = new Date(s.endDate).getTime();
+    return start <= now && now <= end;
+  });
+  if (current) return current.id;
+
+  const upcoming = semesters
+    .filter((s) => new Date(s.startDate).getTime() > now)
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  if (upcoming.length > 0) return upcoming[0].id;
+
+  const past = [...semesters].sort(
+    (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime(),
+  );
+  return past[0]?.id ?? null;
 }
 
 function ClassCard({
@@ -130,6 +170,11 @@ function ClassCardSkeleton(): React.JSX.Element {
 export default function EducatorClassesPage(): React.JSX.Element {
   const router = useRouter();
 
+  const [semesterId, setSemesterId] = useState<string>("");
+  // Tracks whether the person has explicitly picked a semester, so the
+  // auto-default effect below doesn't stomp on their choice on refetch.
+  const userSelectedRef = useRef(false);
+
   const { data: classesRaw, isLoading: classesLoading } = useEducatorClasses();
 
   const { data: subjectsRaw } = useAsyncQuery(
@@ -170,6 +215,27 @@ export default function EducatorClassesPage(): React.JSX.Element {
     () => strandApi.getAll(),
   );
 
+  const semesters = useMemo(() => toArray<Semester>(semestersRaw), [semestersRaw]);
+
+  // Once semesters load, default the selection to the current (or next
+  // upcoming, or most recent past) semester — unless the person already
+  // picked one themselves.
+  useEffect(() => {
+    if (userSelectedRef.current) return;
+    if (semesters.length === 0) return;
+
+    const stillValid = semesterId && semesters.some((s) => s.id === semesterId);
+    if (stillValid) return;
+
+    const defaultId = getDefaultSemesterId(semesters);
+    if (defaultId) setSemesterId(defaultId);
+  }, [semesters, semesterId]);
+
+  function handleSemesterChange(value: string | null): void {
+    userSelectedRef.current = true;
+    setSemesterId(value ?? "");
+  }
+
   // ── Maps ─────────────────────────────────────────────────────────────────
 
   const subjectMap = useMemo(() => {
@@ -188,11 +254,9 @@ export default function EducatorClassesPage(): React.JSX.Element {
 
   const semesterMap = useMemo(() => {
     const m = new Map<string, string>();
-    toArray<{ id: string; name: string }>(semestersRaw).forEach((s) =>
-      m.set(s.id, s.name),
-    );
+    semesters.forEach((s) => m.set(s.id, s.name));
     return m;
-  }, [semestersRaw]);
+  }, [semesters]);
 
   const schoolYearMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -247,10 +311,35 @@ export default function EducatorClassesPage(): React.JSX.Element {
     });
   }, [classesRaw, subjectMap, sectionMap, semesterMap, schoolYearMap, courseMap, strandMap]);
 
+  const filtered = useMemo(() => {
+    if (!semesterId) return classes;
+    return classes.filter((cls) => cls.semester_id === semesterId);
+  }, [classes, semesterId]);
+
+  const selectedSemesterName = semesters.find((s) => s.id === semesterId)?.name;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="My Classes"
+        actions={
+          semesters.length > 0 && (
+            <Select value={semesterId} onValueChange={handleSemesterChange}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select semester">
+                  {selectedSemesterName ?? "Select semester"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {semesters.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        }
       />
 
       {classesLoading ? (
@@ -259,15 +348,19 @@ export default function EducatorClassesPage(): React.JSX.Element {
             <ClassCardSkeleton key={i} />
           ))}
         </CardGrid>
-      ) : classes.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title="No classes assigned"
-          description="You have no active classes yet. Contact your administrator."
+          description={
+            selectedSemesterName
+              ? `You have no active classes for ${selectedSemesterName}.`
+              : "You have no active classes yet. Contact your administrator."
+          }
         />
       ) : (
         <CardGrid>
-          {classes.map((cls, i) => (
+          {filtered.map((cls, i) => (
             <ClassCard
               key={cls.id}
               cls={cls}
