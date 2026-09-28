@@ -11,6 +11,7 @@ import {
   BulkGenerateLevelsDto,
 } from './dto/level.dto';
 import { DatabaseService } from '@/core/database/database.provider';
+import { getLevelLabel } from './level-label.util';
 
 @Injectable()
 export class LevelService {
@@ -33,16 +34,19 @@ export class LevelService {
   /**
    * Update default level names
    */
-  async updateDefaults(orgId: string, dto: UpdateLevelDefaultsDto) {
-    const toUpdate = dto.levels.filter((l) => !!l.id);
-    return this.db.$transaction(
-      toUpdate.map((l) =>
-        this.db.level.update({
-          where: { id: l.id },
-          data: { name: l.name },
-        }),
-      ),
-    );
+  async updateOne(id: string, orgId: string, dto: UpdateLevelDto) {
+    const existing = await this.levelRepository.findById(id, orgId);
+    if (!existing) throw new NotFoundException('Level not found.');
+
+    if (dto.count === undefined) return existing;
+
+    const program = await this.db.program.findFirst({
+      where: { id: existing.program_id, org_id: orgId },
+    });
+    if (!program) throw new NotFoundException('Program not found.');
+
+    const name = getLevelLabel(program.type, dto.count);
+    return this.levelRepository.update(id, { name });
   }
 
   /**
@@ -120,10 +124,17 @@ export class LevelService {
    * Create a new level
    */
   async createOne(orgId: string, dto: CreateLevelDto) {
+    const program = await this.db.program.findFirst({
+      where: { id: dto.programId, org_id: orgId },
+    });
+    if (!program) throw new NotFoundException('Program not found.');
+
+    const name = getLevelLabel(program.type, dto.count);
+
     return this.levelRepository.create(orgId, {
       programId: dto.programId,
       schoolYearId: dto.schoolYearId,
-      name: dto.name,
+      name,
       courseId: dto.courseId,
       strandId: dto.strandId,
     });
@@ -132,47 +143,37 @@ export class LevelService {
   /**
    * Add next incremental level for a program
    */
-  async addNextLevel(orgId: string, programId: string, schoolYearId: string) {
-    // Verify program exists and belongs to organization
+  async addNextLevel(
+    orgId: string,
+    programId: string,
+    schoolYearId: string,
+    courseId?: string,
+    strandId?: string,
+  ) {
     const program = await this.db.program.findFirst({
       where: { id: programId, org_id: orgId },
     });
     if (!program) throw new NotFoundException('Program not found.');
 
-    // Get existing levels for this program to determine next number
-    const existingLevels =
-      await this.levelRepository.findByProgramAndSchoolYear(
-        orgId,
-        programId,
-        schoolYearId,
-      );
+    const existingCount = await this.db.level.count({
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        school_year_id: schoolYearId,
+        course_id: courseId ?? null,
+        strand_id: strandId ?? null,
+      },
+    });
 
-    // Extract level numbers from existing level names
-    const levelNumbers = existingLevels
-      .map((level) => {
-        // Try to extract number from patterns like "ProgramName Level X", "Grade X", "Xst Year", etc.
-        const match = level.name.match(
-          /(?:Level|Grade|(\d+)(?:st|nd|rd|th)? Year)?\s*(\d+)$/,
-        );
-        if (match) {
-          return parseInt(match[match.length - 1], 10);
-        }
-        // If no pattern matches, try to extract any number from the name
-        const numberMatch = level.name.match(/\d+/);
-        return numberMatch ? parseInt(numberMatch[0], 10) : 0;
-      })
-      .filter((num) => !isNaN(num));
-
-    const nextLevelNumber =
-      levelNumbers.length > 0 ? Math.max(...levelNumbers) + 1 : 1;
-
-    // Generate level name
-    const levelName = `${program.name} Level ${nextLevelNumber}`;
+    const nextCount = existingCount + 1;
+    const name = getLevelLabel(program.type, nextCount);
 
     return this.levelRepository.create(orgId, {
       programId,
       schoolYearId,
-      name: levelName,
+      name,
+      courseId,
+      strandId,
     });
   }
 
@@ -277,7 +278,10 @@ export class LevelService {
     });
     if (!program) throw new NotFoundException('Program not found.');
 
-    const names = this.generateLevelNames(program.type, dto.count);
+    const names = Array.from({ length: dto.count }, (_, i) =>
+      getLevelLabel(program.type, i + 1),
+    );
+
     await this.levelRepository.deleteByProgramAndSchoolYear(
       orgId,
       dto.programId,

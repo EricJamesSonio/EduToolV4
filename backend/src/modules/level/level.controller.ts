@@ -30,12 +30,14 @@ export class LevelController {
   @Roles('admin')
   async addNextLevel(
     @CurrentUser('org_id') orgId: string,
-    @Body() dto: { programId: string; schoolYearId: string },
+    @Body() dto: { programId: string; schoolYearId: string; courseId?: string; strandId?: string },
   ) {
     return this.levelService.addNextLevel(
       orgId,
       dto.programId,
       dto.schoolYearId,
+      dto.courseId,
+      dto.strandId,
     );
   }
 
