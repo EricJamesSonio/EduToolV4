@@ -1,6 +1,6 @@
 # TICK-ASSESS-003 — Resume AI assessment generation after navigation
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-28
 Created by: agent
@@ -44,9 +44,10 @@ Wizard state + previewId live in page `useState` (dies on unmount); backend gene
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: PASS — backend assessment+grading-scheme+grade 17 suites/148 tests (new assessment-generation.helper.spec: 15 tests — persist/ready/failed/reconcile/most-recent/confirm-ownership/restart-confirm). Frontend: new resume.test 4/4; FULL frontend suite 12 suites/106 tests PASS. tsc: 0 errors in touched files (backend + frontend). ESLint exit 0 on all touched files.
+- Migration `20260928000002_add_assessment_generation_jobs`: schema `prisma validate` OK; SQL hand-written + format-reverted to zero unrelated churn. NOT applied (no live DB here) — reviewer must apply in non-prod first per migration rules.
+- Manual browser scenarios (navigate-away resume, restart-shows-failed, two-tabs most-recent-wins) NOT run here — flagged for reviewer with dev servers.
+- Development integration: not run (awaiting reviewer merge; merge after TICK-ASSESS-001 and TICK-ASSESS-002)
 
 ## Blocker
 
@@ -55,10 +56,11 @@ None.
 ## Activity Log
 
 - 2026-09-28: Claimed, counter ASSESS=3. Confidence 84/100 as above.
+- 2026-09-28: Implemented. Backend: AssessmentGeneration model+enum+migration, repo job methods, helper persists generating/ready/failed/cancelled + reconcile-to-failed + getActiveGeneration (most-recent wins) + ownership-checked confirm payload (memory or DB row); service+controller `GET generation/active` (token-scoped + class-ownership check). Frontend: useGenerationPreview/useActiveGeneration hooks, Step4 refactored onto hook+mapPreviewQuestions, new/page.tsx mount-restore (generating→Step4, ready→rebuilt Step5, failed→explicit banner). Deviations from plan: endpoint is `GET /classes/:classId/assessments/generation/active` (path param, matches controller prefix) instead of `?classId=`; confirm-after-restart works via DB row. Commit b0e5def5. Ready for review.
 
 ## Commits
 
-None yet.
+- b0e5def5 feat(assess): persist preview jobs and resume generation after navigation (branch agent/TICK-ASSESS-003-resume-generation)
 
 ## Notes
 
