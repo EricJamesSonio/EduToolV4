@@ -47,11 +47,27 @@ describe('SectionService', () => {
       db.strand.findFirst.mockResolvedValue(null);
       await expect(service.create(orgId, { levelId: 'lvl-1', strandId: 'bad', schoolYearId: 'sy-1', name: 'A', capacity: 30 } as any, actorId)).rejects.toBeInstanceOf(NotFoundException);
     });
-    it('throws Conflict when duplicate name', async () => {
+    it('auto-derives the next letter instead of rejecting a duplicate name', async () => {
+      // Section names are auto-derived from how many sections the level/course
+      // already has, so a caller-supplied name that collides is no longer a
+      // conflict — the second section of a level simply becomes "B".
       db.level.findFirst.mockResolvedValue({ id: 'lvl-1' });
-      db.section.findFirst.mockResolvedValue({ id: 'existing' });
-      await expect(service.create(orgId, { levelId: 'lvl-1', schoolYearId: 'sy-1', name: 'A', capacity: 30 } as any, actorId)).rejects.toBeInstanceOf(ConflictException);
+      db.section.count.mockResolvedValue(1);
+      repo.create.mockResolvedValue({ id: sectionId, name: 'B' });
+
+      const res = await service.create(
+        orgId,
+        { levelId: 'lvl-1', schoolYearId: 'sy-1', name: 'A', capacity: 30 } as any,
+        actorId,
+      );
+
+      expect(db.section.findFirst).not.toHaveBeenCalled();
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'B', capacity: 30 }),
+      );
+      expect(res.id).toBe(sectionId);
     });
+
     it('creates and audits', async () => {
       db.level.findFirst.mockResolvedValue({ id: 'lvl-1' });
       db.section.findFirst.mockResolvedValue(null);
