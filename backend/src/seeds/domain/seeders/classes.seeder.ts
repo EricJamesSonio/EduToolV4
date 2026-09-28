@@ -2,7 +2,6 @@ import { v4 as uuid } from 'uuid';
 import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
 import { PROGRAM_SCHEME_PRESET_NAME } from '../constants';
-import { randInt } from '../utils/random.util';
 import {
   UsedMap,
   allocateScheduleSlot,
@@ -273,7 +272,9 @@ export async function seedClasses(
           section_id: section.id,
           school_year_id: schoolYearId,
           semester_id: semesterId,
-          capacity: randInt(30, 50),
+          // Classes mirror their section's capacity — same invariant the
+          // class service enforces on create.
+          capacity: section.capacity,
           schedules: {
             create: [
               {
