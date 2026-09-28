@@ -41,7 +41,11 @@ export const courseApi = {
     return res.data.data;
   },
 
-  remove: async (id: string): Promise<void> => {
-    await client.delete(`/courses/${id}`);
+  remove: async (id: string): Promise<"deleted" | "archived"> => {
+    const res = await client.delete<{
+      success: boolean;
+      data: "deleted" | "archived";
+    }>(`/courses/${id}`);
+    return res.data.data;
   },
 };

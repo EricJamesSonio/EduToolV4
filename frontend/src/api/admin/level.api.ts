@@ -99,8 +99,12 @@ getByStrand: async (
     return res.data.data;
   },
 
-  deleteOne: async (id: string): Promise<void> => {
-    await client.delete(`/levels/${id}`);
+  deleteOne: async (id: string): Promise<"deleted" | "archived"> => {
+    const res = await client.delete<{
+      success: boolean;
+      data: "deleted" | "archived";
+    }>(`/levels/${id}`);
+    return res.data.data;
   },
 
   bulkGenerate: async (data: {
