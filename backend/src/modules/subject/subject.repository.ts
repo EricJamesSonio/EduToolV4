@@ -52,19 +52,19 @@ export class SubjectRepository {
     const [levels, courses, strands] = await Promise.all([
       levelIds.length
         ? this.db.level.findMany({
-            where: { id: { in: levelIds } },
+            where: { id: { in: levelIds }, deleted_at: null },
             select: { id: true, name: true },
           })
         : [],
       courseIds.length
         ? this.db.course.findMany({
-            where: { id: { in: courseIds } },
+            where: { id: { in: courseIds }, deleted_at: null },
             select: { id: true, name: true },
           })
         : [],
       strandIds.length
         ? this.db.strand.findMany({
-            where: { id: { in: strandIds } },
+            where: { id: { in: strandIds }, deleted_at: null },
             select: { id: true, name: true },
           })
         : [],
@@ -98,19 +98,19 @@ export class SubjectRepository {
     const [courses, strands, levels] = await Promise.all([
       courseIds.length
         ? this.db.course.findMany({
-            where: { id: { in: courseIds } },
+            where: { id: { in: courseIds }, deleted_at: null },
             select: { id: true, name: true },
           })
         : [],
       strandIds.length
         ? this.db.strand.findMany({
-            where: { id: { in: strandIds } },
+            where: { id: { in: strandIds }, deleted_at: null },
             select: { id: true, name: true },
           })
         : [],
       levelIds.length
         ? this.db.level.findMany({
-            where: { id: { in: levelIds } },
+            where: { id: { in: levelIds }, deleted_at: null },
             select: { id: true, name: true },
           })
         : [],
@@ -205,7 +205,11 @@ export class SubjectRepository {
       levelFilter = { level_id: filters.levelId };
     } else if (filters.schoolYearId) {
       const levels = await this.db.level.findMany({
-        where: { school_year_id: filters.schoolYearId },
+        where: {
+          school_year_id: filters.schoolYearId,
+          org_id: orgId,
+          deleted_at: null,
+        },
         select: { id: true },
       });
       const levelIds = levels.map((l) => l.id);
@@ -273,7 +277,7 @@ export class SubjectRepository {
     //    then fetch the heavy include/enrich only for the current page. ──────
     const selectedLevel = filters.levelId
       ? await this.db.level.findFirst({
-          where: { id: filters.levelId, org_id: orgId },
+          where: { id: filters.levelId, org_id: orgId, deleted_at: null },
           select: { name: true, program_id: true, school_year_id: true },
         })
       : null;
@@ -514,21 +518,21 @@ export class SubjectRepository {
 
   async findCourseById(courseId: string, orgId: string) {
     return this.db.course.findFirst({
-      where: { id: courseId, org_id: orgId },
+      where: { id: courseId, org_id: orgId, deleted_at: null },
       select: { id: true, program_id: true },
     });
   }
 
   async findStrandById(strandId: string, orgId: string) {
     return this.db.strand.findFirst({
-      where: { id: strandId, org_id: orgId },
+      where: { id: strandId, org_id: orgId, deleted_at: null },
       select: { id: true, program_id: true },
     });
   }
 
   async findLevelById(levelId: string, orgId: string) {
     return this.db.level.findFirst({
-      where: { id: levelId, org_id: orgId },
+      where: { id: levelId, org_id: orgId, deleted_at: null },
       select: { id: true, program_id: true },
     });
   }
