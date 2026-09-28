@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
+import { formatSchedule } from "@/utils/classes.utils";
 
 import { classApi }     from "@/api/admin/class.api";
 import { subjectApi }   from "@/api/admin/subject.api";
@@ -38,12 +39,7 @@ function formatClassSchedules(
   schedules: { weekday: number; startTime: string; endTime: string }[],
 ): string {
   if (!schedules?.length) return "No schedule";
-  return schedules
-    .map((s) => {
-      const day = WEEKDAY_LABELS[s.weekday] ?? "?";
-      return `${day} ${s.startTime}–${s.endTime}`;
-    })
-    .join(", ");
+  return formatSchedule(schedules);
 }
 
 function DetailItem({
