@@ -14,6 +14,7 @@ import {
   UpdatePersonalEmailDto,
   UpdateProfileDto,
 } from './dto/profile.dto';
+import { extractLevelNumber } from '@/modules/level/level-label.util';
 
 const PERSONAL_EMAIL_CLAIMED_MESSAGE =
   'This email was just claimed by another account. Please try a different one.';
@@ -37,6 +38,35 @@ export class ProfileService {
 
     return this.toProfileResponse(account);
   }
+async getCurrentEnrollment(accountId: string, orgId: string | null) {
+  if (!orgId) return { label: null };
+  const rows = await this.profileRepository.findCurrentProgramEnrollments(
+    accountId,
+    orgId,
+  );
+  if (rows.length === 0) return { label: null };
+
+  const labels = rows.map((pe) => {
+    const type = pe.program?.type as string | undefined; // ASSUMPTION
+    const section = pe.section?.name;
+    const levelName = pe.level?.name;
+
+    if (type === 'college') {
+      const course = pe.course?.code ?? pe.course?.name;
+      const year = levelName ? extractLevelNumber('college', levelName) : null;
+      return [course, [year, section].filter(Boolean).join(' ')]
+        .filter(Boolean)
+        .join(' - ');
+    }
+    if (type === 'shs') {
+      const strand = pe.strand?.code ?? pe.strand?.name;
+      return [strand, levelName, section].filter(Boolean).join(' - ');
+    }
+    return [levelName, section].filter(Boolean).join(' - ');
+  });
+
+  return { label: labels.filter(Boolean).join(' · ') || null };
+}
 
   async updatePersonalEmail(accountId: string, dto: UpdatePersonalEmailDto) {
     const profile = await this.profileRepository.findByAccountId(accountId);

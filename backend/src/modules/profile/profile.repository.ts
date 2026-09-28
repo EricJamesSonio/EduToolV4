@@ -11,6 +11,27 @@ export interface UpdateProfileData {
 export class ProfileRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  async findCurrentProgramEnrollments(accountId: string, orgId: string) {
+  return this.db.studentProgramEnrollment.findMany({
+    where: {
+      org_id: orgId,
+      status: 'active',
+      studentSchoolYear: {
+        student_id: accountId, // ASSUMPTION: student_id == account.id
+        org_id: orgId,
+        status: 'active',
+      },
+    },
+    include: {
+      program: true,
+      level: true,
+      course: true,
+      strand: true,
+      section: true,
+    },
+    orderBy: { created_at: 'desc' }, // ASSUMPTION: field exists
+  });
+}
   async updatePersonalEmail(accountId: string, personalEmail: string | null) {
     return this.db.profile.update({
       where: { account_id: accountId },

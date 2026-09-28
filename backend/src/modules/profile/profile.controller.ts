@@ -19,6 +19,10 @@ export class ProfileController {
   async getProfile(@CurrentUser('id') accountId: string) {
     return this.profileService.getProfile(accountId);
   }
+  @Get('current-enrollment')
+getCurrentEnrollment(@CurrentUser() user: { sub: string; orgId: string | null }) {
+  return this.profileService.getCurrentEnrollment(user.sub, user.orgId);
+}
 
   @Patch()
   async updateProfile(
