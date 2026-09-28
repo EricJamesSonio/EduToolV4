@@ -156,6 +156,14 @@ export class SectionService {
       capacity: dto.capacity,
     });
 
+    // Keep every live class of this section in step with its new capacity.
+    if (dto.capacity !== undefined) {
+      await this.db.class.updateMany({
+        where: { org_id: orgId, section_id: id, deleted_at: null },
+        data: { capacity: dto.capacity },
+      });
+    }
+
     this.auditLogService
       .logAdminAction({
         orgId,
