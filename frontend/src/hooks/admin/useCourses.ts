@@ -102,10 +102,10 @@ export const useUpdateCourse = (): UseMutationResult<
 };
 
 // Delete course
-export const useDeleteCourse = (): UseMutationResult<void, Error, { id: string; schoolYearId: string }> => {
+export const useDeleteCourse = (): UseMutationResult<"deleted" | "archived", Error, { id: string; schoolYearId: string }> => {
   const queryClient = useQueryClient();
 
-  return useMutationWithInvalidation<void, Error, { id: string; schoolYearId: string }>(
+  return useMutationWithInvalidation<"deleted" | "archived", Error, { id: string; schoolYearId: string }>(
     ({ id }) => courseApi.remove(id),
     {
       invalidateKeys: [
@@ -127,9 +127,13 @@ export const useDeleteCourse = (): UseMutationResult<void, Error, { id: string; 
         }
         toast.error("Failed to delete course");
       },
-      onSuccess: (data, variables) => {
+      onSuccess: (result) => {
         refetchProgramQueries(queryClient);
-        toast.success("Course deleted successfully");
+        toast.success(
+          result === "archived"
+            ? "Course archived — it has data, so it was hidden instead of deleted."
+            : "Course deleted successfully",
+        );
       },
     },
   );
