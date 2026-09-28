@@ -37,10 +37,16 @@ export default function SectionDetailPage({
   const { section, isLoading, level, program, course, strand, schoolYearName } =
     useSectionContext(schoolYearId, sectionId);
 
+  const sectionTitle = section
+    ? level?.name
+      ? `${section.name} · ${level.name}`
+      : section.name
+    : "Section";
+
   const breadcrumbs = [
     { label: "Admin" },
     { label: "Sections", href: "/admin/sections" },
-    { label: section?.name ?? "Section" },
+    { label: sectionTitle },
   ];
 
   const context = [
@@ -65,6 +71,7 @@ export default function SectionDetailPage({
   return (
     <SectionDetailView
       section={section}
+      titleOverride={sectionTitle}
       schoolYearId={schoolYearId ?? ""}
       isLoading={syLoading || isLoading}
       isEnded={false}
