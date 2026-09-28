@@ -143,20 +143,29 @@ export class SchoolYearReadinessService {
       }
     }
 
-    const levels = await this.db.level.findMany({
-      where: { school_year_id: schoolYearId, org_id: orgId },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        _count: {
-          select: {
-            sections: { where: { deleted_at: null } },
-            subjects: true,
-          },
-        },
+const levels = await this.db.level.findMany({
+  where: {
+    school_year_id: schoolYearId,
+    org_id: orgId,
+    OR: [
+      { program: { type: 'college' }, course_id: { not: null } },
+      { program: { type: 'senior_high' }, strand_id: { not: null } },
+      {
+        program: { type: { notIn: ['college', 'senior_high'] } },
+        course_id: null,
+        strand_id: null,
       },
-    });
+    ],
+  },
+  orderBy: { name: 'asc' },
+  select: {
+    id: true,
+    name: true,
+    _count: {
+      select: { sections: { where: { deleted_at: null } }, subjects: true },
+    },
+  },
+});
 
     for (const level of levels) {
       this.push(issues, {
