@@ -67,10 +67,6 @@ export class CreateClassDto {
   @IsUUID()
   semesterId?: string;
 
-  @IsInt()
-  @Min(0)
-  capacity!: number;
-
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({ each: true })
@@ -86,11 +82,6 @@ export class UpdateClassDto {
   @IsOptional()
   @IsUUID()
   sectionId?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  capacity?: number;
 
   @IsOptional()
   @IsArray()
