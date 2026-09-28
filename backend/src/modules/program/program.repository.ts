@@ -4,16 +4,19 @@ import { DatabaseService } from '@/core/database/database.provider';
 const PROGRAM_LIST_INCLUDE = {
   courses: {
     select: { id: true, name: true, code: true },
+    where: { deleted_at: null },
     orderBy: { name: 'asc' as const },
   },
   strands: {
     select: { id: true, name: true },
+    where: { deleted_at: null },
     orderBy: { name: 'asc' as const },
   },
 };
 
 const PROGRAM_DETAIL_INCLUDE = {
   courses: {
+    where: { deleted_at: null },
     orderBy: { name: 'asc' as const },
     include: {
       subjects: {
@@ -33,6 +36,7 @@ const PROGRAM_DETAIL_INCLUDE = {
     },
   },
   strands: {
+    where: { deleted_at: null },
     orderBy: { name: 'asc' as const },
     include: {
       subjects: {
@@ -123,17 +127,17 @@ export class ProgramRepository {
 
     const [levels, courses, strands] = await Promise.all([
       this.db.level.findMany({
-        where: { program_id: { in: programIds } },
+        where: { program_id: { in: programIds }, deleted_at: null },
         select: { id: true, name: true, program_id: true },
         orderBy: { name: 'asc' },
       }),
       this.db.course.findMany({
-        where: { program_id: { in: programIds } },
+        where: { program_id: { in: programIds }, deleted_at: null },
         select: { id: true, name: true, code: true, program_id: true },
         orderBy: { name: 'asc' },
       }),
       this.db.strand.findMany({
-        where: { program_id: { in: programIds } },
+        where: { program_id: { in: programIds }, deleted_at: null },
         select: { id: true, name: true, program_id: true },
         orderBy: { name: 'asc' },
       }),
@@ -178,7 +182,7 @@ export class ProgramRepository {
 
     async countLevelsAndSections(programId: string) {
     const levels = await this.db.level.findMany({
-      where: { program_id: programId },
+      where: { program_id: programId, deleted_at: null },
       select: { id: true, course_id: true, strand_id: true },
     });
     if (levels.length === 0) return [];
@@ -225,6 +229,10 @@ export class ProgramRepository {
     return this.db.program.delete({ where: { id } });
   }
 
+  // NOTE: these deliberately count ALL rows, archived ones included. Archived
+  // children still hold an FK to the program, so a "live-only" count would let
+  // program.delete hit a DB-level FK restrict error. Purge/restore for archived
+  // children is a separate concern (see orphan health check runbook).
   async hasLevels(programId: string): Promise<boolean> {
     const count = await this.db.level.count({
       where: { program_id: programId },
