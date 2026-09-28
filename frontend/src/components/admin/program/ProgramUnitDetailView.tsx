@@ -39,14 +39,7 @@ export function ProgramUnitDetailView({
   const course = kind === "course" ? program?.courses?.find((c) => c.id === unitId) : undefined;
   const strand = kind === "strand" ? program?.strands?.find((s) => s.id === unitId) : undefined;
   const unit = course ?? strand;
-  console.log("unit-detail", {
-  kind,
-  unitId,
-  isLoading,
-  hasProgram: !!program,
-  courseIds: program?.courses?.map((c) => c.id),
-  strandIds: program?.strands?.map((s) => s.id),
-});
+
 
   if (!program || !unit) {
     return (
