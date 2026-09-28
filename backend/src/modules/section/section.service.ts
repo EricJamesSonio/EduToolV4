@@ -32,20 +32,20 @@ export class SectionService {
 
   async create(orgId: string, dto: CreateSectionDto, actorId: string) {
     const level = await this.db.level.findFirst({
-      where: { id: dto.levelId, org_id: orgId },
+      where: { id: dto.levelId, org_id: orgId, deleted_at: null },
     });
     if (!level) throw new NotFoundException('Level not found.');
 
     if (dto.courseId) {
       const course = await this.db.course.findFirst({
-        where: { id: dto.courseId, org_id: orgId },
+        where: { id: dto.courseId, org_id: orgId, deleted_at: null },
       });
       if (!course) throw new NotFoundException('Course not found.');
     }
 
     if (dto.strandId) {
       const strand = await this.db.strand.findFirst({
-        where: { id: dto.strandId, org_id: orgId },
+        where: { id: dto.strandId, org_id: orgId, deleted_at: null },
       });
       if (!strand) throw new NotFoundException('Strand not found.');
     }

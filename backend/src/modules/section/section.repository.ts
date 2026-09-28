@@ -48,7 +48,7 @@ export class SectionRepository {
       levelFilter = { level_id: filters.levelId };
     } else if (filters.programId) {
       const levels = await this.db.level.findMany({
-        where: { program_id: filters.programId },
+        where: { program_id: filters.programId, deleted_at: null },
         select: { id: true },
       });
       levelFilter = { level_id: { in: levels.map((l) => l.id) } };
