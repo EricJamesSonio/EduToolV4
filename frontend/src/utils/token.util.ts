@@ -9,7 +9,16 @@ export interface TokenPayload {
   iat: number;
   exp: number;
 }
-
+export function getTokenExpiryMs(token: string | null): number | null {
+  if (!token) return null;
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
 /**
  * Decodes a JWT without verifying the signature.
  * Verification is the backend's responsibility — this is for reading claims only.
