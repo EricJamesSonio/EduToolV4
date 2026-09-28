@@ -194,6 +194,7 @@ export async function seedClasses(
       id: { in: uniqueLevelIds },
       org_id: orgId,
       school_year_id: schoolYearId,
+      deleted_at: null,
     },
     select: { id: true, name: true, program_id: true },
   });
