@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { School } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide"
 import { SeederCard } from "@/components/admin/data-seeder/SeederCard"
 import { SchoolProfileCard } from "@/components/admin/school-profile/SchoolProfileCard"
+import { AutomationSettings } from "@/components/admin/school-profile/AutomationSettings"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { useNavigationGuard } from "@/context/NavigationGuardContext"
@@ -42,8 +42,6 @@ export default function DataSeederPage(): React.JSX.Element {
     setMode(next)
   }
 
-  const showProfileNotice = !profileLoading && !hasProfile
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -51,67 +49,41 @@ export default function DataSeederPage(): React.JSX.Element {
         actions={<HelpGuide slug="admin_data_seeder" />}
       />
 
-      {showProfileNotice && (
-        <div className="flex flex-col gap-4 rounded-xl border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="icon-container bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] shrink-0 mt-0.5">
-              <School className="h-4.5 w-4.5" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-semibold text-lg leading-tight not-interactive">
-                No school profile configured yet
-              </h3>
-              <p className="text-xs text-muted-foreground not-interactive">
-                Configure and save your school profile first. Select the
-                departments you offer and define their courses, strands,
-                levels, sections, and subjects — the school year seeder builds
-                on that configuration.
-              </p>
-            </div>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border bg-muted/30 p-1">
           <Button
             type="button"
             size="sm"
-            variant="outline"
-            className="shrink-0"
-            onClick={() => setMode("configure")}
+            variant="ghost"
+            className={cn(
+              "rounded-md",
+              mode === "configure" && "bg-background shadow-sm",
+            )}
+            onClick={() => requestMode("configure")}
           >
             Configure School Profile
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={seedDisabled}
+            title={
+              seedDisabled
+                ? "Configure and save your school profile first."
+                : undefined
+            }
+            className={cn(
+              "rounded-md",
+              mode === "seed" && "bg-background shadow-sm",
+            )}
+            onClick={() => requestMode("seed")}
+          >
+            Seed a School Year
+          </Button>
         </div>
-      )}
 
-      <div className="inline-flex rounded-lg border bg-muted/30 p-1">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className={cn(
-            "rounded-md",
-            mode === "configure" && "bg-background shadow-sm",
-          )}
-          onClick={() => requestMode("configure")}
-        >
-          Configure School Profile
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={seedDisabled}
-          title={
-            seedDisabled
-              ? "Configure and save your school profile first."
-              : undefined
-          }
-          className={cn(
-            "rounded-md",
-            mode === "seed" && "bg-background shadow-sm",
-          )}
-          onClick={() => requestMode("seed")}
-        >
-          Seed a School Year
-        </Button>
+        <AutomationSettings />
       </div>
 
       {mode === "seed" ? <SeederCard /> : <SchoolProfileCard />}

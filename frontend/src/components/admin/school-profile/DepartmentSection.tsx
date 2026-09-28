@@ -10,6 +10,7 @@ import { SectionStep } from "./SectionStep"
 import { SubjectStep } from "./SubjectStep"
 import { SharedSubjectStep } from "./SharedSubjectStep"
 import { Card, CollapsibleDepartmentCard, LevelPillLabel } from "./ui/ProfileCard"
+     import { departmentTone } from "@/lib/palette"
 import type { DraftDepartment, useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft"
 
 interface DepartmentSectionProps {

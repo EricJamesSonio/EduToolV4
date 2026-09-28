@@ -1,7 +1,8 @@
 ﻿"use client"
 
-import { Layers, Loader2, Database, Eye, Pencil } from "lucide-react"
+import { Layers, Loader2, Database, Eye, Pencil, School } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ICON_TONES } from "@/lib/palette"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { toast } from "sonner"
@@ -11,7 +12,6 @@ import { useSchoolProfileData, useSaveSchoolProfile } from "@/hooks/admin/useSch
 import { useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft"
 import { useSchoolProfileCardState } from "./hooks/useSchoolProfileCardState"
 import { DepartmentStep } from "./DepartmentStep"
-import { AutomationCard } from "./AutomationCard"
 import { DepartmentSection } from "./DepartmentSection"
 import { Card } from "./ui/ProfileCard"
 
@@ -98,7 +98,7 @@ export function SchoolProfileCard() {
         </div>
       )}
 
-      <Card id="departments" icon={Layers} title="Departments">
+      <Card id="departments" icon={Layers} title="Departments" tone="blue">
         {readOnly ? (
           <p className="text-xs text-muted-foreground not-interactive">
             Showing your configured departments. Switch to Edit to add more or make changes.
@@ -112,7 +112,22 @@ export function SchoolProfileCard() {
         />
       </Card>
 
-      <AutomationCard />
+      {/* Empty state — sits right under Departments until a profile is saved. */}
+      {!hasSavedConfig && (
+        <div className="flex items-start gap-3 rounded-xl border border-dashed border-[#FCD34D] bg-[#FDE68A]/30 p-4">
+          <div className={cn("icon-container shrink-0", ICON_TONES.yellow)}>
+            <School className="h-4.5 w-4.5" />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-sm font-semibold not-interactive">No school profile configured yet</p>
+            <p className="text-xs text-muted-foreground not-interactive">
+              Select the departments you offer above, then define their courses, strands,
+              levels, sections, and subjects. Save when you&apos;re done — the school year
+              seeder builds on this configuration.
+            </p>
+          </div>
+        </div>
+      )}
 
       {visibleDepartments.map((department) => (
         <DepartmentSection
@@ -133,7 +148,7 @@ export function SchoolProfileCard() {
         their dedicated pages — not part of the school profile.
       */}
       {!readOnly && draft.selectedTypes.size > 0 && (
-        <Card id="save" icon={Database} title="Save Configuration">
+        <Card id="save" icon={Database} title="Save Configuration" tone="green">
           <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
             <p className="text-xs text-muted-foreground not-interactive">
               Saving replaces the Data Seeder&apos;s predefined data for your
