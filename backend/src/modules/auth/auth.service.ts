@@ -236,7 +236,9 @@ export class AuthService {
     return { message: 'Verification code sent to your email' };
   }
 
-  async verifyAdminRequestOtp(dto: VerifyAdminRequestOtpDto): Promise<
+  async verifyAdminRequestOtp(
+    dto: VerifyAdminRequestOtpDto,
+  ): Promise<
     | { blocked: true; message: string }
     | {
         token: string;
@@ -343,10 +345,20 @@ export class AuthService {
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {
     let accountId: string;
     try {
-      const payload = this.jwtService.decode(incomingRefreshToken);
-      if (!payload?.sub) throw new Error();
+      // Was jwtService.decode() — decode() does NOT check the signature or
+      // expiry, so a tampered or expired refresh token would still parse
+      // here and only get caught later by the hash comparison. verify()
+      // rejects it immediately and distinguishes "expired" from "invalid".
+      const payload = this.jwtService.verify<TokenPayload>(
+        incomingRefreshToken,
+        { secret: this.configService.get<string>('jwt.secret') },
+      );
+      if (!payload?.sub) throw new Error('Missing sub claim');
       accountId = payload.sub;
-    } catch {
+    } catch (err) {
+      if (err?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token expired');
+      }
       throw new UnauthorizedException('Invalid refresh token');
     }
 
