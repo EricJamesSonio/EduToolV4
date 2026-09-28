@@ -13,6 +13,9 @@ export type NotificationType =
   | "enrollment_removed"
   | "concept_extraction_done"
   | "assessment_generated"
+  | "concern_created"
+  | "concern_reply"
+  | "application_submitted"
   | "general";
 
 export interface Notification {
@@ -21,7 +24,7 @@ export interface Notification {
   message: string;
   isRead: boolean;
   createdAt: string;
-  /** Optional deep-link target (e.g. "/student/classes/[id]/assessments") */
+  /** Optional deep-link target (e.g. "/admin/concerns?concernId=...") */
   linkTo: string | null;
 }
 
@@ -33,6 +36,7 @@ interface NotificationState {
 interface NotificationActions {
   setNotifications: (notifications: Notification[]) => void;
   addNotification: (notification: Notification) => void;
+  markRead: (id: string) => void;
   markAllRead: () => void;
   dismissNotification: (id: string) => void;
   clearNotifications: () => void;
@@ -59,6 +63,18 @@ export const useNotificationStore = create<NotificationStore>()((set) => ({
         ? state.unreadCount
         : state.unreadCount + 1,
     })),
+
+  markRead: (id) =>
+    set((state) => {
+      const target = state.notifications.find((n) => n.id === id);
+      if (!target || target.isRead) return state;
+      return {
+        notifications: state.notifications.map((n) =>
+          n.id === id ? { ...n, isRead: true } : n,
+        ),
+        unreadCount: Math.max(0, state.unreadCount - 1),
+      };
+    }),
 
   markAllRead: () =>
     set((state) => ({

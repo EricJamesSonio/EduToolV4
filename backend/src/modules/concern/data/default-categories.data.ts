@@ -12,4 +12,5 @@ export const DEFAULT_CONCERN_CATEGORIES = [
   'Technical Problems',
   'Schedule or Class Issues',
   'General Inquiry',
+  'Others',
 ] as const;

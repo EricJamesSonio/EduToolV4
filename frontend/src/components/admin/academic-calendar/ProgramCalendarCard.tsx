@@ -1,4 +1,3 @@
-// frontend/src/components/admin/academic-calendar/ProgramCalendarCard.tsx
 "use client";
 
 import { useState } from "react";
@@ -42,7 +41,6 @@ export function ProgramCalendarCard({
   const [editing, setEditing] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [notes, setNotes] = useState("");
   const [breaks, setBreaks] = useState<CalendarBreak[]>([]);
 
   const calendarKey = queryKeys.admin.programCalendar.detail(programId, schoolYearId);
@@ -57,7 +55,6 @@ export function ProgramCalendarCard({
     () =>
       programCalendarApi.create({
         schoolYearId, programId, startDate, endDate,
-        notes: notes || undefined,
         breaks: breaks
           .filter((b) => b.startDate && b.endDate)
           .map(({ label, startDate, endDate }) => ({ label, startDate, endDate })),
@@ -74,7 +71,6 @@ export function ProgramCalendarCard({
     () =>
       programCalendarApi.update(calendar!.id, {
         startDate, endDate,
-        notes: notes || undefined,
         breaks: breaks
           .filter((b) => b.startDate && b.endDate)
           .map(({ label, startDate, endDate }) => ({ label, startDate, endDate })),
@@ -100,7 +96,6 @@ export function ProgramCalendarCard({
     if (calendar) {
       setStartDate(calendar.startDate.slice(0, 10));
       setEndDate(calendar.endDate.slice(0, 10));
-      setNotes(calendar.notes ?? "");
       setBreaks([
         ...calendar.breaks.map((b) => ({
           label: b.label,
@@ -108,15 +103,12 @@ export function ProgramCalendarCard({
           endDate: (b.endDate as string).slice(0, 10),
         })),
       ]);
-} else {
-  const initialStart = schoolYearStart?.slice(0, 10) ?? "";
-  setStartDate(initialStart); 
-  setEndDate(schoolYearEnd?.slice(0, 10) ?? "");
-  setNotes("");
-  setBreaks(seedDefaultBreaks(initialStart));
-}
-    // Ensure at least two break slots on entering edit mode (placeholders only —
-    // never persisted unless the user explicitly saves).
+    } else {
+      const initialStart = schoolYearStart?.slice(0, 10) ?? "";
+      setStartDate(initialStart);
+      setEndDate(schoolYearEnd?.slice(0, 10) ?? "");
+      setBreaks(seedDefaultBreaks(initialStart));
+    }
     setBreaks((prev) =>
       prev.length >= 2 ? prev : padToTwoBreaks(prev),
     );
@@ -177,7 +169,7 @@ export function ProgramCalendarCard({
           ) : hasCalendar ? (
             <>
               <Badge variant="outline" className="text-xs">
-                {formatDate(calendar!.startDate)} – {formatDate(calendar!.endDate)}
+                {formatDate(calendar!.startDate)} to {formatDate(calendar!.endDate)}
               </Badge>
               <button onClick={startEdit} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                 <Pencil className="h-3.5 w-3.5" />
@@ -226,13 +218,9 @@ export function ProgramCalendarCard({
                   />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Notes (optional)</label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes for this calendar" className="h-8 text-sm" />
-              </div>
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">Semester Timelines</p>
-                <p className="text-xs text-muted-foreground not-interactive">Set the Sem 1 and Sem 2 start/end dates — terms are auto-computed between them.</p>
+                <p className="text-xs text-muted-foreground not-interactive">Set the Sem 1 and Sem 2 start/end dates. Terms are auto-computed between them.</p>
                 <BreakEditor
                   breaks={breaks}
                   onChange={setBreaks}
@@ -269,20 +257,17 @@ export function ProgramCalendarCard({
                       <div key={i} className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2">
                         <span className="text-xs font-medium not-interactive">{b.label}</span>
                         <span className="text-xs text-muted-foreground ml-auto not-interactive">
-                          {formatDate(b.startDate as string)} – {formatDate(b.endDate as string)}
+                          {formatDate(b.startDate as string)} to {formatDate(b.endDate as string)}
                         </span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-              {calendar!.notes && (
-                <p className="text-xs text-muted-foreground italic not-interactive">{calendar!.notes}</p>
-              )}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground text-center py-4 not-interactive">
-              No calendar set up yet. Click &quotSetup Calendar&quot to begin.
+              No calendar set up yet. Click &quot;Setup Calendar&quot; to begin.
             </p>
           )}
         </div>

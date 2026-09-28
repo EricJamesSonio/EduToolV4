@@ -7,11 +7,35 @@ import {
 import { NotificationRepository } from './notification.repository';
 import { QueryNotificationDto } from './dto/notification.dto';
 
+export interface NotificationView {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  isRead: boolean;
+  createdAt: Date;
+}
+
 @Injectable()
 export class NotificationService {
   constructor(
     private readonly notificationRepository: NotificationRepository,
   ) {}
+
+  private toView(n: {
+    id: string;
+    type: string;
+    payload: unknown;
+    read_at: Date | null;
+    created_at: Date;
+  }): NotificationView {
+    return {
+      id: n.id,
+      type: n.type,
+      payload: (n.payload ?? {}) as Record<string, unknown>,
+      isRead: n.read_at !== null,
+      createdAt: n.created_at,
+    };
+  }
 
   // ── GET /notifications ──────────────────────────────────────────────────────
 
@@ -20,13 +44,61 @@ export class NotificationService {
     orgId: string,
     query: QueryNotificationDto,
   ) {
-    return this.notificationRepository.findByUser(
+    const { data, meta } = await this.notificationRepository.findByUser(
       accountId,
       orgId,
       query.unreadOnly,
       query.page,
       query.limit,
     );
+
+    return { data: data.map((n) => this.toView(n)), meta };
+  }
+
+  // ── GET /notifications/summary ──────────────────────────────────────────────
+
+  /**
+   * Total unread + unread per type, e.g.
+   * { unreadCount: 15, byType: { concern_created: 5, application_submitted: 10 } }
+   */
+  async getSummary(accountId: string, orgId: string) {
+    const rows = await this.notificationRepository.countUnreadByType(
+      accountId,
+      orgId,
+    );
+
+    const byType: Record<string, number> = {};
+    let unreadCount = 0;
+    for (const row of rows) {
+      byType[row.type] = row.count;
+      unreadCount += row.count;
+    }
+
+    return { unreadCount, byType };
+  }
+
+  // ── PATCH /notifications/:id/read ───────────────────────────────────────────
+
+  async markRead(id: string, accountId: string) {
+    // findById is scoped to the caller's account, so this also enforces ownership.
+    const notification = await this.notificationRepository.findById(
+      id,
+      accountId,
+    );
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found.');
+    }
+
+    if (!notification.read_at) {
+      await this.notificationRepository.markAsRead(id);
+    }
+  }
+
+  // ── PATCH /notifications/read-all ───────────────────────────────────────────
+
+  async markAllRead(accountId: string, orgId: string) {
+    await this.notificationRepository.markAllAsRead(accountId, orgId);
   }
 
   // ── DELETE /notifications/:id ───────────────────────────────────────────────
@@ -51,7 +123,7 @@ export class NotificationService {
     await this.notificationRepository.delete(id);
   }
 
-  // ── Internal (called by event listeners in Phase 4) ─────────────────────────
+  // ── Internal (called by other modules) ──────────────────────────────────────
 
   async createNotification(data: {
     orgId: string;
@@ -75,6 +147,19 @@ export class NotificationService {
   ) {
     if (notifications.length === 0) return;
     return this.notificationRepository.createMany(notifications);
+  }
+
+  /**
+   * Notify every admin and registrar in an org (e.g. a new enrollment
+   * application came in through the public portal).
+   */
+  async notifyOrgStaff(orgId: string, type: string, payload: object) {
+    const accountIds = await this.notificationRepository.findOrgStaffIds(orgId);
+    if (accountIds.length === 0) return;
+
+    return this.notificationRepository.createMany(
+      accountIds.map((accountId) => ({ orgId, accountId, type, payload })),
+    );
   }
 
   /**
