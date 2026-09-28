@@ -82,9 +82,9 @@ export class ProgramShiftService {
     if (currentProgram && targetProgram.type !== currentProgram.type) {
       throw new BadRequestException('Shifting across departments not allowed — use enrollment for different department.');
     }
-    // Validate level exists (required)
+    // Validate level exists (required) — archived levels are not valid targets.
     const targetLevel = await this.db.level.findFirst({
-      where: { id: dto.levelId, org_id: orgId },
+      where: { id: dto.levelId, org_id: orgId, deleted_at: null },
     });
     if (!targetLevel) throw new NotFoundException('Target level not found.');
     if (targetLevel.program_id !== dto.toProgramId) {
