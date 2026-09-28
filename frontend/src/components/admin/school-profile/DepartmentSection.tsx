@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils"
 import { PROGRAM_TYPE_LABELS } from "@/types/admin/program.types"
 import { CourseStep } from "./CourseStep"
 import { StrandStep } from "./StrandStep"
-import { LevelStep } from "./LevelStep"
 import { NestedLevelsSections } from "./NestedLevelsSections"
 import { ScopedSubjects } from "./ScopedSubjects"
 import { Card, CollapsibleDepartmentCard } from "./ui/ProfileCard"
@@ -91,7 +90,7 @@ export function DepartmentSection({
     ? (
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground not-interactive">
-          {subTab === "structure" ? "Select a course to manage its levels" : "Select a course to view its levels & sections"}
+          Select a course to view its levels &amp; sections
         </p>
         <div className="flex flex-wrap gap-2">
           {department.courses.map((course) => (
@@ -112,7 +111,7 @@ export function DepartmentSection({
       ? (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground not-interactive">
-            {subTab === "structure" ? "Select a strand to manage its levels" : "Select a strand to view its levels & sections"}
+            Select a strand to view its levels &amp; sections
           </p>
           <div className="flex flex-wrap gap-2">
             {department.strands.map((strand) => (
@@ -175,57 +174,10 @@ export function DepartmentSection({
             />
           )}
 
-          {(isCollege || isShs) && groupPicker}
-
-          {isCollege &&
-            (activeCourse ? (
-              <LevelStep
-                key={activeCourse.key}
-                parentId={activeCourse.key}
-                groupLabel={activeCourse.name}
-                programType={department.type}
-                levels={activeCourse.levels}
-                disabled={readOnly || saving}
-                onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
-                onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
-                onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
-              />
-            ) : (
-              <p className="text-xs text-muted-foreground not-interactive rounded-lg border border-dashed p-3 text-center">
-                Add a course above to create its levels.
-              </p>
-            ))}
-
-          {isShs &&
-            (activeStrand ? (
-              <LevelStep
-                key={activeStrand.key}
-                parentId={activeStrand.key}
-                groupLabel={activeStrand.name}
-                programType={department.type}
-                levels={activeStrand.levels}
-                disabled={readOnly || saving}
-                onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
-                onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
-                onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
-              />
-            ) : (
-              <p className="text-xs text-muted-foreground not-interactive rounded-lg border border-dashed p-3 text-center">
-                Add a strand above to create its levels.
-              </p>
-            ))}
-
           {!isCollege && !isShs && (
-            <LevelStep
-              parentId={department.type}
-              groupLabel="Levels"
-              programType={department.type}
-              levels={department.levels}
-              disabled={readOnly || saving}
-              onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
-              onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
-              onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
-            />
+            <p className="text-xs text-muted-foreground not-interactive rounded-lg border border-dashed p-3 text-center">
+              This department has no courses or strands — manage its levels under the Levels &amp; Sections tab.
+            </p>
           )}
         </div>
       )}
@@ -237,6 +189,8 @@ export function DepartmentSection({
             department={department}
             levels={levelsForLevelsTab}
             groupLabel={groupLabel}
+            parentKey={activeCourse?.key ?? activeStrand?.key ?? department.type}
+            programType={department.type}
             expandedLevelKey={expandedLevelKey}
             onToggleLevel={onToggleLevel}
             readOnly={readOnly}

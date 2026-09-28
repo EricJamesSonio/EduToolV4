@@ -61,7 +61,7 @@ export function ScopedSubjects({
         </div>
       ) : (
         <p className="text-xs text-muted-foreground not-interactive rounded-lg border border-dashed p-3 text-center">
-          No levels yet. Add one under the Structure tab first.
+          No levels yet. Add one under the Levels &amp; Sections tab first.
         </p>
       )}
 
