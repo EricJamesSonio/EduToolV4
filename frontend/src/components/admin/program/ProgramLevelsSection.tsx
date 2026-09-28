@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardGrid } from "@/components/shared/CardGrid";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   listItemCardClass,
   listItemIconClass,
@@ -58,7 +59,10 @@ export function ProgramLevelsSection({
     staleTime: 1000 * 60 * 5,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey });
+const invalidate = () => {
+  queryClient.invalidateQueries({ queryKey });
+  queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.all });
+};
 
   const createMutation = useMutation({
     mutationFn: (name: string) => levelApi.create({ programId, name, schoolYearId, courseId, strandId }),

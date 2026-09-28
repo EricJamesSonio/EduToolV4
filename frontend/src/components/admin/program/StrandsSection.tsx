@@ -1,21 +1,17 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Layers } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Layers } from "lucide-react";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { useDeleteStrand } from "@/hooks/admin/useStrand";
 import { StrandDialog } from "./StrandDialog";
-import { ProgramLevelsSection } from "./ProgramLevelsSection";
+import { ProgramUnitCard } from "./ProgramUnitCard";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { CardGrid } from "@/components/shared/CardGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  listItemCardClass,
-  listItemIconClass,
-  listItemTitleClass,
-} from "@/components/shared/ListItemCard";
-import { cn } from "@/lib/utils";
 import type { StrandSnapshot, Program } from "@/types/admin/program.types";
 
 interface StrandsSectionProps {
@@ -31,6 +27,7 @@ export function StrandsSection({
   strands,
   isEnded,
 }: StrandsSectionProps): React.JSX.Element {
+  const router = useRouter();
   const [dialog, setDialog] = useState<{
     mode: "create" | "edit";
     strand?: { id: string; name: string };
@@ -62,11 +59,7 @@ export function StrandsSection({
           </Badge>
         </div>
         {!isEnded && (
-          <Button
-            size="sm"
-            className="h-8 text-xs px-3"
-            onClick={() => setDialog({ mode: "create" })}
-          >
+          <Button size="sm" className="h-8 text-xs px-3" onClick={() => setDialog({ mode: "create" })}>
             <Plus className="mr-1 h-3.5 w-3.5" />
             Add Strand
           </Button>
@@ -86,53 +79,22 @@ export function StrandsSection({
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <CardGrid count={strands.length}>
           {strands.map((strand) => (
-            <div key={strand.id} className={cn(listItemCardClass, "p-3 sm:p-5 sm:space-y-4 lg:p-6")}>
-              <div className="flex items-start gap-3">
-                <div className={cn(listItemIconClass, "bg-[#DDD6FE] text-[#0B1E3A] border-[#C4B5FD]", "mt-0.5")}>
-                  <Layers className="h-4.5 w-4.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className={cn(listItemTitleClass, "truncate not-interactive")}>{strand.name}</h3>
-                </div>
-                {!isEnded && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() =>
-                        setDialog({
-                          mode: "edit",
-                          strand: { id: strand.id, name: strand.name },
-                        })
-                      }
-                      className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      title="Edit strand"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(strand)}
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Delete strand"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Levels scoped to this strand */}
-              <div className="border-t pt-4">
-                <ProgramLevelsSection
-                  programId={program.id}
-                  schoolYearId={schoolYearId}
-                  programType={program.type}
-                  strandId={strand.id}
-                />
-              </div>
-            </div>
+            <ProgramUnitCard
+              key={strand.id}
+              name={strand.name}
+              icon={Layers}
+              iconClass="bg-[#DDD6FE] text-[#0B1E3A] border-[#C4B5FD]"
+              levelCount={strand.levelCount ?? 0}
+              sectionCount={strand.sectionCount ?? 0}
+              isEnded={isEnded}
+              onView={() => router.push(`/admin/programs/${program.id}/strands/${strand.id}`)}
+              onEdit={() => setDialog({ mode: "edit", strand: { id: strand.id, name: strand.name } })}
+              onDelete={() => setDeleteTarget(strand)}
+            />
           ))}
-        </div>
+        </CardGrid>
       )}
 
       {dialog && (

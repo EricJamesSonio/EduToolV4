@@ -67,11 +67,30 @@ export class ProgramService {
   async findAllWithStats(orgId: string, schoolYearId: string) {
     return this.programRepository.findAllWithStats(orgId, schoolYearId);
   }
-
   async findById(id: string, orgId: string) {
     const program = await this.programRepository.findById(id, orgId);
     if (!program) throw new NotFoundException('Program not found.');
-    return program;
+
+    const levels = await this.programRepository.countLevelsAndSections(id);
+    const statsFor = (key: 'course_id' | 'strand_id', unitId: string) => {
+      const mine = levels.filter((l) => l[key] === unitId);
+      return {
+        levelCount: mine.length,
+        sectionCount: mine.reduce((sum, l) => sum + l.sectionCount, 0),
+      };
+    };
+
+    return {
+      ...program,
+      courses: program.courses.map((c) => ({
+        ...c,
+        ...statsFor('course_id', c.id),
+      })),
+      strands: program.strands.map((s) => ({
+        ...s,
+        ...statsFor('strand_id', s.id),
+      })),
+    };
   }
 
   async update(
