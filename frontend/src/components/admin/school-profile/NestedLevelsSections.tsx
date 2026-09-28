@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { LevelNumberStepper } from "@/components/admin/levels/LevelNumberStepper"
 import { getLevelLabel, extractLevelNumber } from "@/lib/level-label"
@@ -106,16 +105,6 @@ export function NestedLevelsSections({
                   </span>
                 )}
               </button>
-              {!editing && (
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] tabular-nums",
-                    expanded ? "border-primary bg-primary/10" : "border-muted-foreground/20 text-muted-foreground",
-                  )}
-                >
-                  {level.sections.length} {level.sections.length === 1 ? "section" : "sections"}
-                </span>
-              )}
               {!disabled && !editing && (
                 <>
                   <Button
@@ -145,6 +134,7 @@ export function NestedLevelsSections({
                   levelId={level.key}
                   levelLabel={`${level.name} — Sections`}
                   sections={level.sections}
+                  hideHeader
                   disabled={disabled}
                   onAdd={(_levelKey, name, capacity) => draft.addSection(department.type, level.key, name, capacity)}
                   onUpdate={(sectionKey, name, capacity) =>

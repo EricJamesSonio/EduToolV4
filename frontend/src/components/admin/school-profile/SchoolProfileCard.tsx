@@ -154,7 +154,7 @@ export function SchoolProfileCard() {
           onToggleCourse={(key) => toggleCourse(activeDepartment.type, key)}
           onToggleLevel={(key) => toggleLevel(activeDepartment.type, key)}
           draft={draft}
-          subTab={activeSubTabByDept[activeDepartment.type] ?? "levels"}
+          subTab={activeSubTabByDept[activeDepartment.type] ?? "structure"}
           onSubTabChange={(tab) => setSubTab(activeDepartment.type, tab)}
         />
       )}
