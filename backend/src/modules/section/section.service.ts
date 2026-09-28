@@ -121,7 +121,7 @@ export class SectionService {
 
     if (dto.capacity !== undefined) {
       const enrolledCount =
-        await this.sectionRepository.countStudentsInSection(id);
+        await this.sectionRepository.countStudentsInSection(orgId, id);
       if (dto.capacity < enrolledCount) {
         throw new ConflictException(
           `Cannot set capacity to ${dto.capacity} — this section currently has ${enrolledCount} enrolled student(s). Lower the enrollment first, or set capacity to at least ${enrolledCount}.`,
@@ -182,7 +182,7 @@ export class SectionService {
     const section = await this.sectionRepository.findById(id, orgId);
     if (!section) throw new NotFoundException('Section not found.');
 
-    const inUse = await this.sectionRepository.hasStudents(id);
+    const inUse = await this.sectionRepository.hasStudents(orgId, id);
     if (inUse) {
       throw new ConflictException(
         'Cannot delete a section that has students assigned to it.',
@@ -208,7 +208,10 @@ export class SectionService {
     return section;
   }
 
-  async countStudentsInSection(sectionId: string): Promise<number> {
-    return this.sectionRepository.countStudentsInSection(sectionId);
+  async countStudentsInSection(
+    orgId: string,
+    sectionId: string,
+  ): Promise<number> {
+    return this.sectionRepository.countStudentsInSection(orgId, sectionId);
   }
 }
