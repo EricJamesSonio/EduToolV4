@@ -19,8 +19,12 @@ import { getProfileImageUrl } from "@/utils/profile.util";
 import apiClient from "@/api/client";
 import { profileApi } from "@/api/profile.api";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GraduationCap /* add to lucide import */ } from "lucide-react";
+
+// ICON_STYLES
+
 import {
   Mail,
   ShieldCheck,
@@ -35,6 +39,7 @@ import {
 import type { AccountStatus, Role } from "@/types/auth.types";
 
 const GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
+
 
 function getInitials(name: string): string {
   return name
@@ -104,6 +109,7 @@ const ICON_STYLES: Record<string, string> = {
   calendar: "bg-destructive/10 text-destructive",
   building: "bg-muted text-muted-foreground",
   idcard:   "bg-[var(--badge-purple)]/15 text-[var(--badge-purple)]",
+  enrollment: "bg-success/15 text-success",
 };
 
 interface InfoRowProps {
@@ -157,6 +163,11 @@ export function ProfileContent(): React.JSX.Element {
       setPersonalEmail(user.personalEmail ?? "");
     }
   }, [user]);
+  const { data: enrollment } = useQuery({
+  queryKey: ["profile", "current-enrollment"],
+  queryFn: profileApi.getCurrentEnrollment,
+  enabled: user?.role === "student",
+});
 
   if (!user) {
     return (
@@ -375,6 +386,17 @@ export function ProfileContent(): React.JSX.Element {
               </InfoRow>
               <Separator />
               <InfoRow icon={ShieldCheck} label="Account status" iconStyle={ICON_STYLES.status}>
+                {user.role === "student" && (
+  <>
+    <Separator />
+    <InfoRow
+      icon={GraduationCap}
+      label="Current enrollment"
+      value={enrollment?.label ?? "Not enrolled"}
+      iconStyle={ICON_STYLES.enrollment}
+    />
+  </>
+)}
                 <Badge
                   variant="outline"
                   className={cn("text-xs lg:text-sm font-medium capitalize mt-0.5", STATUS_STYLES[user.status])}
