@@ -165,15 +165,15 @@ export class GradingSchemeRepository {
     // Resolve all course/strand/level IDs that belong to this program
     const [courses, strands, levels] = await Promise.all([
       this.db.course.findMany({
-        where: { org_id: orgId, program_id: programId },
+        where: { org_id: orgId, program_id: programId, deleted_at: null },
         select: { id: true },
       }),
       this.db.strand.findMany({
-        where: { org_id: orgId, program_id: programId },
+        where: { org_id: orgId, program_id: programId, deleted_at: null },
         select: { id: true },
       }),
       this.db.level.findMany({
-        where: { org_id: orgId, program_id: programId },
+        where: { org_id: orgId, program_id: programId, deleted_at: null },
         select: { id: true },
       }),
     ]);
