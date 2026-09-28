@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import {
+  Prisma,
+  ProgramEnrollmentStatus,
+  SchoolYearEnrollmentStatus,
+} from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
@@ -99,9 +103,11 @@ export class StudentRepository {
         where: {
           org_id: orgId,
           ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+          status: { not: SchoolYearEnrollmentStatus.unenrolled },
           programEnrollments: {
             some: {
               org_id: orgId,
+              status: ProgramEnrollmentStatus.active,
               ...(programId ? { program_id: programId } : {}),
               ...(courseId ? { course_id: courseId } : {}),
               ...(strandId ? { strand_id: strandId } : {}),
@@ -115,13 +121,14 @@ export class StudentRepository {
 
       matchingStudentIds = matchingSSY.map((r) => r.student_id);
 
-      // Fallback: if only sectionId is provided and enrollment table returned nothing,
-      // check profile.metadata directly — students enrolled via simple profile update
-      // are stored there instead of in StudentProgramEnrollment.
+      // Fallback: legacy Profile.metadata.sectionId rows (older flows/seeders
+      // wrote the section into the profile instead of StudentProgramEnrollment
+      // and never clear it on reassignment). Unioned in for section-only
+      // queries so previously assigned students still resolve; when a school
+      // year is part of the query the student must also be enrolled in it, so
+      // the roster here matches SectionRepository.countStudentsInSections.
       if (
-        matchingStudentIds.length === 0 &&
         sectionId &&
-        !schoolYearId &&
         !programId &&
         !courseId &&
         !strandId &&
@@ -135,7 +142,24 @@ export class StudentRepository {
           select: { account_id: true },
         });
 
-        matchingStudentIds = metaMatches.map((r) => r.account_id);
+        let legacyIds = metaMatches.map((r) => r.account_id);
+        if (schoolYearId && legacyIds.length > 0) {
+          const inSchoolYear = await this.db.studentSchoolYear.findMany({
+            where: {
+              org_id: orgId,
+              student_id: { in: legacyIds },
+              school_year_id: schoolYearId,
+              status: { not: SchoolYearEnrollmentStatus.unenrolled },
+            },
+            select: { student_id: true },
+          });
+          const enrolledIds = new Set(inSchoolYear.map((r) => r.student_id));
+          legacyIds = legacyIds.filter((id) => enrolledIds.has(id));
+        }
+
+        matchingStudentIds = [
+          ...new Set([...matchingStudentIds, ...legacyIds]),
+        ];
       }
 
       if (matchingStudentIds.length === 0) return { data: [], total: 0 };
