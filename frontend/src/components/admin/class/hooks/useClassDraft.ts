@@ -32,7 +32,10 @@ export function saveClassDraft(values: Partial<CreateClassForm>): void {
 export function loadClassDraft(): Partial<CreateClassForm> | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
-    return raw ? (JSON.parse(raw) as Partial<CreateClassForm>) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CreateClassForm> & { capacity?: string };
+    delete parsed.capacity; // legacy field, capacity now follows the section
+    return parsed;
   } catch {
     return null;
   }
