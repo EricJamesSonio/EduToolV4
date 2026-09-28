@@ -11,25 +11,22 @@ export type LevelDef = {
 };
 
 const s3x50 = (): SectionDef[] => [
-  { name: 'Section A', capacity: 50 },
-  { name: 'Section B', capacity: 50 },
-  { name: 'Section C', capacity: 50 },
+  { name: 'A', capacity: 50 },
+  { name: 'B', capacity: 50 },
+  { name: 'C', capacity: 50 },
 ];
-
 const s3x40 = (): SectionDef[] => [
-  { name: 'Section A', capacity: 40 },
-  { name: 'Section B', capacity: 40 },
-  { name: 'Section C', capacity: 40 },
+  { name: 'A', capacity: 40 },
+  { name: 'B', capacity: 40 },
+  { name: 'C', capacity: 40 },
 ];
-
 const s2x40 = (): SectionDef[] => [
-  { name: 'Section A', capacity: 40 },
-  { name: 'Section B', capacity: 40 },
+  { name: 'A', capacity: 40 },
+  { name: 'B', capacity: 40 },
 ];
-
 const s2x30 = (): SectionDef[] => [
-  { name: 'Section A', capacity: 30 },
-  { name: 'Section B', capacity: 30 },
+  { name: 'A', capacity: 30 },
+  { name: 'B', capacity: 30 },
 ];
 
 export const YEAR_LABELS = [
