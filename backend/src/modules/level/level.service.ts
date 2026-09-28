@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -25,7 +24,7 @@ export class LevelService {
    */
   async getDefaults(orgId: string) {
     return this.db.level.findMany({
-      where: { org_id: orgId },
+      where: { org_id: orgId, deleted_at: null },
       include: { program: true },
       orderBy: { name: 'asc' },
     });
@@ -123,11 +122,38 @@ export class LevelService {
   /**
    * Create a new level
    */
+  /**
+   * Parent guard: when a level is scoped to a course or strand, that parent
+   * must exist in the org AND be live (not archived) — archived parents must
+   * never gain new children (orphan/ghost-tree prevention).
+   */
+  private async assertLiveScopedParents(
+    orgId: string,
+    courseId?: string | null,
+    strandId?: string | null,
+  ): Promise<void> {
+    if (courseId) {
+      const course = await this.db.course.findFirst({
+        where: { id: courseId, org_id: orgId, deleted_at: null },
+        select: { id: true },
+      });
+      if (!course) throw new NotFoundException('Course not found.');
+    }
+    if (strandId) {
+      const strand = await this.db.strand.findFirst({
+        where: { id: strandId, org_id: orgId, deleted_at: null },
+        select: { id: true },
+      });
+      if (!strand) throw new NotFoundException('Strand not found.');
+    }
+  }
+
   async createOne(orgId: string, dto: CreateLevelDto) {
     const program = await this.db.program.findFirst({
       where: { id: dto.programId, org_id: orgId },
     });
     if (!program) throw new NotFoundException('Program not found.');
+    await this.assertLiveScopedParents(orgId, dto.courseId, dto.strandId);
 
     const name = getLevelLabel(program.type, dto.count);
 
@@ -154,6 +180,7 @@ export class LevelService {
       where: { id: programId, org_id: orgId },
     });
     if (!program) throw new NotFoundException('Program not found.');
+    await this.assertLiveScopedParents(orgId, courseId, strandId);
 
     const existingCount = await this.db.level.count({
       where: {
@@ -162,6 +189,7 @@ export class LevelService {
         school_year_id: schoolYearId,
         course_id: courseId ?? null,
         strand_id: strandId ?? null,
+        deleted_at: null,
       },
     });
 
@@ -178,11 +206,19 @@ export class LevelService {
   }
 
   /**
-   * Delete a level
+   * Delete a level: hard-delete when nothing references it, otherwise archive
+   * the level together with its live sections. Subjects and subject sharings
+   * count as data (they are never wiped), and already-archived sections are
+   * cleaned up on the hard path so no FK blocks the delete.
+   * Returns which happened so the caller/UI can report it.
    */
-  async deleteOne(id: string, orgId: string) {
-    const existing = await this.levelRepository.findById(id, orgId);
+  async deleteOne(id: string, orgId: string): Promise<'deleted' | 'archived'> {
+    const existing = await this.levelRepository.findByIdIncludingArchived(
+      id,
+      orgId,
+    );
     if (!existing) throw new NotFoundException('Level not found.');
+    if (existing.deleted_at) return 'archived';
 
     const [sectionIds, subjectIds] = await Promise.all([
       this.db.section.findMany({
@@ -207,65 +243,73 @@ export class LevelService {
         : []),
     ];
 
-    const [enrollmentCount, classCount] = await Promise.all([
-      this.db.studentProgramEnrollment.count({
-        where: {
-          org_id: orgId,
-          OR: [
-            { level_id: id },
-            ...(sectionIdList.length > 0
-              ? [{ section_id: { in: sectionIdList } }]
-              : []),
-          ],
-        },
-      }),
-      classFilters.length > 0
-        ? this.db.class.count({
-            where: {
-              org_id: orgId,
-              OR: classFilters,
-            },
-          })
-        : Promise.resolve(0),
-    ]);
-
-    if (enrollmentCount > 0 || classCount > 0) {
-      throw new BadRequestException(
-        'Cannot remove this level because it is already used by enrollments or classes.',
-      );
-    }
-
-    return this.db.$transaction(async (tx) => {
-      if (subjectIdList.length > 0) {
-        await tx.subjectPrerequisite.deleteMany({
+    const [enrollmentCount, applicationCount, classCount, sharingCount] =
+      await Promise.all([
+        this.db.studentProgramEnrollment.count({
           where: {
+            org_id: orgId,
             OR: [
-              { subject_id: { in: subjectIdList } },
-              { prerequisite_id: { in: subjectIdList } },
+              { level_id: id },
+              ...(sectionIdList.length > 0
+                ? [{ section_id: { in: sectionIdList } }]
+                : []),
             ],
           },
-        });
-        await tx.subjectSharing.deleteMany({
+        }),
+        this.db.enrollmentApplication.count({
           where: {
-            OR: [{ subject_id: { in: subjectIdList } }, { level_id: id }],
+            org_id: orgId,
+            OR: [
+              { level_id: id },
+              ...(sectionIdList.length > 0
+                ? [{ section_id: { in: sectionIdList } }]
+                : []),
+            ],
           },
-        });
-        await tx.subject.deleteMany({
+        }),
+        classFilters.length > 0
+          ? this.db.class.count({
+              where: {
+                org_id: orgId,
+                OR: classFilters,
+              },
+            })
+          : Promise.resolve(0),
+        this.db.subjectSharing.count({
           where: { org_id: orgId, level_id: id },
-        });
-      } else {
-        await tx.subjectSharing.deleteMany({
-          where: { org_id: orgId, level_id: id },
-        });
-      }
+        }),
+      ]);
 
+    const hasData =
+      subjectIdList.length > 0 ||
+      enrollmentCount > 0 ||
+      applicationCount > 0 ||
+      classCount > 0 ||
+      sharingCount > 0;
+
+    if (hasData) {
+      // Has data: archive the level and hide its live sections with it.
+      const now = new Date();
+      await this.db.$transaction([
+        this.db.section.updateMany({
+          where: { org_id: orgId, level_id: id, deleted_at: null },
+          data: { deleted_at: now },
+        }),
+        this.db.level.update({ where: { id }, data: { deleted_at: now } }),
+      ]);
+      return 'archived';
+    }
+
+    // Nothing connected: remove the (possibly archived) sections, then the level.
+    return this.db.$transaction(async (tx) => {
       await tx.section.deleteMany({
         where: { org_id: orgId, level_id: id },
       });
 
-      return tx.level.delete({
+      await tx.level.delete({
         where: { id },
       });
+      return 'deleted' as const;
     });
   }
 
@@ -277,6 +321,7 @@ export class LevelService {
       where: { id: dto.programId, org_id: orgId },
     });
     if (!program) throw new NotFoundException('Program not found.');
+    await this.assertLiveScopedParents(orgId, dto.courseId, dto.strandId);
 
     const names = Array.from({ length: dto.count }, (_, i) =>
       getLevelLabel(program.type, i + 1),

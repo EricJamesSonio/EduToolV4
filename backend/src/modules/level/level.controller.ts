@@ -115,7 +115,8 @@ export class LevelController {
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
   ) {
-    await this.levelService.deleteOne(id, orgId);
-    return null;
+    // 'deleted' when the level was empty (hard delete); 'archived' when it had
+    // data and was soft-deleted (with its live sections) instead.
+    return this.levelService.deleteOne(id, orgId);
   }
 }
