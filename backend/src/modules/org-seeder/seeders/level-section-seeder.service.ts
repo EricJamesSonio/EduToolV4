@@ -150,9 +150,9 @@ export class LevelSectionSeederService {
             l.courseCode === courseCode &&
             l.name === levelName,
         )?.sections ?? [
-          { name: 'Section A', capacity: 40 },
-          { name: 'Section B', capacity: 40 },
-        ];
+  { name: 'A', capacity: 40 },
+  { name: 'B', capacity: 40 },
+];
         const sections =
           ctx.sectionConfigs[`${courseCode}|${levelName}`] ?? defaultSections;
 
@@ -255,9 +255,9 @@ export class LevelSectionSeederService {
         const defaultSections = defaultDefs.find(
           (l) => l.programKey === progKey && l.name === levelName,
         )?.sections ?? [
-          { name: 'Section A', capacity: 40 },
-          { name: 'Section B', capacity: 40 },
-        ];
+  { name: 'A', capacity: 40 },
+  { name: 'B', capacity: 40 },
+];
         const sections =
           ctx.sectionConfigs[`${strandName}|${levelName}`] ?? defaultSections;
 
@@ -345,9 +345,9 @@ export class LevelSectionSeederService {
       const defaultSections = defaultDefs.find(
         (l) => l.programKey === progKey && l.name === levelName,
       )?.sections ?? [
-        { name: 'Section A', capacity: 40 },
-        { name: 'Section B', capacity: 40 },
-      ];
+  { name: 'A', capacity: 40 },
+  { name: 'B', capacity: 40 },
+];
       const sections = ctx.sectionConfigs[levelName] ?? defaultSections;
 
       for (const sec of sections) {
