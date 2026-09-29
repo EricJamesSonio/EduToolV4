@@ -23,6 +23,11 @@ export class CourseService {
   }
 
   async create(orgId: string, dto: CreateCourseDto): Promise<CourseEntity> {
+    const programExists = await this.courseRepository.programExistsInOrg(
+      dto.programId,
+      orgId,
+    );
+    if (!programExists) throw new NotFoundException('Program not found');
     const raw = await this.courseRepository.create(orgId, dto);
     return this.mapToEntity(raw as Record<string, any>);
   }
@@ -54,10 +59,17 @@ export class CourseService {
     return this.mapToEntity(raw as Record<string, any>);
   }
 
-  async remove(id: string, orgId: string): Promise<{ deleted: boolean }> {
-    const exists = await this.courseRepository.existsInOrg(id, orgId);
-    if (!exists) throw new NotFoundException('Course not found');
-    await this.courseRepository.delete(id, orgId);
-    return { deleted: true };
+  /**
+   * Hard-deletes an empty course; archives a course that has data (and its
+   * levels/sections). Re-archiving an already-archived course is a no-op.
+   */
+  async remove(id: string, orgId: string): Promise<'deleted' | 'archived'> {
+    const existing = await this.courseRepository.findByIdIncludingArchived(
+      id,
+      orgId,
+    );
+    if (!existing) throw new NotFoundException('Course not found');
+    if (existing.deleted_at) return 'archived';
+    return this.courseRepository.remove(id, orgId);
   }
 }

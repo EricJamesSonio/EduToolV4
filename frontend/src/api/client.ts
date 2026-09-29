@@ -26,6 +26,42 @@ function getRequestKey(config: InternalAxiosRequestConfig): string {
   return `${config.method}:${config.url}:${JSON.stringify(config.params ?? {})}`;
 }
 
+// ── Session handling ─────────────────────────────────────────────────────────
+
+let refreshPromise: Promise<string> | null = null;
+
+/** Single-flight: concurrent callers share one /auth/refresh request. */
+export function refreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = apiClient
+      .post<{ accessToken: string }>("/auth/refresh")
+      .then(({ data }) => {
+        useAuthStore.getState().setAccessToken(data.accessToken);
+        return data.accessToken;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+const PROTECTED_PREFIXES = ["/admin", "/educator", "/student", "/platform"];
+
+/** Clear the session and leave protected pages. Public pages stay put. */
+export function forceLogout(): void {
+  useAuthStore.getState().clearAuth();
+  if (typeof window === "undefined") return;
+  const onProtectedPage = PROTECTED_PREFIXES.some((p) =>
+    window.location.pathname.startsWith(p),
+  );
+  // Replace so unauthenticated users never land on (or return to) a
+  // protected page via the back button.
+  if (onProtectedPage) window.location.replace("/login?expired=1");
+}
+
+// ── Interceptors ─────────────────────────────────────────────────────────────
+
 apiClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().accessToken;
@@ -78,23 +114,11 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const { data } = await apiClient.post<{ accessToken: string }>("/auth/refresh");
-
-        useAuthStore.getState().setAccessToken(data.accessToken);
-
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        const token = await refreshAccessToken();
+        originalRequest.headers.Authorization = `Bearer ${token}`;
         return apiClient(originalRequest);
       } catch {
-        const hadSession = !!useAuthStore.getState().accessToken;
-
-        useAuthStore.getState().clearAuth();
-
-        if (hadSession) {
-          // Replace so unauthenticated users never land on (or return to) a
-          // protected page via the back button.
-          window.location.replace("/login");
-        }
-
+        forceLogout();
         return Promise.reject(error);
       }
     }

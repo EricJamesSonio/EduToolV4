@@ -24,16 +24,23 @@ export default function ProgramSectionDetailPage({
     sectionId,
   );
 
+  const sectionTitle = section
+    ? level?.name
+      ? `${section.name} · ${level.name}`
+      : section.name
+    : "Section";
+
   const breadcrumbs = [
     { label: "Admin" },
     { label: "Departments", href: "/admin/programs" },
     { label: program?.name ?? "Department", href: `/admin/programs/${programId}` },
-    { label: section?.name ?? "Section" },
+    { label: sectionTitle },
   ];
 
   return (
     <SectionDetailView
       section={section}
+      titleOverride={sectionTitle}
       schoolYearId={program?.schoolYearId ?? ""}
       isLoading={programLoading || isLoading}
       isEnded={false}

@@ -152,6 +152,13 @@ model Organization {
 
   admin_account_id String? @unique
 
+  // When true, every newly created SchoolYear is automatically seeded with
+  // the org's saved School Profile configuration (structure only — grading
+  // scales/schemes seeded, semester templates/program calendars skipped
+  // since those need per-year dates the admin still has to enter). When
+  // false, the admin is prompted after creating a school year instead.
+  auto_seed_new_school_years Boolean @default(false)
+
   accounts Account[]
 }
 
@@ -368,6 +375,7 @@ model Program {
   studentEnrollments      StudentProgramEnrollment[]
   semesterAssignment      ProgramSemesterAssignment?
   gradingScaleAssignments GradingScaleAssignment[]
+  gradingSchemeProgramAssignments GradingSchemeProgramAssignment[]
   programCalendars        ProgramCalendar[]
   enrollmentApplications  EnrollmentApplication[]
 }
@@ -388,6 +396,9 @@ model Course {
   sections               Section[]
   levels                 Level[]
   enrollmentApplications EnrollmentApplication[]
+
+  deleted_at DateTime?
+  @@index([org_id, school_year_id, deleted_at])
 }
 
 model Strand {
@@ -405,6 +416,9 @@ model Strand {
   sections               Section[]
   levels                 Level[]
   enrollmentApplications EnrollmentApplication[]
+
+  deleted_at DateTime?
+  @@index([org_id, school_year_id, deleted_at])
 }
 
 model Level {
@@ -418,13 +432,16 @@ model Level {
 
   schoolYear             SchoolYear                 @relation(fields: [school_year_id], references: [id])
   program                Program                    @relation(fields: [program_id], references: [id])
-  course                 Course?                    @relation(fields: [course_id], references: [id])
-  strand                 Strand?                    @relation(fields: [strand_id], references: [id])
+  course                 Course?                    @relation(fields: [course_id], references: [id], onDelete: Restrict)
+  strand                 Strand?                    @relation(fields: [strand_id], references: [id], onDelete: Restrict)
   sections               Section[]
   sharings               SubjectSharing[]
   studentEnrollments     StudentProgramEnrollment[]
   subjects               Subject[]
   enrollmentApplications EnrollmentApplication[]
+
+  deleted_at DateTime?
+  @@index([org_id, school_year_id, deleted_at])
 }
 
 model Section {
@@ -440,8 +457,8 @@ model Section {
   deleted_at     DateTime?
 
   level                  Level                      @relation(fields: [level_id], references: [id])
-  course                 Course?                    @relation(fields: [course_id], references: [id])
-  strand                 Strand?                    @relation(fields: [strand_id], references: [id])
+  course                 Course?                    @relation(fields: [course_id], references: [id], onDelete: Restrict)
+  strand                 Strand?                    @relation(fields: [strand_id], references: [id], onDelete: Restrict)
   schoolYear             SchoolYear                 @relation(fields: [school_year_id], references: [id])
   studentEnrollments     StudentProgramEnrollment[]
   enrollmentApplications EnrollmentApplication[]
@@ -461,6 +478,7 @@ model SchoolYear {
   levels                  Level[]
   sections                Section[]
   gradingScaleAssignments GradingScaleAssignment[]
+  gradingSchemeProgramAssignments GradingSchemeProgramAssignment[]
   studentEnrollments      StudentSchoolYear[]
   semesters               Semester[]
   classes                 Class[]
@@ -629,6 +647,7 @@ model Subject {
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
   prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
   sharings      SubjectSharing[]
+  completionOverrides SubjectCompletionOverride[]
 }
 
 model SubjectSharing {
@@ -660,6 +679,28 @@ model SubjectPrerequisite {
   prerequisite Subject @relation("PrereqFor", fields: [prerequisite_id], references: [id])
 
   @@unique([org_id, subject_id, prerequisite_id])
+  @@index([org_id, subject_id])
+}
+
+/// Manual completion credit set by an admin (transferee / pre-system records).
+/// `completed` satisfies prerequisite checks; `pending` blocks new enrollments
+/// but never removes already-enrolled dependents (grandfathered). Abort =
+/// hard delete (record as if never existed).
+model SubjectCompletionOverride {
+  id         String   @id @default(uuid())
+  org_id     String
+  student_id String
+  subject_id String
+  status     String   @default("pending")
+  reason     String?
+  actor_id   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  subject Subject @relation(fields: [subject_id], references: [id])
+
+  @@unique([org_id, student_id, subject_id])
+  @@index([org_id, student_id])
   @@index([org_id, subject_id])
 }
 
@@ -923,6 +964,25 @@ model GradingSchemeTemplate {
   created_at   DateTime @default(now())
 
   components GradingSchemeTemplateComponent[]
+  programAssignments GradingSchemeProgramAssignment[]
+}
+
+model GradingSchemeProgramAssignment {
+  id             String   @id @default(uuid())
+  org_id         String
+  program_id     String
+  school_year_id String
+  template_id    String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  program     Program               @relation(fields: [program_id], references: [id], onDelete: Cascade)
+  school_year SchoolYear            @relation(fields: [school_year_id], references: [id], onDelete: Restrict)
+  template    GradingSchemeTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@unique([program_id, school_year_id])
+  @@index([org_id])
+  @@index([template_id])
 }
 
 model GradingSchemeTemplateComponent {
@@ -1052,6 +1112,9 @@ model ManualScore {
   updated_at DateTime @updatedAt
 
   @@unique([org_id, class_id, student_id, term_id, category])
+  // Phase 3: class-wide manual-score sweeps filter (org, class, term) — the
+  // unique above only prefixes (org, class).
+  @@index([org_id, class_id, term_id])
 }
 
 model Assessment {
@@ -1111,6 +1174,9 @@ model Question {
   // Phase 1: Hybrid grading additions
   is_manual    Boolean @default(false)
   section_type String?
+
+  // Phase 3: every findQuestions call filters by assessment (was seq-scan).
+  @@index([assessment_id])
 }
 
 model Submission {
@@ -1132,8 +1198,15 @@ model Submission {
 
   assessment Assessment @relation(fields: [assessment_id], references: [id])
 
-  @@index([assessment_id, student_id])
+  // Phase 1: native upsert key — replaces the plain index above so concurrent
+  // double-submits collapse into one row instead of racing read-then-write.
+  @@unique([assessment_id, student_id])
   @@index([org_id, assessment_id])
+  // Phase 3: student-transcript prereq lookups filter (org, student); the
+  // unique above prefixes (assessment_id) and can't serve them.
+  @@index([org_id, student_id])
+  // Phase 3: draft-sweep + educator submission lists filter (assessment, status).
+  @@index([assessment_id, status])
 }
 
 model SubmissionAnswer {
@@ -1143,6 +1216,9 @@ model SubmissionAnswer {
   question_id   String
   answer        String
   is_correct    Boolean?
+
+  // Phase 3: every findAnswers call filters by submission (was seq-scan).
+  @@index([submission_id])
 }
 
 //////////////////////
@@ -1165,6 +1241,8 @@ model Grade {
   @@unique([org_id, student_id, class_id, term_id])
   @@index([org_id, class_id, term_id])
   @@index([org_id, class_id])
+  // Phase 3: grade prereq lookups filter (org, student, is_locked).
+  @@index([org_id, student_id, is_locked])
 }
 
 model GradeLock {
@@ -1225,6 +1303,8 @@ model AttendanceSession {
   sub_index   Int
 
   @@index([class_id, week_number])
+  // Phase 3: markPresentFromSubmission ranges on (class, date).
+  @@index([class_id, date])
 }
 
 model AttendanceRecord {
@@ -1234,7 +1314,9 @@ model AttendanceRecord {
   student_id String
   status     AttendanceStatus
 
-  @@index([session_id, student_id])
+  // Phase 1: native upsert key — replaces the plain index above so concurrent
+  // mark-present calls collapse into one row instead of racing read-then-write.
+  @@unique([session_id, student_id])
 }
 
 //////////////////////
@@ -1259,6 +1341,9 @@ model Meeting {
   class         Class                @relation(fields: [class_id], references: [id])
   invites       MeetingInvite[]
   join_requests MeetingJoinRequest[]
+
+  // Phase 3: ephemeral-meeting lookup filters (class, ephemeral, status).
+  @@index([class_id, is_ephemeral, status])
 }
 
 // ── GROUPY (per-class group chat) ──────────────────────────────────────────
@@ -1405,6 +1490,9 @@ model AuditLog {
 
   @@index([org_id, created_at])
   @@index([org_id, log_type, created_at])
+  // Phase 3: admin-log explorer filters by entity + actor.
+  @@index([org_id, entity_type, entity_id])
+  @@index([org_id, actor_id])
 }
 
 model MeetingChatMessage {

@@ -6,6 +6,7 @@ describe('GradingScaleService', () => {
   let scaleRepo: any;
   let assignRepo: any;
   let db: any;
+  let gradeRefresh: any;
   const orgId = 'org-1';
   const scaleId = 'scale-1';
 
@@ -36,8 +37,16 @@ describe('GradingScaleService', () => {
       findBySchoolYear: jest.fn(),
       remove: jest.fn(),
     };
-    db = { program: { findFirst: jest.fn() } };
-    service = new GradingScaleService(scaleRepo, assignRepo, db);
+    db = {
+      program: { findFirst: jest.fn() },
+      course: { findMany: jest.fn().mockResolvedValue([]) },
+      strand: { findMany: jest.fn().mockResolvedValue([]) },
+      level: { findMany: jest.fn().mockResolvedValue([]) },
+      subject: { findMany: jest.fn().mockResolvedValue([]) },
+      class: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    gradeRefresh = { refreshClassGrades: jest.fn().mockResolvedValue({ computed: 0, skippedLocked: 0, terms: 0 }) };
+    service = new GradingScaleService(scaleRepo, assignRepo, db, gradeRefresh);
     jest.clearAllMocks();
   });
 
@@ -92,9 +101,20 @@ describe('GradingScaleService', () => {
       scaleRepo.findById.mockResolvedValue(null);
       await expect(service.update('nope', orgId, {} as any)).rejects.toBeInstanceOf(NotFoundException);
     });
-    it('update throws when locked', async () => {
+    it('update succeeds even when locked (free edit)', async () => {
       scaleRepo.findById.mockResolvedValue({ id: scaleId, is_locked: true });
-      await expect(service.update(scaleId, orgId, {} as any)).rejects.toBeInstanceOf(BadRequestException);
+      scaleRepo.update.mockResolvedValue({ id: scaleId, org_id: orgId, name: 'New', program_type: 'college', ranges: validRanges, is_locked: true, locked_at: new Date(), created_at: new Date(), updated_at: new Date() });
+      const res = await service.update(scaleId, orgId, { name: 'New' } as any);
+      expect(res.name).toBe('New');
+    });
+    it('update with new ranges refreshes classes using the scale', async () => {
+      scaleRepo.findById.mockResolvedValue({ id: scaleId, is_locked: true });
+      scaleRepo.update.mockResolvedValue({ id: scaleId, org_id: orgId, name: 'New', program_type: 'college', ranges: validRanges, is_locked: true, locked_at: null, created_at: new Date(), updated_at: new Date() });
+      assignRepo.findByScaleId.mockResolvedValue([{ program_id: 'prog-1', school_year_id: 'sy-1' }]);
+      db.subject.findMany.mockResolvedValue([{ id: 'subj-1' }]);
+      db.class.findMany.mockResolvedValue([{ id: 'class-1' }]);
+      await service.update(scaleId, orgId, { ranges: validRanges } as any, 'actor-1');
+      expect(gradeRefresh.refreshClassGrades).toHaveBeenCalledWith(orgId, 'class-1', 'actor-1', 'grading_scale_updated');
     });
     it('update validates ranges when provided', async () => {
       scaleRepo.findById.mockResolvedValue({ id: scaleId, is_locked: false });
@@ -123,15 +143,17 @@ describe('GradingScaleService', () => {
       scaleRepo.findById.mockResolvedValue(null);
       await expect(service.unlock('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
     });
-    it('delete throws when locked', async () => {
+    it('delete succeeds even when locked (free edit)', async () => {
       scaleRepo.findById.mockResolvedValue({ id: scaleId, is_locked: true });
-      await expect(service.delete(scaleId, orgId)).rejects.toBeInstanceOf(BadRequestException);
+      scaleRepo.delete.mockResolvedValue({});
+      await service.delete(scaleId, orgId);
+      expect(scaleRepo.delete).toHaveBeenCalledWith(scaleId);
     });
-    it('delete throws when used in grades', async () => {
+    it('delete succeeds even when used in grades', async () => {
       scaleRepo.findById.mockResolvedValue({ id: scaleId, is_locked: false });
-      assignRepo.findByScaleId.mockResolvedValue([{ program_id: 'prog-1', school_year_id: 'sy-1' }]);
-      scaleRepo.isUsedInGrades.mockResolvedValue(true);
-      await expect(service.delete(scaleId, orgId)).rejects.toBeInstanceOf(BadRequestException);
+      scaleRepo.delete.mockResolvedValue({});
+      await service.delete(scaleId, orgId);
+      expect(scaleRepo.delete).toHaveBeenCalledWith(scaleId);
     });
     it('delete succeeds when not used', async () => {
       scaleRepo.findById.mockResolvedValue({ id: scaleId, is_locked: false });

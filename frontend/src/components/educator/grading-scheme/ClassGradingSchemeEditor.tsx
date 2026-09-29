@@ -82,13 +82,12 @@ export function ClassGradingSchemeEditor({
   }, [rows]);
 
   // ================= FLAGS =================
-  const isLocked = scheme?.isLocked ?? false;
-
+  // Schemes stay editable even after assessments exist / school year
+  // started. Removing a category type still in use is rejected server-side.
   const isBusy =
     createMutation.isPending || updateMutation.isPending;
 
   const canSave =
-    !isLocked &&
     currentTotalWeight === 100 &&
     rows.length > 0 &&
     !isBusy;
@@ -192,31 +191,30 @@ export function ClassGradingSchemeEditor({
   // ================= UI =================
   return (
     <div className="w-full space-y-6">
-      {/* LOCK */}
-      {isLocked && (
+      {/* INFO — edits recalculate unlocked grades */}
+      {scheme && (
         <div className="flex items-center gap-2.5 rounded-md border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] px-4 py-2.5 text-sm border">
           <Lock className="h-4 w-4" />
           <span>
-            <strong>Locked</strong> — cannot edit this scheme.
+            Saving recalculates unlocked grades. Removing a category already
+            used by assessments is blocked.
           </span>
         </div>
       )}
 
       <div className="rounded-lg border bg-card p-6 space-y-5">
         {/* ACTIONS */}
-        {!isLocked && (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowLibrary(true)}
-              disabled={isBusy}
-            >
-              <Library className="h-4 w-4" />
-              Import from Library
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowLibrary(true)}
+            disabled={isBusy}
+          >
+            <Library className="h-4 w-4" />
+            Import from Library
+          </Button>
+        </div>
 
         {/* ROWS */}
         <div className="space-y-3">
@@ -225,7 +223,7 @@ export function ClassGradingSchemeEditor({
               key={i}
               index={i}
               row={row}
-              disabled={isLocked || isBusy}
+              disabled={isBusy}
               usedTypes={rows.filter((_, j) => j !== i).map((r) => r.type)}
               onChange={handleChange}
               onDelete={setDeleteIndex}
@@ -234,16 +232,14 @@ export function ClassGradingSchemeEditor({
         </div>
 
         {/* ADD */}
-        {!isLocked && (
-          <Button
-            onClick={handleAdd}
-            size="sm"
-            className="bg-primary text-white hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            Add Category
-          </Button>
-        )}
+        <Button
+          onClick={handleAdd}
+          size="sm"
+          className="bg-primary text-white hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" />
+          Add Category
+        </Button>
 
         {/* FOOTER */}
         <div className="flex justify-between items-center border-t pt-4">

@@ -12,7 +12,6 @@ export interface CreateClassForm {
   sectionId:  string;
   subjectId:  string;
   educatorId: string;
-  capacity:   string;
   schedules:  ScheduleSlotForm[];
 }
 
@@ -24,7 +23,6 @@ export const EMPTY_DEFAULTS: CreateClassForm = {
   sectionId:  "",
   subjectId:  "",
   educatorId: "",
-  capacity:   "30",
   schedules:  [],
 };
 

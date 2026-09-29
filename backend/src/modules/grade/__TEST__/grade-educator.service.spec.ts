@@ -18,12 +18,15 @@ describe('GradeEducatorService — proof tests (Lane 1 item 2)', () => {
 
   const auditLog = { logActivityEvent: jest.fn().mockResolvedValue(undefined) };
 
+  const notifications = { createNotification: jest.fn().mockResolvedValue(undefined) };
+
   beforeEach(() => {
     jest.clearAllMocks();
     service = new GradeEducatorService(
       repo as any,
       new GradeCoreService(),
       auditLog as any,
+      notifications as any,
     );
     jest.spyOn(service as any, 'resolveGradingScale').mockResolvedValue({
       ranges: [

@@ -48,6 +48,11 @@ export class StrandService {
   }
 
   async create(orgId: string, dto: CreateStrandDto): Promise<StrandEntity> {
+    const programExists = await this.strandRepository.programExistsInOrg(
+      dto.program_id,
+      orgId,
+    );
+    if (!programExists) throw new NotFoundException('Program not found');
     const raw = await this.strandRepository.create(orgId, dto);
     return this.mapToEntity(raw as Record<string, any>);
   }
@@ -79,10 +84,17 @@ export class StrandService {
     return this.mapToEntity(raw as Record<string, any>);
   }
 
-  async remove(id: string, orgId: string): Promise<{ deleted: boolean }> {
-    const exists = await this.strandRepository.existsInOrg(id, orgId);
-    if (!exists) throw new NotFoundException('Strand not found');
-    await this.strandRepository.delete(id, orgId);
-    return { deleted: true };
+  /**
+   * Hard-deletes an empty strand; archives a strand that has data (and its
+   * levels/sections). Re-archiving an already-archived strand is a no-op.
+   */
+  async remove(id: string, orgId: string): Promise<'deleted' | 'archived'> {
+    const existing = await this.strandRepository.findByIdIncludingArchived(
+      id,
+      orgId,
+    );
+    if (!existing) throw new NotFoundException('Strand not found');
+    if (existing.deleted_at) return 'archived';
+    return this.strandRepository.remove(id, orgId);
   }
 }

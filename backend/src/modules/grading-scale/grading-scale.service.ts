@@ -18,6 +18,7 @@ import {
   GradingScaleAssignmentEntity,
 } from './entity/grading-scale.entity';
 import { DatabaseService } from '@/core/database/database.provider';
+import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
 
 @Injectable()
 export class GradingScaleService {
@@ -25,7 +26,75 @@ export class GradingScaleService {
     private readonly gradingScaleRepository: GradingScaleRepository,
     private readonly assignmentRepository: GradingScaleAssignmentRepository,
     private readonly db: DatabaseService,
+    private readonly gradeRefresh: GradeEducatorService,
   ) {}
+
+  private async refreshBestEffort(
+    orgId: string,
+    classId: string,
+    actorId: string,
+    reason: string,
+  ): Promise<void> {
+    try {
+      await this.gradeRefresh.refreshClassGrades(
+        orgId,
+        classId,
+        actorId,
+        reason,
+      );
+    } catch {
+      // Grades refresh must never fail the scale save itself.
+    }
+  }
+
+  /** Class ids under a program (direct + via course/strand/level subjects). */
+  private async findClassIdsForProgram(
+    orgId: string,
+    programId: string,
+    schoolYearId?: string,
+  ): Promise<string[]> {
+    const [courses, strands, levels] = await Promise.all([
+      this.db.course.findMany({
+        where: { org_id: orgId, program_id: programId, deleted_at: null },
+        select: { id: true },
+      }),
+      this.db.strand.findMany({
+        where: { org_id: orgId, program_id: programId, deleted_at: null },
+        select: { id: true },
+      }),
+      this.db.level.findMany({
+        where: { org_id: orgId, program_id: programId, deleted_at: null },
+        select: { id: true },
+      }),
+    ]);
+    const courseIds = courses.map((c) => c.id);
+    const strandIds = strands.map((s) => s.id);
+    const levelIds = levels.map((l) => l.id);
+    const subjects = await this.db.subject.findMany({
+      where: {
+        org_id: orgId,
+        OR: [
+          { program_id: programId },
+          ...(courseIds.length ? [{ course_id: { in: courseIds } }] : []),
+          ...(strandIds.length ? [{ strand_id: { in: strandIds } }] : []),
+          ...(levelIds.length ? [{ level_id: { in: levelIds } }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    const subjectIds = subjects.map((s) => s.id);
+    if (subjectIds.length === 0) return [];
+    const classes = await this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        deleted_at: null,
+        subject_id: { in: subjectIds },
+        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+      },
+      select: { id: true },
+    });
+    return classes.map((c) => c.id);
+  }
 
   private mapToEntity(scale: Record<string, unknown>): GradingScaleEntity {
     return {
@@ -155,6 +224,7 @@ export class GradingScaleService {
     id: string,
     orgId: string,
     dto: UpdateGradingScaleDto,
+    actorId?: string,
   ): Promise<GradingScaleEntity> {
     const scale = await this.gradingScaleRepository.findById(id, orgId);
 
@@ -162,11 +232,8 @@ export class GradingScaleService {
       throw new NotFoundException('Grading scale not found.');
     }
 
-    if (scale.is_locked) {
-      throw new BadRequestException(
-        'This grading scale is locked and cannot be modified.',
-      );
-    }
+    // Locks no longer block edits: admin may change ranges even after
+    // grades exist / school year started. is_locked stays as audit only.
 
     if (dto.ranges) {
       this.validateRanges(dto.ranges);
@@ -178,6 +245,26 @@ export class GradingScaleService {
     });
 
     await this.gradingScaleRepository.invalidateScaleCache(orgId);
+
+    if (dto.ranges && actorId) {
+      const assignments =
+        await this.assignmentRepository.findByScaleId(id);
+      for (const a of assignments) {
+        const classIds = await this.findClassIdsForProgram(
+          orgId,
+          (a as unknown as { program_id: string }).program_id,
+          (a as unknown as { school_year_id: string }).school_year_id,
+        );
+        for (const classId of classIds) {
+          await this.refreshBestEffort(
+            orgId,
+            classId,
+            actorId,
+            'grading_scale_updated',
+          );
+        }
+      }
+    }
 
     return this.mapToEntity(updated);
   }
@@ -217,28 +304,8 @@ export class GradingScaleService {
       throw new NotFoundException('Grading scale not found.');
     }
 
-    if (scale.is_locked) {
-      throw new BadRequestException(
-        'This grading scale is locked and cannot be deleted.',
-      );
-    }
-
-    const assignments = await this.assignmentRepository.findByScaleId(id);
-
-    for (const a of assignments) {
-      const isUsed = await this.gradingScaleRepository.isUsedInGrades(
-        orgId,
-        a.program_id,
-        a.school_year_id,
-      );
-
-      if (isUsed) {
-        throw new BadRequestException(
-          'Cannot delete grading scale because grades already exist for a ' +
-            'program and school year using this scale.',
-        );
-      }
-    }
+    // Locks and existing grades no longer block delete: admin may freely
+    // replace scales even after the school year started.
 
     await this.gradingScaleRepository.delete(id);
     await this.gradingScaleRepository.invalidateScaleCache(orgId);
@@ -294,6 +361,7 @@ export class GradingScaleService {
     programId: string,
     scaleId: string,
     schoolYearId: string,
+    actorId?: string,
   ): Promise<GradingScaleEntity> {
     const scale = await this.gradingScaleRepository.findById(scaleId, orgId);
     if (!scale) {
@@ -323,6 +391,22 @@ export class GradingScaleService {
     );
 
     await this.gradingScaleRepository.invalidateScaleCache(orgId);
+
+    if (actorId) {
+      const classIds = await this.findClassIdsForProgram(
+        orgId,
+        programId,
+        schoolYearId,
+      );
+      for (const classId of classIds) {
+        await this.refreshBestEffort(
+          orgId,
+          classId,
+          actorId,
+          'grading_scale_assigned',
+        );
+      }
+    }
 
     return this.mapToEntity(scale);
   }

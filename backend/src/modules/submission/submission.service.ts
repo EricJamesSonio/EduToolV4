@@ -9,6 +9,8 @@ import { SubmissionRepository } from './submission.repository';
 import { AssessmentRepository } from '../assessment/core/assessment-core.repository';
 import { AttendanceService } from '../attendance/attendance.service';
 import { GradeEducatorService } from '../grade/educator/grade-educator.service';
+import { NotificationService } from '../notification/notification.service';
+import { DatabaseService } from '@/core/database/database.provider';
 import { SaveDraftDto, FinishSubmissionDto } from './dto/submission.dto';
 
 @Injectable()
@@ -18,6 +20,8 @@ export class SubmissionService {
     private readonly assessmentRepo: AssessmentRepository,
     private readonly attendanceService: AttendanceService,
     private readonly gradeService: GradeEducatorService,
+    private readonly notificationService: NotificationService,
+    private readonly db: DatabaseService,
   ) {}
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -248,6 +252,32 @@ export class SubmissionService {
           classId: assessment.class_id,
           studentId,
           submittedAt: updated.submitted_at ?? new Date(),
+        })
+        .catch(() => {}); // non-blocking, never throws
+    }
+
+    // ── Fire-and-forget: notify the class educator of the new submission ──────
+    if (assessment.class_id) {
+      this.db.class
+        .findFirst({
+          where: { id: assessment.class_id, org_id: orgId },
+          select: { educator_id: true },
+        })
+        .then((cls) => {
+          if (cls?.educator_id) {
+            return this.notificationService.createNotification({
+              orgId,
+              accountId: cls.educator_id,
+              type: 'assessment_submitted',
+              payload: {
+                classId: assessment.class_id,
+                assessmentId,
+                submissionId: submission.id,
+                studentId,
+                title: assessment.title ?? null,
+              },
+            });
+          }
         })
         .catch(() => {}); // non-blocking, never throws
     }

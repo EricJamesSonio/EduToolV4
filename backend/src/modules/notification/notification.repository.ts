@@ -69,6 +69,56 @@ export class NotificationRepository {
     });
   }
 
+  /** Marks every unread, non-archived notification for this user as read. */
+  async markAllAsRead(accountId: string, orgId: string) {
+    return this.db.notification.updateMany({
+      where: {
+        account_id: accountId,
+        org_id: orgId,
+        read_at: null,
+        archived_at: null,
+      },
+      data: { read_at: new Date() },
+    });
+  }
+
+  /**
+   * Unread counts grouped by notification type — powers the red bell badge
+   * and the "5 new concerns / 10 new applications" summary rows without
+   * having to load every notification.
+   */
+  async countUnreadByType(accountId: string, orgId: string) {
+    const rows = await this.db.notification.groupBy({
+      by: ['type'],
+      where: {
+        account_id: accountId,
+        org_id: orgId,
+        read_at: null,
+        archived_at: null,
+      },
+      _count: { _all: true },
+    });
+
+    return rows.map((r) => ({ type: r.type, count: r._count._all }));
+  }
+
+  /**
+   * Account ids of everyone in the org who should receive staff-facing
+   * notifications: admins and registrars.
+   */
+  async findOrgStaffIds(orgId: string): Promise<string[]> {
+    const rows = await this.db.account.findMany({
+      where: {
+        org_id: orgId,
+        deleted_at: null,
+        status: 'active',
+        OR: [{ role: 'admin' }, { is_registrar: true }],
+      },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
   async delete(id: string) {
     return this.db.notification.delete({ where: { id } });
   }

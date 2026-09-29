@@ -81,8 +81,12 @@ export default function SchoolYearLevelsPage({
 
   const deleteMutation = useMutation({
     mutationFn: (levelId: string) => levelApi.deleteOne(levelId),
-    onSuccess: () => {
-      toast.success("Level deleted.");
+    onSuccess: (result) => {
+      toast.success(
+        result === "archived"
+          ? "Level archived — it has enrollments/classes, so it was hidden instead of deleted."
+          : "Level deleted.",
+      );
       invalidate();
       setDeleteTarget(null);
     },

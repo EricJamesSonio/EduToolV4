@@ -3,13 +3,21 @@ import { DatabaseService } from '@/core/database/database.provider';
 import { allMajorSubjects, deriveProgramKey } from '../data/subjects';
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
+import { findExistingSubject } from '../utils/find-existing-subject.util';
 
 @Injectable()
 export class MajorSubjectSeederService {
   constructor(private readonly db: DatabaseService) {}
 
   async seed(ctx: SeedContext): Promise<void> {
-    for (const progKey of ['daycare', 'kinder', 'elementary', 'jhs', 'shs', 'college']) {
+    for (const progKey of [
+      'daycare',
+      'kinder',
+      'elementary',
+      'jhs',
+      'shs',
+      'college',
+    ]) {
       if (!ctx.shouldSeedProgram(progKey) || !ctx.programMap[progKey]) continue;
 
       const profile = ctx.profileDepartments[progKey];
@@ -18,8 +26,6 @@ export class MajorSubjectSeederService {
       }
     }
 
-    // Static fallback — only processes program keys that have NO profile,
-    // since profile-backed program keys were already fully handled above.
     const subjectDefs = allMajorSubjects().filter((s) => {
       const progKey = deriveProgramKey(s.levelName);
       return ctx.shouldSeedProgram(progKey) && !ctx.profileDepartments[progKey];
@@ -69,15 +75,26 @@ export class MajorSubjectSeederService {
         continue;
       }
 
-      // Real ownership scope for this subject: its own course, its own
-      // strand, or (for daycare/kinder/elementary/jhs, which have neither)
-      // the bare program key. This is what keeps BSIT's "Operating Systems"
-      // and BSCS's "Operating Systems" as two distinct lookups even though
-      // they share a name.
       const scopeKey = s.courseCode ?? s.strandName ?? progKey;
 
-      const id = seedId('subject', s.levelName, s.courseCode ?? 'none', s.strandName ?? 'none', s.name, ctx.orgId);
-      const existing = await this.db.subject.findFirst({ where: { id } });
+      const id = seedId(
+        'subject',
+        s.levelName,
+        s.courseCode ?? 'none',
+        s.strandName ?? 'none',
+        s.name,
+        ctx.schoolYearId,
+        ctx.orgId,
+      );
+      const existing = await findExistingSubject(this.db, id, {
+        orgId: ctx.orgId,
+        subjectType: 'major',
+        programId,
+        levelId,
+        name: s.name,
+        courseId: courseId ?? null,
+        strandId: strandId ?? null,
+      });
 
       if (existing) {
         ctx.registerSubjectId(scopeKey, s.name, existing.id);
@@ -110,13 +127,35 @@ export class MajorSubjectSeederService {
     profile: NonNullable<SeedContext['profileDepartments'][string]>,
   ): Promise<void> {
     const allLevels = [
-      ...profile.courses.flatMap((c) => c.levels.map((l) => ({ level: l, courseCode: c.code ?? c.name, strandName: null as string | null }))),
-      ...profile.strands.flatMap((s) => s.levels.map((l) => ({ level: l, courseCode: null as string | null, strandName: s.name }))),
-      ...profile.levels.map((l) => ({ level: l, courseCode: null as string | null, strandName: null as string | null })),
+      ...profile.courses.flatMap((c) =>
+        c.levels.map((l) => ({
+          level: l,
+          courseCode: c.code ?? c.name,
+          strandName: null as string | null,
+        })),
+      ),
+      ...profile.strands.flatMap((s) =>
+        s.levels.map((l) => ({
+          level: l,
+          courseCode: null as string | null,
+          strandName: s.name,
+        })),
+      ),
+      ...profile.levels.map((l) => ({
+        level: l,
+        courseCode: null as string | null,
+        strandName: null as string | null,
+      })),
     ];
 
+    const programId = ctx.programMap[progKey];
+
     for (const { level, courseCode, strandName } of allLevels) {
-      const levelKey = courseCode ? `${courseCode}|${level.name}` : strandName ? `${strandName}|${level.name}` : level.name;
+      const levelKey = courseCode
+        ? `${courseCode}|${level.name}`
+        : strandName
+          ? `${strandName}|${level.name}`
+          : level.name;
       const levelId = ctx.levelMap[levelKey];
       if (!levelId) {
         ctx.result.subjects.skipped++;
@@ -128,14 +167,39 @@ export class MajorSubjectSeederService {
 
       const scopeKey = courseCode ?? strandName ?? progKey;
 
-      for (const subj of level.subjects.filter((s) => s.subjectType === 'major')) {
-        if (!ctx.shouldSeedSubject(subj.name, level.name, strandName ?? undefined, courseCode ?? undefined)) {
+      for (const subj of level.subjects.filter(
+        (s) => s.subjectType === 'major',
+      )) {
+        if (
+          !ctx.shouldSeedSubject(
+            subj.name,
+            level.name,
+            strandName ?? undefined,
+            courseCode ?? undefined,
+          )
+        ) {
           ctx.result.subjects.skipped++;
           continue;
         }
 
-        const id = seedId('subject', level.name, courseCode ?? 'none', strandName ?? 'none', subj.name, ctx.orgId);
-        const existing = await this.db.subject.findFirst({ where: { id } });
+        const id = seedId(
+          'subject',
+          level.name,
+          courseCode ?? 'none',
+          strandName ?? 'none',
+          subj.name,
+          ctx.schoolYearId,
+          ctx.orgId,
+        );
+        const existing = await findExistingSubject(this.db, id, {
+          orgId: ctx.orgId,
+          subjectType: 'major',
+          programId,
+          levelId,
+          name: subj.name,
+          courseId: courseId ?? null,
+          strandId: strandId ?? null,
+        });
 
         if (existing) {
           ctx.registerSubjectId(scopeKey, subj.name, existing.id);
@@ -146,7 +210,7 @@ export class MajorSubjectSeederService {
               id,
               org_id: ctx.orgId,
               subject_type: 'major',
-              program_id: ctx.programMap[progKey],
+              program_id: programId,
               level_id: levelId,
               course_id: courseId ?? undefined,
               strand_id: strandId ?? undefined,

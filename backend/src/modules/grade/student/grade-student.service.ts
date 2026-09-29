@@ -110,6 +110,8 @@ export class GradeStudentService {
       const studentManuals = manualsByTerm.get(term.id) ?? [];
       const assessments = assessmentsByTerm.get(term.id) ?? [];
 
+      const isReleased = grade?.is_locked ?? false;
+
         const totalActiveWeight = categories.reduce((sum, cat) => {
           if (cat.type === 'manual') {
             return studentManuals.some(
@@ -130,22 +132,24 @@ export class GradeStudentService {
           return hasActive ? sum + cat.weight : sum;
         }, 0);
 
-        const categoryBreakdown = this.core.buildCategoryBreakdown(
-          studentSubs,
-          studentManuals,
-          assessments,
-          categories,
-          totalActiveWeight,
-        );
+        const categoryBreakdown = isReleased
+          ? this.core.buildCategoryBreakdown(
+              studentSubs,
+              studentManuals,
+              assessments,
+              categories,
+              totalActiveWeight,
+            )
+          : [];
 
         return {
           termId: term.id,
           termName: term.name,
           semesterName: term.semesterName,
           semesterIndex: term.semesterIndex,
-          finalScore: grade?.final_score ?? null,
-          finalGrade: grade?.is_locked ? grade.final_grade : null,
-          isReleased: grade?.is_locked ?? false,
+          finalScore: isReleased ? (grade?.final_score ?? null) : null,
+          finalGrade: isReleased ? grade!.final_grade : null,
+          isReleased,
           categoryBreakdown,
         };
       },

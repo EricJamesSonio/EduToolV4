@@ -1,21 +1,27 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import { ClassSchedulePicker } from "./ClassSchedulePicker";
+import { ClassSchedulePicker, type ScheduleConflictState } from "./ClassSchedulePicker";
 import type { Class } from "@/types/admin/class.types";
 
 interface ScheduleSlotFieldsProps {
   /** Fetched classes of the currently selected educator (same school year). */
   educatorClasses: Class[] | undefined;
-  /** True while the educator's classes are being fetched. */
+  /** Fetched classes of the currently selected section (same school year). Section is optional. */
+  sectionClasses?: Class[] | undefined;
+  /** True while the educator's/section's classes are being fetched. */
   isLoading?: boolean;
-  /** Fired with true whenever a slot overlaps an already-taken slot. */
-  onConflictsChange?: (hasConflict: boolean) => void;
+  /** Caps the number of slots. Omit for unlimited. */
+  maxSlots?: number;
+  /** Fired with the current educator/section conflict state whenever a pick changes. */
+  onConflictsChange?: (conflicts: ScheduleConflictState) => void;
 }
 
 export function ScheduleSlotFields({
   educatorClasses,
+  sectionClasses,
   isLoading,
+  maxSlots,
   onConflictsChange,
 }: ScheduleSlotFieldsProps) {
   return (
@@ -23,7 +29,9 @@ export function ScheduleSlotFields({
       <Label>Schedule</Label>
       <ClassSchedulePicker
         educatorClasses={educatorClasses}
+        sectionClasses={sectionClasses}
         isLoading={isLoading}
+        maxSlots={maxSlots}
         onConflictsChange={onConflictsChange}
       />
     </div>

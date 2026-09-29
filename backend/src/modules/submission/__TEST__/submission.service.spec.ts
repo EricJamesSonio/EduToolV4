@@ -7,6 +7,8 @@ describe('SubmissionService', () => {
   let assessmentRepo: any;
   let attendanceService: any;
   let gradeService: any;
+  let notificationService: any;
+  let db: any;
   const orgId = 'org-1';
   const assessmentId = 'ass-1';
   const studentId = 'stu-1';
@@ -27,7 +29,11 @@ describe('SubmissionService', () => {
     assessmentRepo = { findById: jest.fn() };
     attendanceService = { markPresentFromSubmission: jest.fn().mockResolvedValue(undefined) };
     gradeService = { recomputeStudentGrade: jest.fn().mockResolvedValue(undefined) };
-    service = new SubmissionService(submissionRepo, assessmentRepo, attendanceService, gradeService);
+    const notificationServiceMock = { createNotification: jest.fn().mockResolvedValue(undefined) };
+    const dbMock = { class: { findFirst: jest.fn().mockResolvedValue(null) } };
+    notificationService = notificationServiceMock;
+    db = dbMock;
+    service = new SubmissionService(submissionRepo, assessmentRepo, attendanceService, gradeService, notificationService as any, db as any);
     jest.clearAllMocks();
   });
 
@@ -177,6 +183,40 @@ describe('SubmissionService', () => {
       expect(submissionRepo.clearReopenedUntil).toHaveBeenCalledWith('sub-1');
       expect(attendanceService.markPresentFromSubmission).toHaveBeenCalled();
       expect(gradeService.recomputeStudentGrade).toHaveBeenCalledWith('class-1', 'term-1', studentId, orgId);
+    });
+    it('notifies the class educator on submit', async () => {
+      assessmentRepo.findById.mockResolvedValue(assessment({ class_id: 'class-1', term_id: null, title: 'Quiz 1' }));
+      submissionRepo.findByStudent.mockResolvedValue({ id: 'sub-1', status: 'draft', reopened_until: null });
+      submissionRepo.findQuestionsByAssessment.mockResolvedValue([]);
+      submissionRepo.upsertAnswers.mockResolvedValue([]);
+      submissionRepo.updateStatus.mockResolvedValue({ submitted_at: new Date() });
+      db.class.findFirst.mockResolvedValue({ educator_id: 'edu-1' });
+      await service.finish(assessmentId, orgId, studentId, { answers: [] } as any);
+      // fire-and-forget chain: allow microtasks to flush
+      await new Promise((r) => setImmediate(r));
+      expect(notificationService.createNotification).toHaveBeenCalledWith({
+        orgId,
+        accountId: 'edu-1',
+        type: 'assessment_submitted',
+        payload: {
+          classId: 'class-1',
+          assessmentId,
+          submissionId: 'sub-1',
+          studentId,
+          title: 'Quiz 1',
+        },
+      });
+    });
+    it('skips educator notification when class has no educator', async () => {
+      assessmentRepo.findById.mockResolvedValue(assessment({ class_id: 'class-1', term_id: null }));
+      submissionRepo.findByStudent.mockResolvedValue({ id: 'sub-1', status: 'draft', reopened_until: null });
+      submissionRepo.findQuestionsByAssessment.mockResolvedValue([]);
+      submissionRepo.upsertAnswers.mockResolvedValue([]);
+      submissionRepo.updateStatus.mockResolvedValue({ submitted_at: new Date() });
+      db.class.findFirst.mockResolvedValue(null);
+      await expect(service.finish(assessmentId, orgId, studentId, { answers: [] } as any)).resolves.toBeDefined();
+      await new Promise((r) => setImmediate(r));
+      expect(notificationService.createNotification).not.toHaveBeenCalled();
     });
   });
 

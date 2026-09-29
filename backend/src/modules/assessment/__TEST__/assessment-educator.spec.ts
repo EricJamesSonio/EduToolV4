@@ -20,6 +20,9 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
   };
 
   const db = {
+    enrollment: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     submission: {
       groupBy: jest.fn(),
       findMany: jest.fn(),
@@ -77,6 +80,11 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
     getGenerationStatus: jest.fn(),
   };
 
+  const notifications = {
+    createNotification: jest.fn().mockResolvedValue(undefined),
+    createBulkNotifications: jest.fn().mockResolvedValue(undefined),
+  };
+
   const logger = { error: jest.fn(), log: jest.fn() };
 
   beforeEach(() => {
@@ -93,6 +101,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       creation as any,
       submission as any,
       generation as any,
+      notifications as any,
     );
 
     (service as any).logger = logger;
@@ -319,5 +328,86 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
 
     expect(result[0].submittedCount).toBe(3);
     expect(result[0].pendingEssayCount).toBe(1);
+  });
+
+  // ─────────────────────────────────────────────
+  // 7. ASSESSMENT NOTIFICATIONS
+  // ─────────────────────────────────────────────
+
+  it('notifies enrolled students when scores are published (explicit filter)', async () => {
+    core.findAssessmentOrThrow.mockResolvedValue({
+      id: 'a1',
+      class_id: 'c1',
+      title: 'Quiz 1',
+    });
+    classRepo.findById.mockResolvedValue({ educator_id: 'educator-1' });
+
+    await service.publishScores('a1', 'org1', 'educator-1', {
+      studentIds: ['s1', 's2'],
+    });
+
+    const bulk = (service as any).notifications.createBulkNotifications;
+    expect(bulk).toHaveBeenCalledWith([
+      {
+        orgId: 'org1',
+        accountId: 's1',
+        type: 'score_published',
+        payload: { classId: 'c1', assessmentId: 'a1', title: 'Quiz 1' },
+      },
+      {
+        orgId: 'org1',
+        accountId: 's2',
+        type: 'score_published',
+        payload: { classId: 'c1', assessmentId: 'a1', title: 'Quiz 1' },
+      },
+    ]);
+  });
+
+  it('notifies all enrolled students when scores are published without a filter', async () => {
+    core.findAssessmentOrThrow.mockResolvedValue({
+      id: 'a1',
+      class_id: 'c1',
+      title: 'Quiz 1',
+    });
+    classRepo.findById.mockResolvedValue({ educator_id: 'educator-1' });
+    db.enrollment.findMany.mockResolvedValue([{ student_id: 's9' }]);
+
+    await service.publishScores('a1', 'org1', 'educator-1', {});
+
+    expect(
+      (service as any).notifications.createBulkNotifications,
+    ).toHaveBeenCalledWith([
+      {
+        orgId: 'org1',
+        accountId: 's9',
+        type: 'score_published',
+        payload: { classId: 'c1', assessmentId: 'a1', title: 'Quiz 1' },
+      },
+    ]);
+  });
+
+  it('notifies assigned students', async () => {
+    core.findAssessmentOrThrow.mockResolvedValue({
+      id: 'a1',
+      class_id: 'c1',
+      title: 'Quiz 1',
+    });
+    classRepo.findById.mockResolvedValue({ educator_id: 'educator-1' });
+    submission.assignStudents.mockResolvedValue({ success: true, assigned: 1 });
+
+    await service.assignStudents('a1', 'org1', 'educator-1', {
+      studentIds: ['11111111-1111-4111-8111-111111111111'],
+    });
+
+    expect(
+      (service as any).notifications.createBulkNotifications,
+    ).toHaveBeenCalledWith([
+      {
+        orgId: 'org1',
+        accountId: '11111111-1111-4111-8111-111111111111',
+        type: 'assessment_assigned',
+        payload: { classId: 'c1', assessmentId: 'a1', title: 'Quiz 1' },
+      },
+    ]);
   });
 });

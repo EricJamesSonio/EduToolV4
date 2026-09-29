@@ -391,6 +391,7 @@ export class StudentService {
     if (dto.sectionId) {
       const section = await this.sectionService.findById(dto.sectionId, orgId);
       const currentCount = await this.sectionService.countStudentsInSection(
+        orgId,
         dto.sectionId,
       );
       if (currentCount >= section.capacity) {

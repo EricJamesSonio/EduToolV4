@@ -62,6 +62,8 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
         repo as any,
         validator as any,
         auditLog as any,
+        { createBulkNotifications: jest.fn().mockResolvedValue(undefined) } as any,
+        { enrollment: { findMany: jest.fn().mockResolvedValue([]) } } as any,
       );
       await ops.lockClass('c1', 'e1', 'org-1', {});
 
@@ -196,6 +198,66 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
           reason: 'regrade again',
         }),
       ).resolves.toEqual({ success: true });
+    });
+  });
+
+  describe('(e) locking a class notifies every enrolled student', () => {
+    it('lockClass fans out a grade_locked notification per enrolled student', async () => {
+      const repo = {
+        findClassById: jest
+          .fn()
+          .mockResolvedValue({ id: 'c1', educator_id: 'e1', deleted_at: null }),
+        findLockByClassId: jest.fn().mockResolvedValue({
+          is_locked: false,
+          setting: {
+            lock_deadline: new Date(Date.now() + 60_000),
+            deadlineDays: null,
+          },
+        }),
+        setLocked: jest.fn().mockResolvedValue({ class_id: 'c1' }),
+        lockGradingScaleForClass: jest.fn().mockResolvedValue(undefined),
+        createEvent: jest.fn().mockResolvedValue({}),
+      };
+      const validator = {
+        validateReadiness: jest
+          .fn()
+          .mockResolvedValue({ ready: true, issues: [] }),
+      };
+      const notifications = {
+        createBulkNotifications: jest.fn().mockResolvedValue(undefined),
+      };
+      const db = {
+        enrollment: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ student_id: 's1' }, { student_id: 's2' }]),
+        },
+      };
+
+      const ops = new GradeLockOperationsService(
+        repo as any,
+        validator as any,
+        auditLog as any,
+        notifications as any,
+        db as any,
+      );
+      await ops.lockClass('c1', 'e1', 'org-1', {});
+      await new Promise((r) => setImmediate(r));
+
+      expect(notifications.createBulkNotifications).toHaveBeenCalledWith([
+        {
+          orgId: 'org-1',
+          accountId: 's1',
+          type: 'grade_locked',
+          payload: { classId: 'c1' },
+        },
+        {
+          orgId: 'org-1',
+          accountId: 's2',
+          type: 'grade_locked',
+          payload: { classId: 'c1' },
+        },
+      ]);
     });
   });
 });

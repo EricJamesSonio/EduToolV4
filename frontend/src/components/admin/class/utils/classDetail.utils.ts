@@ -1,4 +1,5 @@
 import type { Class } from "@/types/admin/class.types";
+import { formatSchedule as formatScheduleShared } from "@/utils/classes.utils";
 
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -7,8 +8,5 @@ export function toArray<T>(value: unknown): T[] {
 }
 
 export function formatSchedule(schedules: Class["schedules"] | undefined): string {
-  if (!schedules?.length) return "—";
-  return schedules
-    .map((s) => `${WEEKDAY_LABELS[s.weekday]} ${s.startTime}–${s.endTime}`)
-    .join(", ");
+  return formatScheduleShared(schedules);
 }

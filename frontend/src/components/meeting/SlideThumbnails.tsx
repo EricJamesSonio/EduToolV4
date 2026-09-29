@@ -91,18 +91,18 @@ export default function SlideThumbnails({ slides, currentSlideIndex, template, o
     );
   }
 
-  return (
-    <div className="w-56 border-r border-border bg-card flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <span className="text-sm font-medium text-foreground">Slides</span>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {currentSlideIndex + 1}/{slides.length}
-        </span>
-      </div>
-
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-2">
-        {slides.map((slide, i) => thumbnail(slide, i, i === currentSlideIndex))}
-      </div>
+return (
+  <div className="w-56 h-full min-h-0 border-r border-border bg-card flex flex-col">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+      <span className="text-sm font-medium text-foreground">Slides</span>
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {currentSlideIndex + 1}/{slides.length}
+      </span>
     </div>
-  );
+
+    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2">
+      {slides.map((slide, i) => thumbnail(slide, i, i === currentSlideIndex))}
+    </div>
+  </div>
+);
 }

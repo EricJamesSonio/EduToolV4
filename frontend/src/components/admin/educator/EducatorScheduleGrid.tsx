@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Class } from "@/types/admin/class.types";
 import { WEEKDAYS } from "./EducatorClassAssignmentManager";
-import { minutesToTime } from "@/utils/classes.utils";
+import { minutesToDisplayLabel } from "@/utils/classes.utils";
 
 export interface ScheduleRange {
   weekday: number;
@@ -16,9 +16,24 @@ export interface DraftCell {
   minute: number;
 }
 
+export type ScheduleSource = "section" | "educator" | "both";
+
+export const SOURCE_STYLES: Record<ScheduleSource, string> = {
+  section:  "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
+  educator: "bg-chart-4/15 border-dashed border-[var(--chart-4)]/60 text-[var(--chart-4)]",
+  both:     "bg-destructive/15 border-destructive/40 text-destructive",
+};
+
+export const SOURCE_LABELS: Record<ScheduleSource, string> = {
+  section:  "Section",
+  educator: "Educator busy",
+  both:     "Section & educator",
+};
+
 interface EducatorScheduleGridProps {
   classes: Class[];
   isLoading?: boolean;
+  getSublabel?: (cls: Class) => string;
 
   interactive?: boolean;
   showAllDays?: boolean;
@@ -30,6 +45,7 @@ interface EducatorScheduleGridProps {
   stepMin?: number;
   onDraftStart?: (cell: DraftCell) => void;
   onPickRange?: (range: ScheduleRange) => void;
+  classTags?: Record<string, ScheduleSource>;
 }
 
 interface ScheduleBlock {
@@ -40,6 +56,7 @@ interface ScheduleBlock {
   endMin: number;
   label: string;
   sublabel: string;
+  tag?: ScheduleSource;
 }
 
 interface PositionedBlock extends ScheduleBlock {
@@ -49,8 +66,9 @@ interface PositionedBlock extends ScheduleBlock {
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const MIN_INTERVAL_CANDIDATES = [30, 15, 10, 5, 1];
-const PX_PER_MINUTE = 1.1;
-const TIME_COL_WIDTH = 64;
+const PX_PER_MINUTE = 0.85;
+const TIME_COL_WIDTH = 44;
+const DAY_COL_MIN_WIDTH = 40;
 
 const BLOCK_COLORS = [
   "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
@@ -67,7 +85,7 @@ function toMinutes(hhmm: string): number {
 }
 
 function toLabel(min: number): string {
-  return minutesToTime(min);
+  return minutesToDisplayLabel(min);
 }
 
 function gcd(a: number, b: number): number {
@@ -132,6 +150,7 @@ function layoutOverlaps(dayBlocks: ScheduleBlock[]): PositionedBlock[] {
 export function EducatorScheduleGrid({
   classes,
   isLoading,
+  getSublabel,
   interactive,
   showAllDays,
   pickedRanges = [],
@@ -142,6 +161,7 @@ export function EducatorScheduleGrid({
   stepMin = 30,
   onDraftStart,
   onPickRange,
+  classTags,
 }: EducatorScheduleGridProps) {
   const [hover, setHover] = useState<DraftCell | null>(null);
 
@@ -156,12 +176,13 @@ export function EducatorScheduleGrid({
           startMin: toMinutes(s.startTime),
           endMin: toMinutes(s.endTime),
           label: cls.subjectName ?? cls.title ?? "Class",
-          sublabel: cls.sectionName ?? "",
+          sublabel: getSublabel ? getSublabel(cls) : (cls.sectionName ?? ""),
+          tag: classTags?.[cls.id],
         });
       }
     }
     return result;
-  }, [classes]);
+  }, [classes, classTags, getSublabel]);
 
   const days = useMemo(() => {
     if (interactive && showAllDays) return DAY_ORDER;
@@ -301,21 +322,19 @@ export function EducatorScheduleGrid({
   return (
     <div className="border rounded-md overflow-x-auto bg-card">
       <div
-        className={interactive ? "grid" : "grid min-w-[640px]"}
+        className={interactive ? "grid w-full" : "grid min-w-[640px]"}
         style={{
-          gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${totalDataCols}, 1fr)`,
+          gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${totalDataCols}, minmax(${DAY_COL_MIN_WIDTH}px, 1fr))`,
           gridTemplateRows: `auto repeat(${numRows}, ${interval * PX_PER_MINUTE}px)`,
-          minWidth: interactive ? 900 : undefined,
         }}
       >
-        {/* Header row */}
         <div className="sticky top-0 z-10 bg-card border-b border-r" />
         {days.map((d) => {
           const { startCol, colCount } = dayLayout[d];
           return (
             <div
               key={`head-${d}`}
-              className="sticky top-0 z-10 bg-card border-b border-r py-2 text-center text-xs font-semibold text-muted-foreground not-interactive"
+              className="sticky top-0 z-10 bg-card border-b border-r py-1 px-0.5 text-center text-[10px] font-semibold text-muted-foreground not-interactive truncate"
               style={{ gridColumn: `${startCol} / span ${colCount}` }}
             >
               {WEEKDAYS[d]}
@@ -323,7 +342,6 @@ export function EducatorScheduleGrid({
           );
         })}
 
-        {/* Time labels */}
         {Array.from({ length: numRows }).map((_, i) => {
           const min = gridStart + i * interval;
           const showLabel = i % labelStep === 0;
@@ -338,7 +356,6 @@ export function EducatorScheduleGrid({
           );
         })}
 
-        {/* Background grid: plain lines in display mode, clickable cells in interactive mode */}
         {interactive
           ? days.map((d) => {
               const { startCol, colCount } = dayLayout[d];
@@ -384,7 +401,6 @@ export function EducatorScheduleGrid({
               )),
             )}
 
-        {/* Class blocks */}
         {days.map((d) => {
           const { startCol, blocks: dayBlocks } = dayLayout[d];
           return dayBlocks.map((b) => {
@@ -394,7 +410,10 @@ export function EducatorScheduleGrid({
             return (
               <div
                 key={b.key}
-                className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${colorForClass(b.classId)}`}
+                title={`${b.label}${b.sublabel ? ` · ${b.sublabel}` : ""}${b.tag ? ` - ${SOURCE_LABELS[b.tag]}` : ""}`}
+                className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${
+                  b.tag ? SOURCE_STYLES[b.tag] : colorForClass(b.classId)
+                }`}
                 style={{
                   gridRow: `${rowStart} / span ${rowSpan}`,
                   gridColumn: startCol + b.col,
@@ -411,12 +430,16 @@ export function EducatorScheduleGrid({
                 <p className="text-[9px] opacity-70 leading-tight not-interactive">
                   {toLabel(b.startMin)}–{toLabel(b.endMin)}
                 </p>
+                {b.tag && (
+                  <p className="text-[9px] font-medium opacity-80 leading-tight truncate not-interactive">
+                    {SOURCE_LABELS[b.tag]}
+                  </p>
+                )}
               </div>
             );
           });
         })}
 
-        {/* Hover preview of the in-progress selection */}
         {interactive && preview && dayLayout[preview.weekday] && (
           <div
             className="bg-primary/15 border-primary/60 border rounded-md pointer-events-none"
@@ -427,7 +450,6 @@ export function EducatorScheduleGrid({
           />
         )}
 
-        {/* Committed picks */}
         {interactive &&
           pickedRanges.map((range, idx) => {
             const { startCol } = dayLayout[range.weekday] ?? {};

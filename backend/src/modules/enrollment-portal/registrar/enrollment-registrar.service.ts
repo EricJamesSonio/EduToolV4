@@ -61,7 +61,6 @@ export class EnrollmentRegistrarService {
       );
 
     this.assertPeriodDates(dto.start_date, dto.end_date, dto.lock_date);
-    this.assertBeforeSchoolYearStart(dto.end_date, schoolYear.start_date);
     await this.readinessService.assertReady(orgId, schoolYear.id);
     const token = await this.generateUniquePeriodToken(orgId);
 
@@ -92,19 +91,23 @@ export class EnrollmentRegistrarService {
       this.repo.countApplicationsByPeriodStatus(orgId),
     ]);
 
-    const countsByPeriod = groupedByPeriod.reduce<
-      Record<string, Record<string, number>>
-    >((acc, g) => {
-      const key = g.enrollment_period_id;
-      acc[key] = acc[key] ?? {
-        pending: 0,
-        locked: 0,
-        approved: 0,
-        rejected: 0,
-      };
-      acc[key][g.status] = g._count._all;
-      return acc;
-    }, {});
+const countsByPeriod = groupedByPeriod.reduce<
+  Record<string, Record<string, number>>
+>((acc, g) => {
+  const key = g.enrollment_period_id;
+
+  acc[key] = acc[key] ?? {
+    pending: 0,
+    locked: 0,
+    approved: 0,
+    rejected: 0,
+  };
+
+  acc[key][g.status] = g._count._all;
+
+  return acc;
+}, {});
+
 
     return {
       org: {
@@ -343,10 +346,6 @@ export class EnrollmentRegistrarService {
       next.end_date.toISOString(),
       next.lock_date.toISOString(),
     );
-    this.assertBeforeSchoolYearStart(
-      next.end_date.toISOString(),
-      period.schoolYear?.start_date ?? null,
-    );
 
     const updated = await this.repo.updatePeriod(id, next);
     await this.logAdmin(
@@ -536,21 +535,8 @@ export class EnrollmentRegistrarService {
     if (lockDate <= startDate) {
       throw new BadRequestException('Lock date must be after the start date.');
     }
-  }
-
-  private assertBeforeSchoolYearStart(
-    end: string,
-    schoolYearStart: Date | null | undefined,
-  ) {
-    if (!schoolYearStart) return;
-    const endDate = new Date(end);
-    if (Number.isNaN(endDate.getTime())) return;
-    const startDate = new Date(schoolYearStart);
-    startDate.setHours(0, 0, 0, 0);
-    if (endDate >= startDate) {
-      throw new BadRequestException(
-        'Enrollment period must end strictly before the school year starts.',
-      );
+    if (lockDate >= endDate) {
+      throw new BadRequestException('Lock date must be before the end date.');
     }
   }
 

@@ -12,6 +12,9 @@ import { LevelService } from '@/modules/level/level.service';
 import { SubjectService } from '@/modules/subject/subject.service';
 import { GradingScaleService } from '../grading-scale/grading-scale.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
+import { SchoolProfileService } from '@/modules/school-profile/school-profile.service';
+import { DatabaseService } from '@/core/database/database.provider';
 import {
   CreateSchoolYearDto,
   UpdateSchoolYearDto,
@@ -30,7 +33,21 @@ export class SchoolYearService {
     private readonly gradingScaleService: GradingScaleService,
     private readonly auditLogService: AuditLogService,
     private readonly readinessService: SchoolYearReadinessService,
+    private readonly orgSeeder: OrgSeederService,
+    private readonly schoolProfileService: SchoolProfileService,
+    private readonly db: DatabaseService,
   ) {}
+
+    private deriveSchoolYearName(start_date?: string, end_date?: string): string {
+    if (!start_date || !end_date) {
+      throw new BadRequestException(
+        'Both start_date and end_date are required to generate the school year name.',
+      );
+    }
+    const startYear = new Date(start_date).getFullYear();
+    const endYear = new Date(end_date).getFullYear();
+    return `SY ${startYear}-${endYear}`;
+  }
 
   // ---------------------------------------------------------------------------
   // Date validation helpers
@@ -125,6 +142,55 @@ export class SchoolYearService {
     }
   }
 
+  /**
+   * If the org has "auto-seed new school years" enabled AND a School
+   * Profile with at least one configured department exists, seeds the new
+   * school year's structure (programs/courses/strands/levels/sections/
+   * subjects + grading scales/schemes) from that profile — mirroring the
+   * "Select All" flow in the Data Seeder. Semester templates and program
+   * calendars are intentionally skipped here since they need per-year dates
+   * the admin still has to supply.
+   *
+   * Never throws — a seeding failure must not block school year creation;
+   * it's surfaced via the returned warning string instead.
+   */
+  private async maybeAutoSeed(
+    orgId: string,
+    schoolYearId: string,
+    actorId: string,
+  ): Promise<{ seeded: boolean; warning?: string }> {
+    const org = await this.db.organization.findUnique({
+      where: { id: orgId },
+      select: { auto_seed_new_school_years: true },
+    });
+    if (!org?.auto_seed_new_school_years) return { seeded: false };
+
+    const profileByType = await this.schoolProfileService.getAllByType(orgId);
+    const programs = Object.keys(profileByType).filter(
+      (type) => !!profileByType[type],
+    );
+    if (programs.length === 0) return { seeded: false };
+
+    try {
+      await this.orgSeeder.seedOrg({
+        orgId,
+        actorId,
+        schoolYearId,
+        programs,
+        seedGradingScales: true,
+        seedGradingSchemes: true,
+        seedSemesterTemplates: false,
+        seedProgramCalendars: false,
+      });
+      return { seeded: true };
+    } catch (e: any) {
+      return {
+        seeded: false,
+        warning: `School year created, but automatic seeding from your School Profile failed: ${e?.message ?? 'unknown error'}. You can seed it manually from Data Seeder.`,
+      };
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // CRUD
   // ---------------------------------------------------------------------------
@@ -139,6 +205,8 @@ export class SchoolYearService {
     this.validateNotInPast(dto.start_date, dto.end_date);
     await this.assertNoOverlap(orgId, dto.start_date, dto.end_date);
 
+    const name = dto.name?.trim() || this.deriveSchoolYearName(dto.start_date, dto.end_date);
+
     const short = this.isShortDuration(dto.start_date, dto.end_date);
 
     if (short && !dto.confirm_short_duration) {
@@ -152,12 +220,18 @@ export class SchoolYearService {
 
     const schoolYear = await this.schoolYearRepository.create({
       orgId,
-      name: dto.name,
+      name,
       start_date: dto.start_date,
       end_date: dto.end_date,
     });
 
     await this.levelService.seedFromDefaults(orgId, schoolYear.id, {});
+
+    const autoSeedResult = await this.maybeAutoSeed(
+      orgId,
+      schoolYear.id,
+      actorId,
+    );
 
     this.auditLogService
       .logAdminAction({
@@ -167,16 +241,23 @@ export class SchoolYearService {
         entityType: 'school_year',
         entityId: schoolYear.id,
         metadata: {
-          name: dto.name,
+          name,
           start_date: dto.start_date,
           end_date: dto.end_date,
+          auto_seeded: autoSeedResult.seeded,
         },
       })
       .catch(() => {});
 
+    const warnings = [
+      short ? 'School year is shorter than 10 months.' : undefined,
+      autoSeedResult.warning,
+    ].filter(Boolean);
+
     return {
       data: schoolYear,
-      warning: short ? 'School year is shorter than 10 months.' : undefined,
+      warning: warnings.length > 0 ? warnings.join(' ') : undefined,
+      seeded: autoSeedResult.seeded,
     };
   }
 
@@ -259,8 +340,17 @@ export class SchoolYearService {
       });
     }
 
+    // Keep the name in sync with the dates whenever either changes, unless an
+    // explicit name override was sent. This mirrors create()'s auto-naming so
+    // editing dates never leaves a stale "SY 2025-2026" label behind.
+    const name =
+      dto.name?.trim() ||
+      (startChanged || endChanged
+        ? this.deriveSchoolYearName(effectiveStart, effectiveEnd)
+        : schoolYear.name);
+
     const updated = await this.schoolYearRepository.update(id, {
-      name: dto.name,
+      name,
       start_date: dto.start_date,
       end_date: dto.end_date,
     });
@@ -272,7 +362,7 @@ export class SchoolYearService {
         action: 'school_year_updated',
         entityType: 'school_year',
         entityId: id,
-        metadata: { name: dto.name },
+        metadata: { name },
       })
       .catch(() => {});
 

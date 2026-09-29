@@ -39,10 +39,6 @@ export function ProgramCalendarStep({
 }: ProgramCalendarStepProps) {
   const programs = Array.from(selectedPrograms)
 
-  // Prefill each department's draft with the school-year dates when the step
-  // is first enabled, AND whenever a new department is selected afterward so
-  // it always gets the default 2-break skeleton (only seeds drafts that don't
-  // exist yet, so existing user entries are preserved).
   useEffect(() => {
     if (!seedProgramCalendars) return
     programs.forEach((prog) => {
@@ -51,7 +47,6 @@ export function ProgramCalendarStep({
         endDate:   schoolYearEnd?.slice(0, 10) ?? "",
       })
     })
-
   }, [seedProgramCalendars, selectedPrograms, schoolYearStart, schoolYearEnd])
 
   return (
@@ -61,14 +56,14 @@ export function ProgramCalendarStep({
       {!seedProgramCalendars ? (
         <p className="text-xs text-muted-foreground not-interactive">
           Department academic calendars will not be created. Enable above to define each
-          department&apos;s calendar — a calendar is required before semester templates can be
+          department&apos;s calendar. A calendar is required before semester templates can be
           auto-registered.
         </p>
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">
             Set up each department&apos;s calendar. Define at least {MIN_CALENDAR_PERIODS}{" "}
-            semester periods and their date ranges — the semester template will be auto-generated
+            semester periods and their date ranges. The semester template will be auto-generated
             with one semester per period, so the two are always in sync.
           </p>
 
@@ -114,16 +109,6 @@ export function ProgramCalendarStep({
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Notes (optional)</label>
-                  <Input
-                    value={config?.notes ?? ""}
-                    onChange={(e) => onUpdateProgramCalendar(prog, { notes: e.target.value })}
-                    placeholder="Any notes for this calendar"
-                    className="h-8 text-sm"
-                  />
-                </div>
-
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">
                     Semester Periods
@@ -144,7 +129,7 @@ export function ProgramCalendarStep({
                 {template && templateEnabled && configured && (
                   <div className="rounded-md bg-success/10 border border-success/30 px-3 py-2">
                     <p className="text-xs text-success not-interactive">
-                      {breakCount} period(s) — the {template.name} will be auto-generated with{" "}
+                      {breakCount} period(s). The {template.name} will be auto-generated with{" "}
                       {breakCount} semester(s) and auto-registered for this department.
                     </p>
                   </div>
@@ -154,7 +139,7 @@ export function ProgramCalendarStep({
                   <div className="rounded-md bg-warning/10 border border-warning/30 px-3 py-2">
                     <p className="text-xs text-warning not-interactive">
                       At least {MIN_CALENDAR_PERIODS} complete periods are needed before the
-                      semester template can be generated for this department — {breakCount} of{" "}
+                      semester template can be generated for this department. {breakCount} of{" "}
                       {MIN_CALENDAR_PERIODS} set.
                     </p>
                   </div>

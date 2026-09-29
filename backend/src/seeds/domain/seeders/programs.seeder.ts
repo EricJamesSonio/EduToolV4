@@ -6,6 +6,10 @@ import {
   BSED_MAJORS,
 } from '../../../modules/org-seeder/data/courses.data';
 import { SHS_STRANDS } from '../../../modules/org-seeder/data/strands.data';
+import {
+  restoreCourseIfArchived,
+  restoreStrandIfArchived,
+} from '../../../commons/utils/seed-restore';
 
 export async function seedPrograms(
   orgId: string,
@@ -54,6 +58,8 @@ export async function seedCourses(
 
     if (existing) {
       courseMap[c.code] = existing.id;
+      // Re-seeding restores an archived course instead of leaving it hidden.
+      await restoreCourseIfArchived(db, existing.id);
     } else {
       const rec = await db.course.create({
         data: {
@@ -87,6 +93,8 @@ export async function seedStrands(
 
     if (existing) {
       strandMap[s] = existing.id;
+      // Re-seeding restores an archived strand instead of leaving it hidden.
+      await restoreStrandIfArchived(db, existing.id);
     } else {
       const rec = await db.strand.create({
         data: {

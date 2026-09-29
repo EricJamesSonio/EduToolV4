@@ -1,5 +1,4 @@
-﻿// frontend/src/components/admin/data-seeder/SeederCard.tsx
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, Calendar, Database, CheckSquare } from "lucide-react";
@@ -9,6 +8,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useNavigationGuard } from "@/context/NavigationGuardContext";
 import { useSchoolProfileData } from "@/hooks/admin/useSchoolProfile"
 import { useEffectiveSeedData } from "./hooks/useEffectiveSeedData"
+import { useSeededPrograms } from "./hooks/useSeededPrograms"
 
 import { SchoolYearStep } from "./SchoolYearStep";
 import { ProgramStep } from "./ProgramStep";
@@ -22,6 +22,8 @@ import { SemesterTemplateStep } from "./SemesterTemplateStep";
 import { LEVEL_DEFS } from "./constants/seed-data";
 import { useSeederCard } from "./hooks/useSeederCard";
 import { SeedProgressDialog } from "./SeedProgressDialog";
+
+const PROGRAM_KEYS = ["daycare", "kinder", "elementary", "jhs", "shs", "college"];
 
 function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
   return (
@@ -69,6 +71,7 @@ export function SeederCard() {
     existingSubjectTitles,
     helpers,
     selectedPrograms,
+    setSelectedPrograms,
     selectedCourses,
     selectedStrands,
     selectedSubjects,
@@ -99,11 +102,32 @@ export function SeederCard() {
     dismissSeedOutcome,
   } = useSeederCard(overrides);
 
-  // ===== Navigation guard: don't let the user silently lose an in-progress
-  // seed by clicking away in the sidebar. "In progress" = at least one
-  // department has been selected — matches the point where real, non-trivial
-  // choices start piling up (levels, sections, subjects, calendars, etc. all
-  // key off the selected departments).
+  const { lockedProgramTypes, topUpProgramTypes } = useSeededPrograms(
+    selectedSchoolYearId,
+    savedProfileDepartments,
+  );
+
+  useEffect(() => {
+    const stale = Array.from(selectedPrograms).filter((key) => lockedProgramTypes.has(key));
+    if (stale.length === 0) return;
+    setSelectedPrograms(
+      new Set(Array.from(selectedPrograms).filter((key) => !lockedProgramTypes.has(key))),
+    );
+  }, [lockedProgramTypes, selectedPrograms, setSelectedPrograms]);
+
+  function handleSelectAllPrograms() {
+    const selectable = PROGRAM_KEYS.filter(
+      (key) =>
+        (!allowedProgramTypes || allowedProgramTypes.size === 0 || allowedProgramTypes.has(key)) &&
+        !lockedProgramTypes.has(key),
+    );
+    setSelectedPrograms(new Set([...Array.from(selectedPrograms), ...selectable]));
+  }
+
+  function handleDeselectAllPrograms() {
+    setSelectedPrograms(new Set());
+  }
+
   const { setGuard } = useNavigationGuard();
 
   useEffect(() => {
@@ -111,8 +135,6 @@ export function SeederCard() {
     return () => setGuard(null);
   }, [selectedPrograms, setGuard]);
 
-  // Same protection for tab close / refresh / typed-URL navigation, which the
-  // sidebar guard can't catch since it only intercepts our own <Link> clicks.
   useEffect(() => {
     function handleBeforeUnload(e: BeforeUnloadEvent) {
       if (selectedPrograms.size > 0) {
@@ -127,7 +149,6 @@ export function SeederCard() {
   return (
     <>
       <div className="space-y-6">
-        {/* School Year */}
         <Card id="school-year" icon={CalendarDays} title="School Year">
           <SchoolYearStep
             schoolYears={schoolYears}
@@ -145,14 +166,13 @@ export function SeederCard() {
             !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
           )}
         >
-          {/* Select All — replaces Apply Preset: selects all configured (does not seed) */}
           {selectedSchoolYearId && savedProfileDepartments.length > 0 && existingProgramTypes.size === 0 && (
             <Card id="select-all" icon={CheckSquare} title="Select All">
               <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Configuration available from School Profile</p>
                   <p className="text-xs text-muted-foreground not-interactive">
-                    This school year has no data yet. Select all configured departments and templates ({savedProfileDepartments.map((d) => d.type).join(", ")}) in one click — semester templates excluded (needs calendar).
+                    This school year has no data yet. Select all configured departments and templates ({savedProfileDepartments.map((d) => d.type).join(", ")}) in one click. Semester templates are excluded because they need a calendar.
                   </p>
                 </div>
                 <Button
@@ -168,19 +188,18 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Programs — when preset exists, only its departments are selectable */}
           <Card id="programs" icon={Layers} title="Departments">
             <ProgramStep
               selectedPrograms={selectedPrograms}
-              disabledProgramTypes={existingProgramTypes}
+              disabledProgramTypes={lockedProgramTypes}
+              topUpProgramTypes={topUpProgramTypes}
               onToggleProgram={helpers.toggleProgram}
-              onSelectAllPrograms={helpers.selectAllPrograms}
-              onDeselectAllPrograms={helpers.deselectAllPrograms}
+              onSelectAllPrograms={handleSelectAllPrograms}
+              onDeselectAllPrograms={handleDeselectAllPrograms}
               allowedProgramTypes={allowedProgramTypes}
             />
           </Card>
 
-          {/* Strands (SHS) — before Levels because Levels depend on selected Strands */}
           {selectedPrograms.has("shs") && (
             <Card id="strands" icon={BookOpen} title="SHS Strands">
               <StrandStep
@@ -194,7 +213,6 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Courses (College) — before Levels because Levels depend on selected Courses (e.g. BSA 5yr vs 4yr) */}
           {selectedPrograms.has("college") && (
             <Card id="courses" icon={BookOpen} title="College Courses">
               <CourseStep
@@ -208,7 +226,6 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Levels — also show when an override defines levels for a program; seeder is read-only (select/unselect only, edit in Configure) */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="levels" icon={LayoutList} title="Levels">
               <LevelStep
@@ -230,7 +247,6 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Sections — after Levels; read-only */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="sections" icon={Scale} title="Sections">
               <SectionStep
@@ -254,7 +270,6 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Subjects */}
           <Card id="subjects" icon={BookOpen} title="Subjects">
             <SubjectStep
               selectedPrograms={selectedPrograms}
@@ -276,10 +291,8 @@ export function SeederCard() {
             />
           </Card>
 
-          {/* Academic Calendar & Semester Templates - global template pickers stay per school year */}
           {selectedPrograms.size > 0 && (
             <>
-
               <Card id="program-calendars" icon={Calendar} title="Academic Calendar">
                 <ProgramCalendarStep
                   selectedPrograms={selectedPrograms}
@@ -310,7 +323,6 @@ export function SeederCard() {
             </>
           )}
 
-          {/* Summary + Apply */}
           <Card id="summary" icon={Database} title="Summary">
             <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
               {summaryItems.length > 0 ? (
@@ -371,7 +383,7 @@ export function SeederCard() {
       <ConfirmDialog
         open={!!pendingSchoolYear}
         title="School year looks short"
-        message="This school year doesn't span a full year. This might be a mistake — are you sure you want to proceed?"
+        message="This school year doesn't span a full year. This might be a mistake. Are you sure you want to proceed?"
         confirmLabel="Yes, create it"
         destructive={false}
         isLoading={createSchoolYearMutation.isPending}

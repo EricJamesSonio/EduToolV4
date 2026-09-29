@@ -21,6 +21,10 @@ export interface AuthUser {
   profileImage?: string | null;
   personalEmail?: string | null;
   isRegistrar?: boolean;
+  /** Present only when role === "student" (system-generated "STU-XXXXXXXX") */
+  studentId?: string | null;
+  /** Present only when role === "educator" (system-generated "EDU-XXXXXXXX") */
+  educatorId?: string | null;
 }
 
 export interface TokenPayload {

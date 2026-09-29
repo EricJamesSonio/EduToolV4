@@ -1,4 +1,5 @@
-// app/admin/school-years/[id]/levels/_components/get-count-config.ts
+import type { ProgramType } from "@/types/admin/program.types";
+import { getLevelLabel, getLevelBounds } from "@/lib/level-label";
 
 type CountConfig = {
   label: string;
@@ -8,50 +9,34 @@ type CountConfig = {
   preview: (n: number) => string;
 };
 
-export function getCountConfig(type: string): CountConfig {
-  switch (type) {
-    case "elementary":
-      return {
-        label: "Number of grades",
-        default: 6,
-        min: 1,
-        max: 12,
-        preview: (n) => `Grade 1 → Grade ${n}`,
-      };
-    case "high_school":
-      return {
-        label: "Number of grades",
-        default: 4,
-        min: 1,
-        max: 6,
-        preview: (n) => `Grade 7 → Grade ${6 + n}`,
-      };
-    case "senior_high":
-      return {
-        label: "Number of grades",
-        default: 2,
-        min: 1,
-        max: 2,
-        preview: (n) => (n === 1 ? "Grade 11" : "Grade 11, Grade 12"),
-      };
-    case "college":
-      return {
-        label: "Number of years",
-        default: 4,
-        min: 1,
-        max: 5,
-        preview: (n) => {
-          const o = ["1st", "2nd", "3rd", "4th", "5th"];
-          return `${o[0]} Year → ${o[n - 1]} Year`;
-        },
-      };
-    default:
-      return {
-        label: "Number of levels",
-        default: 3,
-        min: 1,
-        max: 20,
-        preview: (n) => `1 → ${n}`,
-      };
-  }
+export function getCountConfig(type: ProgramType | string): CountConfig {
+  const t = type as ProgramType;
+  const { min, max } = getLevelBounds(t);
+
+  const labelText: Record<string, string> = {
+    elementary: "Number of grades",
+    jhs: "Number of grades",
+    shs: "Number of grades",
+    college: "Number of years",
+    daycare: "Number of levels",
+    kinder: "Number of levels",
+  };
+
+  const defaults: Record<string, number> = {
+    elementary: 6,
+    jhs: 4,
+    shs: 2,
+    college: 4,
+    daycare: 2,
+    kinder: 2,
+  };
+
+  return {
+    label: labelText[t] ?? "Number of levels",
+    default: defaults[t] ?? Math.min(3, max),
+    min,
+    max,
+    preview: (n) =>
+      n <= 1 ? getLevelLabel(t, 1) : `${getLevelLabel(t, 1)} → ${getLevelLabel(t, n)}`,
+  };
 }

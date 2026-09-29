@@ -7,6 +7,7 @@ import { resolveSubjectAcademicStructure } from '../enrollment/enrollment-eligib
 export class ClassRepository {
   constructor(private readonly db: DatabaseService) {}
 
+
   async create(data: {
     orgId: string;
     subjectId: string;
@@ -329,6 +330,25 @@ export class ClassRepository {
     });
   }
 
+    async findSectionSubjectClass(
+    orgId: string,
+    sectionId: string,
+    subjectId: string,
+    semesterId: string,
+    excludeClassId?: string,
+  ) {
+    return this.db.class.findFirst({
+      where: {
+        org_id: orgId,
+        section_id: sectionId,
+        subject_id: subjectId,
+        semester_id: semesterId,
+        deleted_at: null,
+        ...(excludeClassId && { id: { not: excludeClassId } }),
+      },
+      select: { id: true },
+    });
+  }
   async findSectionSchedules(
     sectionId: string,
     orgId: string,

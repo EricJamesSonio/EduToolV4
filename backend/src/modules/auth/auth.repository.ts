@@ -46,17 +46,50 @@ export class AuthRepository {
     });
   }
 
+  /**
+   * Reads current metadata and merges the refresh token into it instead of
+   * replacing the whole JSON blob.
+   *
+   * BUGFIX: profile.metadata also stores studentId/educatorId (and, for
+   * students, levelId/sectionId) — see StudentRepository.create /
+   * EducatorRepository.create. metadata is a Prisma `Json` column, and Prisma
+   * REPLACES the entire JSON value on write; it does not deep-merge. The
+   * previous implementation wrote `metadata: { refreshToken: hashedToken }`
+   * directly, which silently wiped every other key on every login and every
+   * token refresh (generateTokens() is called from both login() and
+   * refresh()). Any account that had ever logged in lost its display ID
+   * permanently. Read-modify-write under a transaction (same pattern already
+   * used correctly in EducatorRepository.updateProfile and
+   * StudentRepository.updateProfile) fixes this without touching callers.
+   */
   async saveRefreshToken(accountId: string, hashedToken: string) {
-    return this.db.profile.upsert({
-      where: { account_id: accountId },
-      update: {
-        metadata: { refreshToken: hashedToken },
-      },
-      create: {
-        account_id: accountId,
-        full_name: '',
-        metadata: { refreshToken: hashedToken },
-      },
+    return this.db.$transaction(async (tx) => {
+      const current = await tx.profile.findUnique({
+        where: { account_id: accountId },
+        select: { metadata: true },
+      });
+
+      const currentMeta =
+        current?.metadata &&
+        typeof current.metadata === 'object' &&
+        !Array.isArray(current.metadata)
+          ? (current.metadata as Record<string, any>)
+          : {};
+
+      return tx.profile.upsert({
+        where: { account_id: accountId },
+        update: {
+          metadata: {
+            ...currentMeta,
+            refreshToken: hashedToken,
+          },
+        },
+        create: {
+          account_id: accountId,
+          full_name: '',
+          metadata: { refreshToken: hashedToken },
+        },
+      });
     });
   }
 
@@ -72,14 +105,33 @@ export class AuthRepository {
     return meta.refreshToken ?? null;
   }
 
+  /**
+   * Same read-modify-write fix as saveRefreshToken — see the comment there.
+   * Logout must only clear the refresh token, not the rest of metadata.
+   */
   async clearRefreshToken(accountId: string) {
-    return this.db.profile.update({
-      where: { account_id: accountId },
-      data: {
-        metadata: {
-          refreshToken: null,
+    return this.db.$transaction(async (tx) => {
+      const current = await tx.profile.findUnique({
+        where: { account_id: accountId },
+        select: { metadata: true },
+      });
+
+      const currentMeta =
+        current?.metadata &&
+        typeof current.metadata === 'object' &&
+        !Array.isArray(current.metadata)
+          ? (current.metadata as Record<string, any>)
+          : {};
+
+      return tx.profile.update({
+        where: { account_id: accountId },
+        data: {
+          metadata: {
+            ...currentMeta,
+            refreshToken: null,
+          },
         },
-      },
+      });
     });
   }
 

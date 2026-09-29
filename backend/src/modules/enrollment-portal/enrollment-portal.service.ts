@@ -13,6 +13,7 @@ import { PersonalEmailRegistryService } from '@/commons/services/personal-email-
 import { EnrollmentPortalRepository } from './enrollment-portal.repository';
 import { resolveSelectionShape } from './enrollment-selection.mapper';
 import { resultToApplicationView } from './serializers';
+import { NotificationService } from '@/modules/notification/notification.service';
 import {
   EnrollmentSessionClaims,
   PublicPortalInfo,
@@ -35,6 +36,7 @@ export class EnrollmentPortalService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly personalEmailRegistry: PersonalEmailRegistryService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   verifySessionToken(token: string): EnrollmentSessionClaims {
@@ -217,6 +219,13 @@ export class EnrollmentPortalService {
         org.name,
       )
       .catch(() => {});
+    this.notificationService
+  .notifyOrgStaff(org.id, 'application_submitted', {
+    applicationId: application.id,
+    applicationCode,
+    applicantName: [dto.first_name, dto.last_name].filter(Boolean).join(' '),
+  })
+  .catch(() => {});
 
     return resultToApplicationView(application);
   }

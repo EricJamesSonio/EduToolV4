@@ -1,30 +1,59 @@
 "use client";
 
-import { useNotificationStore } from "@/store/notification.store";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  useNotificationStore,
+  type Notification,
+} from "@/store/notification.store";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bell, Info, AlertCircle, CheckCircle, BookOpen } from "lucide-react";
-import { relativeTime } from "@/utils/date.util";
-import { cn } from "@/lib/utils";
+import { Bell } from "lucide-react";
 import { EmptyState } from "./EmptyState";
-
-const TYPE_ICON: Record<string, React.ElementType> = {
-  info: Info,
-  warning: AlertCircle,
-  success: CheckCircle,
-  lesson: BookOpen,
-};
+import { NotificationList } from "./notification/NotificationList";
+import { NotificationSummaryRows } from "./notification/NotificationSummaryRows";
+import { SUMMARY_ROWS } from "./notification/constants";
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotificationFeed,
+  useNotificationSummary,
+} from "@/hooks/useNotifications";
 
 export function NotificationDropdown(): React.JSX.Element {
-  const { notifications, unreadCount } = useNotificationStore();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  const feed = useNotificationFeed();
+  const { data: summary } = useNotificationSummary();
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
+
+  const { notifications, unreadCount: storeUnread } = useNotificationStore();
+
+  const unreadCount = summary?.unreadCount ?? storeUnread;
+
+  const hasSummaryRows = SUMMARY_ROWS.some(
+    (row) => (summary?.byType?.[row.type] ?? 0) > 0,
+  );
+  const isEmpty = notifications.length === 0 && !hasSummaryRows;
+
+  function go(href: string | null): void {
+    setOpen(false);
+    if (href) router.push(href);
+  }
+
+  function handleItemClick(n: Notification): void {
+    if (!n.isRead) markRead.mutate(n.id);
+    go(n.linkTo);
+  }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={(o) => setOpen(o)}>
       <PopoverTrigger
         render={
           <Button variant="ghost" size="icon" className="relative h-9 w-9" />
@@ -32,26 +61,42 @@ export function NotificationDropdown(): React.JSX.Element {
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground leading-none">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground leading-none">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
         <span className="sr-only">Notifications</span>
       </PopoverTrigger>
 
-      <PopoverContent align="end" sideOffset={8} className="w-80 p-0">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">Notifications</h3>
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className="w-96 gap-0 overflow-hidden p-0"
+      >
+        {/* Header (pinned) */}
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">Notifications</h3>
+            {unreadCount > 0 && (
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                {unreadCount} new
+              </span>
+            )}
+          </div>
           {unreadCount > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {unreadCount} new
-            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending}
+            >
+              Mark all as read
+            </Button>
           )}
         </div>
 
-        {/* List */}
-        {notifications.length === 0 ? (
+        {isEmpty ? (
           <EmptyState
             title="No notifications"
             description="You're all caught up."
@@ -59,37 +104,19 @@ export function NotificationDropdown(): React.JSX.Element {
             className="py-8"
           />
         ) : (
-          <ScrollArea className="max-h-90">
-            <div className="divide-y">
-              {notifications.map((n) => {
-                const Icon = TYPE_ICON[n.type ?? "info"] ?? Info;
-                return (
-                  <div
-                    key={n.id}
-                    className={cn(
-                      "flex gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50",
-                      !n.isRead && "bg-primary/5"
-                    )}
-                  >
-                    <div className="mt-0.5 shrink-0 text-muted-foreground">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 space-y-0.5">
-                      <p className={cn(!n.isRead && "font-medium")}>
-                        {n.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {relativeTime(n.createdAt)}
-                      </p>
-                    </div>
-                    {!n.isRead && (
-                      <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
+          <>
+            {/* Needs attention (pinned) */}
+            <NotificationSummaryRows byType={summary?.byType} onNavigate={go} />
+
+            {/* Only this part scrolls */}
+            <NotificationList
+              notifications={notifications}
+              onItemClick={handleItemClick}
+              hasMore={!!feed.hasNextPage}
+              isFetchingMore={feed.isFetchingNextPage}
+              onLoadMore={() => void feed.fetchNextPage()}
+            />
+          </>
         )}
       </PopoverContent>
     </Popover>

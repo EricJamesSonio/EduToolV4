@@ -4,11 +4,15 @@ export class CourseSnapshot {
   id!: string;
   name!: string;
   code!: string | null;
+  levelCount?: number;
+  sectionCount?: number;
 }
 
 export class StrandSnapshot {
   id!: string;
   name!: string;
+  levelCount?: number;
+  sectionCount?: number;
 }
 
 export class ProgramEntity {

@@ -9,6 +9,7 @@ import { ClassRepository } from '@/modules/class/class.repository';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { AttendanceService } from '@/modules/attendance/attendance.service';
 import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
+import { NotificationService } from '@/modules/notification/notification.service';
 import { DatabaseService } from '@/core/database/database.provider';
 import { AssessmentCreationHelper } from './helpers/assessment-creation.helper';
 import { AssessmentSubmissionHelper } from './helpers/assessment-submission.helper';
@@ -43,6 +44,7 @@ export class AssessmentEducatorService {
     private readonly creation: AssessmentCreationHelper,
     private readonly submission: AssessmentSubmissionHelper,
     private readonly generation: AssessmentGenerationHelper,
+    private readonly notifications: NotificationService,
   ) {}
 
   // ───────── GUARDS ─────────
@@ -75,6 +77,35 @@ export class AssessmentEducatorService {
 
   getGenerationStatus(assessmentId: string) {
     return this.generation.getGenerationStatus(assessmentId);
+  }
+
+  // ───────── NOTIFICATION HELPERS (fire-and-forget, never block) ─────────
+
+  private async enrolledStudentIds(
+    classId: string,
+    orgId: string,
+  ): Promise<string[]> {
+    const enrollments = await this.db.enrollment.findMany({
+      where: { class_id: classId, org_id: orgId, status: { not: 'removed' } },
+      select: { student_id: true },
+    });
+    return enrollments.map((e) => e.student_id);
+  }
+
+  private notifyStudents(
+    orgId: string,
+    studentIds: string[],
+    type: string,
+    payload: object,
+  ) {
+    if (studentIds.length === 0) return;
+    this.notifications
+      .createBulkNotifications(
+        studentIds.map((accountId) => ({ orgId, accountId, type, payload })),
+      )
+      .catch((err: Error) =>
+        this.logger.error(`[Notify] ${type} failed: ${err.message}`),
+      );
   }
 
   // ───────── CREATE ─────────
@@ -135,6 +166,20 @@ export class AssessmentEducatorService {
         gradingMode: effectiveGradingMode,
       },
     });
+
+    // Notify every enrolled student that a new assessment is available.
+    this.enrolledStudentIds(classId, orgId)
+      .then((studentIds) =>
+        this.notifyStudents(orgId, studentIds, 'assessment_released', {
+          classId,
+          assessmentId: assessment.id,
+          title: dto.title ?? null,
+          type: dto.type,
+        }),
+      )
+      .catch((err: Error) =>
+        this.logger.error(`[Notify] assessment_released failed: ${err.message}`),
+      );
     return assessment;
   }
 
@@ -388,7 +433,24 @@ export class AssessmentEducatorService {
       orgId,
     );
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
-    return this.submission.gradeEssay(assessment, submissionId, dto);
+    const graded = await this.submission.gradeEssay(assessment, submissionId, dto);
+
+    // Notify the student that their essay was graded.
+    this.repo
+      .findSubmissionById(submissionId)
+      .then((sub) => {
+        if (sub) {
+          this.notifyStudents(orgId, [sub.student_id], 'essay_graded', {
+            classId: assessment.class_id,
+            assessmentId,
+            submissionId,
+          });
+        }
+      })
+      .catch((err: Error) =>
+        this.logger.error(`[Notify] essay_graded failed: ${err.message}`),
+      );
+    return graded;
   }
 
   async assignStudents(
@@ -410,6 +472,12 @@ export class AssessmentEducatorService {
       entityType: 'assessment',
       entityId: assessmentId,
       metadata: { assessmentId, studentIds: dto.studentIds },
+    });
+    // Notify the newly assigned students.
+    this.notifyStudents(orgId, dto.studentIds, 'assessment_assigned', {
+      classId: assessment.class_id,
+      assessmentId,
+      title: assessment.title ?? null,
     });
     return result;
   }
@@ -437,6 +505,13 @@ export class AssessmentEducatorService {
         studentIds: dto.studentIds,
         reopenedUntil: dto.reopenedUntil,
       },
+    });
+    // Notify the reopened students so they know they can retake.
+    this.notifyStudents(orgId, dto.studentIds, 'assessment_reopened', {
+      classId: assessment.class_id,
+      assessmentId,
+      title: assessment.title ?? null,
+      reopenedUntil: dto.reopenedUntil,
     });
     return result;
   }
@@ -468,6 +543,19 @@ export class AssessmentEducatorService {
       assessment.class_id,
       orgId,
     );
+    // Notify students that scores are now visible. Honors the educator's
+    // explicit student filter when one was provided.
+    const publishedIds =
+      dto.studentIds?.length
+        ? dto.studentIds
+        : await this.enrolledStudentIds(assessment.class_id, orgId).catch(
+            () => [] as string[],
+          );
+    this.notifyStudents(orgId, publishedIds, 'score_published', {
+      classId: assessment.class_id,
+      assessmentId,
+      title: assessment.title ?? null,
+    });
     if (assessment.term_id) {
       this.gradeService
         .computeGrades(

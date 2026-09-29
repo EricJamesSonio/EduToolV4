@@ -34,7 +34,11 @@ export const strandApi = {
     const res = await client.patch<{ success: boolean; data: Strand }>(`/strands/${id}`, data);
     return res.data.data;
   },
-  remove: async (id: string): Promise<void> => {
-    await client.delete(`/strands/${id}`);
+  remove: async (id: string): Promise<"deleted" | "archived"> => {
+    const res = await client.delete<{
+      success: boolean;
+      data: "deleted" | "archived";
+    }>(`/strands/${id}`);
+    return res.data.data;
   },
 };

@@ -53,6 +53,7 @@ describe('ClassService', () => {
     enrollmentService = {
       enroll: jest.fn(),
       countActive: jest.fn(),
+      countActiveMany: jest.fn().mockResolvedValue(new Map()),
       findByClass: jest.fn(),
       updateStatus: jest.fn(),
       remove: jest.fn(),
@@ -63,6 +64,12 @@ describe('ClassService', () => {
     auditLogService = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
     gradingTemplateService = { autoApplyForNewClass: jest.fn().mockResolvedValue(undefined) };
     const subjectPrerequisiteService = { checkEligibility: jest.fn().mockResolvedValue({ eligible: true, missing: [] }) };
+    // 8th ctor arg — ClassService calls getByOrg() on every create/update.
+    // 07:00-17:00 in 30m slots matches the seeded org defaults, so the
+    // existing fixtures (08:00-09:00, 09:00-10:00, 10:30-11:30) all pass.
+    const orgScheduleConfigService = {
+      getByOrg: jest.fn().mockResolvedValue({ startTime: '07:00', endTime: '17:00', slotDuration: 30 }),
+    };
     db = {
       subject: { findFirst: jest.fn() },
       course: { findFirst: jest.fn() },
@@ -72,10 +79,11 @@ describe('ClassService', () => {
       program: { findFirst: jest.fn() },
       programSemesterAssignment: { findFirst: jest.fn() },
       semester: { findFirst: jest.fn() },
+      section: { findFirst: jest.fn() },
       classSchedule: { findMany: jest.fn() },
       orgScheduleConfig: { findUnique: jest.fn().mockResolvedValue(null) },
     };
-    service = new ClassService(repo, enrollmentService, attendanceService, auditLogService, gradingTemplateService, subjectPrerequisiteService as never, db);
+    service = new ClassService(repo, enrollmentService, attendanceService, auditLogService, gradingTemplateService, subjectPrerequisiteService as never, db, orgScheduleConfigService as never);
     jest.clearAllMocks();
   });
 
@@ -95,14 +103,14 @@ describe('ClassService', () => {
   describe('create', () => {
     it('throws BadRequest when programId cannot be resolved', async () => {
       db.subject.findFirst.mockResolvedValue(null);
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws BadRequest when no semester assignment', async () => {
       mockResolveProgramIdSuccess();
       db.program.findFirst.mockResolvedValue({ type: 'college' });
       db.programSemesterAssignment.findFirst.mockResolvedValue(null);
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
       expect(db.programSemesterAssignment.findFirst).toHaveBeenCalled();
     });
 
@@ -110,7 +118,7 @@ describe('ClassService', () => {
       mockResolveProgramIdSuccess();
       db.program.findFirst.mockResolvedValue({ type: 'college' });
       db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [] } });
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('uses provided semesterId directly without resolving', async () => {
@@ -119,7 +127,7 @@ describe('ClassService', () => {
       repo.findEducatorSchedules.mockResolvedValue([]);
       repo.create.mockResolvedValue({ id: classId });
       repo.findById.mockResolvedValue({ id: classId });
-      const res = await service.create(orgId, { subjectId, educatorId, schoolYearId, semesterId: 'sem-direct', capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
+      const res = await service.create(orgId, { subjectId, educatorId, schoolYearId, semesterId: 'sem-direct', schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
       expect(db.programSemesterAssignment.findFirst).not.toHaveBeenCalled();
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ semesterId: 'sem-direct' }));
       if (!res) throw new Error('expected res to be defined');
@@ -134,7 +142,7 @@ describe('ClassService', () => {
       repo.findEducatorSchedules.mockResolvedValue([]);
       repo.create.mockResolvedValue({ id: classId });
       repo.findById.mockResolvedValue({ id: classId });
-      await service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
+      await service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ semesterId: 'sem-matched' }));
     });
 
@@ -148,7 +156,7 @@ describe('ClassService', () => {
       repo.findEducatorSchedules.mockResolvedValue([]);
       repo.create.mockResolvedValue({ id: classId });
       repo.findById.mockResolvedValue({ id: classId });
-      await service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
+      await service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ semesterId: 'sem-fallback' }));
     });
 
@@ -157,15 +165,15 @@ describe('ClassService', () => {
       db.program.findFirst.mockResolvedValue({ type: 'college' });
       db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ name: '1st Semester' }] } });
       db.semester.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws BadRequest when schedule start >= end', async () => {
       mockResolveProgramIdSuccess();
       db.program.findFirst.mockResolvedValue({ type: 'college' });
       mockResolveSemesterSuccess();
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '09:00', '08:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '08:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '09:00', '08:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '08:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws Conflict when educator has overlapping slot', async () => {
@@ -174,7 +182,7 @@ describe('ClassService', () => {
       mockResolveSemesterSuccess();
       repo.findEducatorSchedules.mockResolvedValue([{ weekday: 1, start_time: todayISO('08:30'), end_time: todayISO('09:30'), class_id: 'other-class' }]);
       db.classSchedule.findMany.mockResolvedValue([]);
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('throws Conflict when section has overlapping slot', async () => {
@@ -183,7 +191,7 @@ describe('ClassService', () => {
       mockResolveSemesterSuccess();
       repo.findEducatorSchedules.mockResolvedValue([]);
       repo.findSectionSchedules.mockResolvedValue([{ weekday: 2, start_time: todayISO('10:00'), end_time: todayISO('11:00'), class_id: 'other' }]);
-      await expect(service.create(orgId, { subjectId, educatorId, sectionId: 'sec-1', schoolYearId, capacity: 30, schedules: [makeSlot(2, '10:30', '11:30')] } as any, actorId)).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.create(orgId, { subjectId, educatorId, sectionId: 'sec-1', schoolYearId, schedules: [makeSlot(2, '10:30', '11:30')] } as any, actorId)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('succeeds and calls grading autoApply, attendance, audit (non-blocking)', async () => {
@@ -195,7 +203,7 @@ describe('ClassService', () => {
       repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
       gradingTemplateService.autoApplyForNewClass.mockResolvedValue(undefined);
       attendanceService.generateSessionsForClass.mockResolvedValue(undefined);
-      const res = await service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
+      const res = await service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
       expect(repo.create).toHaveBeenCalled();
       expect(repo.replaceSchedules).toHaveBeenCalled();
       expect(gradingTemplateService.autoApplyForNewClass).toHaveBeenCalledWith(orgId, classId, programId, schoolYearId, 'college');
@@ -205,6 +213,27 @@ describe('ClassService', () => {
       expect(res.id).toBe(classId);
     });
 
+    it('copies the section capacity onto the new class', async () => {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      mockResolveSemesterSuccess();
+      repo.findEducatorSchedules.mockResolvedValue([]);
+      repo.findSectionSchedules.mockResolvedValue([]);
+      db.section.findFirst.mockResolvedValue({ capacity: 45 });
+      repo.create.mockResolvedValue({ id: classId });
+      await service.create(orgId, { subjectId, educatorId, sectionId: 'sec-1', schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ capacity: 45 }));
+    });
+    it('falls back to capacity 0 when no section is given', async () => {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      mockResolveSemesterSuccess();
+      repo.findEducatorSchedules.mockResolvedValue([]);
+      repo.create.mockResolvedValue({ id: classId });
+      await service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
+      expect(db.section.findFirst).not.toHaveBeenCalled();
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ capacity: 0 }));
+    });
     it('does not throw if autoApply fails (catch)', async () => {
       mockResolveProgramIdSuccess();
       db.program.findFirst.mockResolvedValue({ type: 'college' });
@@ -213,7 +242,7 @@ describe('ClassService', () => {
       repo.create.mockResolvedValue({ id: classId });
       repo.findById.mockResolvedValue({ id: classId });
       gradingTemplateService.autoApplyForNewClass.mockRejectedValue(new Error('fail'));
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).resolves.toBeDefined();
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).resolves.toBeDefined();
     });
   });
 
@@ -282,12 +311,29 @@ describe('ClassService', () => {
       repo.findSectionSchedules.mockResolvedValue([{ weekday: 1, start_time: todayISO('08:00'), end_time: todayISO('09:00'), class_id: 'other' }]);
       await expect(service.update(classId, orgId, { schedules: [makeSlot(1, '08:30', '09:30')] } as any)).rejects.toBeInstanceOf(ConflictException);
     });
-    it('updates capacity without schedule change', async () => {
-      repo.findById.mockResolvedValue({ id: classId, educator_id: educatorId, school_year_id: schoolYearId });
+    it('re-syncs capacity from the new section when the class moves', async () => {
+      repo.findById.mockResolvedValue({ id: classId, educator_id: educatorId, section_id: 'sec-old', school_year_id: schoolYearId });
+      db.section.findFirst.mockResolvedValue({ capacity: 50 });
       repo.update.mockResolvedValue({ id: classId, capacity: 50 });
-      const res = await service.update(classId, orgId, { capacity: 50 } as any);
-      expect(repo.update).toHaveBeenCalledWith(classId, expect.objectContaining({ capacity: 50 }));
+      const res = await service.update(classId, orgId, { sectionId: 'sec-new' } as any);
+      expect(db.section.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: 'sec-new', org_id: orgId }),
+      }));
+      expect(repo.update).toHaveBeenCalledWith(classId, expect.objectContaining({ sectionId: 'sec-new', capacity: 50 }));
       expect(res.capacity).toBe(50);
+    });
+    it('leaves capacity untouched when the section does not change', async () => {
+      repo.findById.mockResolvedValue({ id: classId, educator_id: educatorId, section_id: 'sec-1', school_year_id: schoolYearId });
+      repo.update.mockResolvedValue({ id: classId });
+      await service.update(classId, orgId, { sectionId: 'sec-1' } as any);
+      expect(db.section.findFirst).not.toHaveBeenCalled();
+      expect(repo.update).toHaveBeenCalledWith(classId, expect.objectContaining({ capacity: undefined }));
+    });
+    it('throws NotFound when the target section does not exist', async () => {
+      repo.findById.mockResolvedValue({ id: classId, educator_id: educatorId, section_id: 'sec-old', school_year_id: schoolYearId });
+      db.section.findFirst.mockResolvedValue(null);
+      await expect(service.update(classId, orgId, { sectionId: 'gone' } as any)).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.update).not.toHaveBeenCalled();
     });
     it('validates educator change without schedule change via existing schedules', async () => {
       repo.findById.mockResolvedValue({ id: classId, educator_id: educatorId, school_year_id: schoolYearId });
@@ -391,7 +437,7 @@ describe('ClassService', () => {
       // New slot 09:00-10:00 should NOT conflict (end == start is not overlap)
       repo.create.mockResolvedValue({ id: classId });
       repo.findById.mockResolvedValue({ id: classId });
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, capacity: 30, schedules: [makeSlot(1, '09:00', '10:00')] } as any, actorId)).resolves.toBeDefined();
+      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '09:00', '10:00')] } as any, actorId)).resolves.toBeDefined();
     });
   });
 });

@@ -19,10 +19,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LoadingSpinner } from "./LoadingSpinner";
-import { EmptyState } from "./EmptyState";
 import { useState, memo, type ReactElement } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Inbox } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -37,9 +36,6 @@ interface DataTableProps<TData, TValue> {
   headerVariant?: "neutral" | "accent";
 }
 
-// Perf Phase 7: memoized — identical props skip re-render entirely, so parent
-// state churn (filters, polling) doesn't rebuild the whole grid. Callers must
-// still pass stable data/columns refs for full benefit.
 function DataTableInner<TData, TValue>({
   columns,
   data,
@@ -73,6 +69,9 @@ function DataTableInner<TData, TValue>({
     enableRowSelection: !!onRowSelectionChange,
   });
 
+  const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+
   return (
     <div className={cn("relative w-full", className)}>
       {isLoading && (
@@ -81,7 +80,7 @@ function DataTableInner<TData, TValue>({
         </div>
       )}
 
-      <div className="rounded-md border">
+      <div className="overflow-hidden rounded-md border">
         <Table className={cn(hasFixedWidths && "table-fixed")}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -133,9 +132,10 @@ function DataTableInner<TData, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+
+          {!isEmpty && (
+            <TableBody>
+              {rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
@@ -163,26 +163,24 @@ function DataTableInner<TData, TValue>({
                     );
                   })}
                 </TableRow>
-              ))
-            ) : (
-              !isLoading && (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="p-0 text-center border-0"
-                  >
-                    <div className="p-4">
-                      <EmptyState
-                        title={emptyTitle}
-                        description={emptyDescription}
-                      />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            )}
-          </TableBody>
+              ))}
+            </TableBody>
+          )}
         </Table>
+
+        {isEmpty && !isLoading && (
+          <div className="flex flex-col items-center justify-center gap-2 bg-card px-6 py-14 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Inbox className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium text-foreground">{emptyTitle}</p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {emptyDescription}
+            </p>
+          </div>
+        )}
+
+        {isEmpty && isLoading && <div className="h-40 bg-card" />}
       </div>
     </div>
   );

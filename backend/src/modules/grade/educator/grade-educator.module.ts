@@ -5,9 +5,10 @@ import { GradeEducatorService } from './grade-educator.service';
 import { GradeRepository } from '../grade.repository';
 import { GradeCoreModule } from '../core/grade-core.module';
 import { AuditLogModule } from 'src/modules/audit-log/audit-log.module';
+import { NotificationModule } from 'src/modules/notification/notification.module';
 
 @Module({
-  imports: [GradeCoreModule, AuditLogModule],
+  imports: [GradeCoreModule, AuditLogModule, NotificationModule],
   controllers: [GradeEducatorController],
   providers: [GradeEducatorService, GradeRepository],
   exports: [GradeEducatorService, GradeRepository],

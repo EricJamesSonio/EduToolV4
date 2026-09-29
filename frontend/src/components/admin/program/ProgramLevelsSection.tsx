@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardGrid } from "@/components/shared/CardGrid";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   listItemCardClass,
   listItemIconClass,
@@ -58,12 +59,16 @@ export function ProgramLevelsSection({
     staleTime: 1000 * 60 * 5,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey });
+const invalidate = () => {
+  queryClient.invalidateQueries({ queryKey });
+  queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.all });
+};
 
-  const createMutation = useMutation({
-    mutationFn: (name: string) => levelApi.create({ programId, name, schoolYearId, courseId, strandId }),
-    onSuccess: invalidate,
-  });
+const createMutation = useMutation({
+  mutationFn: (count: number) =>
+    levelApi.create({ programId, count, schoolYearId, courseId, strandId }),
+  onSuccess: invalidate,
+});
 
   const generateMutation = useMutation({
     mutationFn: (count: number) => levelApi.bulkGenerate({ programId, schoolYearId, count, courseId, strandId }),
@@ -108,7 +113,7 @@ export function ProgramLevelsSection({
             <Button
               size="sm"
               className="h-8 text-xs px-3"
-              onClick={() => createMutation.mutate(`Level ${levels.length + 1}`)}
+              onClick={() => createMutation.mutate(levels.length + 1)}
               disabled={createMutation.isPending}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />

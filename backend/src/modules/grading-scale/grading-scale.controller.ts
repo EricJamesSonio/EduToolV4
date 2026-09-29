@@ -46,6 +46,7 @@ export class GradingScaleController {
   async assignToProgram(
     @Param('programId') programId: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: AssignGradingScaleDto,
   ) {
     return this.gradingScaleService.assignToProgram(
@@ -53,6 +54,7 @@ export class GradingScaleController {
       programId,
       dto.scaleId,
       dto.schoolYearId,
+      actorId,
     );
   }
 
@@ -101,9 +103,10 @@ export class GradingScaleController {
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: UpdateGradingScaleDto,
   ) {
-    return this.gradingScaleService.update(id, orgId, dto);
+    return this.gradingScaleService.update(id, orgId, dto, actorId);
   }
 
   @Delete(':id')

@@ -10,7 +10,8 @@ import { HelpGuide }    from "@/components/shared/help-guide/HelpGuide";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Pagination }   from "@/components/shared/Pagination";
 import { Button }       from "@/components/ui/button";
-import { Plus }         from "lucide-react";
+import { Plus, Network } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
 import { SubjectFilters }    from "@/components/admin/subject/SubjectFilters";
@@ -28,6 +29,7 @@ import { SubjectPresetButton } from "@/components/admin/subject/SubjectPresetBut
 
 export default function SubjectsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const filters = useSubjectFilters();
   const { ensureOrganization } = useOrganizationGuard();
 
@@ -102,6 +104,10 @@ export default function SubjectsPage(): React.JSX.Element {
             setEnabled={setEnabled}
             clearPreset={clearPreset}
           />
+          <Button variant="outline" size="sm" onClick={() => router.push("/admin/subjects/hierarchy")}>
+            <Network className="mr-1.5 h-4 w-4" />
+            Subject Hierarchy
+          </Button>
           <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}

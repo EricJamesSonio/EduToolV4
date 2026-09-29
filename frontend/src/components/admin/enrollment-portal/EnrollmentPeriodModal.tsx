@@ -111,15 +111,10 @@ export function EnrollmentPeriodModal({
   const lockMs = lockDate ? new Date(lockDate).getTime() : null;
   const endMs = endDate ? new Date(endDate).getTime() : null;
 
-  const syStartMs = selectedYear?.start_date ? new Date(selectedYear.start_date).getTime() : null;
-
   const datesUnavailable = !selectedYear || readiness?.ready !== true;
   const today = startOfDay(new Date().toISOString().slice(0, 10));
   const startDay = startDate ? startOfDay(startDate.slice(0, 10)) : null;
-  const lockDay = lockDate ? startOfDay(lockDate.slice(0, 10)) : null;
-  const syStartDay = selectedYear?.start_date
-    ? startOfDay(String(selectedYear.start_date).slice(0, 10))
-    : null;
+  const endDay = endDate ? startOfDay(endDate.slice(0, 10)) : null;
 
   const lockError =
     startMs !== null && lockMs !== null && lockMs < startMs
@@ -133,12 +128,7 @@ export function EnrollmentPeriodModal({
       ? "Closing date must be after the opening date."
       : "";
 
-  const schoolYearError =
-    syStartMs !== null && endMs !== null && endMs >= syStartMs
-      ? "Enrollment period must end strictly before the school year starts."
-      : "";
-
-  const dateHasError = !!lockError || !!endError || !!schoolYearError;
+  const dateHasError = !!lockError || !!endError;
   const formValid =
     !!name.trim() && !!syId && !!startDate && !!endDate && !!lockDate &&
     !!selectedYear && !!readiness?.ready && !dateHasError;
@@ -254,11 +244,7 @@ export function EnrollmentPeriodModal({
             <DatePicker
               value={startDate}
               onChange={setStartDate}
-              disabled={(date) =>
-                datesUnavailable ||
-                date < today ||
-                (syStartDay ? date >= syStartDay : false)
-              }
+              disabled={(date) => datesUnavailable || date < today}
             />
           </div>
 
@@ -268,7 +254,10 @@ export function EnrollmentPeriodModal({
               value={lockDate}
               onChange={setLockDate}
               disabled={(date) =>
-                datesUnavailable ? true : startDay ? date < startDay : true
+                datesUnavailable ||
+                !startDay ||
+                date < startDay ||
+                (endDay ? date >= endDay : false)
               }
             />
             {lockError && <p className="text-xs text-destructive">{lockError}</p>}
@@ -279,16 +268,13 @@ export function EnrollmentPeriodModal({
             <DatePicker
               value={endDate}
               onChange={setEndDate}
-              disabled={(date) =>
-                datesUnavailable ||
-                (lockDay ? date < lockDay : true) ||
-                (syStartDay ? date >= syStartDay : false)
-              }
+              disabled={(date) => {
+                if (datesUnavailable) return true;
+                const lockDay = lockDate ? startOfDay(lockDate.slice(0, 10)) : null;
+                return lockDay ? date < lockDay : startDay ? date <= startDay : true;
+              }}
             />
             {endError && <p className="text-xs text-destructive">{endError}</p>}
-            {schoolYearError && (
-              <p className="text-xs text-destructive">{schoolYearError}</p>
-            )}
           </div>
         </div>
 

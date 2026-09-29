@@ -13,6 +13,16 @@ export const TYPE_LABELS: Record<string, string> = {
   attendance: "Attendance", activity: "Activity", custom: "Custom", other: "Other",
 };
 
+// Single source of truth for assessment type values on the frontend.
+// `AssessmentType` (types/educator/assessment.types.ts) and the scheme-type
+// filter in the new-assessment page both derive from this list — do not
+// hardcode a second allow-list elsewhere (see TICK-ASSESS-001).
+export const ASSESSMENT_TYPE_VALUES = [
+  "written_work", "performance_task", "quarterly_assessment", "exam", "quiz",
+  "assignment", "project", "recitation", "participation", "behavior",
+  "attendance", "activity", "custom", "other",
+] as const;
+
 export const CIRCLE_COLORS = [
   { fill: "bg-blue-500 text-white border-transparent", outline: "border-blue-500 text-blue-500 bg-card" },
   { fill: "bg-emerald-500 text-white border-transparent", outline: "border-emerald-500 text-emerald-500 bg-card" },

@@ -34,7 +34,7 @@ export async function resolveProgramIdFromSubject(
   // Via course -> program
   if (subject.course_id) {
     const course = await db.course.findFirst({
-      where: { id: subject.course_id, org_id: orgId },
+      where: { id: subject.course_id, org_id: orgId, deleted_at: null },
       select: { program_id: true },
     });
     if (course?.program_id) return course.program_id;
@@ -43,7 +43,7 @@ export async function resolveProgramIdFromSubject(
   // Via strand -> program
   if (subject.strand_id) {
     const strand = await db.strand.findFirst({
-      where: { id: subject.strand_id, org_id: orgId },
+      where: { id: subject.strand_id, org_id: orgId, deleted_at: null },
       select: { program_id: true },
     });
     if (strand?.program_id) return strand.program_id;
@@ -52,7 +52,7 @@ export async function resolveProgramIdFromSubject(
   // Via level -> program
   if (subject.level_id) {
     const level = await db.level.findFirst({
-      where: { id: subject.level_id, org_id: orgId },
+      where: { id: subject.level_id, org_id: orgId, deleted_at: null },
       select: { program_id: true },
     });
     if (level?.program_id) return level.program_id;

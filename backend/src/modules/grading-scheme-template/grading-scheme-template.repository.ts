@@ -61,18 +61,39 @@ export class GradingSchemeTemplateRepository {
     programTypes: string[],
     programType?: string,
   ) {
-    if (programTypes.length === 0) return [];
-
-    const types = programType
-      ? programTypes.filter((t) => t === programType)
-      : programTypes;
-
-    if (types.length === 0) return [];
+    // Templates with program_type = NULL are "global" (All departments) and
+    // must be visible to every educator — including the educator that just
+    // created them without picking a department type. Previously this query
+    // only matched program_type IN (...), so a newly created global template
+    // reported success on create but never appeared in the library / import
+    // dialog.
+    if (programType) {
+      const templates = await this.db.gradingSchemeTemplate.findMany({
+        where: {
+          org_id: orgId,
+          OR: [
+            { program_type: programType },
+            // Global templates always apply when explicitly filtering by type.
+            { program_type: null },
+          ],
+        },
+        include: COMPONENTS_INCLUDE,
+        orderBy: { created_at: 'desc' },
+      });
+      return templates.map(mapTemplate);
+    }
 
     const templates = await this.db.gradingSchemeTemplate.findMany({
       where: {
         org_id: orgId,
-        program_type: { in: types },
+        OR: [
+          ...(programTypes.length > 0
+            ? [{ program_type: { in: programTypes } }]
+            : []),
+          // Global templates are visible even when the educator has no
+          // classes / resolvable program types yet.
+          { program_type: null },
+        ],
       },
       include: COMPONENTS_INCLUDE,
       orderBy: { created_at: 'desc' },

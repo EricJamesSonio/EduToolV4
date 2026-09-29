@@ -2,6 +2,33 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-29
+
+### Fixed
+
+- Assessment type allow-list unification (TICK-ASSESS-001, fast-forward c29d36d0): new single source of truth `backend/src/modules/grading-scheme/constants/assessment-type.constants.ts` (14 types incl. assignment/participation/behavior) now feeds `assessment.dto.ts`, `grading-scheme.dto.ts`, `grading-scheme.entity.ts`; frontend derives `AssessmentType` and the `new/page.tsx` `schemeTypes` filter from `assessment-builder/constants.ts` (duplicate allow-list deleted); `AssessmentBadges` renders the 3 previously-missing types. `manual` left untouched (legacy `AssessmentComponentType | 'manual'`, logged in FOLLOW_UPS.md). Branch was 140 commits stale → rebased onto `3e03d728` first (zero file overlap, clean rebase).
+- Merge validation on `development` (lint/tsc/jest; builds deferred to CI — live dev servers own `.next`/`dist`): backend 81 suites/858 tests with failures byte-identical to pre-merge baseline (8 pre-existing suites / 27 tests: class, educator, level, meeting-gateway-rate-limit, program, registrar, school-year, semester), +2 suites / +12 tests all green; frontend 11/102 green; lint 0 errors both sides; `tsc` error sets identical to baseline (backend 20, frontend 17, **0 new**).
+
+## 2026-09-27 (evening)
+
+### Fixed
+
+- Broken `next build` on `src/app/admin/page.tsx` (TICK-INFRA-009, fast-forward 171be060): removed unused `useEffect`/`useRouter` imports; Turbopack errors eliminated. NOTE: end-to-end build still stops at pre-existing semester type errors (semester.api `programId`, SemesterFormDialog Select signatures — another agent's in-flight rework) — follow-up needed, not this ticket.
+
+## 2026-09-27
+
+### Fixed (verification follow-up — 3 tickets merged, each validated on development)
+
+- Bulk compute skips locked grades (TICK-GRADE-004, merge dbb61e17): opt-in `{ skipLocked: true }` now default in both computeGrades paths; locked-row spec 3/3. Merged after explicit human sign-off.
+- Grading-scale batching spec tsc error (TICK-INFRA-011, fast-forward 2b51620b): cache double supplied; grading-scale suites 30/30, error gone.
+- Corrupted `ProgramEnrollmentEndReason` enum value (TICK-INFRA-012, merge 624ada61): another agent's migration had shipped `'admin_correctionorganiz'` to schema + live DB; repaired via metadata-only `ALTER TYPE … RENAME VALUE` migration, verified live enum labels, rows untouched, student-enrollment suites green.
+- Organization spec drift (TICK-INFRA-013, merge 62446907): expectations synced to `autoSeedNewSchoolYears` field; suite 25/25.
+
+### Held / flagged (not merged, not started)
+
+- Redis/BullMQ queues: parked pending Redis provisioning + topology/policy decisions (no ticket yet).
+- Dirty working tree (level/section feature WIP, uncommitted, breaks level/section/school-year specs): another agent's active work — do not touch.
+
 ## 2026-09-26
 
 ### Performance (8 tickets merged to development, each validated: unit suite at 25 pre-existing failures / same 5 suites, tsc pre-existing set, builds green)

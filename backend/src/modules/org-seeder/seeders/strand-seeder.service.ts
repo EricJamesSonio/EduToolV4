@@ -3,6 +3,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 import { SHS_STRAND_DEFS } from '../data/strands.data';
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
+import { restoreStrandIfArchived } from '@/commons/utils/seed-restore';
 
 @Injectable()
 export class StrandSeederService {
@@ -25,7 +26,12 @@ export class StrandSeederService {
 
       if (existing) {
         ctx.strandMap[s.name] = existing.id;
-        ctx.result.strands.already_exists++;
+        // Re-seeding an archived strand un-archives it (never leaves it hidden).
+        if (await restoreStrandIfArchived(this.db, existing.id)) {
+          ctx.result.strands.seeded++;
+        } else {
+          ctx.result.strands.already_exists++;
+        }
       } else {
         const rec = await this.db.strand.create({
           data: {

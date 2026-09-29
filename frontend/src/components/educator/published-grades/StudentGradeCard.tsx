@@ -206,12 +206,11 @@ export function StudentGradeCard({
                       Category Breakdown
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {student.categoryBreakdown.map((cat, ci) => {
-                        const catColor = WEEK_COLORS[ci % WEEK_COLORS.length]
+                      {student.categoryBreakdown.map((cat) => {
                         return (
                           <div
                             key={cat.category}
-                            className={cn("flex items-center justify-between rounded-lg border px-3 py-2", catColor)}
+                            className="flex items-center justify-between rounded-lg border bg-card px-3 py-2"
                           >
                             <span className="text-sm capitalize">{cat.category}</span>
                             <div className="text-right">

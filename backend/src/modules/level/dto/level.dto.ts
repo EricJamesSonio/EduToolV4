@@ -15,7 +15,7 @@ import { Type } from 'class-transformer';
 export class LevelItemDto {
   @IsOptional()
   @IsUUID()
-  id?: string; // present when updating an existing level row
+  id?: string;
 
   @IsUUID()
   programId!: string;
@@ -26,9 +26,6 @@ export class LevelItemDto {
   name!: string;
 }
 
-/**
- * DTO for updating default levels
- */
 export class UpdateLevelDefaultsDto {
   @IsArray()
   @ValidateNested({ each: true })
@@ -37,7 +34,10 @@ export class UpdateLevelDefaultsDto {
 }
 
 /**
- * DTO for creating a new level
+ * DTO for creating a new level.
+ * `count` is the level's position (1, 2, 3…) within its department/course/strand
+ * scope — the label ("Grade 3", "2nd Year", …) is always derived server-side
+ * from the program's type, never typed by the user.
  */
 export class CreateLevelDto {
   @IsUUID()
@@ -54,28 +54,24 @@ export class CreateLevelDto {
   @IsUUID()
   strandId?: string;
 
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  name!: string;
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  count!: number;
 }
 
 /**
- * DTO for updating a level
+ * DTO for "renaming" a level — in practice, setting it to a different number.
+ * The label is re-derived from the program's type + this count.
  */
 export class UpdateLevelDto {
   @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  name?: string;
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  count?: number;
 }
 
-/**
- * DTO for querying levels
- * Supports filtering by:
- * - schoolYearId (with optional courseId, strandId, or programId)
- */
 export class QueryLevelDto {
   @IsOptional()
   @IsUUID()
@@ -95,12 +91,9 @@ export class QueryLevelDto {
 
   @IsOptional()
   @IsString()
-  scoped?: string; // "program" to get only program-scoped (no course/strand), "all" for everything
+  scoped?: string;
 }
 
-/**
- * DTO for bulk generating levels
- */
 export class BulkGenerateLevelsDto {
   @IsUUID()
   programId!: string;

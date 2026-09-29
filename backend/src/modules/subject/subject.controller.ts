@@ -19,6 +19,7 @@ import {
   UpdateSubjectDto,
   QuerySubjectDto,
   ShareSubjectDto,
+  SubjectHierarchyQueryDto,
 } from './dto/subject.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -45,6 +46,15 @@ export class SubjectController {
     @Query() query: QuerySubjectDto,
   ) {
     return this.subjectService.findAll(orgId, query);
+  }
+
+  @Get('hierarchy')
+  @Roles('admin', 'educator')
+  async hierarchy(
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: SubjectHierarchyQueryDto,
+  ) {
+    return this.subjectService.getHierarchy(orgId, query);
   }
 
   @Get(':id')

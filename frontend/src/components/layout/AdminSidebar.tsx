@@ -98,9 +98,7 @@ export function AdminSidebar(): React.JSX.Element {
           <p className="text-xs font-semibold uppercase tracking-widest text-foreground not-interactive">
             Admin Portal
           </p>
-          <p className="text-[11px] text-muted-foreground not-interactive">
-            System Management
-          </p>
+
         </div>
       }
       groups={filteredGroups}

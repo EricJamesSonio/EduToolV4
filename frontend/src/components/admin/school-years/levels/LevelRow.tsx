@@ -1,20 +1,23 @@
 "use client";
 import { useState } from "react";
 import { ChevronRight, BookOpen, Pencil, Trash2 } from "lucide-react";
-import { InlineEdit }    from "@/components/admin/levels/InlineEdit";
+import { LevelNumberStepper } from "@/components/admin/levels/LevelNumberStepper";
 import { Button }        from "@/components/ui/button";
 import { SectionsPanel } from "../SectionsPanel";
 import { cn }            from "@/lib/utils";
+import { extractLevelNumber } from "@/lib/level-label";
 import type { Level } from "@/types/admin/level.types";
+import type { ProgramType } from "@/types/admin/program.types";
 
 interface LevelRowProps {
   level:           Level;
   schoolYearId:    string;
   isEnded:         boolean;
+  programType:     ProgramType;
   courseId?:       string;
   strandId?:       string;
   onViewSubjects?: (levelId: string) => void;
-  onRename:        (id: string, name: string) => void;
+  onRename:        (id: string, count: number) => void;
   onDelete:        (level: Level) => void;
   isUpdating:      boolean;
   indented?:       boolean;
@@ -24,6 +27,7 @@ export function LevelRow({
   level,
   schoolYearId,
   isEnded,
+  programType,
   courseId,
   strandId,
   onViewSubjects,
@@ -44,14 +48,13 @@ export function LevelRow({
         )}
       >
         {editing ? (
-          <div className="flex-1">
-            <InlineEdit
-              value={level.name}
-              onSave={(name) => { onRename(level.id, name); setEditing(false); }}
-              onCancel={() => setEditing(false)}
-              isLoading={isUpdating}
-            />
-          </div>
+          <LevelNumberStepper
+            programType={programType}
+            initialValue={extractLevelNumber(programType, level.name)}
+            onSave={(n) => { onRename(level.id, n); setEditing(false); }}
+            onCancel={() => setEditing(false)}
+            isLoading={isUpdating}
+          />
         ) : (
           <>
             <button
@@ -85,7 +88,7 @@ export function LevelRow({
                   <button
                     onClick={() => setEditing(true)}
                     className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title="Rename level"
+                    title="Renumber level"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>

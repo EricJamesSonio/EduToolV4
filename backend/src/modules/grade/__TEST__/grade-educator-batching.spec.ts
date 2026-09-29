@@ -96,6 +96,7 @@ describe('GradeEducatorService.getGradesByClass — batching equivalence', () =>
     ),
   };
   const auditLog = { logActivityEvent: jest.fn().mockResolvedValue(undefined) };
+  const notifications = { createNotification: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -113,6 +114,7 @@ describe('GradeEducatorService.getGradesByClass — batching equivalence', () =>
       repo as any,
       new GradeCoreService(),
       auditLog as any,
+      notifications as any,
     );
   });
 

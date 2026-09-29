@@ -83,15 +83,16 @@ describe('OrganizationService', () => {
       expect(await service.getOwn(orgId)).toBeNull();
     });
     it('maps org to response', async () => {
-      orgRepository.findById.mockResolvedValue({ id: orgId, name: 'A', description: 'D', address: 'Addr', logo_url: 'logo.png', email_extension: '@school.edu' });
+      orgRepository.findById.mockResolvedValue({ id: orgId, name: 'A', description: 'D', address: 'Addr', logo_url: 'logo.png', email_extension: '@school.edu', auto_seed_new_school_years: true });
       const res = await service.getOwn(orgId);
-      expect(res).toEqual({ id: orgId, name: 'A', description: 'D', address: 'Addr', logoUrl: 'logo.png', emailExtension: '@school.edu' });
+      expect(res).toEqual({ id: orgId, name: 'A', description: 'D', address: 'Addr', logoUrl: 'logo.png', emailExtension: '@school.edu', autoSeedNewSchoolYears: true });
     });
     it('handles missing optional fields', async () => {
-      orgRepository.findById.mockResolvedValue({ id: orgId, name: 'A', description: null, address: null, logo_url: null, email_extension: null });
+      orgRepository.findById.mockResolvedValue({ id: orgId, name: 'A', description: null, address: null, logo_url: null, email_extension: null, auto_seed_new_school_years: null });
       const res = await service.getOwn(orgId);
       expect(res?.logoUrl).toBeNull();
       expect(res?.emailExtension).toBeNull();
+      expect(res?.autoSeedNewSchoolYears).toBe(false);
     });
     it('Perf Phase 6: serves repeated getOwn from cache (one repo read)', async () => {
       orgRepository.findById.mockResolvedValue({ id: orgId, name: 'A', description: null, address: null, logo_url: null, email_extension: null });

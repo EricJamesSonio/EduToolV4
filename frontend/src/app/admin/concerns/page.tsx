@@ -1,7 +1,8 @@
 // ===== File: frontend\src\app\admin\concerns\page.tsx =====
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tag } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -24,7 +25,11 @@ import type { ListStaffFilters, ConcernCategoryItem } from "@/api/admin/concern.
 const DEFAULT_PAGE_SIZE = 20;
 const ALL_FILTERS: ConcernFilters = { status: "all", categoryId: "all", senderRole: "all" };
 
-export default function AdminConcernsPage(): React.JSX.Element {
+function AdminConcernsContent(): React.JSX.Element {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const concernIdParam = searchParams.get("concernId");
+
   const { user: currentUser } = useAuth();
   const [filters, setFilters] = useState<ConcernFilters>(ALL_FILTERS);
   const [page, setPage] = useState(1);
@@ -32,6 +37,15 @@ export default function AdminConcernsPage(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string>();
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
+
+  // Deep link from the notification bell: /admin/concerns?concernId=<id>.
+  // Select that thread, then clear the param so clicking the same
+  // notification again (after browsing elsewhere) re-triggers this.
+  useEffect(() => {
+    if (!concernIdParam) return;
+    setSelectedId(concernIdParam);
+    router.replace("/admin/concerns", { scroll: false });
+  }, [concernIdParam, router]);
 
   const request: ListStaffFilters = useMemo(() => {
     return {
@@ -120,6 +134,16 @@ export default function AdminConcernsPage(): React.JSX.Element {
         onClose={() => setStudentDetailsOpen(false)}
       />
     </div>
+  );
+}
+
+// useSearchParams() must sit under a Suspense boundary or `next build` fails
+// for statically prerendered routes.
+export default function AdminConcernsPage(): React.JSX.Element {
+  return (
+    <Suspense fallback={null}>
+      <AdminConcernsContent />
+    </Suspense>
   );
 }
 

@@ -58,6 +58,7 @@ export async function seedStudents(
         org_id: orgId,
         school_year_id: schoolYearId,
         program_id: programMap[progKey],
+        deleted_at: null,
       },
     });
     // For college, group by course

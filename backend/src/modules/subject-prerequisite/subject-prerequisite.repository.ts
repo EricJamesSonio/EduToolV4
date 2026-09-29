@@ -35,6 +35,20 @@ export class SubjectPrerequisiteRepository {
       });
     });
   }
+    /** Subjects with the level/program info needed for the lower-level rule. */
+  async findSubjectsForLevelCheck(orgId: string, ids: string[]) {
+    if (ids.length === 0) return [];
+    return this.db.subject.findMany({
+      where: { org_id: orgId, id: { in: [...new Set(ids)] } },
+      select: {
+        id: true,
+        name: true,
+        year_level: true,
+        level: { select: { name: true } },
+        program: { select: { type: true } },
+      },
+    });
+  }
 
   async findBySubject(subject_id: string, org_id: string) {
     return this.db.subjectPrerequisite.findMany({

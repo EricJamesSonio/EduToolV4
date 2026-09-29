@@ -116,6 +116,19 @@ export class ClassService {
     return d.getHours() * 60 + d.getMinutes();
   }
 
+  /** A class always holds its whole section, so capacity = the section's capacity. */
+  private async resolveSectionCapacity(
+    sectionId: string,
+    orgId: string,
+  ): Promise<number> {
+    const section = await this.db.section.findFirst({
+      where: { id: sectionId, org_id: orgId, deleted_at: null },
+      select: { capacity: true },
+    });
+    if (!section) throw new NotFoundException('Section not found.');
+    return section.capacity;
+  }
+
   private async assertScheduleConfig(orgId: string, slots: TimeSlot[]): Promise<void> {
     const cfg = await this.orgScheduleConfigService.getByOrg(orgId);
     for (const slot of slots) {
@@ -167,13 +180,19 @@ export class ClassService {
     );
 
     if (dto.sectionId) {
-      await this.assertNoSectionConflict(
-        dto.sectionId,
+      await this.assertNoDuplicateSubjectInSection(
         orgId,
-        slots,
-        dto.schoolYearId,
+        dto.sectionId,
+        dto.subjectId,
+        semesterId,
       );
     }
+
+    // Class capacity is derived from its section. With no section it falls
+    // back to 0, which the enrollment checks treat as "no cap".
+    const capacity = dto.sectionId
+      ? await this.resolveSectionCapacity(dto.sectionId, orgId)
+      : 0;
 
     const cls = await this.classRepository.create({
       orgId,
@@ -182,7 +201,7 @@ export class ClassService {
       sectionId: dto.sectionId,
       schoolYearId: dto.schoolYearId,
       semesterId,
-      capacity: dto.capacity,
+      capacity,
     });
 
     await this.classRepository.replaceSchedules(orgId, cls.id, slots);
@@ -321,14 +340,15 @@ export class ClassService {
         cls.school_year_id,
         id,
       );
-      if (newSectionId)
-        await this.assertNoSectionConflict(
-          newSectionId,
-          orgId,
-          slots,
-          cls.school_year_id,
-          id,
-        );
+    if (dto.sectionId && dto.sectionId !== cls.section_id) {
+      await this.assertNoDuplicateSubjectInSection(
+        orgId,
+        dto.sectionId,
+        cls.subject_id,
+        cls.semester_id,
+        id,
+      );
+    };
       await this.classRepository.replaceSchedules(orgId, id, slots);
     } else if (dto.educatorId && dto.educatorId !== cls.educator_id) {
       // Educator changed without schedule change — validate against existing schedules
@@ -349,10 +369,16 @@ export class ClassService {
       );
     }
 
+    // Moving the class to another section re-syncs its capacity.
+    const capacity =
+      dto.sectionId && dto.sectionId !== cls.section_id
+        ? await this.resolveSectionCapacity(dto.sectionId, orgId)
+        : undefined;
+
     return this.classRepository.update(id, {
       educatorId: dto.educatorId,
       sectionId: dto.sectionId,
-      capacity: dto.capacity,
+      capacity,
     });
   }
 
@@ -732,6 +758,10 @@ export class ClassService {
       await this.classRepository.findSubjectsWithEducators(
         enrollments.map((enrollment) => (enrollment as any).class.id),
       );
+    const countsByClass = await this.enrollmentService.countActiveMany(
+      enrollments.map((enrollment) => (enrollment as any).class.id),
+      orgId,
+    );
     return enrollments.map((enrollment) => {
       const cls = (enrollment as any).class;
       const info = infoByClass.get(cls.id);
@@ -750,6 +780,7 @@ export class ClassService {
           schoolYearId: cls.school_year_id,
           semesterId: cls.semester_id,
           capacity: cls.capacity,
+          enrolledCount: countsByClass.get(cls.id) ?? 0,
           schedules: cls.schedules,
         },
       };
@@ -766,6 +797,7 @@ export class ClassService {
     const cls = (enrollment as any).class;
     const { subject, educatorProfile } =
       await this.classRepository.findSubjectWithEducator(cls.id);
+    const enrolledCount = await this.enrollmentService.countActive(cls.id);
     return {
       enrollmentId: enrollment.id,
       enrollmentStatus: enrollment.status,
@@ -779,6 +811,7 @@ export class ClassService {
         schoolYearId: cls.school_year_id,
         semesterId: cls.semester_id,
         capacity: cls.capacity,
+        enrolledCount,
         schedules: cls.schedules,
       },
     };
@@ -824,6 +857,26 @@ export class ClassService {
           );
         }
       }
+    }
+  }
+    private async assertNoDuplicateSubjectInSection(
+    orgId: string,
+    sectionId: string,
+    subjectId: string,
+    semesterId: string,
+    excludeClassId?: string,
+  ): Promise<void> {
+    const existing = await this.classRepository.findSectionSubjectClass(
+      orgId,
+      sectionId,
+      subjectId,
+      semesterId,
+      excludeClassId,
+    );
+    if (existing) {
+      throw new ConflictException(
+        'This section already has a class for this subject in this semester. Add another time slot to that class instead of creating a new one.',
+      );
     }
   }
 

@@ -46,7 +46,14 @@ export class ConcernStudentService {
     );
 
     // In-app notifications to all org admins/registrars — single batch call.
-    await this.notifyAdminsNewConcern(caller.orgId);
+    // Payload carries everything the bell needs to render + deep-link
+    // (/admin/concerns?concernId=...) without another lookup.
+    await this.notifyAdmins(caller.orgId, 'concern_created', {
+      concernType: 'new_concern',
+      concernId: concern.id,
+      studentName: caller.fullName ?? 'A student',
+      subject: dto.subject,
+    });
 
     // TODO Phase 3: wire real BullMQ digest job here.
     await this.digestService.enqueueConcernDigest(caller.orgId);
@@ -100,7 +107,11 @@ export class ConcernStudentService {
     );
 
     // New message on a concern (student direction) → notify all admins/registrars.
-    await this.notifyAdminsNewConcern(caller.orgId);
+    await this.notifyAdmins(caller.orgId, 'concern_reply', {
+      concernType: 'reply',
+      concernId: caller.concernId,
+      studentName: caller.fullName ?? 'A student',
+    });
 
     // NOTE: replies must NOT trigger the email digest in this direction —
     // only brand-new concerns do (handled in submit). No enqueue here.
@@ -108,15 +119,19 @@ export class ConcernStudentService {
     return updated;
   }
 
-  private async notifyAdminsNewConcern(orgId: string) {
+  private async notifyAdmins(
+    orgId: string,
+    type: 'concern_created' | 'concern_reply',
+    payload: Record<string, unknown>,
+  ) {
     const admins = await this.core.findOrgAdmins(orgId);
     if (admins.length === 0) return;
     await this.notificationService.createBulkNotifications(
       admins.map((a) => ({
         orgId,
         accountId: a.id,
-        type: 'concern_created',
-        payload: { concernType: 'new_concern' },
+        type,
+        payload,
       })),
     );
   }

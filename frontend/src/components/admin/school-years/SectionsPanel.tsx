@@ -64,6 +64,7 @@ export function SectionsPanel({
 
   const sectionCacheKeys = [
     queryKeys.admin.sections.all,
+    queryKeys.admin.programs.all,
     queryKeys.admin.levels.list({ schoolYearId }),
     queryKeys.admin.programs.list({ schoolYearId }),
     queryKeys.admin.enrichedLevels.list({ schoolYearId }),

@@ -10,6 +10,7 @@ import {
   AssessmentInclusionReason,
 } from '../core/assessment-inclusion.util';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
+import { NotificationService } from 'src/modules/notification/notification.service';
 import {
   SetManualScoreDto,
   SetGradeVisibilityDto,
@@ -31,6 +32,7 @@ export class GradeEducatorService {
     private readonly repo: GradeRepository,
     private readonly core: GradeCoreService,
     private readonly auditLog: AuditLogService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async setGradeVisibility(
@@ -74,7 +76,19 @@ export class GradeEducatorService {
     educatorId: string,
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    return this.repo.publishByStudent(studentId, termId, orgId);
+    const published = await this.repo.publishByStudent(studentId, termId, orgId);
+
+    // Locking makes the final grade visible — notify the student.
+    this.notifications
+      .createNotification({
+        orgId,
+        accountId: studentId,
+        type: 'grade_locked',
+        payload: { classId, termId },
+      })
+      .catch(() => {}); // non-blocking, never throws
+
+    return published;
   }
 
   async unlockByStudent(
@@ -440,6 +454,147 @@ export class GradeEducatorService {
    * Recompute grade for a single student after submission.
    * Called automatically on submission finish.
    */
+  /**
+   * System-level refresh after a grading scheme / scale change.
+   * Recomputes every term with existing assessments or grades for the class,
+   * skipping locked grade rows (never overwrites finalized grades).
+   * Best-effort per term: one failing term never blocks the others.
+   * Called by GradingScheme / GradingSchemeTemplate / GradingScale services
+   * so "apply succeeds but grades don't change" can't happen silently.
+   */
+  async refreshClassGrades(
+    orgId: string,
+    classId: string,
+    actorId: string,
+    reason: string,
+  ): Promise<{ computed: number; skippedLocked: number; terms: number }> {
+    const [assessments, grades] = await Promise.all([
+      this.repo.findClassAssessments(classId, orgId),
+      this.repo.findByClass(classId, orgId),
+    ]);
+    const termIds = [
+      ...new Set(
+        [...assessments, ...grades]
+          .map((r: any) => r.term_id)
+          .filter((t: unknown): t is string => typeof t === 'string'),
+      ),
+    ];
+    if (termIds.length === 0) {
+      return { computed: 0, skippedLocked: 0, terms: 0 };
+    }
+
+    let computed = 0;
+    let skippedLocked = 0;
+    for (const termId of termIds) {
+      try {
+        const res = await this.computeGradesWithoutOwnership(
+          classId,
+          termId,
+          orgId,
+        );
+        computed += res.computed;
+        skippedLocked += res.skippedLocked;
+      } catch {
+        // Best-effort: record and continue with remaining terms.
+        continue;
+      }
+    }
+
+    await this.auditLog.logActivityEvent({
+      orgId,
+      actorId,
+      action: 'grades_recomputed_scheme_change',
+      entityType: 'class',
+      entityId: classId,
+      metadata: { reason, terms: termIds.length, computed, skippedLocked },
+    });
+
+    return { computed, skippedLocked, terms: termIds.length };
+  }
+
+  /**
+   * Same computation as computeGrades() but without the educator-owns-class
+   * gate — the caller already authorized the scheme/scale mutation.
+   */
+  private async computeGradesWithoutOwnership(
+    classId: string,
+    termId: string,
+    orgId: string,
+  ): Promise<{ computed: number; skippedLocked: number }> {
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) return { computed: 0, skippedLocked: 0 };
+
+    const enrolledStudentIds = (cls.enrollments ?? []).map(
+      (e: any) => e.student_id,
+    );
+    if (enrolledStudentIds.length === 0) return { computed: 0, skippedLocked: 0 };
+
+    const scheme = await this.repo.findGradingSchemeForClass(classId, orgId);
+    if (!scheme) return { computed: 0, skippedLocked: 0 };
+    const categories = componentsToCategories(scheme.components);
+
+    const gradingScale = await this.resolveGradingScale(cls, orgId);
+    if (!gradingScale) return { computed: 0, skippedLocked: 0 };
+    const ranges = gradingScale.ranges as unknown as GradeRange[];
+
+    const [submissions, allAssessments, manualScores, enrollmentDates, overrides] =
+      await Promise.all([
+        this.repo.findSubmissionsForTerm(classId, termId, orgId),
+        this.repo.findAssessmentsForTerm(classId, termId, orgId),
+        this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findEnrollmentDatesByClass(classId, orgId),
+        this.repo.findGradingOverridesByClass(classId, orgId),
+      ]);
+
+    const subsByStudent = new Map<string, any[]>();
+    for (const sub of submissions) {
+      const list = subsByStudent.get(sub.student_id);
+      if (list) list.push(sub);
+      else subsByStudent.set(sub.student_id, [sub]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const manual of manualScores) {
+      const list = manualsByStudent.get(manual.student_id);
+      if (list) list.push(manual);
+      else manualsByStudent.set(manual.student_id, [manual]);
+    }
+    const enrollmentDateByStudent = new Map(
+      enrollmentDates.map((e) => [e.student_id, e.created_at]),
+    );
+    const overridesByKey = new Map(
+      overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
+    );
+
+    const rows = enrolledStudentIds.map((studentId) => {
+      const studentSubmissions = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
+
+      const { excludedAssessmentIds } = this.buildInclusionMaps(
+        allAssessments,
+        enrollmentDateByStudent,
+        overridesByKey,
+        studentId,
+      );
+
+      const finalScore = this.core.computeWeightedScore(
+        studentSubmissions,
+        studentManuals,
+        allAssessments,
+        categories,
+        { excludedAssessmentIds },
+      );
+      const finalGrade = this.core.resolveGrade(finalScore, ranges);
+
+      return { studentId, finalScore, finalGrade };
+    });
+
+    const { computed, skippedLocked } = await this.repo.saveComputedGrades(
+      { orgId, classId, termId, rows },
+      { skipLocked: true },
+    );
+    return { computed, skippedLocked };
+  }
+
   async recomputeStudentGrade(
     classId: string,
     termId: string,

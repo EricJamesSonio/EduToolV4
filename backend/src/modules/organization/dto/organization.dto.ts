@@ -63,6 +63,15 @@ export class UpdateOrganizationDto {
     message: 'emailExtension must be a valid domain like @relief-ed.ph',
   })
   emailExtension?: string;
+
+  /**
+   * When true, every newly created SchoolYear is automatically seeded with
+   * this org's saved School Profile configuration (no confirmation modal).
+   * When false/omitted, the admin is prompted after creating a school year.
+   */
+  @IsOptional()
+  @IsBoolean()
+  autoSeedNewSchoolYears?: boolean;
 }
 
 export class GradingScaleRangeDto {

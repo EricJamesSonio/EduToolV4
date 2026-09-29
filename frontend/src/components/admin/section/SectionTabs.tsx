@@ -7,6 +7,8 @@
 import { useMemo, useState } from "react";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
+import { EducatorScheduleGrid } from "@/components/admin/educator/EducatorScheduleGrid";
+import type { Class } from "@/types/admin/class.types";
 import {
   Users, BookOpen, CalendarDays,
   Clock, GraduationCap, ChevronRight, ArrowRightLeft,
@@ -236,6 +238,8 @@ export function ClassesTab({
   );
 }
 
+const educatorSublabel = (cls: Class): string => cls.educatorName ?? "";
+
 export function WeeklyScheduleTab({
   section,
   schoolYearId,
@@ -256,34 +260,9 @@ export function WeeklyScheduleTab({
     );
   }
 
-  type ScheduleEntry = {
-    subjectName: string;
-    educatorName?: string;
-    startTime: string;
-    endTime: string;
-    classId: string;
-  };
+  const hasSchedules = classes.some((cls) => cls.schedules.length > 0);
 
-  const byWeekday: Record<number, ScheduleEntry[]> = {};
-  for (const cls of classes) {
-    for (const sched of cls.schedules) {
-      if (!byWeekday[sched.weekday]) byWeekday[sched.weekday] = [];
-      byWeekday[sched.weekday].push({
-        subjectName: cls.subjectName ?? cls.title ?? "",
-        educatorName: cls.educatorName,
-        startTime: sched.startTime,
-        endTime: sched.endTime,
-        classId: cls.id,
-      });
-    }
-  }
-  for (const day of Object.keys(byWeekday)) {
-    byWeekday[Number(day)].sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }
-
-  const activeDays = Object.keys(byWeekday).map(Number).sort((a, b) => a - b);
-
-  if (activeDays.length === 0) {
+  if (!hasSchedules) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-6">
         <CalendarDays className="h-10 w-10 text-muted-foreground/30 mb-3" />
@@ -296,39 +275,8 @@ export function WeeklyScheduleTab({
   }
 
   return (
-    <div className="p-5 space-y-5">
-      {activeDays.map((day) => (
-        <div key={day}>
-          <div className="flex items-center gap-2 mb-2.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">
-              {WEEKDAY_LABELS[day]}
-            </span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-          <div className="space-y-2">
-            {byWeekday[day].map((entry, i) => (
-              <div
-                key={`${entry.classId}-${i}`}
-                className="flex items-center gap-3 rounded-lg border bg-muted/20 px-4 py-2.5"
-              >
-                <div className="flex items-center gap-1 shrink-0 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span className="font-medium tabular-nums not-interactive">{formatTime(entry.startTime)}</span>
-                  <ChevronRight className="h-3 w-3" />
-                  <span className="font-medium tabular-nums not-interactive">{formatTime(entry.endTime)}</span>
-                </div>
-                <div className="w-px h-4 bg-border shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate not-interactive">{entry.subjectName}</p>
-                  {entry.educatorName && (
-                    <p className="text-xs text-muted-foreground truncate not-interactive">{entry.educatorName}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+    <div className="p-4">
+      <EducatorScheduleGrid classes={classes} getSublabel={educatorSublabel} />
     </div>
   );
 }

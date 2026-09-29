@@ -9,7 +9,17 @@ describe('GradingScaleRepository.findByClassIds', () => {
       class: { findMany: jest.fn() },
       gradingScaleAssignment: { findMany: jest.fn() },
     };
-    return { repo: new GradingScaleRepository(db as never), db };
+    // Cache double matching the pattern in grading-scale-caching.spec.ts.
+    // findByClassIds never touches the cache, but the constructor requires it.
+    const cache = {
+      key: jest.fn((...parts: Array<string | number>) => parts.join(':')),
+      cached: jest.fn(
+        async (key: string, _ttl: number, loader: () => Promise<unknown>) => loader(),
+      ),
+      del: jest.fn(),
+      delByPrefix: jest.fn(),
+    };
+    return { repo: new GradingScaleRepository(db as never, cache as never), db };
   };
 
   it('returns empty map without querying for empty input', async () => {

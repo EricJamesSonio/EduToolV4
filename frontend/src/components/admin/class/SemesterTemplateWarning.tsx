@@ -3,10 +3,10 @@
 import { AlertTriangle, ArrowRight } from "lucide-react";
 
 interface SemesterTemplateWarningProps {
-  onDiscard: () => void;
+  onGoToSettings: () => void;
 }
 
-export function SemesterTemplateWarning({ onDiscard }: SemesterTemplateWarningProps) {
+export function SemesterTemplateWarning({ onGoToSettings }: SemesterTemplateWarningProps) {
   return (
     <div className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 flex items-start gap-3">
       <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
@@ -20,7 +20,7 @@ export function SemesterTemplateWarning({ onDiscard }: SemesterTemplateWarningPr
         </p>
         <button
           type="button"
-          onClick={onDiscard}
+          onClick={onGoToSettings}
           className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-warning hover:underline"
         >
           Go to Semester Settings
