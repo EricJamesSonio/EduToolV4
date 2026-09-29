@@ -25,6 +25,18 @@ export function minutesToTime(min: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/**
+ * Display-only 12-hour label for schedule grids (e.g. 780 → "1:00").
+ * Data values stay 24h "HH:mm" via minutesToTime — never use this for
+ * form values, overlap checks, or anything persisted.
+ */
+export function minutesToDisplayLabel(min: number): string {
+  const h24 = Math.floor(min / 60) % 24;
+  const m = min % 60;
+  const h = h24 % 12 || 12;
+  return `${h}:${String(m).padStart(2, "0")}`;
+}
+
 export function slotsOverlap(a: SlotInput, b: SlotInput): boolean {
   if (a.weekday !== b.weekday) return false;
   const aStart = timeToMinutes(a.startTime);

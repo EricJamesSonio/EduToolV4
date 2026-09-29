@@ -14,6 +14,7 @@ import {
 import type { Class } from "@/types/admin/class.types";
 import {
   WEEKDAY_LABELS,
+  minutesToDisplayLabel,
   minutesToTime,
   slotsOverlap,
   timeToMinutes,
@@ -248,8 +249,8 @@ export function ClassSchedulePicker({
               className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-0.5 text-xs"
             >
               <span className="not-interactive">
-                {WEEKDAY_LABELS[range.weekday]} {minutesToTime(range.startMin)}–
-                {minutesToTime(range.endMin)}
+                {WEEKDAY_LABELS[range.weekday]} {minutesToDisplayLabel(range.startMin)}–
+                {minutesToDisplayLabel(range.endMin)}
               </span>
               <button
                 type="button"

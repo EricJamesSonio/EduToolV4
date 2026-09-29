@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Class } from "@/types/admin/class.types";
 import { WEEKDAYS } from "./EducatorClassAssignmentManager";
-import { minutesToTime } from "@/utils/classes.utils";
+import { minutesToDisplayLabel } from "@/utils/classes.utils";
 
 export interface ScheduleRange {
   weekday: number;
@@ -85,7 +85,7 @@ function toMinutes(hhmm: string): number {
 }
 
 function toLabel(min: number): string {
-  return minutesToTime(min);
+  return minutesToDisplayLabel(min);
 }
 
 function gcd(a: number, b: number): number {
