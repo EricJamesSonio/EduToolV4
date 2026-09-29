@@ -535,6 +535,9 @@ const countsByPeriod = groupedByPeriod.reduce<
     if (lockDate <= startDate) {
       throw new BadRequestException('Lock date must be after the start date.');
     }
+    if (lockDate >= endDate) {
+      throw new BadRequestException('Lock date must be before the end date.');
+    }
   }
 
   private orgView(
