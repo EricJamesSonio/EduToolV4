@@ -31,6 +31,11 @@ export function SubjectHierarchyLegend({ ranks, levelNameOf }: Props): React.JSX
         Completed
       </span>
       <span className="inline-flex items-center gap-1.5">
+        <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          Enrolled now
+        </span>
+      </span>
+      <span className="inline-flex items-center gap-1.5">
         <span className="inline-block h-0.5 w-5 bg-foreground/60" />
         Prerequisite
       </span>
