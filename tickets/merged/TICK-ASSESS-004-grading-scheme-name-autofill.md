@@ -1,11 +1,12 @@
 # TICK-ASSESS-004 — Grading-scheme category name auto-derived from type
 
-Status: ready-for-review
+Status: merged
 Priority: medium
 Created: 2026-09-29
 Created by: agent
 Assigned to: agent
 Started: 2026-09-29
+Merged: 2026-09-29 (fast-forward 60eb7e58 + docs cffe5e5e to development, pushed origin)
 Worktree: ../EduToolV4-worktrees/TICK-ASSESS-004-grading-scheme-name-autofill
 Branch: agent/TICK-ASSESS-004-grading-scheme-name-autofill
 
@@ -47,7 +48,7 @@ Every grading-scheme editor asks for a free-text Category `Name` beside the Type
 
 - New spec (6/6 PASS): `frontend/src/components/admin/grading-scheme/__tests__/GradingSchemeComponentRow.test.tsx` — type select fills canonical label, second change re-fills while untouched, hand-typed name survives type change, label-matching name still re-fillable, name input editable, `labelForType` mapping.
 - Validation on worktree branch 60eb7e58 (frontend only — no backend file touched, so CI skips backend jobs by design): fe-jest **12 suites / 108 tests all green** (baseline on development was 11 / 102 → +1 suite / +6 tests), fe-lint **0 errors** (single pre-existing warning in `SemesterFormDialog.tsx`, untouched), fe-tsc **17 errors — byte-identical to the 17-error baseline, 0 new, none in grading-scheme files** (the one new error I introduced in the spec's ResizeObserver guard was caught and fixed). Build deferred to CI (live dev servers own `.next`).
-- Development integration: pending reviewer merge.
+- Development integration: PASS — fast-forwarded to development (`60eb7e58` + docs `cffe5e5e`) and pushed; CI on `cffe5e5e` runs frontend jobs only (paths-filter: no `backend/**` change), builds covered there.
 
 ## Blocker
 
@@ -57,10 +58,12 @@ None.
 
 - 2026-09-29: Claimed, counter ASSESS 3 → 4. TICK-ASSESS-004 confirmed free (no pending/in-progress collision).
 - 2026-09-29: Implemented in worktree off development c34af581. Shared row now auto-fills Name on type change while untouched (`labelForType` + `isAutoName`); 7 seeding sites across the 4 editors pre-fill the label; Name got an `aria-label` (its visible label had no `htmlFor`, so it was unlabeled for AT). New spec 6/6, lint 0 errors, tsc 17/17 parity (0 new), full frontend suite 12/108 green. Commit 60eb7e58. Ready for review.
+- 2026-09-29: Merged. Docs commit cffe5e5e added on the same branch; fast-forward to development (8 files, +205/−12) pushed to origin. Ticket → merged.
 
 ## Commits
 
 - 60eb7e58 feat(grading-scheme): auto-fill category name from selected type (TICK-ASSESS-004) (branch agent/TICK-ASSESS-004-grading-scheme-name-autofill)
+- cffe5e5e docs(workspace): record TICK-ASSESS-004 merge and validation parity
 
 ## Notes
 
