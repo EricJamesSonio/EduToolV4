@@ -158,6 +158,16 @@ export class SubjectHierarchyQueryDto {
   @IsOptional()
   @IsUUID()
   strandId?: string;
+
+  /**
+   * Narrows the PRIMARY subject set to a single level. The response still
+   * returns every in-scope level in `levels` (so the client dropdown keeps all
+   * options), and direct prerequisites from other levels are still included as
+   * linked context.
+   */
+  @IsOptional()
+  @IsUUID()
+  levelId?: string;
 }
 
 export class ShareSubjectDto {

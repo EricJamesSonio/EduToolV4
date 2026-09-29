@@ -344,6 +344,10 @@ export class SubjectService {
     const CAP = 1000;
 
     // 1. Levels in scope (single query) — defines columns + rank order.
+    // NOTE: `levelId` is deliberately NOT applied here. This array is returned
+    // to the client as the Level dropdown options; filtering it would collapse
+    // the dropdown to the one selected level with no way to switch back. The
+    // level filter is applied to the subject set below instead.
     const levelWhere: Record<string, unknown> = { org_id: orgId, deleted_at: null };
     if (query.programId) levelWhere['program_id'] = query.programId;
     if (query.courseId) levelWhere['course_id'] = query.courseId;
@@ -377,6 +381,12 @@ export class SubjectService {
       subjectWhere['OR'] = [{ course_id: null }, { course_id: query.courseId }];
     } else if (query.strandId) {
       subjectWhere['OR'] = [{ strand_id: null }, { strand_id: query.strandId }];
+    }
+    // Level scope: narrows the PRIMARY subjects to the selected level. Direct
+    // prerequisites from other levels are still added below as extraNodes, so
+    // edges never dangle and the client can still resolve prerequisite names.
+    if (query.levelId) {
+      subjectWhere['level_id'] = query.levelId;
     }
     const subjects = await this.db.subject.findMany({
       where: subjectWhere,

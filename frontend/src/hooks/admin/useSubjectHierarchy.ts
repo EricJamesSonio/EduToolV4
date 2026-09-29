@@ -15,7 +15,16 @@ import {
  * - `enabled` gate: no fetch until a program (or school year) is picked.
  */
 export function scopeKey(scope: HierarchyScope): string {
-  return [scope.schoolYearId ?? "-", scope.programId ?? "-", scope.courseId ?? "-", scope.strandId ?? "-"].join("|");
+  // levelId MUST be part of the key: omitting it makes two different level
+  // selections collide in the cache, so switching level silently serves the
+  // previously selected level's subjects.
+  return [
+    scope.schoolYearId ?? "-",
+    scope.programId ?? "-",
+    scope.courseId ?? "-",
+    scope.strandId ?? "-",
+    scope.levelId ?? "-",
+  ].join("|");
 }
 
 export function useSubjectHierarchy(scope: HierarchyScope, enabled = true) {
