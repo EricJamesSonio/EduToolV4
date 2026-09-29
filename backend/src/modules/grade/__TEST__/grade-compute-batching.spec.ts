@@ -121,10 +121,12 @@ describe('GradeEducatorService.computeGrades — batched persist', () => {
       saveComputedGrades: jest.fn().mockResolvedValue({ computed: 2, skippedLocked: 0 }),
     };
     const auditLog = { logActivityEvent: jest.fn().mockResolvedValue(undefined) };
+    const notifications = { createNotification: jest.fn().mockResolvedValue(undefined) };
     const service = new GradeEducatorService(
       repo as any,
       new GradeCoreService(),
       auditLog as any,
+      notifications as any,
     );
     jest
       .spyOn(service as any, 'resolveGradingScale')

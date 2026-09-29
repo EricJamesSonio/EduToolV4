@@ -8,6 +8,8 @@ import {
 import { GradeLockRepository } from './grade-lock.repository';
 import { GradeLockValidator } from './grade-lock.validator';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { NotificationService } from '../notification/notification.service';
+import { DatabaseService } from '@/core/database/database.provider';
 import { resolveDeadline } from './grade-lock.utils';
 import type {
   AssignSettingDto,
@@ -22,6 +24,8 @@ export class GradeLockOperationsService {
     private readonly repo: GradeLockRepository,
     private readonly validator: GradeLockValidator,
     private readonly auditLogService: AuditLogService,
+    private readonly notificationService: NotificationService,
+    private readonly db: DatabaseService,
   ) {}
 
   async assignSetting(orgId: string, actorId: string, dto: AssignSettingDto) {
@@ -123,6 +127,25 @@ export class GradeLockOperationsService {
         metadata: { reason: dto.reason ?? null },
       })
       .catch(() => {});
+
+    // Locking releases final grades — notify every enrolled student.
+    this.db.enrollment
+      .findMany({
+        where: { class_id: classId, org_id: orgId, status: { not: 'removed' } },
+        select: { student_id: true },
+      })
+      .then((enrollments) => {
+        if (enrollments.length === 0) return;
+        return this.notificationService.createBulkNotifications(
+          enrollments.map((e) => ({
+            orgId,
+            accountId: e.student_id,
+            type: 'grade_locked',
+            payload: { classId },
+          })),
+        );
+      })
+      .catch(() => {}); // non-blocking, never throws
 
     return { success: true, gradeLock: updated };
   }

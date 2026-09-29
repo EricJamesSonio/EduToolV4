@@ -6,6 +6,12 @@ import {
   MessageSquare,
   Reply,
   ClipboardList,
+  FileText,
+  Send,
+  Award,
+  Lock,
+  PenLine,
+  RotateCcw,
 } from "lucide-react";
 
 export const TYPE_ICON: Record<string, React.ElementType> = {
@@ -16,6 +22,13 @@ export const TYPE_ICON: Record<string, React.ElementType> = {
   concern_created: MessageSquare,
   concern_reply: Reply,
   application_submitted: ClipboardList,
+  assessment_released: FileText,
+  assessment_assigned: ClipboardList,
+  assessment_reopened: RotateCcw,
+  assessment_submitted: Send,
+  score_published: Award,
+  essay_graded: PenLine,
+  grade_locked: Lock,
 };
 
 export const SUMMARY_ROWS: {

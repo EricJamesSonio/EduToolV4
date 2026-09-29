@@ -2,6 +2,11 @@ import { create } from "zustand";
 
 export type NotificationType =
   | "assessment_released"
+  | "assessment_assigned"
+  | "assessment_reopened"
+  | "assessment_submitted"
+  | "score_published"
+  | "essay_graded"
   | "grade_locked"
   | "grade_unlocked"
   | "meeting_created"

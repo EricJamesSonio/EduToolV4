@@ -43,6 +43,39 @@ function humanize(type: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+function currentRole(): string | null {
+  return useAuthStore.getState().user?.role ?? null;
+}
+
+/** Student assessment page, or the result page when scores are involved. */
+function studentAssessmentLink(
+  p: Record<string, unknown>,
+  toResult: boolean,
+): string | null {
+  const classId = str(p.classId);
+  const assessmentId = str(p.assessmentId);
+  if (!classId || !assessmentId) return null;
+  if (currentRole() === "educator") {
+    return `/educator/classes/${classId}/assessments/${assessmentId}`;
+  }
+  const base = `/student/classes/${classId}/assessments/${assessmentId}`;
+  return toResult ? `${base}/result` : base;
+}
+
+/** Educator submissions view for a finished submission (deep-links to the
+ * review page when the submission id is present). */
+function educatorSubmissionLink(p: Record<string, unknown>): string | null {
+  const classId = str(p.classId);
+  const assessmentId = str(p.assessmentId);
+  if (!classId || !assessmentId) return null;
+  if (currentRole() === "student") {
+    return `/student/classes/${classId}/assessments/${assessmentId}`;
+  }
+  const base = `/educator/classes/${classId}/assessments/${assessmentId}/submissions`;
+  const submissionId = str(p.submissionId);
+  return submissionId ? `${base}/${submissionId}/review` : base;
+}
+
 export function toStoreNotification(n: ApiNotification): Notification {
   const p = n.payload ?? {};
   let message: string;
@@ -81,6 +114,52 @@ export function toStoreNotification(n: ApiNotification): Notification {
       linkTo = applicationId
         ? `/admin/enrollment-portal/applications/${applicationId}`
         : "/admin/enrollment-portal/applications";
+      break;
+    }
+    // ─── Assessments & grades (role-aware deep links) ──────────────────────
+    case "assessment_released":
+    case "assessment_assigned":
+    case "assessment_reopened": {
+      const title = str(p.title);
+      const verb =
+        n.type === "assessment_reopened"
+          ? "reopened"
+          : n.type === "assessment_assigned"
+            ? "assigned to you"
+            : "released";
+      message = title
+        ? `New assessment ${verb}: ${truncate(title, 60)}`
+        : `An assessment was ${verb}`;
+      linkTo = studentAssessmentLink(p, false);
+      break;
+    }
+    case "score_published":
+    case "essay_graded": {
+      const title = str(p.title);
+      message =
+        n.type === "essay_graded"
+          ? title
+            ? `Your essay in ${truncate(title, 50)} was graded`
+            : "Your essay was graded"
+          : title
+            ? `Scores published for ${truncate(title, 50)}`
+            : "Assessment scores were published";
+      linkTo = studentAssessmentLink(p, true);
+      break;
+    }
+    case "grade_locked": {
+      message = "Your final grades were released";
+      const classId = str(p.classId);
+      linkTo = classId ? `/student/classes/${classId}/grades` : null;
+      break;
+    }
+    case "assessment_submitted": {
+      const who = str(p.studentName) ?? "A student";
+      const title = str(p.title);
+      message = title
+        ? `${who} submitted ${truncate(title, 50)}`
+        : `${who} submitted an assessment`;
+      linkTo = educatorSubmissionLink(p);
       break;
     }
     default:
