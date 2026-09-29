@@ -2,6 +2,13 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-29
+
+### Fixed
+
+- Assessment type allow-list unification (TICK-ASSESS-001, fast-forward c29d36d0): new single source of truth `backend/src/modules/grading-scheme/constants/assessment-type.constants.ts` (14 types incl. assignment/participation/behavior) now feeds `assessment.dto.ts`, `grading-scheme.dto.ts`, `grading-scheme.entity.ts`; frontend derives `AssessmentType` and the `new/page.tsx` `schemeTypes` filter from `assessment-builder/constants.ts` (duplicate allow-list deleted); `AssessmentBadges` renders the 3 previously-missing types. `manual` left untouched (legacy `AssessmentComponentType | 'manual'`, logged in FOLLOW_UPS.md). Branch was 140 commits stale → rebased onto `3e03d728` first (zero file overlap, clean rebase).
+- Merge validation on `development` (lint/tsc/jest; builds deferred to CI — live dev servers own `.next`/`dist`): backend 81 suites/858 tests with failures byte-identical to pre-merge baseline (8 pre-existing suites / 27 tests: class, educator, level, meeting-gateway-rate-limit, program, registrar, school-year, semester), +2 suites / +12 tests all green; frontend 11/102 green; lint 0 errors both sides; `tsc` error sets identical to baseline (backend 20, frontend 17, **0 new**).
+
 ## 2026-09-27 (evening)
 
 ### Fixed

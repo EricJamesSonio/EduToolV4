@@ -1,11 +1,23 @@
 # Current Project State
 
-Last updated: 2026-09-26
+Last updated: 2026-09-29
 
 <!--
 One section per major domain/module. Keep status labels consistent:
 implemented / partially implemented / not implemented / needs investigation
 -->
+
+## Assessment type unification (2026-09-29)
+
+Status: implemented (TICK-ASSESS-001 fast-forwarded to development, commit c29d36d0)
+
+Implemented:
+
+- Canonical 14-type list in `backend/src/modules/grading-scheme/constants/assessment-type.constants.ts` feeds `assessment.dto.ts`, `grading-scheme.dto.ts`, `grading-scheme.entity.ts` (no parallel redeclaration). Frontend derives `AssessmentType` + the `schemeTypes` filter in `assessments/new/page.tsx` from `assessment-builder/constants.ts`; duplicate allow-list removed; `AssessmentBadges` covers assignment/participation/behavior. 2 new specs pin the parity (14-list + DTO identity).
+- `manual` untouched by design (legacy `AssessmentComponentType | 'manual'`) — recorded in FOLLOW_UPS.md; candidate follow-up ticket: remove leftover `type:'manual'` in frontend data-seeder and the legacy branch in `grade-core.service.ts:113`.
+- Merge gate: rebased from stale `db689a1e` onto `3e03d728` (zero file overlap), then validated on development vs a pre-merge baseline — tsc error sets identical (be 20 / fe 17, 0 new), backend failures unchanged (8 pre-existing suites / 27 tests), +2 suites / +12 tests green, lint 0 errors. Builds left to CI (live dev servers hold `.next`/`dist`).
+
+Open review findings (non-blocking, low): `ASSESSMENT_TYPES: readonly string[]` widens a former literal tuple (could be `readonly AssessmentComponentType[]`); type-only import cycle `types/educator/assessment.types.ts` ↔ `assessment-builder/constants.ts`.
 
 ## Performance work (2026-09-25 → 2026-09-26, 8 tickets merged to development)
 
@@ -34,7 +46,7 @@ On hold (needs human decision):
 
 Known pre-existing debt (not from this work, flagged during merges):
 
-- 25 backend unit failures in 5 suites (class/educator/semester/program/registrar — stale mocks vs evolved code, incl. email-rule spec drift from development's own role-prefix refactor).
+- 27 backend unit failures in 8 suites (class, educator, level, meeting-gateway-rate-limit, program, registrar, school-year, semester — stale mocks vs evolved code; re-measured 2026-09-29, unchanged by TICK-ASSESS-001; was "25 in 5 suites" on 2026-09-26).
 - `next build` red on src/app/admin/page.tsx (server component using useEffect/useRouter; commits 86a2abe6/454cff32).
 - Backend e2e hooks time out in this environment (180s+); not usable as a merge gate here.
 - `tsc --noEmit` on backend is red at baseline (pre-existing errors in class/semester specs, org-schedule toMinutes shadow, semester-template/seeder program_id drift, e2e fixtures). The phase5→6 stale-constructor error is fixed (TICK-INFRA-011 above).
