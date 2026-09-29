@@ -44,6 +44,26 @@ export class GradingSchemeTemplateController {
     return this.service.findAll(orgId, programType);
   }
 
+  // NOTE: static GET routes must be declared BEFORE ':id', otherwise
+  // Express matches 'assignments/program' as id='assignments'.
+  @Get('assignments/program')
+  @Roles('admin')
+  async getProgramAssignments(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+  ) {
+    return this.service.getProgramAssignments(orgId, schoolYearId);
+  }
+
+  @Get('assignments/class')
+  @Roles('admin')
+  async getClassAssignments(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+  ) {
+    return this.service.getClassAssignments(orgId, schoolYearId);
+  }
+
   @Get(':id')
   @Roles('admin', 'educator')
   async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
@@ -74,24 +94,6 @@ export class GradingSchemeTemplateController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.service.delete(id, orgId);
-  }
-
-  @Get('assignments/program')
-  @Roles('admin')
-  async getProgramAssignments(
-    @CurrentUser('org_id') orgId: string,
-    @Query('schoolYearId') schoolYearId?: string,
-  ) {
-    return this.service.getProgramAssignments(orgId, schoolYearId);
-  }
-
-  @Get('assignments/class')
-  @Roles('admin')
-  async getClassAssignments(
-    @CurrentUser('org_id') orgId: string,
-    @Query('schoolYearId') schoolYearId?: string,
-  ) {
-    return this.service.getClassAssignments(orgId, schoolYearId);
   }
 
   @Delete('assignments/program/:programId')
