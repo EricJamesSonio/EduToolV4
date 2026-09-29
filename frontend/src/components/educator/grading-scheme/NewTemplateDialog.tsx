@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
+import { GradingSchemeComponentRow, labelForType } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
 
 import {
   useCreateGradingScheme,
@@ -45,7 +45,7 @@ interface NewTemplateDialogProps {
 }
 
 const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
-  name: "",
+  name: labelForType("quiz"),
   type: "quiz",
   weight: 0,
   isOptional: false,

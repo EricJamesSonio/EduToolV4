@@ -27,6 +27,24 @@ export const COMPONENT_TYPES: { value: ComponentType; label: string }[] = [
   { value: "other",                label: "Other" },
 ];
 
+/** Canonical display label for a component type — the default text for a row's Name. */
+export const labelForType = (type: ComponentType): string =>
+  COMPONENT_TYPES.find((t) => t.value === type)?.label ?? "";
+
+/**
+ * A Name counts as "untouched" while it is empty or still exactly one of the
+ * canonical labels (case-insensitive) — i.e. the UI generated it and the user
+ * never replaced it. Hand-typed names ("Homework", "Exam 2") are therefore
+ * never auto-overwritten when the type changes (TICK-ASSESS-004).
+ */
+const isAutoName = (name: string): boolean => {
+  const trimmed = name.trim();
+  return (
+    trimmed === "" ||
+    COMPONENT_TYPES.some((t) => t.label.toLowerCase() === trimmed.toLowerCase())
+  );
+};
+
 const TYPE_COLORS: Record<string, string> = {
   written_work:         "border-l-blue-500",
   performance_task:     "border-l-emerald-500",
@@ -76,7 +94,8 @@ export function GradingSchemeComponentRow({
           <Input
             value={row.name}
             disabled={disabled}
-            placeholder={COMPONENT_TYPES.find((t) => t.value === row.type)?.label ?? ""}
+            aria-label="Category name"
+            placeholder={labelForType(row.type)}
             className="h-10 bg-background text-sm"
             onChange={(e) => onChange(index, "name", e.target.value)}
           />
@@ -89,7 +108,15 @@ export function GradingSchemeComponentRow({
             <Select
               value={row.type}
               disabled={disabled}
-              onValueChange={(v) => onChange(index, "type", v as ComponentType)}
+              onValueChange={(v) => {
+                const next = v as ComponentType;
+                onChange(index, "type", next);
+                // Auto-name (TICK-ASSESS-004): keep Name in step with the type
+                // until the user replaces it with something of their own.
+                if (isAutoName(row.name)) {
+                  onChange(index, "name", labelForType(next));
+                }
+              }}
             >
               <SelectTrigger className="h-10 w-full bg-background text-sm">
                 <SelectValue />
