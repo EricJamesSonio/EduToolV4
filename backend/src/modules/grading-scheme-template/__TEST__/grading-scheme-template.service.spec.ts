@@ -6,6 +6,7 @@ describe('GradingSchemeTemplateService', () => {
   let repo: any;
   let gradingSchemeRepo: any;
   let db: any;
+  let gradeRefresh: any;
   const orgId = 'org-1';
   const templateId = 'tmpl-1';
 
@@ -36,8 +37,10 @@ describe('GradingSchemeTemplateService', () => {
       gradingSchemeProgramAssignment: { findFirst: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
       program: { findMany: jest.fn(), findFirst: jest.fn() },
       class: { findMany: jest.fn() },
+      assessment: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    service = new GradingSchemeTemplateService(repo, gradingSchemeRepo, db);
+    gradeRefresh = { refreshClassGrades: jest.fn().mockResolvedValue({ computed: 0, skippedLocked: 0, terms: 0 }) };
+    service = new GradingSchemeTemplateService(repo, gradingSchemeRepo, db, gradeRefresh);
     jest.clearAllMocks();
   });
 

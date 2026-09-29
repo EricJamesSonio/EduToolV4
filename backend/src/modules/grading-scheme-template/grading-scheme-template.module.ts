@@ -3,9 +3,10 @@ import { GradingSchemeTemplateController } from './grading-scheme-template.contr
 import { GradingSchemeTemplateService } from './grading-scheme-template.service';
 import { GradingSchemeTemplateRepository } from './grading-scheme-template.repository';
 import { GradingSchemeCoreModule } from '../grading-scheme/core/grading-scheme-core.module';
+import { GradeEducatorModule } from '@/modules/grade/educator/grade-educator.module';
 
 @Module({
-  imports: [GradingSchemeCoreModule],
+  imports: [GradingSchemeCoreModule, GradeEducatorModule],
   controllers: [GradingSchemeTemplateController],
   providers: [GradingSchemeTemplateService, GradingSchemeTemplateRepository],
   exports: [GradingSchemeTemplateService, GradingSchemeTemplateRepository],

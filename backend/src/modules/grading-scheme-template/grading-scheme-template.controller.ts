@@ -111,17 +111,19 @@ export class GradingSchemeTemplateController {
   @Roles('admin')
   async applyToClass(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: ApplyTemplateToClassDto,
   ) {
-    return this.service.applyToClass(orgId, dto);
+    return this.service.applyToClass(orgId, dto, actorId);
   }
 
   @Post('apply/program')
   @Roles('admin')
   async applyToProgram(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: ApplyTemplateToProgramDto,
   ) {
-    return this.service.applyToProgram(orgId, dto);
+    return this.service.applyToProgram(orgId, dto, actorId);
   }
 }

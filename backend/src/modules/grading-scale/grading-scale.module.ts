@@ -4,8 +4,10 @@ import { GradingScaleController } from './grading-scale.controller';
 import { GradingScaleService } from './grading-scale.service';
 import { GradingScaleRepository } from './grading-scale.repository';
 import { GradingScaleAssignmentRepository } from './grading-scale-assignment.repository';
+import { GradeEducatorModule } from '@/modules/grade/educator/grade-educator.module';
 
 @Module({
+  imports: [GradeEducatorModule],
   controllers: [GradingScaleController],
   providers: [
     GradingScaleService,

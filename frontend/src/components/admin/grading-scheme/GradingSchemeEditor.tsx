@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Lock, Plus, Save } from "lucide-react";
+import { Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { GradingSchemeComponentRow, COMPONENT_TYPES } from "./GradingSchemeComponentRow";
@@ -95,8 +95,8 @@ export function GradingSchemeEditor() {
   }, [scheme, isLoading]);
 
   const totalWeight = rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
-  const isLocked    = scheme?.isLocked ?? false;
-  const canSave     = !isLocked && totalWeight === 100 && rows.length > 0 && !updateMutation.isPending;
+  // Schemes stay editable even with enrolled students / existing assessments.
+  const canSave     = totalWeight === 100 && rows.length > 0 && !updateMutation.isPending;
 
   const handleChange = (
     index: number,
@@ -166,17 +166,6 @@ export function GradingSchemeEditor() {
 
   return (
     <div className="space-y-6">
-      {/* Lock banner */}
-      {isLocked && (
-        <div className="flex items-center gap-2.5 rounded-md border border-warning/20 bg-warning/10 px-4 py-2.5 text-sm text-warning">
-          <Lock className="h-4 w-4 shrink-0" />
-          <span className="not-interactive">
-            <strong>Locked</strong> — this grading scheme is locked because enrolled students
-            exist in one or more classes. Remove all enrolled students first to make changes.
-          </span>
-        </div>
-      )}
-
       {/* Column headers — only when rows exist */}
       {rows.length > 0 && (
         <div className="hidden text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_minmax(110px,0.7fr)_40px] sm:gap-3 sm:px-0.5">
@@ -194,7 +183,7 @@ export function GradingSchemeEditor() {
             key={i}
             index={i}
             row={row}
-            disabled={isLocked || updateMutation.isPending}
+            disabled={updateMutation.isPending}
             usedTypes={rows.filter((_, j) => j !== i).map((r) => r.type)}
             onChange={handleChange}
             onDelete={(idx) => setDeleteIndex(idx)}
@@ -214,18 +203,16 @@ export function GradingSchemeEditor() {
       </div>
 
       {/* Add row */}
-      {!isLocked && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleAdd}
-          disabled={updateMutation.isPending}
-          className="gap-1.5"
-        >
-          <Plus className="h-4 w-4" />
-          Add Category
-        </Button>
-      )}
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleAdd}
+        disabled={updateMutation.isPending}
+        className="gap-1.5"
+      >
+        <Plus className="h-4 w-4" />
+        Add Category
+      </Button>
 
       {/* Total weight + save */}
       <div className="flex items-center justify-between border-t pt-4">

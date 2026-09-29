@@ -20,6 +20,7 @@ import {
   getClassProgramType,
 } from '../program/program-type-resolver';
 import { DatabaseService } from '@/core/database/database.provider';
+import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
 
 @Injectable()
 export class GradingSchemeTemplateService {
@@ -27,7 +28,47 @@ export class GradingSchemeTemplateService {
     private readonly repo: GradingSchemeTemplateRepository,
     private readonly gradingSchemeRepo: GradingSchemeRepository,
     private readonly db: DatabaseService,
+    private readonly gradeRefresh: GradeEducatorService,
   ) {}
+
+  private async assertNoOrphanedAssessments(
+    orgId: string,
+    classId: string,
+    componentTypes: string[],
+  ): Promise<void> {
+    const inUse = await this.db.assessment.findMany({
+      where: { org_id: orgId, class_id: classId, deleted_at: null },
+      select: { type: true },
+    });
+    if (inUse.length === 0) return;
+    const nextTypes = new Set(componentTypes);
+    const removed = [...new Set(inUse.map((a) => a.type))].filter(
+      (t) => !nextTypes.has(t),
+    );
+    if (removed.length > 0) {
+      throw new BadRequestException(
+        `Cannot apply template — category type(s) ${removed.join(', ')} would orphan existing assessments in this class.`,
+      );
+    }
+  }
+
+  private async refreshBestEffort(
+    orgId: string,
+    classId: string,
+    actorId: string,
+    reason: string,
+  ): Promise<void> {
+    try {
+      await this.gradeRefresh.refreshClassGrades(
+        orgId,
+        classId,
+        actorId,
+        reason,
+      );
+    } catch {
+      // Grades refresh must never fail the apply itself.
+    }
+  }
 
   private validateWeights(
     components: GradingSchemeTemplateComponentDto[],
@@ -396,7 +437,11 @@ export class GradingSchemeTemplateService {
     );
   }
 
-  async applyToClass(orgId: string, dto: ApplyTemplateToClassDto) {
+  async applyToClass(
+    orgId: string,
+    dto: ApplyTemplateToClassDto,
+    actorId?: string,
+  ) {
     // Get template
     const template = await this.findById(dto.templateId, orgId);
 
@@ -412,8 +457,14 @@ export class GradingSchemeTemplateService {
       );
     }
 
+    await this.assertNoOrphanedAssessments(
+      orgId,
+      dto.classId,
+      template.components.map((c) => c.type),
+    );
+
     // Create/update grading scheme for the class
-    return this.gradingSchemeRepo.upsertForClass(
+    const result = await this.gradingSchemeRepo.upsertForClass(
       orgId,
       dto.classId,
       dto.templateId,
@@ -426,9 +477,24 @@ export class GradingSchemeTemplateService {
         isOptional: false,
       })),
     );
+
+    if (actorId) {
+      await this.refreshBestEffort(
+        orgId,
+        dto.classId,
+        actorId,
+        'grading_scheme_template_applied',
+      );
+    }
+
+    return result;
   }
 
-  async applyToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
+  async applyToProgram(
+    orgId: string,
+    dto: ApplyTemplateToProgramDto,
+    actorId?: string,
+  ) {
     // Get template
     const template = await this.findById(dto.templateId, orgId);
 
@@ -488,10 +554,14 @@ export class GradingSchemeTemplateService {
       targetIds = classIds.filter((id) => !hasScheme.has(id));
     }
 
-    // Create/update grading scheme for each targeted class
-    const results = await Promise.all(
-      targetIds.map((classId) =>
-        this.gradingSchemeRepo.upsertForClass(
+    // Create/update grading scheme for each targeted class.
+    // Orphan guard runs per class: a class with existing assessments of a
+    // type the template drops is skipped (counted), never force-orphaned.
+    const componentTypes = template.components.map((c) => c.type);
+    const results = await Promise.allSettled(
+      targetIds.map(async (classId) => {
+        await this.assertNoOrphanedAssessments(orgId, classId, componentTypes);
+        const saved = await this.gradingSchemeRepo.upsertForClass(
           orgId,
           classId,
           dto.templateId,
@@ -503,14 +573,26 @@ export class GradingSchemeTemplateService {
             maxScore: c.maxScore,
             isOptional: false,
           })),
-        ),
-      ),
+        );
+        if (actorId) {
+          await this.refreshBestEffort(
+            orgId,
+            classId,
+            actorId,
+            'grading_scheme_template_applied_program',
+          );
+        }
+        return saved;
+      }),
     );
+    const appliedCount = results.filter(
+      (r) => r.status === 'fulfilled',
+    ).length;
 
     return {
       success: true,
-      appliedCount: results.length,
-      skippedCount: classIds.length - targetIds.length,
+      appliedCount,
+      skippedCount: classIds.length - appliedCount,
     };
   }
 }
