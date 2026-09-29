@@ -1,9 +1,10 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -274,131 +275,150 @@ export default function StudentHierarchyPage({
 
   return (
     <>
-      <div className="h-[calc(100dvh-10rem)] min-h-[520px]">
-        {data && scope ? (
-          <div className="relative h-full">
-            <SubjectHierarchyGraph
-              fill
-              header={headerContent}
-              nodes={data.nodes}
-              edges={data.edges}
-              statuses={statuses ?? undefined}
-              enrolledSubjectIds={enrolledSubjectIds}
-              dimIds={dimIds}
-              selectedId={selectedId}
-              onSelect={(s) => setSelectedId(s.id || null)}
-              levelNameOf={levelNameOf}
-            />
-            {selected && (
-              <Card className="absolute right-4 top-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto p-5 space-y-3 shadow-xl">
-                <div className="flex items-start gap-2">
-                  <span
-                    className="mt-1 inline-block h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: YEAR_COLORS[(selected.yearRank - 1) % YEAR_COLORS.length].swatch }}
-                  />
-                  <h3 className="font-semibold leading-snug">{selected.name}</h3>
-                  <button
-                    className="ml-auto text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => setSelectedId(null)}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    {levelNameOf(selected.yearRank)}
-                    {selected.termLabel ? ` · ${selected.termLabel}` : ""}
-                  </p>
-                  <Badge variant={selectedCompleted ? "default" : "secondary"} className="capitalize text-xs ml-auto">
-                    {selectedCompleted ? "completed" : (selectedStatus?.status ?? "not taken")}
-                  </Badge>
-                </div>
-                {selected && enrolledSet.has(selected.id) && (
-                  <span className="inline-block w-fit rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                    Currently enrolled this school year
-                  </span>
-                )}
-                {selectedCompleted && selectedStatus?.source === "grade" && !selectedOverride && (
-                  <p className="text-xs text-muted-foreground">Completed via locked passing grade.</p>
-                )}
+      <div className="flex h-[calc(100dvh-8.5rem)] min-h-[520px] flex-col gap-3">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex shrink-0 flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
+        >
+          <span>Admin</span>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <Link href="/admin/students" className="hover:text-foreground hover:underline">
+            Students
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <Link href={`/admin/students/${id}`} className="hover:text-foreground hover:underline">
+            {student?.fullName ?? "Detail"}
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="font-medium text-foreground">Hierarchy</span>
+        </nav>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {!selectedCompleted && (
-                    <Button
-                      size="sm"
-                      onClick={() => { setReason(""); setConfirm({ kind: "complete", subjectId: selected.id, subjectName: selected.name }); }}
+        <div className="min-h-0 flex-1">
+          {data && scope ? (
+            <div className="relative h-full">
+              <SubjectHierarchyGraph
+                fill
+                header={headerContent}
+                nodes={data.nodes}
+                edges={data.edges}
+                statuses={statuses ?? undefined}
+                enrolledSubjectIds={enrolledSubjectIds}
+                dimIds={dimIds}
+                selectedId={selectedId}
+                onSelect={(s) => setSelectedId(s.id || null)}
+                levelNameOf={levelNameOf}
+              />
+              {selected && (
+                <Card className="absolute right-4 top-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto p-5 space-y-3 shadow-xl">
+                  <div className="flex items-start gap-2">
+                    <span
+                      className="mt-1 inline-block h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: YEAR_COLORS[(selected.yearRank - 1) % YEAR_COLORS.length].swatch }}
+                    />
+                    <h3 className="font-semibold leading-snug">{selected.name}</h3>
+                    <button
+                      className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setSelectedId(null)}
                     >
-                      Mark completed
-                    </Button>
+                      ✕
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {levelNameOf(selected.yearRank)}
+                      {selected.termLabel ? ` · ${selected.termLabel}` : ""}
+                    </p>
+                    <Badge variant={selectedCompleted ? "default" : "secondary"} className="capitalize text-xs ml-auto">
+                      {selectedCompleted ? "completed" : (selectedStatus?.status ?? "not taken")}
+                    </Badge>
+                  </div>
+                  {selected && enrolledSet.has(selected.id) && (
+                    <span className="inline-block w-fit rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                      Currently enrolled this school year
+                    </span>
                   )}
-                  {selectedCompleted && selectedOverride && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => { setReason(selectedOverride.reason ?? ""); setConfirm({ kind: "toggle", overrideId: selectedOverride.id, subjectName: selected.name, to: "pending" }); }}
-                      >
-                        Mark pending
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => { setRemoveDependents(false); setConfirm({ kind: "abort", overrideId: selectedOverride.id, subjectName: selected.name }); }}
-                      >
-                        Abort
-                      </Button>
-                    </>
+                  {selectedCompleted && selectedStatus?.source === "grade" && !selectedOverride && (
+                    <p className="text-xs text-muted-foreground">Completed via locked passing grade.</p>
                   )}
-                </div>
 
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                    Prerequisites ({prereqsOfSelected.length})
-                  </p>
-                  {prereqsOfSelected.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No prerequisites — entry subject.</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {prereqsOfSelected.map((p) => (
-                        <li key={p.id}>
-                          <button className="text-xs text-primary hover:underline" onClick={() => setSelectedId(p.id)}>
-                            {p.name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                    Required by ({dependentsOfSelected.length})
-                  </p>
-                  {dependentsOfSelected.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nothing requires this yet.</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {dependentsOfSelected.map((d) => (
-                        <li key={d.id}>
-                          <button className="text-xs text-primary hover:underline" onClick={() => setSelectedId(d.id)}>
-                            {d.name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </Card>
-            )}
-          </div>
-        ) : (
-          <Card className="h-full p-5 space-y-3">
-            {headerContent}
-            {isLoading && (
-              <p className="text-sm text-muted-foreground py-10 text-center">Loading hierarchy…</p>
-            )}
-          </Card>
-        )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {!selectedCompleted && (
+                      <Button
+                        size="sm"
+                        onClick={() => { setReason(""); setConfirm({ kind: "complete", subjectId: selected.id, subjectName: selected.name }); }}
+                      >
+                        Mark completed
+                      </Button>
+                    )}
+                    {selectedCompleted && selectedOverride && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setReason(selectedOverride.reason ?? ""); setConfirm({ kind: "toggle", overrideId: selectedOverride.id, subjectName: selected.name, to: "pending" }); }}
+                        >
+                          Mark pending
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => { setRemoveDependents(false); setConfirm({ kind: "abort", overrideId: selectedOverride.id, subjectName: selected.name }); }}
+                        >
+                          Abort
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                      Prerequisites ({prereqsOfSelected.length})
+                    </p>
+                    {prereqsOfSelected.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No prerequisites — entry subject.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {prereqsOfSelected.map((p) => (
+                          <li key={p.id}>
+                            <button className="text-xs text-primary hover:underline" onClick={() => setSelectedId(p.id)}>
+                              {p.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                      Required by ({dependentsOfSelected.length})
+                    </p>
+                    {dependentsOfSelected.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nothing requires this yet.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {dependentsOfSelected.map((d) => (
+                          <li key={d.id}>
+                            <button className="text-xs text-primary hover:underline" onClick={() => setSelectedId(d.id)}>
+                              {d.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <Card className="h-full p-5 space-y-3">
+              {headerContent}
+              {isLoading && (
+                <p className="text-sm text-muted-foreground py-10 text-center">Loading hierarchy…</p>
+              )}
+            </Card>
+          )}
+        </div>
       </div>
 
       {confirm && (
