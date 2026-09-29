@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+  BookOpen,
   CalendarClock,
   CalendarRange,
   ClipboardList,
@@ -23,14 +24,14 @@ import { enrollmentPortalApi } from "@/api/admin/enrollment-portal.api";
 import { useEnrollmentPortalDashboard } from "@/hooks/admin/useEnrollmentDashboard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
+import { Pagination } from "@/components/shared/Pagination";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -187,31 +188,35 @@ function CourseRow({ course }: { course: ProgramCourseCount }) {
 function StatCard({
   label,
   value,
+  hint,
   icon,
-  tone,
+  iconClass,
 }: {
   label: string;
   value: number;
+  hint: string;
   icon: React.ReactNode;
-  tone: string;
+  iconClass: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${tone}`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-2xl font-semibold tabular-nums">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground not-interactive">{label}</p>
+        <span className={iconClass}>{icon}</span>
+      </div>
+      <p className="text-2xl font-semibold tabular-nums not-interactive">{value}</p>
+      <p className="text-xs text-muted-foreground not-interactive">{hint}</p>
+    </div>
   );
 }
 
-const SEARCH_COLUMNS: ColumnDef<ApplicationListItem>[] = [
-  { accessorKey: "application_code", header: "Code", size: 90, cell: (c) => <span className="font-mono">{c.row.original.application_code}</span> },
+const APPLICATION_COLUMNS: ColumnDef<ApplicationListItem>[] = [
+  {
+    accessorKey: "application_code",
+    header: "Code",
+    size: 90,
+    cell: (c) => <span className="font-mono">{c.row.original.application_code}</span>,
+  },
   { header: "Name", cell: (c) => c.row.original.full_name },
   { header: "Email", cell: (c) => c.row.original.personal_email },
   { header: "Department", cell: (c) => c.row.original.program },
@@ -231,15 +236,22 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
   const dashboardQuery = useEnrollmentPortalDashboard(selectedPeriodId || undefined);
   const data: EnrollmentPortalDashboard | undefined = dashboardQuery.data;
 
-  const [searchInput, setSearchInput] = useState("");
-  const [searchCode, setSearchCode] = useState("");
+  const [tab, setTab] = useState("applications");
   const [shareOpen, setShareOpen] = useState(false);
   const [periodModalOpen, setPeriodModalOpen] = useState(false);
-  const searchQuery = useAsyncQuery(
-    queryKeys.admin.enrollmentPortal.applications.list({ dashboardSearch: searchCode }),
-    () => enrollmentPortalApi.getApplications({ application_code: searchCode || undefined }),
-    { enabled: searchCode.trim().length > 0 },
-  );
+
+  const [searchInput, setSearchInput] = useState("");
+  const [searchCode, setSearchCode] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchCode(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const available = data?.availablePeriods ?? [];
   const selected =
@@ -248,12 +260,33 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
     available[0];
   const activeId = selected?.id ?? "";
 
+  const applicationsQuery = useAsyncQuery(
+    queryKeys.admin.enrollmentPortal.applications.list({
+      dashboardPeriod: activeId,
+      dashboardSearch: searchCode,
+      page,
+      limit,
+    }),
+    () =>
+      enrollmentPortalApi.getApplications({
+        period_id: activeId,
+        application_code: searchCode || undefined,
+        page,
+        limit,
+      }),
+    { enabled: activeId.length > 0 },
+  );
+
+  const applications = applicationsQuery.data?.data ?? [];
+  const applicationsTotal = applicationsQuery.data?.total ?? 0;
+
   const summary = data?.dashboard?.summary;
   const programs = data?.dashboard?.programs ?? [];
   const total = data?.dashboard?.total ?? 0;
 
   const handlePeriodChange = (value: string | null) => {
     setSelectedPeriodId(value ?? "");
+    setPage(1);
     if (value) {
       router.replace(`/admin/enrollment-portal?period_id=${value}`);
     } else {
@@ -261,28 +294,36 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
     }
   };
 
+  const hasPeriods = available.length > 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <PageHeader
         title="Enrollment Portal"
         actions={
-          <>
-            <Link
-              href={`/admin/enrollment-portal/applications${activeId ? `?period_id=${activeId}` : ""}`}
-            >
-              <Button variant="outline" size="sm">
-                <ClipboardList /> Review Applications
+          hasPeriods ? (
+            <div className="flex items-center gap-2">
+              <Select value={activeId} onValueChange={handlePeriodChange}>
+                <SelectTrigger className="w-56 sm:w-64">
+                  <span className="truncate">{selected?.name ?? "Select a period"}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {available.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                onClick={() => setShareOpen(true)}
+                disabled={!selected?.token}
+              >
+                <Share2 className="h-4 w-4" /> Share
               </Button>
-            </Link>
-            <Link href="/admin/enrollment-portal/periods">
-              <Button variant="outline" size="sm">
-                <CalendarRange /> View Periods
-              </Button>
-            </Link>
-            <Button size="sm" onClick={() => setPeriodModalOpen(true)}>
-              <Plus /> New Period
-            </Button>
-          </>
+            </div>
+          ) : undefined
         }
       />
 
@@ -292,10 +333,12 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
       />
 
       {dashboardQuery.isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <LoadingSpinner size="md" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
         </div>
-      ) : available.length === 0 ? (
+      ) : !hasPeriods ? (
         <EmptyState
           icon={Inbox}
           title="No enrollment periods yet"
@@ -307,54 +350,36 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
         />
       ) : (
         <>
-          {/* Period selector */}
-          <Card>
-            <CardContent className="space-y-3 p-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <Select value={activeId} onValueChange={handlePeriodChange}>
-                  <SelectTrigger className="w-full sm:w-72">
-                    <span className="truncate">{selected?.name ?? "Select a period"}</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {available.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selected && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShareOpen(true)}
-                      disabled={!selected.token}
-                    >
-                      <Share2 className="h-4 w-4" /> Share
-                    </Button>
-                    <PhaseBadge phase={selected.status} />
-                    {selected.school_year && (
-                      <Badge variant="outline">SY {selected.school_year.name}</Badge>
-                    )}
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {selected.token}
-                    </span>
-                  </div>
-                )}
-              </div>
-              {selected && (
-                <p className="text-sm text-muted-foreground">
-                  School year selected on this period:{" "}
-                  <span className="font-medium text-foreground">
-                    {selected.school_year?.name ?? "—"}
-                  </span>
-                  {"  ·  "}
-                  {fmtDate(selected.start_date)} – {fmtDate(selected.end_date)}
-                </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {selected && <PhaseBadge phase={selected.status} />}
+              {selected?.school_year && (
+                <Badge variant="outline">{selected.school_year.name}</Badge>
               )}
-            </CardContent>
-          </Card>
+              {selected && (
+                <span>
+                  {fmtDate(selected.start_date)} – {fmtDate(selected.end_date)}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/admin/enrollment-portal/applications${activeId ? `?period_id=${activeId}` : ""}`}
+              >
+                <Button variant="outline" size="sm">
+                  <ClipboardList /> Review Applications
+                </Button>
+              </Link>
+              <Link href="/admin/enrollment-portal/periods">
+                <Button variant="outline" size="sm">
+                  <CalendarRange /> View Periods
+                </Button>
+              </Link>
+              <Button size="sm" onClick={() => setPeriodModalOpen(true)}>
+                <Plus /> New Period
+              </Button>
+            </div>
+          </div>
 
           <SharePortalDialog
             open={shareOpen}
@@ -364,80 +389,102 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
             orgSlug={data?.org?.slug ?? null}
           />
 
-          {/* Stat cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Applications" value={total} icon={<Users className="h-5 w-5 text-info" />} tone="bg-info/10" />
-            <StatCard label="In Review" value={(summary?.pending ?? 0) + (summary?.locked ?? 0)} icon={<CalendarClock className="h-5 w-5 text-warning" />} tone="bg-warning/10" />
-            <StatCard label="Enrolled (Approved)" value={summary?.approved ?? 0} icon={<UserCheck className="h-5 w-5 text-success" />} tone="bg-success/10" />
-            <StatCard label="Rejected" value={summary?.rejected ?? 0} icon={<UserX className="h-5 w-5 text-destructive" />} tone="bg-destructive/10" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Applications"
+              value={total}
+              hint="in this period"
+              icon={<Users className="h-4 w-4" />}
+              iconClass="text-info"
+            />
+            <StatCard
+              label="In Review"
+              value={(summary?.pending ?? 0) + (summary?.locked ?? 0)}
+              hint="pending or locked"
+              icon={<CalendarClock className="h-4 w-4" />}
+              iconClass="text-warning"
+            />
+            <StatCard
+              label="Enrolled"
+              value={summary?.approved ?? 0}
+              hint="approved applications"
+              icon={<UserCheck className="h-4 w-4" />}
+              iconClass="text-success"
+            />
+            <StatCard
+              label="Rejected"
+              value={summary?.rejected ?? 0}
+              hint="declined applications"
+              icon={<UserX className="h-4 w-4" />}
+              iconClass="text-destructive"
+            />
           </div>
 
-          <Separator />
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+              <TabsTrigger value="applications">
+                <ClipboardList className="h-4 w-4 mr-1.5" />
+                Applications
+              </TabsTrigger>
+              <TabsTrigger value="departments">
+                <BookOpen className="h-4 w-4 mr-1.5" />
+                Departments &amp; Courses
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Application by code lookup */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Find an application</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Enter the application code (or a partial code) that was given to the applicant
-                when they submitted.
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <SearchInput
-                  value={searchInput}
-                  onChange={(v) => setSearchInput(v)}
-                  placeholder="e.g. AB12 or LOCK-EXP-A2"
-                  className="max-w-sm"
-                />
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setSearchCode(searchInput.trim())}
-                  disabled={!searchInput.trim()}
-                >
-                  Search
-                </Button>
-              </div>
-
-              {searchCode && (
-                <DataTable
-                  columns={SEARCH_COLUMNS}
-                  data={searchQuery.data?.data ?? []}
-                  isLoading={searchQuery.isLoading}
-                  emptyTitle="No application matched that code"
-                  emptyDescription="Double-check the code and try again."
-                  onRowClick={(row) =>
-                    router.push(`/admin/enrollment-portal/applications/${row.id}`)
-                  }
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Programs overview */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">Departments &amp; Courses</h2>
-              <span className="text-sm text-muted-foreground">
-                {programs.length} department{programs.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            {programs.length === 0 ? (
-              <EmptyState
-                icon={Inbox}
-                title="No departments set up for this school year"
-                description="Departments are defined per school year. Add departments before applicants can choose them."
+            <TabsContent value="applications" className="space-y-4 pt-4">
+              <SearchInput
+                value={searchInput}
+                onChange={(v) => setSearchInput(v)}
+                placeholder="Search by application code, e.g. AB12"
+                className="max-w-sm"
               />
-            ) : (
-              <div className="space-y-2">
-                {programs.map((program) => (
-                  <ProgramBlock key={program.id} program={program} />
-                ))}
-              </div>
-            )}
-          </div>
+              <DataTable
+                columns={APPLICATION_COLUMNS}
+                data={applications}
+                isLoading={applicationsQuery.isLoading}
+                emptyTitle={
+                  searchCode ? "No application matched that code" : "No applications yet"
+                }
+                emptyDescription={
+                  searchCode
+                    ? "Double-check the code and try again."
+                    : "Applications submitted through the portal will appear here."
+                }
+                onRowClick={(row) =>
+                  router.push(`/admin/enrollment-portal/applications/${row.id}`)
+                }
+                className="rounded-lg border"
+              />
+              <Pagination
+                page={page}
+                limit={limit}
+                total={applicationsTotal}
+                onPageChange={setPage}
+                onLimitChange={setLimit}
+                pageSizeOptions={[10, 20, 50]}
+              />
+            </TabsContent>
+
+            <TabsContent value="departments" className="space-y-3 pt-4">
+              <p className="px-1 text-xs text-muted-foreground">
+                {programs.length} department{programs.length !== 1 ? "s" : ""} · applied / enrolled
+              </p>
+              {programs.length === 0 ? (
+                <EmptyState
+                  icon={Inbox}
+                  title="No departments set up for this school year"
+                  description="Departments are defined per school year. Add departments before applicants can choose them."
+                />
+              ) : (
+                <div className="space-y-2">
+                  {programs.map((program) => (
+                    <ProgramBlock key={program.id} program={program} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>
