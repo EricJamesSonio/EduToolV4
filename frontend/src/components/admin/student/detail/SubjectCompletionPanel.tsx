@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpenCheck, Network, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { subjectCompletionApi } from "@/api/admin/subject-completion.api";
 import { SubjectHierarchyModal } from "@/components/admin/subject/hierarchy/SubjectHierarchyModal";
@@ -21,16 +20,13 @@ interface Props {
 }
 
 type PendingAction =
-  | { kind: "complete"; subjectId: string; subjectName: string }
   | { kind: "toggle"; overrideId: string; subjectName: string; to: "completed" | "pending" }
   | { kind: "abort"; overrideId: string; subjectName: string };
 
 export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [search, setSearch] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
-  const [catalogSearch, setCatalogSearch] = useState("");
-  const [pickedSubjectId, setPickedSubjectId] = useState("");
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState<PendingAction | null>(null);
   const [removeDependents, setRemoveDependents] = useState(false);
@@ -41,30 +37,11 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
     queryKey: listKey,
     queryFn: () => subjectCompletionApi.list(studentId),
   });
-  const { data: catalog = [] } = useQuery({
-    queryKey: ["admin", "students", studentId, "subject-catalog", catalogSearch],
-    queryFn: () => subjectCompletionApi.catalog(studentId, catalogSearch || undefined),
-    enabled: addOpen,
-  });
 
   const invalidate = (): void => {
     queryClient.invalidateQueries({ queryKey: listKey });
     queryClient.invalidateQueries({ queryKey: ["admin", "students", studentId, "subject-statuses"] });
   };
-
-  const completeMutation = useMutation({
-    mutationFn: (p: { subjectId: string; reason?: string }) =>
-      subjectCompletionApi.markCompleted(studentId, p.subjectId, p.reason),
-    onSuccess: () => {
-      toast.success("Marked as completed — student can now take dependent subjects.");
-      setConfirm(null);
-      setAddOpen(false);
-      setPickedSubjectId("");
-      setReason("");
-      invalidate();
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to mark completed"),
-  });
 
   const toggleMutation = useMutation({
     mutationFn: (p: { overrideId: string; to: "completed" | "pending"; reason?: string }) =>
@@ -100,15 +77,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
     return overrides.filter((o) => o.subject.name.toLowerCase().includes(q));
   }, [overrides, search]);
 
-  const existingSubjectIds = useMemo(() => new Set(overrides.map((o) => o.subject_id)), [overrides]);
-  const catalogOptions = useMemo(
-    () => catalog.filter((c) => !existingSubjectIds.has(c.id)),
-    [catalog, existingSubjectIds],
-  );
-
   const confirmMessage = (a: PendingAction): string => {
-    if (a.kind === "complete")
-      return `Mark "${a.subjectName}" as completed? The student can then enroll in subjects that require it.`;
     if (a.kind === "toggle" && a.to === "completed")
       return `Mark "${a.subjectName}" as completed? The student can then enroll in subjects that require it.`;
     if (a.kind === "toggle")
@@ -150,7 +119,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
               <Network className="h-3.5 w-3.5" /> Hierarchy
             </Button>
           )}
-          <Button size="sm" className="gap-1" onClick={() => setAddOpen(true)}>
+          <Button size="sm" className="gap-1" onClick={() => router.push(`/admin/students/${studentId}/hierarchy`)}>
             <Plus className="h-3.5 w-3.5" /> Mark subject
           </Button>
         </div>
@@ -229,60 +198,13 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
         </div>
       )}
 
-      {addOpen && (
-        <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Mark subject as completed" size="sm">
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Search subjects</Label>
-              <Input placeholder="Type subject name…" value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Subject *</Label>
-              <Select value={pickedSubjectId} onValueChange={(v) => setPickedSubjectId(v ?? "")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subject by name" />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalogOptions.length === 0 ? (
-                    <SelectItem value="__none" disabled>No subjects found</SelectItem>
-                  ) : (
-                    catalogOptions.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                        {c.year_level ? ` · ${c.year_level}` : ""}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Reason / note (optional)</Label>
-              <Input placeholder="e.g. Taken at previous school" value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
-          </div>
-          <ModalFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button
-              disabled={!pickedSubjectId || completeMutation.isPending}
-              onClick={() => {
-                const item = catalogOptions.find((c) => c.id === pickedSubjectId);
-                setConfirm({ kind: "complete", subjectId: pickedSubjectId, subjectName: item?.name ?? "subject" });
-              }}
-            >
-              Review & confirm
-            </Button>
-          </ModalFooter>
-        </Modal>
-      )}
-
       {confirm && (
         <ConfirmDialog
           open
           title={
             confirm.kind === "abort"
               ? "Abort record?"
-              : confirm.kind === "complete" || confirm.to === "completed"
+              : confirm.to === "completed"
                 ? "Mark as completed?"
                 : "Mark as pending?"
           }
@@ -318,11 +240,9 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
           }
           confirmLabel={confirm.kind === "abort" ? "Abort record" : "Confirm"}
           destructive={confirm.kind === "abort"}
-          isLoading={completeMutation.isPending || toggleMutation.isPending || abortMutation.isPending}
+          isLoading={toggleMutation.isPending || abortMutation.isPending}
           onConfirm={() => {
-            if (confirm.kind === "complete") {
-              completeMutation.mutate({ subjectId: confirm.subjectId, reason: reason || undefined });
-            } else if (confirm.kind === "toggle") {
+            if (confirm.kind === "toggle") {
               toggleMutation.mutate({ overrideId: confirm.overrideId, to: confirm.to, reason: reason || undefined });
             } else {
               abortMutation.mutate({ overrideId: confirm.overrideId, removeDependents });
