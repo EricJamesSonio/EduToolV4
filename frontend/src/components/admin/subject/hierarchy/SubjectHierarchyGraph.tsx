@@ -126,6 +126,7 @@ interface Props {
   onSelect?: (sel: GraphSelection) => void;
   levelNameOf?: (rank: number) => string;
   header?: React.ReactNode;
+  fill?: boolean;
 }
 
 interface GraphIndex {
@@ -317,6 +318,7 @@ export function SubjectHierarchyGraph({
   onSelect,
   levelNameOf,
   header,
+  fill = false,
 }: Props): React.JSX.Element {
   const index = useMemo(() => buildGraphIndex(nodes, edges), [nodes, edges]);
   const layout = useMemo(() => computeLayout(nodes, index), [nodes, index]);
@@ -408,8 +410,13 @@ export function SubjectHierarchyGraph({
   }, [nodes, index, layout, years, statuses, enrolledSubjectIds, dimIds, selectedId, levelNameOf]);
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {header && <div className="border-b border-slate-200 p-5">{header}</div>}
+    <div
+      className={cn(
+        "w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm",
+        fill && "flex h-full min-h-0 flex-col",
+      )}
+    >
+      {header && <div className="shrink-0 border-b border-slate-200 p-4">{header}</div>}
 
       {nodes.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
@@ -417,7 +424,7 @@ export function SubjectHierarchyGraph({
         </p>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-center gap-3 px-4 py-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 px-4 py-2">
             {years.map((y) => (
               <div
                 key={y.rank}
@@ -435,7 +442,7 @@ export function SubjectHierarchyGraph({
             ))}
           </div>
 
-          <div className="h-[640px] w-full">
+          <div className={cn("w-full", fill ? "min-h-0 flex-1" : "h-[640px]")}>
             <ReactFlow
               key={layoutKey}
               nodes={flowNodes}
