@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpenCheck, Plus, Trash2 } from "lucide-react";
+import { BookOpenCheck, Network, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { subjectCompletionApi } from "@/api/admin/subject-completion.api";
+import { SubjectHierarchyModal } from "@/components/admin/subject/hierarchy/SubjectHierarchyModal";
+import type { HierarchyScope } from "@/api/admin/subject-hierarchy.api";
 
 interface Props {
   studentId: string;
@@ -32,6 +34,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState<PendingAction | null>(null);
   const [removeDependents, setRemoveDependents] = useState(false);
+  const [hierarchy, setHierarchy] = useState<{ scope: HierarchyScope; focusId: string; label: string } | null>(null);
 
   const listKey = ["admin", "students", studentId, "subject-completions"];
   const { data: overrides = [], isLoading } = useQuery({
@@ -46,6 +49,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
 
   const invalidate = (): void => {
     queryClient.invalidateQueries({ queryKey: listKey });
+    queryClient.invalidateQueries({ queryKey: ["admin", "students", studentId, "subject-statuses"] });
   };
 
   const completeMutation = useMutation({
@@ -124,9 +128,32 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
             Transferee / pre-system credits. Completed unlocks prerequisites; pending blocks new takes but keeps existing ones.
           </p>
         </div>
-        <Button size="sm" className="ml-auto gap-1" onClick={() => setAddOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> Mark subject
-        </Button>
+        <div className="ml-auto flex gap-1.5">
+          {overrides.length > 0 && overrides[0].subject.program_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => {
+                const s = overrides[0].subject;
+                setHierarchy({
+                  scope: {
+                    programId: s.program_id ?? undefined,
+                    courseId: s.course_id ?? undefined,
+                    strandId: s.strand_id ?? undefined,
+                  },
+                  focusId: overrides[0].subject_id,
+                  label: overrides[0].subject.name,
+                });
+              }}
+            >
+              <Network className="h-3.5 w-3.5" /> Hierarchy
+            </Button>
+          )}
+          <Button size="sm" className="gap-1" onClick={() => setAddOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> Mark subject
+          </Button>
+        </div>
       </div>
 
       <div className="mt-3 mb-3">
@@ -142,8 +169,25 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
           {filtered.map((o) => (
             <div key={o.id} className="rounded-lg border bg-card px-3 py-2.5 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium truncate">{o.subject.name}</span>
-                <Badge variant={o.status === "completed" ? "default" : "secondary"} className="capitalize text-xs">
+                <button
+                  className="text-sm font-medium truncate text-left hover:text-primary hover:underline"
+                  title="View in subject hierarchy"
+                  onClick={() => {
+                    if (!o.subject.program_id) return;
+                    setHierarchy({
+                      scope: {
+                        programId: o.subject.program_id,
+                        courseId: o.subject.course_id ?? undefined,
+                        strandId: o.subject.strand_id ?? undefined,
+                      },
+                      focusId: o.subject_id,
+                      label: o.subject.name,
+                    });
+                  }}
+                >
+                  {o.subject.name}
+                </button>
+                <Badge variant={o.status === "completed" ? "default" : "secondary"} className="capitalize text-xs shrink-0">
                   {o.status}
                 </Badge>
               </div>
@@ -285,6 +329,18 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
             }
           }}
           onOpenChange={(o) => { if (!o) setConfirm(null); }}
+        />
+      )}
+
+      {hierarchy && (
+        <SubjectHierarchyModal
+          open
+          onClose={() => setHierarchy(null)}
+          scope={hierarchy.scope}
+          scopeLabel={`Showing hierarchy around “${hierarchy.label}”. ✓ = completed (record or passing grade).`}
+          studentId={studentId}
+          focusSubjectId={hierarchy.focusId}
+          title="Subject Hierarchy"
         />
       )}
     </Card>

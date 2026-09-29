@@ -18,6 +18,10 @@ export interface SubjectCompletionOverride {
     name: string;
     year_level: string | null;
     term_label: string | null;
+    program_id: string | null;
+    course_id: string | null;
+    strand_id: string | null;
+    level_id: string | null;
   };
 }
 

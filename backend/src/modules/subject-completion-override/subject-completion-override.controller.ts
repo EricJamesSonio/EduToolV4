@@ -42,6 +42,20 @@ export class SubjectCompletionOverrideController {
     return this.service.catalog(orgId, search);
   }
 
+  @Get('statuses')
+  @Roles('admin')
+  statuses(
+    @CurrentUser('org_id') orgId: string,
+    @Param('studentId') studentId: string,
+    @Query('subjectIds') subjectIds?: string,
+  ) {
+    const ids = (subjectIds ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return this.service.statuses(orgId, studentId, ids);
+  }
+
   @Post()
   @Roles('admin')
   create(

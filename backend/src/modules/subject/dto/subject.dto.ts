@@ -142,6 +142,24 @@ export class QuerySubjectDto {
   limit?: number = 20;
 }
 
+export class SubjectHierarchyQueryDto {
+  @IsOptional()
+  @IsUUID()
+  schoolYearId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  programId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string;
+}
+
 export class ShareSubjectDto {
   @IsOptional()
   @IsUUID()

@@ -45,3 +45,31 @@ export function departmentTone(type: string): IconTone {
   for (let i = 0; i < type.length; i++) hash = (hash * 31 + type.charCodeAt(i)) >>> 0;
   return TONE_ORDER[hash % TONE_ORDER.length];
 }
+
+/* ── Year-rank colors for the subject hierarchy (1st → highest). ── */
+
+export interface YearColor {
+  /** Solid swatch / node accent. */
+  swatch: string;
+  /** Tailwind classes for node border + soft fill. */
+  node: string;
+}
+
+export const YEAR_COLORS: YearColor[] = [
+  { swatch: "#38BDF8", node: "border-[#38BDF8] bg-[#E0F2FE]" },
+  { swatch: "#34D399", node: "border-[#34D399] bg-[#D1FAE5]" },
+  { swatch: "#A78BFA", node: "border-[#A78BFA] bg-[#EDE9FE]" },
+  { swatch: "#FBBF24", node: "border-[#FBBF24] bg-[#FEF3C7]" },
+  { swatch: "#F472B6", node: "border-[#F472B6] bg-[#FCE7F3]" },
+  { swatch: "#FB923C", node: "border-[#FB923C] bg-[#FFEDD5]" },
+  { swatch: "#22D3EE", node: "border-[#22D3EE] bg-[#CFFAFE]" },
+  { swatch: "#818CF8", node: "border-[#818CF8] bg-[#E0E7FF]" },
+  { swatch: "#4ADE80", node: "border-[#4ADE80] bg-[#DCFCE7]" },
+  { swatch: "#E879F9", node: "border-[#E879F9] bg-[#FAE8FF]" },
+];
+
+/** Stable color for a 1-based year rank; ranks past the palette wrap around. */
+export function yearColor(rank: number): YearColor {
+  const idx = ((Math.max(1, Math.floor(rank)) - 1) % YEAR_COLORS.length + YEAR_COLORS.length) % YEAR_COLORS.length;
+  return YEAR_COLORS[idx];
+}

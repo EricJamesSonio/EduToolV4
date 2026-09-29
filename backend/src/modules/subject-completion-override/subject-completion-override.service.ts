@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { GradingScaleRepository } from '../grading-scale/grading-scale.repository';
+
+const FALLBACK_PASSING_SCORE = 75;
 import {
   CreateSubjectCompletionDto,
   UpdateSubjectCompletionDto,
@@ -11,6 +14,7 @@ export class SubjectCompletionOverrideService {
   constructor(
     private readonly db: DatabaseService,
     private readonly auditLogService: AuditLogService,
+    private readonly gradingScaleRepository: GradingScaleRepository,
   ) {}
 
   async list(orgId: string, studentId: string) {
@@ -40,6 +44,97 @@ export class SubjectCompletionOverrideService {
       select: { subject_id: true },
     });
     return new Set(rows.map((r) => r.subject_id));
+  }
+
+  /**
+   * Batched per-student status map for hierarchy overlay. 3 queries max:
+   * overrides + locked grades (with class->subject) + batched grading scales.
+   * completed = override completed OR locked passing grade.
+   */
+  async statuses(orgId: string, studentId: string, subjectIds: string[]) {
+    const uniqueIds = [...new Set(subjectIds)].slice(0, 1000);
+    if (uniqueIds.length === 0) return {};
+
+    const [overrides, grades] = await Promise.all([
+      this.db.subjectCompletionOverride.findMany({
+        where: { org_id: orgId, student_id: studentId, subject_id: { in: uniqueIds } },
+        select: { subject_id: true, status: true },
+      }),
+      this.db.grade.findMany({
+        where: {
+          org_id: orgId,
+          student_id: studentId,
+          is_locked: true,
+          class: { subject_id: { in: uniqueIds } },
+        },
+        select: {
+          final_score: true,
+          class: { select: { id: true, subject_id: true } },
+        },
+      }),
+    ]);
+
+    const overrideMap = new Map(overrides.map((o) => [o.subject_id, o.status]));
+    // Latest grade per subject wins — order is insertion order; group max score.
+    const bestGrade = new Map<string, { final_score: number; class_id: string }>();
+    for (const g of grades) {
+      const sid = (g.class as unknown as { subject_id: string }).subject_id;
+      const prev = bestGrade.get(sid);
+      if (!prev || g.final_score > prev.final_score) {
+        bestGrade.set(sid, {
+          final_score: g.final_score,
+          class_id: (g.class as unknown as { id: string }).id,
+        });
+      }
+    }
+
+    const classIds = [...new Set([...bestGrade.values()].map((g) => g.class_id))];
+    const scales = classIds.length
+      ? await this.gradingScaleRepository.findByClassIds(classIds, orgId).catch(() => new Map())
+      : new Map<string, unknown>();
+
+    const result: Record<string, { status: string; source: string }> = {};
+    for (const sid of uniqueIds) {
+      if (overrideMap.get(sid) === 'completed') {
+        result[sid] = { status: 'completed', source: 'override' };
+        continue;
+      }
+      const grade = bestGrade.get(sid);
+      if (grade) {
+        const passing = this.isPassing(
+          grade.final_score,
+          scales.get(grade.class_id) as
+            | { ranges?: Array<{ minPercent: number; maxPercent: number; isPassing: boolean }> }
+            | undefined,
+        );
+        if (passing) {
+          result[sid] = { status: 'completed', source: 'grade' };
+          continue;
+        }
+      }
+      result[sid] = {
+        status: overrideMap.get(sid) === 'pending' ? 'pending' : 'none',
+        source: 'none',
+      };
+    }
+    return result;
+  }
+
+  private isPassing(
+    finalScore: number,
+    scale?: { ranges?: Array<{ minPercent: number; maxPercent: number; isPassing: boolean }> },
+  ): boolean {
+    try {
+      const ranges = scale?.ranges;
+      if (ranges) {
+        const rounded = Math.round(finalScore);
+        const match = ranges.find((r) => rounded >= r.minPercent && rounded <= r.maxPercent);
+        if (match) return !!match.isPassing;
+      }
+    } catch {
+      // fall through to fallback
+    }
+    return finalScore >= FALLBACK_PASSING_SCORE;
   }
 
   async upsert(
