@@ -79,6 +79,10 @@ export function ChangeYearDialog({
     () => (sectionsRaw as { id: string; name: string; capacity: number }[] | undefined) ?? [],
     [sectionsRaw],
   );
+  const selectedLevelLabel = levels.find((l) => l.id === toLevelId)?.name ?? null;
+  const selectedSectionLabel = toSectionId
+    ? (sections.find((s) => s.id === toSectionId)?.name ?? null)
+    : "No section yet";
 
   const handleConfirm = (): void => {
     if (!toLevelId) {
@@ -125,7 +129,11 @@ export function ChangeYearDialog({
               <Label>Target Year / Level *</Label>
               <Select value={toLevelId} onValueChange={(v) => { setToLevelId(v ?? ""); setToSectionId(""); }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select year (e.g. 1st → 3rd year)" />
+                  {selectedLevelLabel ? (
+                    <span className="flex flex-1 truncate text-left">{selectedLevelLabel}</span>
+                  ) : (
+                    <SelectValue placeholder="Select year (e.g. 1st → 3rd year)" />
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {eligibleLevels.map((l) => (
@@ -142,7 +150,11 @@ export function ChangeYearDialog({
                 <Label>Section (optional — No section is default)</Label>
                 <Select value={toSectionId} onValueChange={(v) => setToSectionId(v ?? "")}>
                   <SelectTrigger>
-                    <SelectValue placeholder="No section yet" />
+                    {selectedSectionLabel ? (
+                      <span className="flex flex-1 truncate text-left">{selectedSectionLabel}</span>
+                    ) : (
+                      <SelectValue placeholder="No section yet" />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">No section yet</SelectItem>

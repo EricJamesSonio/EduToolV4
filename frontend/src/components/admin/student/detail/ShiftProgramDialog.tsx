@@ -98,7 +98,10 @@ export function ShiftProgramDialog({
       : selectedProgram?.type === "shs"
         ? (toStrandId || "") === (currentStrandId ?? "")
         : true);
-  void selectedProgramLabel;
+  const selectedCourseLabel =
+    selectedProgram?.courses?.find((c) => c.id === toCourseId)?.name ?? null;
+  const selectedStrandLabel =
+    selectedProgram?.strands?.find((s) => s.id === toStrandId)?.name ?? null;
 
   // Levels for selected program/course/strand
   const { data: levelsRaw } = useAsyncQuery(
@@ -121,6 +124,13 @@ export function ShiftProgramDialog({
   );
 
   const sections = useMemo(() => (sectionsRaw as { id: string; name: string; capacity: number }[] | undefined) ?? [], [sectionsRaw]);
+
+  // Explicit trigger labels (never raw UUIDs): Base-UI Select.Value falls back
+  // to the raw value when the matching item isn't mounted yet (async options).
+  const selectedLevelLabel = levels.find((l) => l.id === toLevelId)?.name ?? null;
+  const selectedSectionLabel = toSectionId
+    ? (sections.find((s) => s.id === toSectionId)?.name ?? null)
+    : "No section yet";
 
   const handleShift = () => {
     if (!toProgramId) {
@@ -201,7 +211,11 @@ export function ShiftProgramDialog({
               <Label>Target Program *</Label>
               <Select value={toProgramId} onValueChange={(v) => handleProgramChange(v ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select program" />
+                  {selectedProgramLabel ? (
+                    <span className="flex flex-1 truncate text-left">{selectedProgramLabel}</span>
+                  ) : (
+                    <SelectValue placeholder="Select program" />
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {eligiblePrograms.map((p) => (
@@ -225,7 +239,11 @@ export function ShiftProgramDialog({
                 <Label>Target Course {selectedProgram.type === "college" ? "*" : ""}</Label>
                 <Select value={toCourseId} onValueChange={(v) => setToCourseId(v ?? "")}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select course (e.g. BSCS → BSA)" />
+                    {selectedCourseLabel ? (
+                      <span className="flex flex-1 truncate text-left">{selectedCourseLabel}</span>
+                    ) : (
+                      <SelectValue placeholder="Select course (e.g. BSCS → BSA)" />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {courseOptions.length === 0 ? (
@@ -246,7 +264,11 @@ export function ShiftProgramDialog({
                 <Label>Target Strand {selectedProgram.type === "shs" ? "*" : ""}</Label>
                 <Select value={toStrandId} onValueChange={(v) => setToStrandId(v ?? "")}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select strand (e.g. HUMSS → ABM)" />
+                    {selectedStrandLabel ? (
+                      <span className="flex flex-1 truncate text-left">{selectedStrandLabel}</span>
+                    ) : (
+                      <SelectValue placeholder="Select strand (e.g. HUMSS → ABM)" />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {strandOptions.length === 0 ? (
@@ -267,7 +289,11 @@ export function ShiftProgramDialog({
                 <Label>Target Year / Level *</Label>
                 <Select value={toLevelId} onValueChange={(v) => setToLevelId(v ?? "")}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select year (e.g. BSA 1, Grade 6)" />
+                    {selectedLevelLabel ? (
+                      <span className="flex flex-1 truncate text-left">{selectedLevelLabel}</span>
+                    ) : (
+                      <SelectValue placeholder="Select year (e.g. BSA 1, Grade 6)" />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {levels.length === 0 ? <SelectItem value="__none" disabled>No levels found</SelectItem> : null}
@@ -286,7 +312,11 @@ export function ShiftProgramDialog({
                 <Label>Section (optional — No section is default)</Label>
                 <Select value={toSectionId} onValueChange={(v) => setToSectionId(v ?? "")}>
                   <SelectTrigger>
-                    <SelectValue placeholder="No section yet" />
+                    {selectedSectionLabel ? (
+                      <span className="flex flex-1 truncate text-left">{selectedSectionLabel}</span>
+                    ) : (
+                      <SelectValue placeholder="No section yet" />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">No section yet</SelectItem>

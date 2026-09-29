@@ -53,6 +53,18 @@ export function SubjectHierarchyFilter({ value, onChange }: Props): React.JSX.El
   const isCollege = selectedProgram?.type === "college";
   const isShs = selectedProgram?.type === "shs";
 
+  // Explicit trigger labels (never raw UUIDs): Base-UI Select.Value falls back
+  // to rendering the raw value when the matching item isn't mounted yet
+  // (async options), so we render the resolved name ourselves.
+  const schoolYearLabel = schoolYears.find((s) => s.id === value.schoolYearId)?.name ?? null;
+  const programLabel = selectedProgram
+    ? `${selectedProgram.name} · ${selectedProgram.type}`
+    : null;
+  const courseLabel =
+    selectedProgram?.courses?.find((c) => c.id === value.courseId)?.name ?? null;
+  const strandLabel =
+    selectedProgram?.strands?.find((s) => s.id === value.strandId)?.name ?? null;
+
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1.5 min-w-44">
@@ -64,7 +76,11 @@ export function SubjectHierarchyFilter({ value, onChange }: Props): React.JSX.El
           }
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select school year" />
+            {schoolYearLabel ? (
+              <span className="flex flex-1 truncate text-left">{schoolYearLabel}</span>
+            ) : (
+              <SelectValue placeholder="Select school year" />
+            )}
           </SelectTrigger>
           <SelectContent>
             {schoolYears.map((sy) => (
@@ -86,7 +102,11 @@ export function SubjectHierarchyFilter({ value, onChange }: Props): React.JSX.El
           disabled={!value.schoolYearId}
         >
           <SelectTrigger>
-            <SelectValue placeholder={value.schoolYearId ? "Select department" : "Select school year first"} />
+            {programLabel ? (
+              <span className="flex flex-1 truncate text-left">{programLabel}</span>
+            ) : (
+              <SelectValue placeholder={value.schoolYearId ? "Select department" : "Select school year first"} />
+            )}
           </SelectTrigger>
           <SelectContent>
             {programs.map((p) => (
@@ -106,7 +126,11 @@ export function SubjectHierarchyFilter({ value, onChange }: Props): React.JSX.El
             onValueChange={(v) => onChange({ ...value, courseId: v || undefined })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select course" />
+              {courseLabel ? (
+                <span className="flex flex-1 truncate text-left">{courseLabel}</span>
+              ) : (
+                <SelectValue placeholder="Select course" />
+              )}
             </SelectTrigger>
             <SelectContent>
               {(selectedProgram.courses ?? []).map((c) => (
@@ -127,7 +151,11 @@ export function SubjectHierarchyFilter({ value, onChange }: Props): React.JSX.El
             onValueChange={(v) => onChange({ ...value, strandId: v || undefined })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select strand" />
+              {strandLabel ? (
+                <span className="flex flex-1 truncate text-left">{strandLabel}</span>
+              ) : (
+                <SelectValue placeholder="Select strand" />
+              )}
             </SelectTrigger>
             <SelectContent>
               {(selectedProgram.strands ?? []).map((s) => (

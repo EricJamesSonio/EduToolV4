@@ -70,34 +70,29 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-10 text-center">Loading hierarchy…</p>
       ) : data ? (
-        <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-          <div className="space-y-2">
+        <div className="space-y-2">
+          <div className="relative">
             <SubjectHierarchyGraph
               nodes={data.nodes}
               edges={data.edges}
               selectedId={selectedId}
-              onSelect={(s) => setSelectedId(s.id)}
+              onSelect={(s) => setSelectedId(s.id || null)}
               levelNameOf={levelNameOf}
             />
-            {data.truncated && (
-              <p className="text-xs text-amber-600">Large scope truncated — narrow by course/strand.</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {data.nodes.length} subjects · {data.edges.length} prerequisite links · {columns.length} year columns
-            </p>
-          </div>
-
-          <Card className="p-5 h-fit space-y-3">
-            {!selected ? (
-              <p className="text-sm text-muted-foreground">Click a subject to see its prerequisites and dependents.</p>
-            ) : (
-              <>
-                <div className="flex items-center gap-2">
+            {selected && (
+              <Card className="absolute right-4 top-4 w-80 max-h-[calc(100%-2rem)] overflow-y-auto p-5 space-y-3 shadow-xl">
+                <div className="flex items-start gap-2">
                   <span
-                    className="inline-block h-3 w-3 rounded-full"
+                    className="mt-1 inline-block h-3 w-3 shrink-0 rounded-full"
                     style={{ backgroundColor: YEAR_COLORS[(selected.yearRank - 1) % YEAR_COLORS.length].swatch }}
                   />
-                  <h3 className="font-semibold">{selected.name}</h3>
+                  <h3 className="font-semibold leading-snug">{selected.name}</h3>
+                  <button
+                    className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setSelectedId(null)}
+                  >
+                    ✕
+                  </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {levelNameOf(selected.yearRank)}
@@ -148,9 +143,15 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
                 <Button size="sm" variant="outline" onClick={() => router.push(`/admin/subjects/${selected.id}`)}>
                   Open subject
                 </Button>
-              </>
+              </Card>
             )}
-          </Card>
+          </div>
+          {data.truncated && (
+            <p className="text-xs text-amber-600">Large scope truncated — narrow by course/strand.</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {data.nodes.length} subjects · {data.edges.length} prerequisite links · {columns.length} year columns
+          </p>
         </div>
       ) : null}
     </div>
