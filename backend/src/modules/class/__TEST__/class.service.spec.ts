@@ -53,6 +53,7 @@ describe('ClassService', () => {
     enrollmentService = {
       enroll: jest.fn(),
       countActive: jest.fn(),
+      countActiveMany: jest.fn().mockResolvedValue(new Map()),
       findByClass: jest.fn(),
       updateStatus: jest.fn(),
       remove: jest.fn(),

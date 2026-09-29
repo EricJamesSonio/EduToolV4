@@ -327,4 +327,11 @@ export class EnrollmentService {
   async countActive(classId: string): Promise<number> {
     return this.enrollmentRepository.countActive(classId);
   }
+
+  async countActiveMany(
+    classIds: string[],
+    orgId: string,
+  ): Promise<Map<string, number>> {
+    return this.enrollmentRepository.countActiveMany(classIds, orgId);
+  }
 }

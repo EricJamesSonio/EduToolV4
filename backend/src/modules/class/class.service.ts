@@ -758,6 +758,10 @@ export class ClassService {
       await this.classRepository.findSubjectsWithEducators(
         enrollments.map((enrollment) => (enrollment as any).class.id),
       );
+    const countsByClass = await this.enrollmentService.countActiveMany(
+      enrollments.map((enrollment) => (enrollment as any).class.id),
+      orgId,
+    );
     return enrollments.map((enrollment) => {
       const cls = (enrollment as any).class;
       const info = infoByClass.get(cls.id);
@@ -776,6 +780,7 @@ export class ClassService {
           schoolYearId: cls.school_year_id,
           semesterId: cls.semester_id,
           capacity: cls.capacity,
+          enrolledCount: countsByClass.get(cls.id) ?? 0,
           schedules: cls.schedules,
         },
       };
@@ -792,6 +797,7 @@ export class ClassService {
     const cls = (enrollment as any).class;
     const { subject, educatorProfile } =
       await this.classRepository.findSubjectWithEducator(cls.id);
+    const enrolledCount = await this.enrollmentService.countActive(cls.id);
     return {
       enrollmentId: enrollment.id,
       enrollmentStatus: enrollment.status,
@@ -805,6 +811,7 @@ export class ClassService {
         schoolYearId: cls.school_year_id,
         semesterId: cls.semester_id,
         capacity: cls.capacity,
+        enrolledCount,
         schedules: cls.schedules,
       },
     };

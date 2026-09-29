@@ -1,4 +1,4 @@
-import { User, Clock, BookOpen } from "lucide-react";
+import { User, Clock, BookOpen, Hash } from "lucide-react";
 import { formatScheduleLines } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
 
@@ -15,10 +15,24 @@ interface DetailItem {
 export function ClassInfoCard({ data }: ClassInfoCardProps): React.JSX.Element {
   const { class: cls } = data;
   const scheduleLines = formatScheduleLines(cls.schedules);
+  const capacityLabel = cls.capacity === 0 ? "Unlimited" : String(cls.capacity);
 
   const items: DetailItem[] = [
     { icon: BookOpen, label: "Subject", value: cls.subjectName ?? "—" },
     { icon: User,     label: "Educator", value: cls.educatorName ?? "—" },
+    {
+      icon: Hash,
+      label: "Capacity",
+      value:
+        typeof cls.enrolledCount === "number" ? (
+          <span>
+            <span className="text-foreground">{cls.enrolledCount}</span>
+            <span className="text-muted-foreground"> / {capacityLabel} enrolled</span>
+          </span>
+        ) : (
+          capacityLabel
+        ),
+    },
     {
       icon: Clock,
       label: "Schedule",

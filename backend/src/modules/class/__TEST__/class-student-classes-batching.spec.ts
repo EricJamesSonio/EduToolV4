@@ -56,6 +56,9 @@ describe('ClassService.getStudentClasses — batched lookup', () => {
     };
     const enrollmentService = {
       getStudentEnrollments: jest.fn().mockResolvedValue(enrollments),
+      countActiveMany: jest
+        .fn()
+        .mockResolvedValue(new Map([['class-1', 3], ['class-2', 0]])),
     };
     const service = new ClassService(
       repo as any,
@@ -95,6 +98,7 @@ describe('ClassService.getStudentClasses — batched lookup', () => {
           schoolYearId: 'sy-1',
           semesterId: 'sem-1',
           capacity: 40,
+          enrolledCount: 3,
           schedules: [],
         },
       },
@@ -111,6 +115,7 @@ describe('ClassService.getStudentClasses — batched lookup', () => {
           schoolYearId: 'sy-1',
           semesterId: 'sem-1',
           capacity: 40,
+          enrolledCount: 0,
           schedules: [],
         },
       },

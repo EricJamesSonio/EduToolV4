@@ -78,7 +78,7 @@ export default function EducatorClassOverviewPage({
   );
 
   const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useAsyncQuery(
-    queryKeys.educator.classes.detail(id),
+    queryKeys.educator.classes.students(id),
     () => classApi.getEnrollments(id),
     { enabled: !!id },
   );
