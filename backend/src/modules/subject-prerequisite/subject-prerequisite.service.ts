@@ -283,6 +283,26 @@ export class SubjectPrerequisiteService {
       }
     }
 
+    // Manual completion credits (transferee / pre-system records) satisfy
+    // prerequisites without a Grade row.
+    let completedOverrideIds = new Set<string>();
+    try {
+      const delegate = (this.db as unknown as Record<string, unknown>)[
+        'subjectCompletionOverride'
+      ] as
+        | { findMany: (args: unknown) => Promise<{ subject_id: string }[]> }
+        | undefined;
+      if (delegate) {
+        const rows = await delegate.findMany({
+          where: { org_id, student_id, status: 'completed' },
+          select: { subject_id: true },
+        });
+        completedOverrideIds = new Set(rows.map((r) => r.subject_id));
+      }
+    } catch {
+      completedOverrideIds = new Set<string>();
+    }
+
     const results = new Map<string, PrerequisiteCheckResultDto>();
     for (const id of uniqueIds) {
       const rows = rowsBySubject.get(id) ?? [];
@@ -294,6 +314,7 @@ export class SubjectPrerequisiteService {
       const missing: PrerequisiteCheckResultDto['missing'] = [];
 
       for (const row of rows) {
+        if (completedOverrideIds.has(row.subject_id)) continue;
         if (!row.grade) {
           missing.push({
             subject_id: row.subject_id,

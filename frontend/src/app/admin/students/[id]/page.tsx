@@ -26,6 +26,8 @@ import { ResetPasswordDialog } from "@/components/admin/student/detail/ResetPass
 import { EnrollStudentInClassDialog } from "@/components/admin/student/detail/EnrollStudentInClassDialog";
 import { AcademicHistoryPanel } from "@/components/admin/student/detail/AcademicHistoryPanel";
 import { ShiftProgramDialog } from "@/components/admin/student/detail/ShiftProgramDialog";
+import { ChangeYearDialog } from "@/components/admin/student/detail/ChangeYearDialog";
+import { SubjectCompletionPanel } from "@/components/admin/student/detail/SubjectCompletionPanel";
 import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
 import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
 
@@ -46,6 +48,7 @@ export default function StudentDetailPage({
   const [resetOpen, setResetOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
+  const [yearOpen, setYearOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<StudentEnrollment | null>(null);
 
@@ -195,6 +198,7 @@ const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.stude
 
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={() => setShiftOpen(true)} disabled={!activeStudentSchoolYear || !activeSchoolYearId}>Shift Program</Button>
+        <Button variant="outline" size="sm" onClick={() => setYearOpen(true)} disabled={!activeStudentSchoolYear || !activeSchoolYearId}>Change Year</Button>
         {hasPendingReview ? (
           <Button size="sm" onClick={() => router.push(`/admin/students/${id}/review`)}>Review ({(pendingData as unknown as { data?: unknown[] })?.data?.length ?? 1} pending) →</Button>
         ) : (
@@ -203,6 +207,8 @@ const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.stude
       </div>
 
       <AcademicHistoryPanel studentId={id} schoolYearId={activeSchoolYearId ?? undefined} />
+
+      <SubjectCompletionPanel studentId={id} />
 
       {editOpen && (
         <EditStudentDialog
@@ -247,6 +253,23 @@ const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.stude
           currentStrandId={activePe?.strand?.id ?? (activePe as unknown as { strand_id?: string | null })?.strand_id ?? null}
           currentLevelId={activePe?.level?.id ?? (activePe as unknown as { level_id?: string | null })?.level_id ?? null}
           onClose={() => setShiftOpen(false)}
+        />
+      )}
+
+      {yearOpen && activeStudentSchoolYear && activeSchoolYearId && (
+        <ChangeYearDialog
+          open={yearOpen}
+          schoolYearId={activeSchoolYearId}
+          studentSchoolYearId={activeStudentSchoolYear.id}
+          currentProgramId={activePe?.program?.id ?? (activePe as unknown as { program_id?: string })?.program_id}
+          currentProgramName={activePe?.program?.name ?? undefined}
+          currentCourseName={activePe?.course?.name ?? (activePe?.course as unknown as { code?: string; name?: string } | undefined)?.name ?? null}
+          currentStrandName={activePe?.strand?.name ?? null}
+          currentLevelId={activePe?.level?.id ?? (activePe as unknown as { level_id?: string | null })?.level_id ?? null}
+          currentLevelName={activePe?.level?.name ?? null}
+          currentCourseId={activePe?.course?.id ?? (activePe as unknown as { course_id?: string | null })?.course_id ?? null}
+          currentStrandId={activePe?.strand?.id ?? (activePe as unknown as { strand_id?: string | null })?.strand_id ?? null}
+          onClose={() => setYearOpen(false)}
         />
       )}
 

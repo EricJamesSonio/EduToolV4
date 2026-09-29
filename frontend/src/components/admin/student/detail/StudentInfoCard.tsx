@@ -24,18 +24,26 @@ function getInitials(name: string): string {
 }
 
 interface InfoRowProps {
-  icon:  React.ReactNode;
-  label: string;
-  value: React.ReactNode;
+  icon:     React.ReactNode;
+  label:    string;
+  value:    React.ReactNode;
+  /** Only long unbroken strings (e.g. emails) should break mid-word. */
+  breakAll?: boolean;
 }
 
-function InfoRow({ icon, label, value }: InfoRowProps): React.JSX.Element {
+function InfoRow({ icon, label, value, breakAll }: InfoRowProps): React.JSX.Element {
   return (
     <div className="flex items-start gap-3 py-3 border-b last:border-0">
       <div className="text-muted-foreground mt-0.5 shrink-0">{icon}</div>
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground mb-0.5 not-interactive">{label}</p>
-        <div className="text-sm font-medium break-all not-interactive">{value}</div>
+        <div
+          className={`text-sm font-medium not-interactive ${
+            breakAll ? "break-all" : "break-words"
+          }`}
+        >
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -66,8 +74,8 @@ const [moveTarget, setMoveTarget] = useState<{
   );
 
   return (
-    <div className="rounded-lg border bg-card p-5">
-      <div className="flex gap-6">
+    <div className="rounded-lg border bg-card p-5 min-w-0">
+      <div className="flex gap-6 min-w-0">
         <Avatar className="h-20 w-20 shrink-0">
           <AvatarImage
             src={getProfileImageUrl(student.profileImage)}
@@ -83,11 +91,13 @@ const [moveTarget, setMoveTarget] = useState<{
             icon={<Mail className="h-4 w-4" />}
             label="Email"
             value={student.email}
+            breakAll
           />
           <InfoRow
             icon={<AtSign className="h-4 w-4" />}
             label="Personal Email"
             value={student.personalEmail || "—"}
+            breakAll
           />
           <InfoRow
             icon={<Hash className="h-4 w-4" />}
@@ -113,62 +123,69 @@ const [moveTarget, setMoveTarget] = useState<{
                   Not enrolled in any department yet.
                 </span>
               ) : (
-                <div className="space-y-3 mt-1">
+                <div className="space-y-3 mt-1 min-w-0">
                   {allProgramEnrollments.map((pe) => (
                     <div
                       key={pe.id}
-                      className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5"
+                      className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5 min-w-0"
                     >
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-semibold not-interactive">{pe.program.name}</span>
-                        {!isEnded && pe.status !== "ended" && (
-                          <button
-                            onClick={() => {
-                              const sye = enrollmentByProgramId.get(pe.id);
-                              if (sye) {
-                                setMoveTarget({ sye, programEnrollment: pe });
-                              }
-                            }}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors shrink-0"
-                            title={pe.section ? "Move to another section" : "Assign to a section"}
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                          <span className="text-sm font-semibold not-interactive break-words min-w-0">
+                            {pe.program.name}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!isEnded && pe.status !== "ended" && (
+                            <button
+                              onClick={() => {
+                                const sye = enrollmentByProgramId.get(pe.id);
+                                if (sye) {
+                                  setMoveTarget({ sye, programEnrollment: pe });
+                                }
+                              }}
+                              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors shrink-0 whitespace-nowrap"
+                              title={pe.section ? "Move to another section" : "Assign to a section"}
+                            >
+                              <ArrowRightLeft className="h-3 w-3" />
+                              {pe.section ? "Move Section" : "Assign Section"}
+                            </button>
+                          )}
+                          <Badge
+                            variant={pe.status === "active" ? "default" : "secondary"}
+                            className="text-xs not-interactive shrink-0"
                           >
-                            <ArrowRightLeft className="h-3 w-3" />
-                            {pe.section ? "Move Section" : "Assign Section"}
-                          </button>
-                        )}
-                        <Badge
-                          variant={pe.status === "active" ? "default" : "secondary"}
-                          className="text-xs ml-auto not-interactive"
-                        >
-                          {pe.status}
-                        </Badge>
+                            {pe.status}
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="flex flex-wrap gap-x-4 gap-y-1 pl-5 text-xs text-muted-foreground">
                         {pe.level && (
-                          <span className="flex items-center gap-1 not-interactive">
-                            <Layers className="h-3 w-3" />
+                          <span className="flex items-center gap-1 not-interactive min-w-0 break-words">
+                            <Layers className="h-3 w-3 shrink-0" />
                             {pe.level.name}
                           </span>
                         )}
                         {pe.course && (
-                          <span className="flex items-center gap-1 not-interactive">
-                            <BookOpen className="h-3 w-3" />
+                          <span className="flex items-center gap-1 not-interactive min-w-0 break-words">
+                            <BookOpen className="h-3 w-3 shrink-0" />
                             {pe.course.code
                               ? `${pe.course.code} – ${pe.course.name}`
                               : pe.course.name}
                           </span>
                         )}
                         {pe.strand && (
-                          <span className="flex items-center gap-1 not-interactive">
-                            <BookOpen className="h-3 w-3" />
+                          <span className="flex items-center gap-1 not-interactive min-w-0 break-words">
+                            <BookOpen className="h-3 w-3 shrink-0" />
                             {pe.strand.name}
                           </span>
                         )}
                         {pe.section && (
-                          <span className="flex items-center gap-1 not-interactive">
-                            <Users className="h-3 w-3" />
+                          <span className="flex items-center gap-1 not-interactive min-w-0 break-words">
+                            <Users className="h-3 w-3 shrink-0" />
                             {pe.section.name}
                           </span>
                         )}

@@ -647,6 +647,7 @@ model Subject {
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
   prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
   sharings      SubjectSharing[]
+  completionOverrides SubjectCompletionOverride[]
 }
 
 model SubjectSharing {
@@ -678,6 +679,28 @@ model SubjectPrerequisite {
   prerequisite Subject @relation("PrereqFor", fields: [prerequisite_id], references: [id])
 
   @@unique([org_id, subject_id, prerequisite_id])
+  @@index([org_id, subject_id])
+}
+
+/// Manual completion credit set by an admin (transferee / pre-system records).
+/// `completed` satisfies prerequisite checks; `pending` blocks new enrollments
+/// but never removes already-enrolled dependents (grandfathered). Abort =
+/// hard delete (record as if never existed).
+model SubjectCompletionOverride {
+  id         String   @id @default(uuid())
+  org_id     String
+  student_id String
+  subject_id String
+  status     String   @default("pending")
+  reason     String?
+  actor_id   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  subject Subject @relation(fields: [subject_id], references: [id])
+
+  @@unique([org_id, student_id, subject_id])
+  @@index([org_id, student_id])
   @@index([org_id, subject_id])
 }
 

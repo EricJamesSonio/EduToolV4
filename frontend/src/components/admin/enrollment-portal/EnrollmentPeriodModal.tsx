@@ -111,8 +111,6 @@ export function EnrollmentPeriodModal({
   const lockMs = lockDate ? new Date(lockDate).getTime() : null;
   const endMs = endDate ? new Date(endDate).getTime() : null;
 
-  const syStartMs = selectedYear?.start_date ? new Date(selectedYear.start_date).getTime() : null;
-
   const datesUnavailable = !selectedYear || readiness?.ready !== true;
   const today = startOfDay(new Date().toISOString().slice(0, 10));
   const startDay = startDate ? startOfDay(startDate.slice(0, 10)) : null;
@@ -133,12 +131,7 @@ export function EnrollmentPeriodModal({
       ? "Closing date must be after the opening date."
       : "";
 
-  const schoolYearError =
-    syStartMs !== null && endMs !== null && endMs >= syStartMs
-      ? "Enrollment period must end strictly before the school year starts."
-      : "";
-
-  const dateHasError = !!lockError || !!endError || !!schoolYearError;
+  const dateHasError = !!lockError || !!endError;
   const formValid =
     !!name.trim() && !!syId && !!startDate && !!endDate && !!lockDate &&
     !!selectedYear && !!readiness?.ready && !dateHasError;
@@ -280,15 +273,10 @@ export function EnrollmentPeriodModal({
               value={endDate}
               onChange={setEndDate}
               disabled={(date) =>
-                datesUnavailable ||
-                (lockDay ? date < lockDay : true) ||
-                (syStartDay ? date >= syStartDay : false)
+                datesUnavailable || (lockDay ? date < lockDay : true)
               }
             />
             {endError && <p className="text-xs text-destructive">{endError}</p>}
-            {schoolYearError && (
-              <p className="text-xs text-destructive">{schoolYearError}</p>
-            )}
           </div>
         </div>
 

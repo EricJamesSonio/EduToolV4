@@ -56,7 +56,9 @@ export class ProgramShiftService {
       throw new NotFoundException('No active program enrollment to shift from.');
     }
 
-    // Same-department only, but allow same program with different strand/course/level
+    // Same-department only.
+    // SHIFT = different course/strand (or different program). Same
+    // course/strand + only a level change must use Change Year instead.
     const samePlacement =
       activeEnrollment.program_id === dto.toProgramId &&
       (activeEnrollment.course_id ?? null) === (dto.courseId ?? null) &&
@@ -64,6 +66,15 @@ export class ProgramShiftService {
       (activeEnrollment.level_id ?? null) === dto.levelId;
     if (samePlacement) {
       throw new BadRequestException('Target placement is same as current — change at least level, course or strand.');
+    }
+    if (
+      activeEnrollment.program_id === dto.toProgramId &&
+      (activeEnrollment.course_id ?? null) === (dto.courseId ?? null) &&
+      (activeEnrollment.strand_id ?? null) === (dto.strandId ?? null)
+    ) {
+      throw new BadRequestException(
+        'Same course/strand with only a year change is not a shift — use Change Year instead.',
+      );
     }
 
     // Validate target program exists and belongs to same school year
@@ -211,6 +222,169 @@ export class ProgramShiftService {
         metadata: {
           fromProgramId: activeEnrollment.program_id,
           toProgramId: dto.toProgramId,
+          affectedEnrollments: result.affectedCount,
+          shiftEventId: result.shiftEvent.id,
+        },
+      })
+      .catch(() => {});
+
+    return result;
+  }
+
+  /**
+   * Change Year — same school year, same program + same course/strand,
+   * different level only (e.g. 1st year -> 3rd year). Reuses the shift
+   * transaction so class outcomes + audit stay consistent, but records a
+   * distinct audit action and end_reason stays traceable.
+   */
+  async changeYear(
+    orgId: string,
+    studentSchoolYearId: string,
+    actorId: string,
+    dto: { levelId: string; sectionId?: string },
+  ) {
+    const ssy = await this.repo.findStudentSchoolYearById(studentSchoolYearId, orgId);
+    if (!ssy) throw new NotFoundException('Student school year enrollment not found.');
+
+    await this.readinessService.assertReady(orgId, ssy.school_year_id);
+
+    const pendingRequest = await this.db.classAssignmentRequest.findFirst({
+      where: {
+        student_school_year_id: studentSchoolYearId,
+        org_id: orgId,
+        status: 'pending_review',
+      },
+    });
+    if (pendingRequest) {
+      throw new ConflictException(
+        'Resolve pending class assignment request before changing year.',
+      );
+    }
+
+    const activeEnrollment = await this.repo.findActiveProgramEnrollment(
+      studentSchoolYearId,
+      orgId,
+    );
+    if (!activeEnrollment) {
+      throw new NotFoundException('No active program enrollment to change year from.');
+    }
+
+    if ((activeEnrollment.level_id ?? null) === dto.levelId) {
+      throw new BadRequestException('Target year is same as current — select a different year.');
+    }
+
+    const targetLevel = await this.db.level.findFirst({
+      where: { id: dto.levelId, org_id: orgId, deleted_at: null },
+    });
+    if (!targetLevel) throw new NotFoundException('Target level not found.');
+    // Must stay in same program / course / strand.
+    if (targetLevel.program_id !== activeEnrollment.program_id) {
+      throw new BadRequestException('Change Year must stay in the same program.');
+    }
+    const activeCourseId = (activeEnrollment as unknown as { course_id?: string | null }).course_id ?? null;
+    const activeStrandId = (activeEnrollment as unknown as { strand_id?: string | null }).strand_id ?? null;
+    if (activeCourseId && targetLevel.course_id !== activeCourseId) {
+      throw new BadRequestException('Change Year must stay in the same course.');
+    }
+    if (activeStrandId && targetLevel.strand_id !== activeStrandId) {
+      throw new BadRequestException('Change Year must stay in the same strand.');
+    }
+
+    if (dto.sectionId) {
+      const section = await this.sectionService.findById(dto.sectionId, orgId);
+      if (section.level_id !== dto.levelId) {
+        throw new BadRequestException('Section does not belong to specified level.');
+      }
+      const enrolled = await this.sectionService.countStudentsInSection(orgId, section.id);
+      if (enrolled >= section.capacity) {
+        throw new ConflictException(`Section "${section.name}" is full.`);
+      }
+    }
+
+    const orgSetting = await this.orgSettingService.getByOrg(orgId);
+    const defaultOutcome =
+      (orgSetting as unknown as { default_shift_outcome?: string })?.default_shift_outcome ?? 'dropped';
+
+    const result = await this.db.$transaction(async (tx) => {
+      const ended = await tx.studentProgramEnrollment.update({
+        where: { id: activeEnrollment.id },
+        data: {
+          status: 'ended',
+          end_reason: 'shifted',
+          ended_at: new Date(),
+          ended_by: actorId,
+        },
+      });
+
+      const created = await tx.studentProgramEnrollment.create({
+        data: {
+          org_id: orgId,
+          student_school_year_id: studentSchoolYearId,
+          program_id: activeEnrollment.program_id,
+          level_id: dto.levelId,
+          course_id: activeCourseId,
+          strand_id: activeStrandId,
+          section_id: dto.sectionId ?? null,
+          status: 'active',
+          section_assigned_at: dto.sectionId ? new Date() : null,
+        },
+        include: {
+          program: true,
+          level: true,
+          course: true,
+          strand: true,
+          section: true,
+        },
+      });
+
+      const shiftEvent = await tx.programShiftEvent.create({
+        data: {
+          org_id: orgId,
+          student_school_year_id: studentSchoolYearId,
+          from_program_enrollment_id: activeEnrollment.id,
+          to_program_enrollment_id: created.id,
+          default_outcome_used: defaultOutcome as never,
+          actor_id: actorId,
+        },
+      });
+
+      const enrollmentsToUpdate = await this.repo.findEnrollmentsForOldProgramTx(
+        tx,
+        ssy.student_id,
+        orgId,
+        activeEnrollment.program_id,
+      );
+
+      let affectedCount = 0;
+      for (const enrollment of enrollmentsToUpdate) {
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: {
+            status: 'removed',
+            outcome: defaultOutcome as never,
+            outcome_reason: null,
+            outcome_set_at: new Date(),
+            outcome_set_by: actorId,
+            shift_event_id: shiftEvent.id,
+          },
+        });
+        affectedCount += 1;
+      }
+
+      return { ended, created, shiftEvent, affectedCount };
+    });
+
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'program_year_change',
+        entityType: 'program_enrollment',
+        entityId: activeEnrollment.id,
+        metadata: {
+          programId: activeEnrollment.program_id,
+          fromLevelId: (activeEnrollment as unknown as { level_id?: string | null }).level_id ?? null,
+          toLevelId: dto.levelId,
           affectedEnrollments: result.affectedCount,
           shiftEventId: result.shiftEvent.id,
         },

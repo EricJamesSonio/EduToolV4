@@ -16,3 +16,17 @@ export const useProgramShift = (schoolYearId: string, studentSchoolYearId: strin
     },
   );
 };
+
+export const useChangeYear = (schoolYearId: string, studentSchoolYearId: string) => {
+  return useMutationWithInvalidation(
+    (data: { levelId: string; sectionId?: string }) =>
+      programShiftApi.changeYear(schoolYearId, studentSchoolYearId, data),
+    {
+      invalidateKeys: [
+        queryKeys.admin.students.detail(studentSchoolYearId),
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+        queryKeys.admin.sections.all,
+      ],
+    },
+  );
+};

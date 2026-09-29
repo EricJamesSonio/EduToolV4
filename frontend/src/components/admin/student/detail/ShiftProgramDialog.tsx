@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
@@ -41,6 +41,18 @@ export function ShiftProgramDialog({
   const [toSectionId, setToSectionId] = useState<string>("");
   const shift = useProgramShift(schoolYearId, studentSchoolYearId);
 
+  // Reset stale selections every time the dialog opens so the trigger never
+  // renders a raw UUID value before options have loaded.
+  useEffect(() => {
+    if (open) {
+      setToProgramId("");
+      setToCourseId("");
+      setToStrandId("");
+      setToLevelId("");
+      setToSectionId("");
+    }
+  }, [open, schoolYearId, studentSchoolYearId]);
+
   const { data: programsRaw, isLoading } = useAsyncQuery(
     ["admin", "programs", schoolYearId] as unknown as readonly unknown[],
     () => programApi.getAll(schoolYearId),
@@ -59,8 +71,34 @@ export function ShiftProgramDialog({
   }, [programs, currentProgram]);
 
   const selectedProgram = programs.find((p) => p.id === toProgramId) ?? null;
+  const selectedProgramLabel = selectedProgram
+    ? `${selectedProgram.name} · ${selectedProgram.type}`
+    : null;
   const showCourseSelect = selectedProgram?.type === "college" && (selectedProgram.courses?.length ?? 0) > 0;
   const showStrandSelect = selectedProgram?.type === "shs" && (selectedProgram.strands?.length ?? 0) > 0;
+
+  const currentCourseName =
+    currentProgram?.courses?.find((c) => c.id === currentCourseId)?.name ?? null;
+  const currentStrandName =
+    currentProgram?.strands?.find((s) => s.id === currentStrandId)?.name ?? null;
+
+  // Shift = different course/strand (or different program). Hide the current
+  // course/strand option so the same placement can't be picked.
+  const isSameProgram = !!selectedProgram && !!currentProgram && selectedProgram.id === currentProgram.id;
+  const courseOptions = (selectedProgram?.courses ?? []).filter(
+    (c) => !(isSameProgram && c.id === currentCourseId),
+  );
+  const strandOptions = (selectedProgram?.strands ?? []).filter(
+    (s) => !(isSameProgram && s.id === currentStrandId),
+  );
+  const sameCourseStrandBlocked =
+    isSameProgram &&
+    (selectedProgram?.type === "college"
+      ? (toCourseId || "") === (currentCourseId ?? "")
+      : selectedProgram?.type === "shs"
+        ? (toStrandId || "") === (currentStrandId ?? "")
+        : true);
+  void selectedProgramLabel;
 
   // Levels for selected program/course/strand
   const { data: levelsRaw } = useAsyncQuery(
@@ -102,6 +140,24 @@ export function ShiftProgramDialog({
       toast.error("Select a different program, course, strand or year to shift");
       return;
     }
+    // Shift requires a different course/strand when staying in the same
+    // program — same course/strand + new year belongs to Change Year.
+    if (
+      toProgramId === currentProgramId &&
+      (toCourseId || "") === (currentCourseId ?? "") &&
+      (toStrandId || "") === (currentStrandId ?? "")
+    ) {
+      toast.error("Same course/strand — use Change Year to move year levels instead.");
+      return;
+    }
+    if (selectedProgram?.type === "college" && !toCourseId) {
+      toast.error("Select a different target course");
+      return;
+    }
+    if (selectedProgram?.type === "shs" && !toStrandId) {
+      toast.error("Select a different target strand");
+      return;
+    }
 
     const payload: { toProgramId: string; levelId: string; courseId?: string; strandId?: string; sectionId?: string } = {
       toProgramId,
@@ -132,7 +188,7 @@ export function ShiftProgramDialog({
     <Modal open={open} onClose={onClose} title="Shift Program" size="sm">
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Shifting is within the same school year and same department. Previous classes will be marked removed with the default outcome. Only <span className="font-medium">SHS and College</span> use course/strand, others are per-level only (e.g. Grade 5 → Grade 6).
+          Shift to a <span className="font-medium">different course/strand or program</span> within the same school year and same department. Previous classes will be marked removed with the default outcome. To move year levels in the <span className="font-medium">same</span> course/strand (e.g. 1st → 3rd year), use <span className="font-medium">Change Year</span> instead.
         </p>
 
         {isLoading ? (
@@ -155,7 +211,13 @@ export function ShiftProgramDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {currentProgram && <p className="text-xs text-muted-foreground">Current: {currentProgram.name} · {currentProgram.type}</p>}
+              {currentProgram && (
+                <p className="text-xs text-muted-foreground">
+                  Current: {currentProgram.name} · {currentProgram.type}
+                  {currentCourseName ? ` · ${currentCourseName}` : ""}
+                  {currentStrandName ? ` · ${currentStrandName}` : ""}
+                </p>
+              )}
             </div>
 
             {showCourseSelect && selectedProgram && (
@@ -166,7 +228,10 @@ export function ShiftProgramDialog({
                     <SelectValue placeholder="Select course (e.g. BSCS → BSA)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedProgram.courses!.map((c) => (
+                    {courseOptions.length === 0 ? (
+                      <SelectItem value="__none" disabled>No other course available — use Change Year</SelectItem>
+                    ) : null}
+                    {courseOptions.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.code ? `${c.code} – ${c.name}` : c.name}
                       </SelectItem>
@@ -184,7 +249,10 @@ export function ShiftProgramDialog({
                     <SelectValue placeholder="Select strand (e.g. HUMSS → ABM)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedProgram.strands!.map((s) => (
+                    {strandOptions.length === 0 ? (
+                      <SelectItem value="__none" disabled>No other strand available — use Change Year</SelectItem>
+                    ) : null}
+                    {strandOptions.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
                       </SelectItem>
@@ -235,9 +303,19 @@ export function ShiftProgramDialog({
           </>
         )}
       </div>
+      {sameCourseStrandBlocked && toProgramId && (
+        <p className="text-xs text-amber-600">
+          Same course/strand selected — pick a different course/strand, or use Change Year for year moves.
+        </p>
+      )}
       <ModalFooter>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleShift} disabled={shift.isPending || !toProgramId || !toLevelId || eligiblePrograms.length === 0}>Confirm Shift</Button>
+        <Button
+          onClick={handleShift}
+          disabled={shift.isPending || !toProgramId || !toLevelId || eligiblePrograms.length === 0 || sameCourseStrandBlocked}
+        >
+          Confirm Shift
+        </Button>
       </ModalFooter>
     </Modal>
   );
