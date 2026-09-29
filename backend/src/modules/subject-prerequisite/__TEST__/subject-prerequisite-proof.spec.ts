@@ -60,14 +60,18 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
       // subject has zero prerequisite rows persisted, so checkEligibility (L71)
       // sees rows.length === 0 and returns fully eligible.
       const repo = {
-        getPrerequisitesWithGrades: jest.fn().mockResolvedValue([]),
+        // Perf Phase 5: checkEligibility now reads through the batched seam
+        // (same decision semantics; scenario unchanged).
+        getPrerequisitesWithGradesForSubjects: jest
+          .fn()
+          .mockResolvedValue(new Map()),
         deleteAllForSubject: jest.fn().mockResolvedValue({ count: 2 }),
         bulkCreate: jest.fn().mockResolvedValue({ count: 2 }),
         findOne: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
         // The subject's prerequisite definitions still exist — only the
         // grade-enriched join is empty after the interrupted import.
-        findBySubject: jest.fn().mockResolvedValue([
+        findBySubjects: jest.fn().mockResolvedValue([
           {
             id: 'l1',
             subject_id: 's1',

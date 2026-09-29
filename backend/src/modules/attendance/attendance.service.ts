@@ -357,16 +357,16 @@ export class AttendanceService {
       }
     }
 
-    await Promise.all(
-      dto.records.map((entry) =>
-        this.attendanceRepo.upsertRecord({
-          org_id: orgId,
-          session_id: sessionId,
-          student_id: entry.studentId,
-          status: entry.status,
-        }),
-      ),
-    );
+    // Perf Phase 3: one batched save (single lock-check SELECT + one
+    // transaction) instead of 2 queries per record.
+    await this.attendanceRepo.saveRecordsBulk({
+      orgId,
+      sessionId,
+      entries: dto.records.map((entry) => ({
+        studentId: entry.studentId,
+        status: entry.status,
+      })),
+    });
 
     await this.auditLog.logActivityEvent({
       orgId,

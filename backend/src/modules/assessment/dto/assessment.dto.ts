@@ -14,6 +14,7 @@ import {
   ArrayNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ASSESSMENT_TYPE_VALUES } from '@/modules/grading-scheme/constants/assessment-type.constants';
 
 // ── Grading mode ──────────────────────────────────────────────────────────────
 
@@ -36,22 +37,7 @@ export const QUESTION_TYPES = [
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
-export const ASSESSMENT_TYPES = [
-  'written_work',
-  'performance_task',
-  'quarterly_assessment',
-  'exam',
-  'quiz',
-  'assignment',
-  'project',
-  'recitation',
-  'participation',
-  'behavior',
-  'attendance',
-  'activity',
-  'custom',
-  'other',
-] as const;
+export const ASSESSMENT_TYPES: readonly string[] = ASSESSMENT_TYPE_VALUES;
 
 // ── Item range for generation config ─────────────────────────────────────────
 

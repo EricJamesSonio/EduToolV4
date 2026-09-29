@@ -9,6 +9,7 @@ import { MeetingService } from '../meeting/meeting.service';
 import { CreateMeetingDto } from '../meeting/dto/meeting.dto';
 import { GroupyRepository } from './groupy.repository';
 import { GroupyGateway } from './groupy.gateway';
+import { KeyedTrailingThrottle } from '@/commons/utils/debounce.util';
 import { GROUPY_STICKERS, getGroupyStickerById } from './data/stickers.data';
 import { SendGroupyMessageDto, CreatePollDto } from './dto/groupy.dto';
 
@@ -21,6 +22,11 @@ interface CurrentUser {
 
 @Injectable()
 export class GroupyService {
+  // Phase 2: leading + trailing 3s throttle for groupy:read:updated broadcasts.
+  // The DB receipt write below stays immediate (correctness); only the room-wide
+  // fan-out is coalesced so one viewer doesn't broadcast per message.
+  private readonly readEmitThrottle = new KeyedTrailingThrottle(3_000);
+
   constructor(
     private readonly groupyRepo: GroupyRepository,
     private readonly gateway: GroupyGateway,
@@ -451,11 +457,15 @@ export class GroupyService {
       lastReadMessageId: lastMessageId,
     });
 
-    this.gateway.emitReadUpdated({
-      classId,
-      accountId,
-      lastReadMessageId: lastMessageId,
-    });
+    // Phase 2: coalesce the room-wide broadcast (leading + trailing 3s per
+    // viewer); the trailing closure captures the latest message id.
+    this.readEmitThrottle.call(`${classId}:${accountId}`, () =>
+      this.gateway.emitReadUpdated({
+        classId,
+        accountId,
+        lastReadMessageId: lastMessageId,
+      }),
+    );
 
     return { lastReadMessageId: lastMessageId };
   }

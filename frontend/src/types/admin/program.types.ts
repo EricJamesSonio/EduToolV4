@@ -43,11 +43,15 @@ export interface CourseSnapshot {
   id:   string;
   name: string;
   code: string | null;
+  levelCount?:   number;
+  sectionCount?: number;
 }
 
 export interface StrandSnapshot {
   id:   string;
   name: string;
+  levelCount?:   number;
+  sectionCount?: number;
 }
 
 export interface Program {

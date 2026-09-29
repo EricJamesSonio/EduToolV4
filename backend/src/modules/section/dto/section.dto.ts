@@ -24,10 +24,11 @@ export class CreateSectionDto {
   @IsUUID()
   strandId?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  name!: string;
+  name?: string;
 
   @IsInt()
   @Min(1)

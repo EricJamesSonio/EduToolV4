@@ -2,6 +2,67 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-29
+
+### Fixed
+
+- Assessment type allow-list unification (TICK-ASSESS-001, fast-forward c29d36d0): new single source of truth `backend/src/modules/grading-scheme/constants/assessment-type.constants.ts` (14 types incl. assignment/participation/behavior) now feeds `assessment.dto.ts`, `grading-scheme.dto.ts`, `grading-scheme.entity.ts`; frontend derives `AssessmentType` and the `new/page.tsx` `schemeTypes` filter from `assessment-builder/constants.ts` (duplicate allow-list deleted); `AssessmentBadges` renders the 3 previously-missing types. `manual` left untouched (legacy `AssessmentComponentType | 'manual'`, logged in FOLLOW_UPS.md). Branch was 140 commits stale → rebased onto `3e03d728` first (zero file overlap, clean rebase).
+- Merge validation on `development` (lint/tsc/jest; builds deferred to CI — live dev servers own `.next`/`dist`): backend 81 suites/858 tests with failures byte-identical to pre-merge baseline (8 pre-existing suites / 27 tests: class, educator, level, meeting-gateway-rate-limit, program, registrar, school-year, semester), +2 suites / +12 tests all green; frontend 11/102 green; lint 0 errors both sides; `tsc` error sets identical to baseline (backend 20, frontend 17, **0 new**).
+
+## 2026-09-27 (evening)
+
+### Fixed
+
+- Broken `next build` on `src/app/admin/page.tsx` (TICK-INFRA-009, fast-forward 171be060): removed unused `useEffect`/`useRouter` imports; Turbopack errors eliminated. NOTE: end-to-end build still stops at pre-existing semester type errors (semester.api `programId`, SemesterFormDialog Select signatures — another agent's in-flight rework) — follow-up needed, not this ticket.
+
+## 2026-09-27
+
+### Fixed (verification follow-up — 3 tickets merged, each validated on development)
+
+- Bulk compute skips locked grades (TICK-GRADE-004, merge dbb61e17): opt-in `{ skipLocked: true }` now default in both computeGrades paths; locked-row spec 3/3. Merged after explicit human sign-off.
+- Grading-scale batching spec tsc error (TICK-INFRA-011, fast-forward 2b51620b): cache double supplied; grading-scale suites 30/30, error gone.
+- Corrupted `ProgramEnrollmentEndReason` enum value (TICK-INFRA-012, merge 624ada61): another agent's migration had shipped `'admin_correctionorganiz'` to schema + live DB; repaired via metadata-only `ALTER TYPE … RENAME VALUE` migration, verified live enum labels, rows untouched, student-enrollment suites green.
+- Organization spec drift (TICK-INFRA-013, merge 62446907): expectations synced to `autoSeedNewSchoolYears` field; suite 25/25.
+
+### Held / flagged (not merged, not started)
+
+- Redis/BullMQ queues: parked pending Redis provisioning + topology/policy decisions (no ticket yet).
+- Dirty working tree (level/section feature WIP, uncommitted, breaks level/section/school-year specs): another agent's active work — do not touch.
+
+## 2026-09-26
+
+### Performance (8 tickets merged to development, each validated: unit suite at 25 pre-existing failures / same 5 suites, tsc pre-existing set, builds green)
+
+- Perf observability (TICK-INFRA-003, merge 05e6778a): env-gated Prisma query logging, error-inclusive request timing, request-id wiring, DB-ping health check.
+- Hot-path indexes (TICK-INFRA-004, merge 72a787a1): 21 indexes incl. Enrollment unique (dup-free); CONCURRENTLY script for prod.
+- Grade batching, pure overwrite (TICK-GRADE-003, merge 35f4fab2): parallel terms, Map lookups, chunked batch writes. Locked-skip behavior split to TICK-GRADE-004 (held).
+- Mechanical N+1 batching (TICK-INFRA-005, merge e16965a6): 9 modules; email-domain merge conflicts resolved to development's role-prefix rule.
+- Pagination + SQL aggregation (TICK-INFRA-006, merge ea66ee99): server-paged logs/notifications, analytics groupBy/aggregate; fixed pre-existing broken educator activity-log unwrapping.
+- Eligibility batching (TICK-CLASS-001, merge 8995b2fb): batched structures/scales/prereqs + memoization; EXPLAIN ANALYZE clean on scratch volume (dropped after).
+- In-memory read cache (TICK-INFRA-007, merge a84deeae): org/scales/settings/calendar TTLs. Redis/BullMQ parked (no Redis provisioned).
+- Frontend cleanup (TICK-INFRA-008, merge 1ae40a1e): overfetch tracker wired, 30s timeout, memoized tables, list-default freshness.
+
+### Held / flagged (not merged)
+
+- TICK-GRADE-004 — bulk compute skips locked grades: MERGED after human sign-off (dbb61e17). `saveComputedGrades({ skipLocked: true })` on both computeGrades paths; reports `skippedLocked`. Locked-row spec 3/3.
+- Redis/BullMQ queues: parked pending Redis provisioning + topology/policy decisions (no ticket yet).
+- Pre-existing: `next build` red on src/app/admin/page.tsx (server component using client hooks); backend e2e hooks time out in this environment.
+
+## 2026-09-01
+
+### Fixed
+
+- Admin Students filter controls (hierarchy cascade, search + status, review + warning) stacked vertically one-per-row on small screens — now flexible `flex-1 min-w-*` items that line up 2–3 per row on mobile and snap back to the original fixed widths at `sm+` (TICK-STUDENT-001.
+- Pre-existing flaky API client overfetch test: `trackCall`/dedup guard only ran when `process.env.NODE_ENV === 'development'`, but Jest locks it to `'test'` (silent no-op,, so the test never exercised the warn path — now also enabled under `'test'` (production unaffected`, fixing the failing `client.test.ts` "warns on overfetch" (same ticket,.
+
+### Tickets
+
+- TICK-STUDENT-001 — Admin Students filter responsive mobile layout — merged (merge 28570e45, commits 6c244e4e fix(admin:…), 28570e45 fix(api:…)..
+
+ See also TICK-ORG-001 (below,) TICK-INFRA-002, TICK-PLATFORM-001.
+
+
+
 ## 2026-08-27
 
 ### Added

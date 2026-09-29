@@ -10,9 +10,10 @@ import { GradeLockValidator } from './grade-lock.validator';
 import { GradeEducatorModule } from '../grade/educator/grade-educator.module';
 import { ClassModule } from '../class/class.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-  imports: [GradeEducatorModule, ClassModule, AuditLogModule],
+  imports: [GradeEducatorModule, ClassModule, AuditLogModule, NotificationModule],
   controllers: [GradeLockController],
   providers: [
     GradeLockService,

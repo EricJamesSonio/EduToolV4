@@ -57,6 +57,15 @@ export interface SchoolProfileLevelData {
 }
 const VALID_DEPARTMENT_TYPES = new Set(PROGRAMS.map((p) => p.type));
 
+// Profile imports and department seeding are bulk operations against a remote
+// PostgreSQL instance, so Prisma's 5s interactive-transaction default can expire
+// before all inserts finish (P2028). Keep the bulk work atomic, but give it an
+// explicit, bounded lifetime.
+const PROFILE_TRANSACTION_OPTIONS = {
+  maxWait: 15_000,
+  timeout: 120_000,
+} as const;
+
 @Injectable()
 export class SchoolProfileService {
   constructor(
@@ -64,118 +73,124 @@ export class SchoolProfileService {
     private readonly db: DatabaseService,
   ) {}
   async saveProfile(orgId: string, dto: SaveSchoolProfileDto) {
-  const submittedTypes = new Set(dto.departments.map((d) => d.type));
-  for (const type of submittedTypes) {
-    if (!VALID_DEPARTMENT_TYPES.has(type)) {
-      throw new BadRequestException(`Unknown department type "${type}".`);
-    }
-  }
-
-  // NOTE: dto.gradingScales / gradingSchemes / semesterTermConfigs are
-  // intentionally ignored — global templates live on their dedicated pages,
-  // not in the school profile. Legacy clients may still send them; they are
-  // accepted by the DTO but never written. Existing saved global rows are left
-  // untouched so previously-saved profiles keep working in the seeder.
-
-  return this.db.$transaction(async (tx) => {
-    const existing = await tx.schoolProfileDepartment.findMany({
-      where: { org_id: orgId },
-      select: { id: true },
-    });
-    for (const dept of existing) {
-      await tx.schoolProfileDepartment.delete({ where: { id: dept.id } });
+    const submittedTypes = new Set(dto.departments.map((d) => d.type));
+    for (const type of submittedTypes) {
+      if (!VALID_DEPARTMENT_TYPES.has(type)) {
+        throw new BadRequestException(`Unknown department type "${type}".`);
+      }
     }
 
-    for (const deptDto of dto.departments) {
-      const department = await tx.schoolProfileDepartment.create({
-        data: { org_id: orgId, type: deptDto.type },
+    // NOTE: dto.gradingScales / gradingSchemes / semesterTermConfigs are
+    // intentionally ignored — global templates live on their dedicated pages,
+    // not in the school profile. Legacy clients may still send them; they are
+    // accepted by the DTO but never written. Existing saved global rows are left
+    // untouched so previously-saved profiles keep working in the seeder.
+
+    return this.db.$transaction(async (tx) => {
+      const existing = await tx.schoolProfileDepartment.findMany({
+        where: { org_id: orgId },
+        select: { id: true },
       });
+      for (const dept of existing) {
+        await tx.schoolProfileDepartment.delete({ where: { id: dept.id } });
+      }
 
-      const writeLevels = async (
-        levels: typeof deptDto.levels,
-        courseId?: string,
-        strandId?: string,
-      ) => {
-        for (const levelDto of levels) {
-          const level = await tx.schoolProfileLevel.create({
+      for (const deptDto of dto.departments) {
+        const department = await tx.schoolProfileDepartment.create({
+          data: { org_id: orgId, type: deptDto.type },
+        });
+
+        const writeLevels = async (
+          levels: typeof deptDto.levels,
+          courseId?: string,
+          strandId?: string,
+        ) => {
+          for (const levelDto of levels) {
+            const level = await tx.schoolProfileLevel.create({
+              data: {
+                org_id: orgId,
+                department_id: department.id,
+                course_id: courseId ?? null,
+                strand_id: strandId ?? null,
+                name: levelDto.name,
+                order_index: levelDto.orderIndex,
+              },
+            });
+
+            if (levelDto.sections.length > 0) {
+              await tx.schoolProfileSection.createMany({
+                data: levelDto.sections.map((sectionDto) => ({
+                  org_id: orgId,
+                  level_id: level.id,
+                  name: sectionDto.name,
+                  capacity: sectionDto.capacity,
+                })),
+              });
+            }
+
+            if (levelDto.subjects.length > 0) {
+              await tx.schoolProfileSubject.createMany({
+                data: levelDto.subjects.map((subjectDto) => ({
+                  org_id: orgId,
+                  level_id: level.id,
+                  name: subjectDto.name,
+                  subject_type: subjectDto.subjectType,
+                })),
+              });
+            }
+          }
+        };
+
+        for (const courseDto of deptDto.courses) {
+          const course = await tx.schoolProfileCourse.create({
             data: {
               org_id: orgId,
               department_id: department.id,
-              course_id: courseId ?? null,
-              strand_id: strandId ?? null,
-              name: levelDto.name,
-              order_index: levelDto.orderIndex,
+              name: courseDto.name,
+              code: courseDto.code ?? null,
             },
           });
-
-          for (const sectionDto of levelDto.sections) {
-            await tx.schoolProfileSection.create({
-              data: {
-                org_id: orgId,
-                level_id: level.id,
-                name: sectionDto.name,
-                capacity: sectionDto.capacity,
-              },
-            });
-          }
-
-          for (const subjectDto of levelDto.subjects) {
-            await tx.schoolProfileSubject.create({
-              data: {
-                org_id: orgId,
-                level_id: level.id,
-                name: subjectDto.name,
-                subject_type: subjectDto.subjectType,
-              },
-            });
-          }
+          await writeLevels(courseDto.levels, course.id, undefined);
         }
-      };
 
-      for (const courseDto of deptDto.courses) {
-        const course = await tx.schoolProfileCourse.create({
-          data: {
-            org_id: orgId,
-            department_id: department.id,
-            name: courseDto.name,
-            code: courseDto.code ?? null,
-          },
-        });
-        await writeLevels(courseDto.levels, course.id, undefined);
+        for (const strandDto of deptDto.strands) {
+          const strand = await tx.schoolProfileStrand.create({
+            data: {
+              org_id: orgId,
+              department_id: department.id,
+              name: strandDto.name,
+            },
+          });
+          await writeLevels(strandDto.levels, undefined, strand.id);
+        }
+
+        await writeLevels(deptDto.levels, undefined, undefined);
+
+        if (deptDto.subjects.length > 0) {
+          await tx.schoolProfileSubject.createMany({
+            data: deptDto.subjects.map((subjectDto) => ({
+              org_id: orgId,
+              department_id: department.id,
+              name: subjectDto.name,
+              subject_type: subjectDto.subjectType,
+            })),
+          });
+        }
       }
 
-      for (const strandDto of deptDto.strands) {
-        const strand = await tx.schoolProfileStrand.create({
-          data: { org_id: orgId, department_id: department.id, name: strandDto.name },
-        });
-        await writeLevels(strandDto.levels, undefined, strand.id);
-      }
-
-      await writeLevels(deptDto.levels, undefined, undefined);
-
-      for (const subjectDto of deptDto.subjects) {
-        await tx.schoolProfileSubject.create({
-          data: {
-            org_id: orgId,
-            department_id: department.id,
-            name: subjectDto.name,
-            subject_type: subjectDto.subjectType,
-          },
-        });
-      }
-    }
-
-    return { success: true };
-  });
-}
-async getAllByType(orgId: string): Promise<Record<string, SchoolProfileDepartmentData | null>> {
-  const departments = await this.repo.findAllDepartments(orgId);
-  const byType: Record<string, SchoolProfileDepartmentData | null> = {};
-  for (const dept of departments) {
-    byType[dept.type] = dept as SchoolProfileDepartmentData;
+      return { success: true };
+    }, PROFILE_TRANSACTION_OPTIONS);
   }
-  return byType;
-}
+  async getAllByType(
+    orgId: string,
+  ): Promise<Record<string, SchoolProfileDepartmentData | null>> {
+    const departments = await this.repo.findAllDepartments(orgId);
+    const byType: Record<string, SchoolProfileDepartmentData | null> = {};
+    for (const dept of departments) {
+      byType[dept.type] = dept as SchoolProfileDepartmentData;
+    }
+    return byType;
+  }
 
   async getProfile(orgId: string) {
     return this.repo.findFullProfile(orgId);
@@ -270,14 +285,14 @@ async getAllByType(orgId: string): Promise<Record<string, SchoolProfileDepartmen
             : `dept|${def.name}`;
         levelIdByCompositeKey.set(compositeKey, level.id);
 
-        for (const section of def.sections) {
-          await tx.schoolProfileSection.create({
-            data: {
+        if (def.sections.length > 0) {
+          await tx.schoolProfileSection.createMany({
+            data: def.sections.map((section) => ({
               org_id: orgId,
               level_id: level.id,
               name: section.name,
               capacity: section.capacity,
-            },
+            })),
           });
         }
       }
@@ -289,28 +304,37 @@ async getAllByType(orgId: string): Promise<Record<string, SchoolProfileDepartmen
       const majorSubjects = allMajorSubjects().filter(
         (s) => deriveProgramKey(s.levelName) === type,
       );
-      for (const subj of majorSubjects) {
+      const majorSubjectRows = majorSubjects.flatMap((subj) => {
         const key = subj.courseCode
           ? `course:${subj.courseCode}|${subj.levelName}`
           : subj.strandName
             ? `strand:${subj.strandName}|${subj.levelName}`
             : `dept|${subj.levelName}`;
         const levelId = levelIdByCompositeKey.get(key);
-        if (!levelId) continue;
-        await tx.schoolProfileSubject.create({
-          data: {
+        if (!levelId) return [];
+        return [
+          {
             org_id: orgId,
             level_id: levelId,
             name: subj.name,
             subject_type: 'major',
           },
-        });
+        ];
+      });
+      if (majorSubjectRows.length > 0) {
+        await tx.schoolProfileSubject.createMany({ data: majorSubjectRows });
       }
 
       // Minor/shared subjects — created once, shared via SchoolProfileSubjectSharing.
       const minorSubjects = allMinorSubjects().filter(
         (s) => deriveProgramKey(s.levelName) === type,
       );
+      const sharingRows: Array<{
+        org_id: string;
+        subject_id: string;
+        course_id?: string;
+        strand_id?: string;
+      }> = [];
       for (const subj of minorSubjects) {
         const created = await tx.schoolProfileSubject.create({
           data: {
@@ -323,31 +347,30 @@ async getAllByType(orgId: string): Promise<Record<string, SchoolProfileDepartmen
 
         if (type === 'college') {
           for (const courseId of courseIdByCode.values()) {
-            await tx.schoolProfileSubjectSharing.create({
-              data: {
-                org_id: orgId,
-                subject_id: created.id,
-                course_id: courseId,
-              },
+            sharingRows.push({
+              org_id: orgId,
+              subject_id: created.id,
+              course_id: courseId,
             });
           }
         } else if (type === 'shs') {
           for (const strandId of strandIdByName.values()) {
-            await tx.schoolProfileSubjectSharing.create({
-              data: {
-                org_id: orgId,
-                subject_id: created.id,
-                strand_id: strandId,
-              },
+            sharingRows.push({
+              org_id: orgId,
+              subject_id: created.id,
+              strand_id: strandId,
             });
           }
         }
+      }
+      if (sharingRows.length > 0) {
+        await tx.schoolProfileSubjectSharing.createMany({ data: sharingRows });
       }
 
       return tx.schoolProfileDepartment.findFirst({
         where: { id: department.id },
       });
-    });
+    }, PROFILE_TRANSACTION_OPTIONS);
   }
 
   async deselectDepartment(orgId: string, type: string) {

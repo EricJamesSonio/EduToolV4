@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { OrganizationGuardProvider } from "@/context/OrganizationGuardContext";
 import { NavigationGuardProvider } from "@/context/NavigationGuardContext";
+import { SchoolProfileSetupModal } from "@/components/admin/school-profile/SchoolProfileSetupModal"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { status, showLogoutPrompt, confirmLogout, cancelLogout } = useRoleGuard(["admin"]);
@@ -32,6 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AppShell sidebar={<AdminSidebar />}>
               {children}
               <AdminWelcomeModal />
+              <SchoolProfileSetupModal />
             </AppShell>
           </NavigationGuardProvider>
         </OrganizationGuardProvider>

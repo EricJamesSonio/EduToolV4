@@ -80,9 +80,9 @@ export const adminGradingSchemeTemplateApi = {
     programId: string
     templateId: string
     overwriteExisting?: boolean
-  }): Promise<{ success: boolean; appliedCount: number }> => {
+  }): Promise<{ success: boolean; appliedCount: number; skippedCount: number }> => {
     const res = await client.post<
-      ApiResponse<{ success: boolean; appliedCount: number }>
+      ApiResponse<{ success: boolean; appliedCount: number; skippedCount: number }>
     >(`/grading-scheme-templates/apply/program`, payload)
     return res.data.data
   },

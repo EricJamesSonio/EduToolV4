@@ -11,6 +11,11 @@ export interface EffectiveSeedOverrides {
   levelSubjectsByLevelName: Record<string, string[]>
   courseSubjectsByCode: Record<string, string[]>
   strandSubjectsByName: Record<string, string[]>
+  // Names of subjects that are department-level minors (shared), keyed by the
+  // same course/strand entity keys used above — lets the UI tag a subject as
+  // "minor" from actual profile data instead of the static seed-data sets.
+  collegeMinorSubjectNames: Set<string> | null
+  shsMinorSubjectNames: Set<string> | null
   gradingScalesByProgram: Record<string, GradingScalePreset> | null
   gradingSchemesByProgram: Record<string, GradingSchemeTemplate> | null
   semesterTermNamesByProgram: Record<string, string[]> | null
@@ -92,6 +97,37 @@ export function useEffectiveSeedData(
       }
     }
 
+    // ── Department-level minor (shared) subjects ──────────────────────────
+    // Minors live on `dept.subjects` (department-scoped, no level_id) rather
+    // than on any individual level — see SharedSubjectStep / school-profile
+    // service. Previously they were never merged in above, so every
+    // course/strand's subject list here only ever contained majors and a
+    // department that had, say, one shared "MMW" subject would show a course
+    // with just 1 selectable subject total even though the profile had more
+    // configured at the department level.
+    let collegeMinorSubjectNames: Set<string> | null = null
+    if (college) {
+      const minorNames = college.subjects.filter((s) => s.subjectType === "minor").map((s) => s.name)
+      collegeMinorSubjectNames = new Set(minorNames)
+      for (const course of college.courses) {
+        const entityKey = course.code ?? course.name
+        courseSubjectsByCode[entityKey] = [
+          ...new Set([...(courseSubjectsByCode[entityKey] ?? []), ...minorNames]),
+        ]
+      }
+    }
+
+    let shsMinorSubjectNames: Set<string> | null = null
+    if (shs) {
+      const minorNames = shs.subjects.filter((s) => s.subjectType === "minor").map((s) => s.name)
+      shsMinorSubjectNames = new Set(minorNames)
+      for (const strand of shs.strands) {
+        strandSubjectsByName[strand.name] = [
+          ...new Set([...(strandSubjectsByName[strand.name] ?? []), ...minorNames]),
+        ]
+      }
+    }
+
     const gradingScalesByProgram: Record<string, GradingScalePreset> | null =
       savedGradingScales.length > 0
         ? Object.fromEntries(
@@ -125,6 +161,8 @@ export function useEffectiveSeedData(
       levelSubjectsByLevelName,
       courseSubjectsByCode,
       strandSubjectsByName,
+      collegeMinorSubjectNames,
+      shsMinorSubjectNames,
       gradingScalesByProgram,
       gradingSchemesByProgram,
       semesterTermNamesByProgram,

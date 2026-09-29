@@ -1,6 +1,7 @@
 // @/modules/submission/submission.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import { runInTx } from '@/commons/utils/prisma-transaction.util';
 
 @Injectable()
 export class SubmissionRepository {
@@ -78,21 +79,24 @@ export class SubmissionRepository {
     orgId: string,
     answers: Array<{ questionId: string; answer: string }>,
   ) {
-    // Delete existing answers then recreate — cleanest upsert for bulk
-    await this.db.submissionAnswer.deleteMany({
-      where: { submission_id: submissionId },
-    });
+    // Phase 1: delete + recreate atomically — a crash between the two can no
+    // longer leave the submission with zero answers.
+    await runInTx(this.db, async (tx) => {
+      await tx.submissionAnswer.deleteMany({
+        where: { submission_id: submissionId },
+      });
 
-    if (answers.length === 0) return [];
+      if (answers.length === 0) return;
 
-    await this.db.submissionAnswer.createMany({
-      data: answers.map((a) => ({
-        org_id: orgId,
-        submission_id: submissionId,
-        question_id: a.questionId,
-        answer: a.answer,
-        is_correct: null, // graded on finish
-      })),
+      await tx.submissionAnswer.createMany({
+        data: answers.map((a) => ({
+          org_id: orgId,
+          submission_id: submissionId,
+          question_id: a.questionId,
+          answer: a.answer,
+          is_correct: null, // graded on finish
+        })),
+      });
     });
 
     return this.db.submissionAnswer.findMany({
@@ -104,15 +108,33 @@ export class SubmissionRepository {
     submissionId: string,
     gradedAnswers: Array<{ id: string; isCorrect: boolean }>,
   ) {
-    // Update each answer's is_correct flag
-    await Promise.all(
-      gradedAnswers.map((a) =>
-        this.db.submissionAnswer.update({
-          where: { id: a.id },
-          data: { is_correct: a.isCorrect },
-        }),
-      ),
-    );
+    // Phase 1: two grouped updateMany calls in one transaction instead of N
+    // per-answer updates with no atomicity (partial grading on failure).
+    // submissionId is kept in the signature for call-site compatibility and
+    // scoping of the update to one submission's answers.
+    const correctIds = gradedAnswers
+      .filter((a) => a.isCorrect)
+      .map((a) => a.id);
+    const wrongIds = gradedAnswers
+      .filter((a) => !a.isCorrect)
+      .map((a) => a.id);
+
+    if (correctIds.length === 0 && wrongIds.length === 0) return;
+
+    await runInTx(this.db, async (tx) => {
+      if (correctIds.length > 0) {
+        await tx.submissionAnswer.updateMany({
+          where: { id: { in: correctIds }, submission_id: submissionId },
+          data: { is_correct: true },
+        });
+      }
+      if (wrongIds.length > 0) {
+        await tx.submissionAnswer.updateMany({
+          where: { id: { in: wrongIds }, submission_id: submissionId },
+          data: { is_correct: false },
+        });
+      }
+    });
   }
 
   // ───────── QUESTIONS (for auto-grading) ─────────

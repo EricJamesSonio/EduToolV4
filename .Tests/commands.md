@@ -85,4 +85,9 @@ npx eslint . --fix
 
 # TypeScript — type-check without generating files
 npx tsc --noEmit
+
+# Find Cicruclar dependencies
+npx madge --circular --extensions ts --ts-config tsconfig.json src
+
 ```
+

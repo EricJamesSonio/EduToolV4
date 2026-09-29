@@ -1,5 +1,5 @@
 // src/app.module.ts
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -14,14 +14,14 @@ import { SystemDomainModule } from './domains/system/system-domain.module';
 import { PlatformDomainModule } from './domains/platform/platform-domain.module';
 import { SchedulerModule } from './core/scheduler/scheduler.module';
 
-import { HealthModule } from './modules/health/health.module';
-import { UploadModule } from './modules/upload/upload.module';
+import { HealthModule } from './modules/health/health.module';import { UploadModule } from './modules/upload/upload.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { PublicModule } from './modules/public/public.module';
 import { EnrollmentPortalModule } from './modules/enrollment-portal/enrollment-portal.module';
 import { ConcernModule } from './modules/concern/concern.module';
 import { GroupyModule } from './modules/groupy/groupy.module';
+import { RequestIdMiddleware } from './core/middleware/request-id.middleware';
 
 @Module({
   imports: [
@@ -53,4 +53,11 @@ import { GroupyModule } from './modules/groupy/groupy.module';
     UploadModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Perf Phase 0: actually apply RequestIdMiddleware so
+    // req['requestId'] / X-Request-Id are set for LoggingInterceptor.
+    // Exclude nothing — cheap uuid per request, needed for log correlation.
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

@@ -1,4 +1,4 @@
-import { SubjectDef, subj } from './index';
+import { subj, type SubjectDef } from './subject-def';
 
 const KINDER_AREAS = [
   'Language, Literacy, and Communication',

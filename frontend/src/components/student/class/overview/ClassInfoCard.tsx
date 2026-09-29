@@ -1,7 +1,5 @@
-import { User, Clock, BookOpen } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
-import { formatSchedule } from "@/utils/classes.utils";
+import { User, Clock, BookOpen, Hash } from "lucide-react";
+import { formatScheduleLines } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
 
 interface ClassInfoCardProps {
@@ -11,17 +9,46 @@ interface ClassInfoCardProps {
 interface DetailItem {
   icon: React.ElementType;
   label: string;
-  value: string;
+  value: React.ReactNode;
 }
 
 export function ClassInfoCard({ data }: ClassInfoCardProps): React.JSX.Element {
   const { class: cls } = data;
-  const schedule = formatSchedule(cls.schedules);
+  const scheduleLines = formatScheduleLines(cls.schedules);
+  const capacityLabel = cls.capacity === 0 ? "Unlimited" : String(cls.capacity);
 
   const items: DetailItem[] = [
     { icon: BookOpen, label: "Subject", value: cls.subjectName ?? "—" },
     { icon: User,     label: "Educator", value: cls.educatorName ?? "—" },
-    { icon: Clock,    label: "Schedule", value: schedule },
+    {
+      icon: Hash,
+      label: "Capacity",
+      value:
+        typeof cls.enrolledCount === "number" ? (
+          <span>
+            <span className="text-foreground">{cls.enrolledCount}</span>
+            <span className="text-muted-foreground"> / {capacityLabel} enrolled</span>
+          </span>
+        ) : (
+          capacityLabel
+        ),
+    },
+    {
+      icon: Clock,
+      label: "Schedule",
+      value:
+        scheduleLines.length > 0 ? (
+          <span className="block space-y-0.5">
+            {scheduleLines.map((line) => (
+              <span key={line} className="block">
+                {line}
+              </span>
+            ))}
+          </span>
+        ) : (
+          "—"
+        ),
+    },
   ];
 
   return (
@@ -32,7 +59,7 @@ export function ClassInfoCard({ data }: ClassInfoCardProps): React.JSX.Element {
             <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-              <p className="text-sm font-medium">{value}</p>
+              <div className="text-sm font-medium">{value}</div>
             </div>
           </div>
         ))}

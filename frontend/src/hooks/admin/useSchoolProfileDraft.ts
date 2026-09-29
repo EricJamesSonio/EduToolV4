@@ -10,8 +10,8 @@ import {
   SHS_STRANDS,
   SECTION_DEFAULTS,
   LEVEL_SUBJECTS,
-  COURSE_SUBJECTS,
-  SHS_STRAND_SUBJECTS,
+  COURSE_SUBJECT_YEARS,   // ← add
+  SHS_MAJOR_YEARS,        // ← add
   COLLEGE_GE_SUBJECTS,
   SHS_MINOR_SUBJECTS,
 } from "@/components/admin/data-seeder/constants/seed-data"
@@ -95,24 +95,27 @@ function buildMajorSubjectsFor(levelName: string): DraftSubject[] {
 
 function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
   if (type === "college") {
-    const courses: DraftCourse[] = COLLEGE_COURSES.map((course) => ({
-      key: makeKey("course"),
-      name: course.name,
-      code: course.code,
-      levels: Array.from({ length: course.years }, (_, i) => {
-        const levelName = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"][i] ?? `Year ${i + 1}`
-        const majorNames = COURSE_SUBJECTS[course.code] ?? []
-        return {
-          key: makeKey("level"),
-          name: levelName,
-          orderIndex: i,
-          sections: buildSectionsFor(levelName),
-          subjects: majorNames
-            .filter((n) => !COLLEGE_GE_SUBJECTS.includes(n as (typeof COLLEGE_GE_SUBJECTS)[number]))
-            .map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
-        }
-      }),
-    }))
+    const courses: DraftCourse[] = COLLEGE_COURSES.map((course) => {
+      const yearMap = COURSE_SUBJECT_YEARS[course.code] ?? {}
+      return {
+        key: makeKey("course"),
+        name: course.name,
+        code: course.code,
+        levels: Array.from({ length: course.years }, (_, i) => {
+          const levelName = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"][i] ?? `Year ${i + 1}`
+          const namesForLevel = Object.entries(yearMap)
+            .filter(([, year]) => year === levelName)
+            .map(([name]) => name)
+          return {
+            key: makeKey("level"),
+            name: levelName,
+            orderIndex: i,
+            sections: buildSectionsFor(levelName),
+            subjects: namesForLevel.map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
+          }
+        }),
+      }
+    })
 
     const subjects: DraftSubject[] = COLLEGE_GE_SUBJECTS.map((name) => ({
       key: makeKey("subject"),
@@ -125,19 +128,22 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
 
   if (type === "shs") {
     const strands: DraftStrand[] = SHS_STRANDS.map((strandName) => {
-      const majorNames = (SHS_STRAND_SUBJECTS[strandName] ?? []).filter(
-        (n) => !SHS_MINOR_SUBJECTS.includes(n as (typeof SHS_MINOR_SUBJECTS)[number]),
-      )
+      const yearMap = SHS_MAJOR_YEARS[strandName] ?? {}
       return {
         key: makeKey("strand"),
         name: strandName,
-        levels: (LEVEL_DEFS["shs"] ?? []).map((levelName, i) => ({
-          key: makeKey("level"),
-          name: levelName,
-          orderIndex: i,
-          sections: buildSectionsFor(levelName),
-          subjects: majorNames.map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
-        })),
+        levels: (LEVEL_DEFS["shs"] ?? []).map((levelName, i) => {
+          const namesForLevel = Object.entries(yearMap)
+            .filter(([, year]) => year === levelName)
+            .map(([name]) => name)
+          return {
+            key: makeKey("level"),
+            name: levelName,
+            orderIndex: i,
+            sections: buildSectionsFor(levelName),
+            subjects: namesForLevel.map((name) => ({ key: makeKey("subject"), name, subjectType: "major" as const })),
+          }
+        }),
       }
     })
 
@@ -150,7 +156,8 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
     return { type, courses: [], strands, levels: [], subjects }
   }
 
-  // daycare / kinder / elementary / jhs — department-level only, no course/strand
+  // daycare / kinder / elementary / jhs — unchanged, these never had the bug
+  // since LEVEL_SUBJECTS is already keyed per individual level, not per strand.
   const levelNames = LEVEL_DEFS[type] ?? []
   const levels: DraftLevel[] = levelNames.map((levelName, i) => ({
     key: makeKey("level"),
@@ -374,14 +381,29 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
     )
   }
 
-  // ── Subject (major, level-scoped) ──
-  function addSubject(type: ProgramType, levelKey: string, name: string) {
-    updateDepartment(type, (d) =>
-      withLevel(d, levelKey, (l) => ({
+  // ── Subject ──
+  // Majors are level-scoped; minors/shared are department-scoped. That mirrors
+  // how the seeder reads them (major-subject-seeder walks level.subjects,
+  // minor-subject-seeder walks profile.subjects), so a subject always lives in
+  // the bucket the seeder will actually pick it up from.
+  function addSubject(
+    type: ProgramType,
+    levelKey: string,
+    name: string,
+    subjectType: DraftSubject["subjectType"] = "major",
+  ) {
+    updateDepartment(type, (d) => {
+      if (subjectType === "minor") {
+        return {
+          ...d,
+          subjects: [...d.subjects, { key: makeKey("subject"), name, subjectType: "minor" as const }],
+        }
+      }
+      return withLevel(d, levelKey, (l) => ({
         ...l,
         subjects: [...l.subjects, { key: makeKey("subject"), name, subjectType: "major" as const }],
-      })),
-    )
+      }))
+    })
   }
   function renameSubject(type: ProgramType, levelKey: string, subjectKey: string, name: string) {
     updateDepartment(type, (d) =>
@@ -395,6 +417,80 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
     updateDepartment(type, (d) =>
       withLevel(d, levelKey, (l) => ({ ...l, subjects: l.subjects.filter((s) => s.key !== subjectKey) })),
     )
+  }
+  /**
+   * Flip a subject between major (level-scoped) and minor (department-scoped).
+   * Flipping moves the row between the two buckets rather than just relabelling
+   * it, so the seeder never silently drops a subject that was reclassified.
+   */
+  function setSubjectType(
+    type: ProgramType,
+    levelKey: string,
+    subjectKey: string,
+    subjectType: DraftSubject["subjectType"],
+  ) {
+    updateDepartment(type, (d) => {
+      // Minor: lift it out of the level and into the department's shared list.
+      if (subjectType === "minor") {
+        let moved: DraftSubject | null = null
+        const withoutLevelSubject = withLevel(d, levelKey, (l) => {
+          const found = l.subjects.find((s) => s.key === subjectKey)
+          if (!found) return l
+          moved = found
+          return { ...l, subjects: l.subjects.filter((s) => s.key !== subjectKey) }
+        })
+        if (!moved) return d
+        const subject = moved as DraftSubject
+        return {
+          ...withoutLevelSubject,
+          subjects: [
+            ...withoutLevelSubject.subjects,
+            { ...subject, subjectType: "minor" as const },
+          ],
+        }
+      }
+
+      // Major: if it came from the shared list, drop it there and add it to the
+      // given level; otherwise just relabel the row already on that level.
+      const shared = d.subjects.find((s) => s.key === subjectKey)
+      const base: DraftDepartment = shared
+        ? { ...d, subjects: d.subjects.filter((s) => s.key !== subjectKey) }
+        : d
+      return withLevel(base, levelKey, (l) => ({
+        ...l,
+        subjects: shared
+          ? [...l.subjects, { ...shared, subjectType: "major" as const }]
+          : l.subjects.map((s) => (s.key === subjectKey ? { ...s, subjectType: "major" as const } : s)),
+      }))
+    })
+  }
+
+  // ── Shared (department-level, minor) subjects ──
+  function renameSharedSubject(type: ProgramType, subjectKey: string, name: string) {
+    updateDepartment(type, (d) => ({
+      ...d,
+      subjects: d.subjects.map((s) => (s.key === subjectKey ? { ...s, name } : s)),
+    }))
+  }
+
+  function deleteSharedSubject(type: ProgramType, subjectKey: string) {
+    updateDepartment(type, (d) => ({
+      ...d,
+      subjects: d.subjects.filter((s) => s.key !== subjectKey),
+    }))
+  }
+
+  /** Promote a shared subject to a major on the given level. */
+  function promoteSharedSubjectToLevel(type: ProgramType, subjectKey: string, levelKey: string) {
+    updateDepartment(type, (d) => {
+      const shared = d.subjects.find((s) => s.key === subjectKey)
+      if (!shared) return d
+      return withLevel(
+        { ...d, subjects: d.subjects.filter((s) => s.key !== subjectKey) },
+        levelKey,
+        (l) => ({ ...l, subjects: [...l.subjects, { ...shared, subjectType: "major" as const }] }),
+      )
+    })
   }
 
   function markSaved() {
@@ -431,6 +527,10 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
     addSubject,
     renameSubject,
     deleteSubject,
+    setSubjectType,
+    renameSharedSubject,
+    deleteSharedSubject,
+    promoteSharedSubjectToLevel,
     markSaved,
     discardChanges,
   }

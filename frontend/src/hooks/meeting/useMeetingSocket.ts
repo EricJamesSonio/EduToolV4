@@ -296,17 +296,22 @@ return () => {
     selfEchoTimerRef.current = timer;
   }, []);
 
-  const changeSlide = useCallback((slide: number): void => {
-    socketRef.current?.emit("lesson:slide_change", { slide });
-  }, []);
+const changeSlide = useCallback((slide: number): void => {
+  setCurrentSlide(slide); // optimistic: server doesn't echo to sender
+  socketRef.current?.emit("lesson:slide_change", { slide });
+}, []);
 
-  const startPresentation = useCallback((presentationId?: string): void => {
-    socketRef.current?.emit("lesson:presentation_start", { presentationId });
-  }, []);
+const startPresentation = useCallback((presentationId?: string): void => {
+  setIsPresenting(true); // optimistic: server doesn't echo to sender
+  if (presentationId) setPresentationId(presentationId);
+  socketRef.current?.emit("lesson:presentation_start", { presentationId });
+}, []);
 
-  const stopPresentation = useCallback((): void => {
-    socketRef.current?.emit("lesson:presentation_stop");
-  }, []);
+const stopPresentation = useCallback((): void => {
+  setIsPresenting(false);
+  setPresentationId(null);
+  socketRef.current?.emit("lesson:presentation_stop");
+}, []);
 
   // ── Ephemeral state reset ──────────────────────────────────────────────────
   // Used when re-entering an already-running meeting so stale reactions /

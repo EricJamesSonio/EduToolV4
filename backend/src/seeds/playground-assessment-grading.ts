@@ -359,7 +359,6 @@ async function main() {
             educatorId,
             schoolYearId,
             semesterId: sem1Id,
-            capacity: 40,
             schedules: [{ weekday: 1, startTime: '08:00', endTime: '09:00' }],
           },
           actorId,

@@ -1,4 +1,4 @@
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { LevelService } from '../level.service';
 
 describe('LevelService', () => {
@@ -18,6 +18,7 @@ describe('LevelService', () => {
       findByProgramAndSchoolYear: jest.fn(),
       seedFromDefaults: jest.fn(),
       findById: jest.fn(),
+      findByIdIncludingArchived: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
       deleteByProgramAndSchoolYear: jest.fn(),
@@ -26,6 +27,7 @@ describe('LevelService', () => {
     db = {
       program: { findFirst: jest.fn() },
       studentProgramEnrollment: { count: jest.fn() },
+      enrollmentApplication: { count: jest.fn() },
       class: { count: jest.fn() },
       $transaction: jest.fn(async (cb) => {
         if (Array.isArray(cb)) return Promise.all(cb);
@@ -39,11 +41,13 @@ describe('LevelService', () => {
         return cb(tx);
       }),
     };
-    db.level = { findMany: jest.fn(), update: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn() };
-    db.section = { findMany: jest.fn(), deleteMany: jest.fn() };
+    db.level = { findMany: jest.fn(), update: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() };
+    db.section = { findMany: jest.fn(), deleteMany: jest.fn(), updateMany: jest.fn() };
     db.subject = { findMany: jest.fn(), deleteMany: jest.fn() };
     db.subjectPrerequisite = { deleteMany: jest.fn() };
-    db.subjectSharing = { deleteMany: jest.fn() };
+    db.subjectSharing = { deleteMany: jest.fn(), count: jest.fn() };
+    db.course = { findFirst: jest.fn() };
+    db.strand = { findFirst: jest.fn() };
     service = new LevelService(repo, db);
     jest.clearAllMocks();
   });
@@ -52,7 +56,7 @@ describe('LevelService', () => {
     it('getDefaults delegates to db', async () => {
       db.level.findMany.mockResolvedValue([{ id: '1' }]);
       expect(await service.getDefaults(orgId)).toEqual([{ id: '1' }]);
-      expect(db.level.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { org_id: orgId } }));
+      expect(db.level.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { org_id: orgId, deleted_at: null } }));
     });
     it('updateDefaults filters to ids and transactional updates', async () => {
       const dto: any = { levels: [{ id: '1', name: 'New' }, { name: 'NoId' }, { id: '2', name: 'Second' }] };
@@ -90,10 +94,24 @@ describe('LevelService', () => {
 
   describe('createOne / updateOne', () => {
     it('createOne delegates', async () => {
+      db.program.findFirst.mockResolvedValue({ id: programId, type: 'elementary' });
       repo.create.mockResolvedValue({ id: 'lvl-1' });
       const res = await service.createOne(orgId, { programId, schoolYearId, name: 'Grade 1' } as any);
       expect(repo.create).toHaveBeenCalledWith(orgId, expect.objectContaining({ name: 'Grade 1' }));
       expect(res.id).toBe('lvl-1');
+    });
+    it('createOne rejects an archived or missing course parent', async () => {
+      db.program.findFirst.mockResolvedValue({ id: programId, type: 'college' });
+      db.course.findFirst.mockResolvedValue(null);
+      await expect(
+        service.createOne(orgId, { programId, schoolYearId, courseId: 'course-1', count: 1 } as any),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(db.course.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'course-1', org_id: orgId, deleted_at: null }),
+        }),
+      );
+      expect(repo.create).not.toHaveBeenCalled();
     });
     it('updateOne throws NotFound when missing', async () => {
       repo.findById.mockResolvedValue(null);
@@ -139,33 +157,92 @@ describe('LevelService', () => {
 
   describe('deleteOne', () => {
     it('throws NotFound when level missing', async () => {
-      repo.findById.mockResolvedValue(null);
+      repo.findByIdIncludingArchived.mockResolvedValue(null);
       await expect(service.deleteOne('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
     });
-    it('throws BadRequest when enrollments or classes exist', async () => {
-      repo.findById.mockResolvedValue({ id: 'lvl-1' });
+    it('returns archived without touching anything when already archived', async () => {
+      repo.findByIdIncludingArchived.mockResolvedValue({ id: 'lvl-1', deleted_at: new Date() });
+      expect(await service.deleteOne('lvl-1', orgId)).toBe('archived');
+      expect(db.$transaction).not.toHaveBeenCalled();
+      expect(db.studentProgramEnrollment.count).not.toHaveBeenCalled();
+    });
+    it('archives (instead of throwing) when enrollments exist', async () => {
+      repo.findByIdIncludingArchived.mockResolvedValue({ id: 'lvl-1', deleted_at: null });
       db.section.findMany.mockResolvedValue([{ id: 'sec-1' }]);
       db.subject.findMany.mockResolvedValue([{ id: 'subj-1' }]);
       db.studentProgramEnrollment.count.mockResolvedValue(1);
+      db.enrollmentApplication.count.mockResolvedValue(0);
       db.class.count.mockResolvedValue(0);
-      await expect(service.deleteOne('lvl-1', orgId)).rejects.toBeInstanceOf(BadRequestException);
+      db.subjectSharing.count.mockResolvedValue(0);
+      db.section.updateMany.mockResolvedValue({});
+      db.level.update.mockResolvedValue({});
+
+      expect(await service.deleteOne('lvl-1', orgId)).toBe('archived');
+      // The level and its live sections are hidden together.
+      expect(db.section.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ level_id: 'lvl-1', deleted_at: null }),
+        }),
+      );
+      expect(db.level.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'lvl-1' },
+          data: expect.objectContaining({ deleted_at: expect.any(Date) }),
+        }),
+      );
+      expect(db.level.delete).not.toHaveBeenCalled();
     });
-    it('succeeds and cleans up when no dependencies', async () => {
-      repo.findById.mockResolvedValue({ id: 'lvl-1' });
+    it('archives when the level has subjects (subjects count as data)', async () => {
+      repo.findByIdIncludingArchived.mockResolvedValue({ id: 'lvl-1', deleted_at: null });
+      db.section.findMany.mockResolvedValue([]);
+      db.subject.findMany.mockResolvedValue([{ id: 'subj-1' }]);
+      db.studentProgramEnrollment.count.mockResolvedValue(0);
+      db.enrollmentApplication.count.mockResolvedValue(0);
+      db.class.count.mockResolvedValue(0);
+      db.subjectSharing.count.mockResolvedValue(0);
+      db.section.updateMany.mockResolvedValue({});
+      db.level.update.mockResolvedValue({});
+
+      expect(await service.deleteOne('lvl-1', orgId)).toBe('archived');
+      expect(db.level.delete).not.toHaveBeenCalled();
+      // Subjects are never wiped by a level delete.
+      expect(db.subject.deleteMany).not.toHaveBeenCalled();
+    });
+    it('archives when applications exist for the level', async () => {
+      repo.findByIdIncludingArchived.mockResolvedValue({ id: 'lvl-1', deleted_at: null });
+      db.section.findMany.mockResolvedValue([{ id: 'sec-1' }]);
+      db.subject.findMany.mockResolvedValue([]);
+      db.studentProgramEnrollment.count.mockResolvedValue(0);
+      db.enrollmentApplication.count.mockResolvedValue(2);
+      db.class.count.mockResolvedValue(0);
+      db.subjectSharing.count.mockResolvedValue(0);
+      db.section.updateMany.mockResolvedValue({});
+      db.level.update.mockResolvedValue({});
+
+      expect(await service.deleteOne('lvl-1', orgId)).toBe('archived');
+      expect(db.enrollmentApplication.count).toHaveBeenCalled();
+    });
+    it('hard-deletes and cleans up when no dependencies', async () => {
+      repo.findByIdIncludingArchived.mockResolvedValue({ id: 'lvl-1', deleted_at: null });
       db.section.findMany.mockResolvedValue([]);
       db.subject.findMany.mockResolvedValue([]);
       db.studentProgramEnrollment.count.mockResolvedValue(0);
+      db.enrollmentApplication.count.mockResolvedValue(0);
       db.class.count.mockResolvedValue(0);
+      db.subjectSharing.count.mockResolvedValue(0);
       const res = await service.deleteOne('lvl-1', orgId);
       expect(db.$transaction).toHaveBeenCalled();
-      expect(res.id).toBe('deleted');
+      expect(res).toBe('deleted');
+      expect(db.level.delete).not.toHaveBeenCalled(); // hard delete happens on tx.level
     });
     it('handles class count when no subjects/sections', async () => {
-      repo.findById.mockResolvedValue({ id: 'lvl-1' });
+      repo.findByIdIncludingArchived.mockResolvedValue({ id: 'lvl-1', deleted_at: null });
       db.section.findMany.mockResolvedValue([]);
       db.subject.findMany.mockResolvedValue([]);
       db.studentProgramEnrollment.count.mockResolvedValue(0);
+      db.enrollmentApplication.count.mockResolvedValue(0);
       db.class.count.mockResolvedValue(0);
+      db.subjectSharing.count.mockResolvedValue(0);
       await service.deleteOne('lvl-1', orgId);
       // class count should be 0 not queried with OR when no ids (checked via Promise.resolve)
       expect(db.class.count).not.toHaveBeenCalled(); // because filters empty -> Promise.resolve(0)

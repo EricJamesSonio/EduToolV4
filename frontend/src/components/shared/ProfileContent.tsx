@@ -19,13 +19,18 @@ import { getProfileImageUrl } from "@/utils/profile.util";
 import apiClient from "@/api/client";
 import { profileApi } from "@/api/profile.api";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GraduationCap /* add to lucide import */ } from "lucide-react";
+
+// ICON_STYLES
+
 import {
   Mail,
   ShieldCheck,
   CalendarDays,
   Building2,
+  IdCard,
   Loader2,
   Camera,
   Save,
@@ -34,6 +39,7 @@ import {
 import type { AccountStatus, Role } from "@/types/auth.types";
 
 const GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
+
 
 function getInitials(name: string): string {
   return name
@@ -62,6 +68,22 @@ function formatDate(iso: string): string {
   });
 }
 
+/**
+ * Label + value for the role-specific system-generated ID. Returns a row
+ * definition for any student/educator account, even before the ID has been
+ * generated/assigned — `value` is null in that case and renders as a
+ * placeholder ("—") rather than hiding the row entirely.
+ */
+function getRoleIdInfo(user: AuthUser): { label: string; value: string | null } | null {
+  if (user.role === "student") {
+    return { label: "Student ID", value: user.studentId ?? null };
+  }
+  if (user.role === "educator") {
+    return { label: "Employee ID", value: user.educatorId ?? null };
+  }
+  return null;
+}
+
 const STATUS_STYLES: Record<AccountStatus, string> = {
   active:      "badge-success",
   pending:     "badge-warning",
@@ -86,12 +108,14 @@ const ICON_STYLES: Record<string, string> = {
   status:   "bg-warning/15 text-warning",
   calendar: "bg-destructive/10 text-destructive",
   building: "bg-muted text-muted-foreground",
+  idcard:   "bg-[var(--badge-purple)]/15 text-[var(--badge-purple)]",
+  enrollment: "bg-success/15 text-success",
 };
 
 interface InfoRowProps {
   icon:      React.ElementType;
   label:     string;
-  value?:    string;
+  value?:    string | null;
   iconStyle: string;
   children?: React.ReactNode;
 }
@@ -139,6 +163,11 @@ export function ProfileContent(): React.JSX.Element {
       setPersonalEmail(user.personalEmail ?? "");
     }
   }, [user]);
+  const { data: enrollment } = useQuery({
+  queryKey: ["profile", "current-enrollment"],
+  queryFn: profileApi.getCurrentEnrollment,
+  enabled: user?.role === "student",
+});
 
   if (!user) {
     return (
@@ -151,6 +180,7 @@ export function ProfileContent(): React.JSX.Element {
 
   const initials = user.fullName ? getInitials(user.fullName) : "?";
   const profileImageUrl = getProfileImageUrl(user.profileImage);
+  const roleIdInfo = getRoleIdInfo(user);
 
   function publishUser(next: AuthUser): void {
     setFullName(next.fullName ?? "");
@@ -321,6 +351,14 @@ export function ProfileContent(): React.JSX.Element {
                 >
                   {user.status}
                 </Badge>
+                {roleIdInfo?.value && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs lg:text-sm font-medium px-3 py-1 lg:px-4 lg:py-1.5 bg-[var(--badge-purple)]/10 text-[var(--badge-purple)] border-[var(--badge-purple)]/20"
+                  >
+                    {roleIdInfo.value}
+                  </Badge>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -331,6 +369,12 @@ export function ProfileContent(): React.JSX.Element {
           <Card className="border-border/60">
             <CardContent className="px-6 py-2 lg:px-8 lg:py-3">
               <InfoRow icon={Mail} label="Email address" value={user.email} iconStyle={ICON_STYLES.mail} />
+              {roleIdInfo && (
+                <>
+                  <Separator />
+                  <InfoRow icon={IdCard} label={roleIdInfo.label} value={roleIdInfo.value} iconStyle={ICON_STYLES.idcard} />
+                </>
+              )}
               <Separator />
               <InfoRow icon={ShieldCheck} label="Role" iconStyle={ICON_STYLES.role}>
                 <Badge
@@ -342,6 +386,17 @@ export function ProfileContent(): React.JSX.Element {
               </InfoRow>
               <Separator />
               <InfoRow icon={ShieldCheck} label="Account status" iconStyle={ICON_STYLES.status}>
+                {user.role === "student" && (
+  <>
+    <Separator />
+    <InfoRow
+      icon={GraduationCap}
+      label="Current enrollment"
+      value={enrollment?.label ?? "Not enrolled"}
+      iconStyle={ICON_STYLES.enrollment}
+    />
+  </>
+)}
                 <Badge
                   variant="outline"
                   className={cn("text-xs lg:text-sm font-medium capitalize mt-0.5", STATUS_STYLES[user.status])}

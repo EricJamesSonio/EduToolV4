@@ -2,6 +2,7 @@
 
 import client from "@/api/client";
 import type { AuditLog, ActivityLog } from "@/types/admin/audit-log.types";
+import type { PaginatedResponse } from "@/types/api.types";
 
 export interface GetAuditLogQuery {
   from?: string;       // ISO date string
@@ -10,12 +11,18 @@ export interface GetAuditLogQuery {
   entityType?: string;
   entityId?: string;
   actorId?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface GetActivityLogQuery {
   classId?: string;
+  action?: string;
+  actionContains?: string;
   from?: string;       // ISO date string
   to?: string;
+  page?: number;
+  limit?: number;
 }
 
 function toCamelCase(obj: unknown): unknown {
@@ -37,21 +44,29 @@ function toCamelCase(obj: unknown): unknown {
 }
 
 export const auditLogApi = {
-  getAll: async (query?: GetAuditLogQuery): Promise<AuditLog[]> => {
-    const res = await client.get<{ success: boolean; data: AuditLog[] }>(
-      "/audit-log",
-      { params: query }
-    );
-    return toCamelCase(res.data.data) as AuditLog[];
+  // Perf Phase 4: server-paginated {data, meta}. Callers pass page/limit and
+  // read meta.total instead of slicing the full history client-side.
+  getAll: async (
+    query?: GetAuditLogQuery,
+  ): Promise<PaginatedResponse<AuditLog>> => {
+    const res = await client.get<{
+      success: boolean;
+      data: PaginatedResponse<AuditLog>;
+    }>("/audit-log", { params: query });
+    const page = toCamelCase(res.data.data) as PaginatedResponse<AuditLog>;
+    return page;
   },
 };
 
 export const activityLogApi = {
-  getAll: async (query?: GetActivityLogQuery): Promise<ActivityLog[]> => {
-    const res = await client.get<{ success: boolean; data: ActivityLog[] }>(
-      "/activity-log",
-      { params: query }
-    );
-    return toCamelCase(res.data.data) as ActivityLog[];
+  getAll: async (
+    query?: GetActivityLogQuery,
+  ): Promise<PaginatedResponse<ActivityLog>> => {
+    const res = await client.get<{
+      success: boolean;
+      data: PaginatedResponse<ActivityLog>;
+    }>("/activity-log", { params: query });
+    const page = toCamelCase(res.data.data) as PaginatedResponse<ActivityLog>;
+    return page;
   },
 };

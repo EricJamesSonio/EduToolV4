@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
 import { SemesterRepository } from './semester.repository';
 import { CreateSemesterDto, UpdateSemesterDto } from './dto/semester.dto';
 
@@ -43,7 +44,10 @@ function validateDateRange(start: Date, end: Date, label: string) {
 
 @Injectable()
 export class SemesterService {
-  constructor(private readonly semesterRepository: SemesterRepository) {}
+  constructor(
+    private readonly semesterRepository: SemesterRepository,
+    private readonly db: DatabaseService,
+  ) {}
 
   // ── POST /semester-settings ─────────────────────────────────────────────────
 
@@ -54,22 +58,63 @@ export class SemesterService {
     // 1. Validate semester date range
     validateDateRange(startDate, endDate, 'Semester');
 
-    // 2. Enforce max 3 semesters per school year
-    const existingCount = await this.semesterRepository.countBySchoolYear(
+    // 2. Program must exist, belong to this org, and belong to the specified school year.
+    const program = await this.db.program.findFirst({
+      where: { id: dto.programId, org_id: orgId },
+      select: { id: true, school_year_id: true },
+    });
+    if (!program) {
+      throw new NotFoundException('Program not found.');
+    }
+    if (program.school_year_id !== dto.schoolYearId) {
+      throw new BadRequestException(
+        'This program does not belong to the specified school year.',
+      );
+    }
+
+    // 3. The chosen slot must actually belong to this program's assigned
+    //    template. This is the real check that replaces name-matching —
+    //    a Semester can only be created against a slot its own program's
+    //    template actually defines.
+    const assignment = await this.db.programSemesterAssignment.findFirst({
+      where: { program_id: dto.programId, org_id: orgId },
+      include: { template: { include: { semesters: true } } },
+    });
+    if (!assignment) {
+      throw new BadRequestException(
+        'This program has no semester template assigned yet.',
+      );
+    }
+    const templateSemester = assignment.template.semesters.find(
+      (s) => s.id === dto.templateSemesterId,
+    );
+    if (!templateSemester) {
+      throw new BadRequestException(
+        'The selected semester slot does not belong to this program\'s assigned template.',
+      );
+    }
+
+    // 4. Enforce max 3 semesters per PROGRAM per school year (not per school
+    //    year overall — a tri-sem program and a regular 2-sem program can
+    //    coexist in the same school year, each with its own cap).
+    const existingCount = await this.semesterRepository.countByProgramAndSchoolYear(
       orgId,
       dto.schoolYearId,
+      dto.programId,
     );
 
     if (existingCount >= 3) {
       throw new ConflictException(
-        'A school year cannot have more than 3 semesters.',
+        'This program cannot have more than 3 semesters in one school year.',
       );
     }
 
-    // 3. Check overlap with existing semesters in the same school year
+    // 5. Check overlap with existing semesters for the SAME program only —
+    //    different programs run their own calendars and are allowed to overlap.
     const siblings = await this.semesterRepository.findSiblingsInSchoolYear(
       orgId,
       dto.schoolYearId,
+      dto.programId,
     );
 
     for (const sibling of siblings) {
@@ -80,12 +125,12 @@ export class SemesterService {
         )
       ) {
         throw new ConflictException(
-          `Semester dates overlap with existing semester "${sibling.name}".`,
+          `Semester dates overlap with existing semester "${sibling.name}" for this program.`,
         );
       }
     }
 
-    // 4. Validate term date ranges — must be within the semester range
+    // 6. Validate term date ranges — must be within the semester range
     for (const term of dto.terms) {
       const tStart = toDate(term.startDate, `Term "${term.name}" startDate`);
       const tEnd = toDate(term.endDate, `Term "${term.name}" endDate`);
@@ -99,7 +144,7 @@ export class SemesterService {
       }
     }
 
-    // 5. Validate terms don't overlap each other
+    // 7. Validate terms don't overlap each other
     for (let i = 0; i < dto.terms.length; i++) {
       for (let j = i + 1; j < dto.terms.length; j++) {
         const a = {
@@ -119,10 +164,12 @@ export class SemesterService {
       }
     }
 
-    // 6. Create semester then terms in a transaction
+    // 8. Create semester then terms in a transaction
     const semester = await this.semesterRepository.create({
       orgId,
       schoolYearId: dto.schoolYearId,
+      programId: dto.programId,
+      templateSemesterId: dto.templateSemesterId,
       name: dto.name,
       startDate,
       endDate,
@@ -166,10 +213,13 @@ export class SemesterService {
 
     validateDateRange(startDate, endDate, 'Semester');
 
-    // Check overlap with siblings (excluding self)
+    // Check overlap with siblings of the SAME program (excluding self) —
+    // program_id is immutable on an existing semester, so pull it from the
+    // record itself rather than accepting it from the DTO.
     const siblings = await this.semesterRepository.findSiblingsInSchoolYear(
       orgId,
       semester.school_year_id,
+      semester.program_id,
       id,
     );
 
@@ -181,7 +231,7 @@ export class SemesterService {
         )
       ) {
         throw new ConflictException(
-          `Semester dates overlap with existing semester "${sibling.name}".`,
+          `Semester dates overlap with existing semester "${sibling.name}" for this program.`,
         );
       }
     }

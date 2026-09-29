@@ -61,7 +61,15 @@ export class DatabaseService
 
     const adapter = new PrismaPg(pool);
 
-    super({ adapter });
+    // Perf Phase 0: env-gated query logging. Off in prod by default so
+    // request logs stay quiet; enable in dev/staging with PRISMA_QUERY_LOG=true
+    // to measure per-request query counts/durations before/after N+1 fixes.
+    const queryLogEnabled = process.env.PRISMA_QUERY_LOG === 'true';
+
+    super({
+      adapter,
+      log: queryLogEnabled ? ['query', 'warn', 'error'] : ['warn', 'error'],
+    });
   }
 
   async onModuleInit() {

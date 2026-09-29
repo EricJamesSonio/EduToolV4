@@ -8,9 +8,21 @@ import { LevelModule } from '@/modules/level/level.module';
 import { SubjectModule } from '@/modules/subject/subject.module';
 import { GradingScaleModule } from '../grading-scale/grading-scale.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+// NOTE: verify these two module files/exports match your project — they
+// should export OrgSeederService and SchoolProfileService respectively,
+// the same services already used by OrganizationService.
+import { OrgSeederModule } from '@/modules/org-seeder/org-seeder.module';
+import { SchoolProfileModule } from '@/modules/school-profile/school-profile.module';
 
 @Module({
-  imports: [LevelModule, SubjectModule, GradingScaleModule, AuditLogModule],
+  imports: [
+    LevelModule,
+    SubjectModule,
+    GradingScaleModule,
+    AuditLogModule,
+    OrgSeederModule,
+    SchoolProfileModule,
+  ],
   controllers: [SchoolYearController],
   providers: [
     SchoolYearService,

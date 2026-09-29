@@ -18,14 +18,12 @@ export interface CreateClassRequest {
   sectionId?:   string;
   schoolYearId: string;
   semesterId?:  string;
-  capacity:     number;
   schedules:    ScheduleSlot[];
 }
 
 export interface UpdateClassRequest {
   educatorId?: string;
   sectionId?:  string;
-  capacity?:   number;
   schedules?:  ScheduleSlot[];
 }
 

@@ -64,7 +64,8 @@ export class AuditLogRepository {
 
   /**
    * Find admin audit log entries with optional filters.
-   * Admin-only access.
+   * Admin-only access. Perf Phase 4: paginated {data, meta} — the log table
+   * grows monotonically, so unbounded reads are no longer served.
    */
   async findAdminLogs(
     orgId: string,
@@ -75,57 +76,95 @@ export class AuditLogRepository {
       entityType?: string;
       entityId?: string;
       actorId?: string;
+      page?: number;
+      limit?: number;
     },
   ) {
-    return this.db.auditLog.findMany({
-      where: {
-        org_id: orgId,
-        log_type: 'admin',
-        ...(filters.action ? { action: filters.action } : {}),
-        ...(filters.entityType ? { entity_type: filters.entityType } : {}),
-        ...(filters.entityId ? { entity_id: filters.entityId } : {}),
-        ...(filters.actorId ? { actor_id: filters.actorId } : {}),
-        ...(filters.from || filters.to
-          ? {
-              created_at: {
-                ...(filters.from ? { gte: filters.from } : {}),
-                ...(filters.to ? { lte: filters.to } : {}),
-              },
-            }
-          : {}),
-      },
-      orderBy: { created_at: 'desc' },
-    });
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const where = {
+      org_id: orgId,
+      log_type: 'admin',
+      ...(filters.action ? { action: filters.action } : {}),
+      ...(filters.entityType ? { entity_type: filters.entityType } : {}),
+      ...(filters.entityId ? { entity_id: filters.entityId } : {}),
+      ...(filters.actorId ? { actor_id: filters.actorId } : {}),
+      ...(filters.from || filters.to
+        ? {
+            created_at: {
+              ...(filters.from ? { gte: filters.from } : {}),
+              ...(filters.to ? { lte: filters.to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.db.auditLog.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.db.auditLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   /**
    * Find educator activity log entries for a specific class.
-   * Visible to the assigned educator and Admin.
+   * Visible to the assigned educator and Admin. Paginated {data, meta}.
    */
   async findActivityLogs(
     orgId: string,
     filters: {
       classId?: string;
+      action?: string;
+      actionContains?: string;
       from?: Date;
       to?: Date;
+      page?: number;
+      limit?: number;
     },
   ) {
-    return this.db.auditLog.findMany({
-      where: {
-        org_id: orgId,
-        log_type: 'activity',
-        entity_type: 'class',
-        ...(filters.classId ? { entity_id: filters.classId } : {}),
-        ...(filters.from || filters.to
-          ? {
-              created_at: {
-                ...(filters.from ? { gte: filters.from } : {}),
-                ...(filters.to ? { lte: filters.to } : {}),
-              },
-            }
-          : {}),
-      },
-      orderBy: { created_at: 'desc' },
-    });
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const where = {
+      org_id: orgId,
+      log_type: 'activity',
+      entity_type: 'class',
+      ...(filters.classId ? { entity_id: filters.classId } : {}),
+      ...(filters.action ? { action: filters.action } : {}),
+      ...(filters.actionContains
+        ? { action: { contains: filters.actionContains, mode: 'insensitive' as const } }
+        : {}),
+      ...(filters.from || filters.to
+        ? {
+            created_at: {
+              ...(filters.from ? { gte: filters.from } : {}),
+              ...(filters.to ? { lte: filters.to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.db.auditLog.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.db.auditLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 }

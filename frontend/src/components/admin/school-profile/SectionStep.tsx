@@ -14,6 +14,8 @@ interface SectionStepProps {
   onUpdate: (sectionKey: string, name: string, capacity: number) => void
   onDelete: (sectionKey: string) => void
   disabled?: boolean
+  /** Hide the "<Level> — Sections" header (used when nested under a level row that already names it). */
+  hideHeader?: boolean
 }
 
 function SectionRow({
@@ -84,6 +86,7 @@ export function SectionStep({
   onUpdate,
   onDelete,
   disabled = false,
+  hideHeader = false,
 }: SectionStepProps) {
   const [newName, setNewName] = useState("")
   const [newCapacity, setNewCapacity] = useState("40")
@@ -99,10 +102,12 @@ export function SectionStep({
 
   return (
     <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
-      <div className="flex items-center gap-2">
-        <Scale className="h-3.5 w-3.5 text-muted-foreground" />
-        <p className="text-xs font-medium text-muted-foreground not-interactive">{levelLabel}</p>
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center gap-2">
+          <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+          <p className="text-xs font-medium text-muted-foreground not-interactive">{levelLabel}</p>
+        </div>
+      )}
 
       {sections.length === 0 && (
         <p className="text-xs text-muted-foreground not-interactive">No sections yet.</p>

@@ -1,9 +1,9 @@
 // filepath: frontend/src/types/educator/assessment.types.ts
+import type { ASSESSMENT_TYPE_VALUES } from "@/components/educator/assessment-builder/constants";
 
-export type AssessmentType =
-  | "written_work" | "performance_task" | "quarterly_assessment"
-  | "exam" | "quiz" | "project" | "recitation"
-  | "attendance" | "activity" | "custom" | "other";
+// Derived from the canonical frontend list so the two cannot drift
+// (TICK-ASSESS-001: this union used to omit assignment/participation/behavior).
+export type AssessmentType = (typeof ASSESSMENT_TYPE_VALUES)[number];
   
 
 export type GradingMode = "system" | "manual" | "hybrid";

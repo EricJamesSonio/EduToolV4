@@ -12,6 +12,12 @@ export const profileApi = {
     const res = await client.get<{ success: boolean; data: AuthUser }>("/profile");
     return res.data.data;
   },
+  getCurrentEnrollment: async (): Promise<{ label: string | null }> => {
+  const res = await client.get<{ success: boolean; data: { label: string | null } }>(
+    "/profile/current-enrollment",
+  );
+  return res.data.data;
+},
 
   updateProfile: async (data: UpdateProfileRequest): Promise<AuthUser> => {
     const res = await client.patch<{ success: boolean; data: AuthUser }>("/profile", data);

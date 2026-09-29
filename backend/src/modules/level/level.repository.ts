@@ -11,6 +11,7 @@ export class LevelRepository {
       where: {
         org_id: orgId,
         school_year_id: schoolYearId,
+        deleted_at: null,
       },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
     });
@@ -28,6 +29,7 @@ export class LevelRepository {
         school_year_id: schoolYearId,
         course_id: null,
         strand_id: null,
+        deleted_at: null,
       },
       orderBy: { name: 'asc' },
     });
@@ -59,6 +61,13 @@ export class LevelRepository {
   }
 
   async findById(id: string, orgId: string) {
+    return this.db.level.findFirst({
+      where: { id, org_id: orgId, deleted_at: null },
+    });
+  }
+
+  /** Like findById, but returns archived levels too (used by delete for idempotency). */
+  async findByIdIncludingArchived(id: string, orgId: string) {
     return this.db.level.findFirst({
       where: { id, org_id: orgId },
     });
@@ -103,6 +112,7 @@ export class LevelRepository {
     return this.db.level.findMany({
       where: {
         org_id: orgId,
+        deleted_at: null,
         ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
       },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
@@ -154,6 +164,7 @@ export class LevelRepository {
         school_year_id: levels[0].schoolYearId,
         course_id: levels[0].courseId ?? null,
         strand_id: levels[0].strandId ?? null,
+        deleted_at: null,
       },
       orderBy: { name: 'asc' },
     });
@@ -169,6 +180,7 @@ export class LevelRepository {
         org_id: orgId,
         school_year_id: schoolYearId,
         course_id: courseId,
+        deleted_at: null,
       },
       orderBy: { name: 'asc' },
     });
@@ -184,6 +196,7 @@ export class LevelRepository {
         org_id: orgId,
         school_year_id: schoolYearId,
         strand_id: strandId,
+        deleted_at: null,
       },
       orderBy: { name: 'asc' },
     });

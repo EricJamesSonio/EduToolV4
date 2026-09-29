@@ -236,7 +236,9 @@ export class AuthService {
     return { message: 'Verification code sent to your email' };
   }
 
-  async verifyAdminRequestOtp(dto: VerifyAdminRequestOtpDto): Promise<
+  async verifyAdminRequestOtp(
+    dto: VerifyAdminRequestOtpDto,
+  ): Promise<
     | { blocked: true; message: string }
     | {
         token: string;
@@ -343,10 +345,20 @@ export class AuthService {
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {
     let accountId: string;
     try {
-      const payload = this.jwtService.decode(incomingRefreshToken);
-      if (!payload?.sub) throw new Error();
+      // Was jwtService.decode() — decode() does NOT check the signature or
+      // expiry, so a tampered or expired refresh token would still parse
+      // here and only get caught later by the hash comparison. verify()
+      // rejects it immediately and distinguishes "expired" from "invalid".
+      const payload = this.jwtService.verify<TokenPayload>(
+        incomingRefreshToken,
+        { secret: this.configService.get<string>('jwt.secret') },
+      );
+      if (!payload?.sub) throw new Error('Missing sub claim');
       accountId = payload.sub;
-    } catch {
+    } catch (err) {
+      if (err?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token expired');
+      }
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -384,6 +396,30 @@ export class AuthService {
       throw new UnauthorizedException('Account not found');
     }
 
+    // studentId / educatorId are not dedicated columns — both the Student and
+    // Educator repositories stash their system-generated ID inside
+    // profile.metadata (see StudentRepository.create / EducatorRepository.create).
+    // Pull them out here, scoped to the account's actual role, so the frontend
+    // gets a clean typed field instead of having to dig through raw metadata.
+    const metadata = (account.profile?.metadata ?? null) as Record<
+      string,
+      unknown
+    > | null;
+
+    const studentId =
+      account.role === 'student' &&
+      metadata &&
+      typeof metadata.studentId === 'string'
+        ? metadata.studentId
+        : null;
+
+    const educatorId =
+      account.role === 'educator' &&
+      metadata &&
+      typeof metadata.educatorId === 'string'
+        ? metadata.educatorId
+        : null;
+
     return {
       id: account.id,
       orgId: account.org_id,
@@ -396,6 +432,8 @@ export class AuthService {
       personalEmail: account.profile?.personal_email ?? null,
       profileImage: account.profile?.profile_image ?? null,
       isRegistrar: account.is_registrar ?? false,
+      studentId,
+      educatorId,
     };
   }
 

@@ -2,6 +2,7 @@
 import {
   Controller,
   Get,
+  Patch,
   Delete,
   Param,
   Query,
@@ -21,8 +22,7 @@ export class NotificationController {
 
   /**
    * GET /notifications
-   * Returns all active (non-archived) notifications for the current user.
-   * Supports ?unreadOnly=true
+   * Returns active (non-archived) notifications for the current user.
    * All roles — each user sees only their own notifications.
    */
   @Get()
@@ -32,6 +32,45 @@ export class NotificationController {
     @Query() query: QueryNotificationDto,
   ) {
     return this.notificationService.findForUser(accountId, orgId, query);
+  }
+
+  /**
+   * GET /notifications/summary
+   * Unread total + unread count per type. Drives the red bell badge and the
+   * grouped "5 new concerns / 10 new applications" rows.
+   */
+  @Get('summary')
+  async summary(
+    @CurrentUser('id') accountId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.notificationService.getSummary(accountId, orgId);
+  }
+
+  /**
+   * PATCH /notifications/read-all
+   * Marks every unread notification for the current user as read.
+   */
+  @Patch('read-all')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async markAllRead(
+    @CurrentUser('id') accountId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    await this.notificationService.markAllRead(accountId, orgId);
+  }
+
+  /**
+   * PATCH /notifications/:id/read
+   * Marks a single notification as read (owner only).
+   */
+  @Patch(':id/read')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async markRead(
+    @Param('id') id: string,
+    @CurrentUser('id') accountId: string,
+  ) {
+    await this.notificationService.markRead(id, accountId);
   }
 
   /**

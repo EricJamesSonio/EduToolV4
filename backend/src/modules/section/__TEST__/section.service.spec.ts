@@ -24,7 +24,8 @@ describe('SectionService', () => {
       level: { findFirst: jest.fn() },
       course: { findFirst: jest.fn() },
       strand: { findFirst: jest.fn() },
-      section: { findFirst: jest.fn() },
+      section: { findFirst: jest.fn(), count: jest.fn().mockResolvedValue(0) },
+      class: { updateMany: jest.fn() },
     };
     audit = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
     service = new SectionService(repo, db, audit);
@@ -46,11 +47,27 @@ describe('SectionService', () => {
       db.strand.findFirst.mockResolvedValue(null);
       await expect(service.create(orgId, { levelId: 'lvl-1', strandId: 'bad', schoolYearId: 'sy-1', name: 'A', capacity: 30 } as any, actorId)).rejects.toBeInstanceOf(NotFoundException);
     });
-    it('throws Conflict when duplicate name', async () => {
+    it('auto-derives the next letter instead of rejecting a duplicate name', async () => {
+      // Section names are auto-derived from how many sections the level/course
+      // already has, so a caller-supplied name that collides is no longer a
+      // conflict — the second section of a level simply becomes "B".
       db.level.findFirst.mockResolvedValue({ id: 'lvl-1' });
-      db.section.findFirst.mockResolvedValue({ id: 'existing' });
-      await expect(service.create(orgId, { levelId: 'lvl-1', schoolYearId: 'sy-1', name: 'A', capacity: 30 } as any, actorId)).rejects.toBeInstanceOf(ConflictException);
+      db.section.count.mockResolvedValue(1);
+      repo.create.mockResolvedValue({ id: sectionId, name: 'B' });
+
+      const res = await service.create(
+        orgId,
+        { levelId: 'lvl-1', schoolYearId: 'sy-1', name: 'A', capacity: 30 } as any,
+        actorId,
+      );
+
+      expect(db.section.findFirst).not.toHaveBeenCalled();
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'B', capacity: 30 }),
+      );
+      expect(res.id).toBe(sectionId);
     });
+
     it('creates and audits', async () => {
       db.level.findFirst.mockResolvedValue({ id: 'lvl-1' });
       db.section.findFirst.mockResolvedValue(null);
@@ -110,6 +127,25 @@ describe('SectionService', () => {
       repo.update.mockResolvedValue({ id: sectionId, name: 'A' });
       const res = await service.update(sectionId, orgId, { name: 'A' } as any, actorId);
       expect(res.name).toBe('A');
+    });
+    it('re-syncs capacity onto every live class of the section', async () => {
+      repo.findById.mockResolvedValue({ id: sectionId, name: 'A', level_id: 'lvl-1', school_year_id: 'sy-1', course_id: null, strand_id: null });
+      repo.countStudentsInSection.mockResolvedValue(0);
+      db.section.findFirst.mockResolvedValue(null);
+      repo.update.mockResolvedValue({ id: sectionId, name: 'A', capacity: 40 });
+      await service.update(sectionId, orgId, { capacity: 40 } as any, actorId);
+      expect(db.class.updateMany).toHaveBeenCalledWith({
+        where: { org_id: orgId, section_id: sectionId, deleted_at: null },
+        data: { capacity: 40 },
+      });
+    });
+    it('does not touch classes when capacity is not supplied', async () => {
+      repo.findById.mockResolvedValue({ id: sectionId, name: 'A', level_id: 'lvl-1', school_year_id: 'sy-1', course_id: null, strand_id: null });
+      repo.countStudentsInSection.mockResolvedValue(0);
+      db.section.findFirst.mockResolvedValue(null);
+      repo.update.mockResolvedValue({ id: sectionId, name: 'Renamed' });
+      await service.update(sectionId, orgId, { name: 'Renamed' } as any, actorId);
+      expect(db.class.updateMany).not.toHaveBeenCalled();
     });
     it('updates and audits', async () => {
       repo.findById.mockResolvedValue({ id: sectionId, name: 'A', level_id: 'lvl-1', school_year_id: 'sy-1', course_id: null, strand_id: null });

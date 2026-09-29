@@ -14,7 +14,12 @@ function makeTx() {
     schoolProfileDepartment: {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn(async ({ data }: any) => {
-        const row = { id: `dept-${departments.length + 1}`, org_id: data.org_id, type: data.type, created_at: new Date() };
+        const row = {
+          id: `dept-${departments.length + 1}`,
+          org_id: data.org_id,
+          type: data.type,
+          created_at: new Date(),
+        };
         departments.push(row);
         return row;
       }),
@@ -53,6 +58,12 @@ function makeTx() {
         sections.push(row);
         return row;
       }),
+      createMany: jest.fn(async ({ data }: any) => {
+        for (const item of data) {
+          sections.push({ id: `section-${sections.length + 1}`, ...item });
+        }
+        return { count: data.length };
+      }),
     },
     schoolProfileSubject: {
       create: jest.fn(async ({ data }: any) => {
@@ -60,9 +71,16 @@ function makeTx() {
         subjects.push(row);
         return row;
       }),
+      createMany: jest.fn(async ({ data }: any) => {
+        for (const item of data) {
+          subjects.push({ id: `subj-${subjects.length + 1}`, ...item });
+        }
+        return { count: data.length };
+      }),
     },
     schoolProfileSubjectSharing: {
       create: jest.fn(async ({ data }: any) => ({ id: 'sharing-1', ...data })),
+      createMany: jest.fn(async ({ data }: any) => ({ count: data.length })),
     },
     __store: { departments, courses, strands, levels, sections, subjects },
   };
@@ -109,7 +127,7 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
     };
 
     db = {
-      $transaction: jest.fn(async (cb: any) => cb(tx)),
+      $transaction: jest.fn(async (cb: any, _options?: unknown) => cb(tx)),
     };
 
     service = new SchoolProfileService(repo, db);
@@ -234,12 +252,18 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
             subjects: [],
           },
         ],
-        gradingScales: [{ programType: 'college', name: 'Old Scale', ranges: [] }],
-        gradingSchemes: [{ programType: 'college', name: 'Old Scheme', components: [] }],
+        gradingScales: [
+          { programType: 'college', name: 'Old Scale', ranges: [] },
+        ],
+        gradingSchemes: [
+          { programType: 'college', name: 'Old Scheme', components: [] },
+        ],
         semesterTermConfigs: [{ programType: 'college', terms: ['A'] }],
       };
 
-      await expect(service.saveProfile(orgId, dto)).resolves.toEqual({ success: true });
+      await expect(service.saveProfile(orgId, dto)).resolves.toEqual({
+        success: true,
+      });
 
       // Structural save still runs; no global-table writes exist on the tx fake.
       expect(tx.schoolProfileDepartment.create).toHaveBeenCalled();
@@ -248,10 +272,116 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
       expect((tx as any).schoolProfileSemesterTermConfig).toBeUndefined();
     });
 
+    it('uses a bounded transaction lifetime for bulk profile saves', async () => {
+      await service.saveProfile(orgId, {
+        departments: [
+          {
+            type: 'college',
+            courses: [],
+            strands: [],
+            levels: [],
+            subjects: [],
+          },
+        ],
+      } as any);
+
+      expect(db.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          maxWait: 15_000,
+          timeout: 120_000,
+        }),
+      );
+    });
+
+    it('uses a bounded transaction lifetime when seeding a department', async () => {
+      await service.selectDepartment(orgId, 'elementary');
+
+      expect(db.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          maxWait: 15_000,
+          timeout: 120_000,
+        }),
+      );
+    });
+
+    it('batches sections and subjects instead of inserting one row per item', async () => {
+      const dto: any = {
+        departments: [
+          {
+            type: 'elementary',
+            courses: [],
+            strands: [],
+            levels: [
+              {
+                name: 'Grade 1',
+                orderIndex: 0,
+                sections: [
+                  { name: 'A', capacity: 30 },
+                  { name: 'B', capacity: 30 },
+                ],
+                subjects: [
+                  { name: 'Math', subjectType: 'major' },
+                  { name: 'English', subjectType: 'major' },
+                  { name: 'Science', subjectType: 'major' },
+                ],
+              },
+            ],
+            subjects: [
+              { name: 'PE', subjectType: 'minor' },
+              { name: 'Arts', subjectType: 'minor' },
+            ],
+          },
+        ],
+      };
+
+      await service.saveProfile(orgId, dto);
+
+      expect(tx.schoolProfileSection.createMany).toHaveBeenCalledTimes(1);
+      expect(tx.schoolProfileSection.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({ name: 'A', capacity: 30 }),
+          expect.objectContaining({ name: 'B', capacity: 30 }),
+        ],
+      });
+      expect(tx.schoolProfileSection.create).not.toHaveBeenCalled();
+
+      expect(tx.schoolProfileSubject.createMany).toHaveBeenCalledTimes(2);
+      expect(tx.schoolProfileSubject.create).not.toHaveBeenCalled();
+
+      // All five subjects still land in the same store as before.
+      expect(tx.__store.sections).toHaveLength(2);
+      expect(tx.__store.subjects).toHaveLength(5);
+    });
+
+    it('batches major subjects and subject sharing links when seeding college', async () => {
+      await service.selectDepartment(orgId, 'college');
+
+      expect(tx.schoolProfileSubject.createMany).toHaveBeenCalled();
+      expect(tx.schoolProfileSubjectSharing.createMany).toHaveBeenCalled();
+      expect(tx.schoolProfileSubjectSharing.create).not.toHaveBeenCalled();
+
+      const sharingCall =
+        tx.schoolProfileSubjectSharing.createMany.mock.calls[0][0];
+      expect(sharingCall.data.length).toBeGreaterThan(0);
+      for (const row of sharingCall.data) {
+        expect(row).toEqual(
+          expect.objectContaining({
+            org_id: orgId,
+            subject_id: expect.any(String),
+            course_id: expect.any(String),
+          }),
+        );
+      }
+    });
+
     it('deletes existing departments before recreating (replace semantics)', async () => {
       // Simulate DB already has one department
       const existingDept = { id: 'existing-dept-1' };
-      tx.schoolProfileDepartment.findMany = jest.fn().mockResolvedValue([existingDept]);
+      tx.schoolProfileDepartment.findMany = jest
+        .fn()
+        .mockResolvedValue([existingDept]);
 
       const dto: any = {
         departments: [
@@ -267,7 +397,9 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
 
       await service.saveProfile(orgId, dto);
 
-      expect(tx.schoolProfileDepartment.delete).toHaveBeenCalledWith({ where: { id: 'existing-dept-1' } });
+      expect(tx.schoolProfileDepartment.delete).toHaveBeenCalledWith({
+        where: { id: 'existing-dept-1' },
+      });
       expect(tx.__store.departments).toHaveLength(1);
     });
   });
@@ -275,8 +407,22 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
   describe('getAllByType', () => {
     it('maps departments by type correctly', async () => {
       repo.findAllDepartments.mockResolvedValue([
-        { id: '1', type: 'college', courses: [], strands: [], levels: [], subjects: [] },
-        { id: '2', type: 'shs', courses: [], strands: [], levels: [], subjects: [] },
+        {
+          id: '1',
+          type: 'college',
+          courses: [],
+          strands: [],
+          levels: [],
+          subjects: [],
+        },
+        {
+          id: '2',
+          type: 'shs',
+          courses: [],
+          strands: [],
+          levels: [],
+          subjects: [],
+        },
       ]);
 
       const result = await service.getAllByType(orgId);
@@ -295,7 +441,9 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
 
   describe('selectDepartment / deselectDepartment', () => {
     it('throws for unknown type', async () => {
-      await expect(service.selectDepartment(orgId, 'invalid')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.selectDepartment(orgId, 'invalid'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('returns existing department without creating if already present', async () => {
@@ -325,12 +473,17 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
 
     it('deselectDepartment is idempotent when not found', async () => {
       repo.findDepartmentByType.mockResolvedValue(null);
-      await expect(service.deselectDepartment(orgId, 'college')).resolves.toBeUndefined();
+      await expect(
+        service.deselectDepartment(orgId, 'college'),
+      ).resolves.toBeUndefined();
       expect(repo.deleteDepartment).not.toHaveBeenCalled();
     });
 
     it('deselectDepartment deletes when exists', async () => {
-      repo.findDepartmentByType.mockResolvedValue({ id: 'dept-1', type: 'college' });
+      repo.findDepartmentByType.mockResolvedValue({
+        id: 'dept-1',
+        type: 'college',
+      });
       repo.deleteDepartment.mockResolvedValue({ id: 'dept-1' });
 
       await service.deselectDepartment(orgId, 'college');
@@ -342,31 +495,37 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
   describe('CRUD guards — NotFound paths', () => {
     it('updateCourse throws NotFound when course missing', async () => {
       repo.findCourseById.mockResolvedValue(null);
-      await expect(service.updateCourse('missing', orgId, { name: 'X' })).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.updateCourse('missing', orgId, { name: 'X' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('deleteCourse throws NotFound when missing', async () => {
       repo.findCourseById.mockResolvedValue(null);
-      await expect(service.deleteCourse('missing', orgId)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.deleteCourse('missing', orgId),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('updateCourse succeeds when found', async () => {
       repo.findCourseById.mockResolvedValue({ id: 'c-1', org_id: orgId });
       repo.updateCourse.mockResolvedValue({ id: 'c-1', name: 'Updated' });
 
-      const result = await service.updateCourse('c-1', orgId, { name: 'Updated' });
+      const result = await service.updateCourse('c-1', orgId, {
+        name: 'Updated',
+      });
 
-      expect(repo.updateCourse).toHaveBeenCalledWith('c-1', { name: 'Updated' });
+      expect(repo.updateCourse).toHaveBeenCalledWith('c-1', {
+        name: 'Updated',
+      });
       expect(result.name).toBe('Updated');
     });
 
     it('updateLevel throws when missing and succeeds when present', async () => {
       repo.findLevelById.mockResolvedValueOnce(null);
-      await expect(service.updateLevel('nope', orgId, { name: 'X' })).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.updateLevel('nope', orgId, { name: 'X' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
 
       repo.findLevelById.mockResolvedValue({ id: 'l-1', org_id: orgId });
       repo.updateLevel.mockResolvedValue({ id: 'l-1', name: 'Grade 2' });
@@ -376,19 +535,29 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
 
     it('deleteSection throws when missing', async () => {
       repo.findSectionById.mockResolvedValue(null);
-      await expect(service.deleteSection('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deleteSection('nope', orgId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('createSubject delegates to repo', async () => {
       repo.createMajorSubject.mockResolvedValue({ id: 's-1', name: 'Math' });
-      const result = await service.createSubject(orgId, 'level-1', { name: 'Math' } as any);
-      expect(repo.createMajorSubject).toHaveBeenCalledWith(orgId, 'level-1', 'Math');
+      const result = await service.createSubject(orgId, 'level-1', {
+        name: 'Math',
+      } as any);
+      expect(repo.createMajorSubject).toHaveBeenCalledWith(
+        orgId,
+        'level-1',
+        'Math',
+      );
       expect(result.name).toBe('Math');
     });
 
     it('deleteSubject throws when missing', async () => {
       repo.findSubjectById.mockResolvedValue(null);
-      await expect(service.deleteSubject('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deleteSubject('nope', orgId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -400,7 +569,15 @@ describe('SchoolProfileService — real logic, no shortcut mocks', () => {
 
       await expect(
         service.saveProfile(orgId, {
-          departments: [{ type: 'college', courses: [], strands: [], levels: [], subjects: [] } as any],
+          departments: [
+            {
+              type: 'college',
+              courses: [],
+              strands: [],
+              levels: [],
+              subjects: [],
+            } as any,
+          ],
         }),
       ).rejects.toThrow('DB down');
     });

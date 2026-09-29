@@ -109,14 +109,18 @@ export default function EducatorActivityLogPage() {
   const [toDate, setToDate]                 = useState<string>("");
   const [page, setPage]                     = useState(1);
 
-  // Build query params
+  // Build query params — event-type substring + pagination run server-side
+  // (Perf Phase 4; was: full-history fetch + client filter/slice).
   const query = useMemo(() => ({
     classId: classFilter !== "all" ? classFilter : undefined,
     from:    fromDate || undefined,
     to:      toDate   || undefined,
-  }), [classFilter, fromDate, toDate]);
+    ...(eventTypeFilter !== "all" ? { actionContains: eventTypeFilter } : {}),
+    page,
+    limit: PAGE_SIZE,
+  }), [classFilter, fromDate, toDate, eventTypeFilter, page]);
 
-  const { data: logsRaw, isLoading } = useActivityLog(query);
+  const { data: pageData, isLoading } = useActivityLog(query);
   const { data: classesRaw }         = useEducatorClasses();
 
   // Subject lookup for class display names
@@ -156,18 +160,10 @@ export default function EducatorActivityLogPage() {
     return opts;
   }, [classesRaw, subjectMap]);
 
-  // Client-side event type filter (API doesn't support it)
-  const logs = useMemo(() => {
-    const all = Array.isArray(logsRaw) ? logsRaw : [];
-    if (eventTypeFilter === "all") return all;
-    return all.filter((l) =>
-      l.action.toUpperCase().includes(eventTypeFilter.toUpperCase())
-    );
-  }, [logsRaw, eventTypeFilter]);
-
-  // Client-side pagination
-  const total     = logs.length;
-  const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Server-paginated rows + total (no client filter/slice).
+  const logs = useMemo(() => pageData?.data ?? [], [pageData]);
+  const total = pageData?.meta.total ?? 0;
+  const totalPages = Math.max(1, pageData?.meta.totalPages ?? 1);
 
   const columns = useMemo(() => buildColumns(classMap), [classMap]);
 
@@ -243,7 +239,7 @@ export default function EducatorActivityLogPage() {
       {/* Table */}
       <DataTable
         columns={columns}
-        data={paginated}
+        data={logs}
         isLoading={isLoading}
         emptyTitle="No activity found"
         emptyDescription="No activity logs match your current filters."

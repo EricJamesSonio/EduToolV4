@@ -5,6 +5,8 @@ describe('GradingSchemeService', () => {
   let service: GradingSchemeService;
   let repo: any;
   let templateService: any;
+  let db: any;
+  let gradeRefresh: any;
   const orgId = 'org-1';
   const classId = 'class-1';
 
@@ -24,7 +26,9 @@ describe('GradingSchemeService', () => {
       lockByClassId: jest.fn(),
     };
     templateService = { findById: jest.fn() };
-    service = new GradingSchemeService(repo, templateService);
+    db = { assessment: { findMany: jest.fn().mockResolvedValue([]) } };
+    gradeRefresh = { refreshClassGrades: jest.fn().mockResolvedValue({ computed: 0, skippedLocked: 0, terms: 0 }) };
+    service = new GradingSchemeService(repo, templateService, db, gradeRefresh);
     jest.clearAllMocks();
   });
 
@@ -64,9 +68,25 @@ describe('GradingSchemeService', () => {
       repo.findById.mockResolvedValue(null);
       await expect(service.update('nope', orgId, {} as any)).rejects.toBeInstanceOf(NotFoundException);
     });
-    it('update throws when locked', async () => {
-      repo.findById.mockResolvedValue({ id: 'gs-1', isLocked: true });
-      await expect(service.update('gs-1', orgId, {} as any)).rejects.toBeInstanceOf(BadRequestException);
+    it('update succeeds even when locked (free edit)', async () => {
+      repo.findById.mockResolvedValue({ id: 'gs-1', classId, isLocked: true });
+      repo.update.mockResolvedValue({ id: 'gs-1', name: 'Updated' });
+      const res = await service.update('gs-1', orgId, { name: 'Updated' } as any);
+      expect(res.name).toBe('Updated');
+    });
+    it('update blocks removal of a type used by existing assessments', async () => {
+      repo.findById.mockResolvedValue({ id: 'gs-1', classId, isLocked: false });
+      db.assessment.findMany.mockResolvedValue([{ type: 'quiz' }, { type: 'exam' }]);
+      const examOnly = [{ name: 'Exam', type: 'exam', weight: 100, isOptional: false }];
+      await expect(service.update('gs-1', orgId, { components: examOnly } as any)).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+    it('update refreshes grades after a component change', async () => {
+      repo.findById.mockResolvedValue({ id: 'gs-1', classId, isLocked: false });
+      db.assessment.findMany.mockResolvedValue([]);
+      repo.update.mockResolvedValue({ id: 'gs-1', name: 'Updated' });
+      await service.update('gs-1', orgId, { name: 'Updated', components: validComponents } as any, 'actor-1');
+      expect(gradeRefresh.refreshClassGrades).toHaveBeenCalledWith(orgId, classId, 'actor-1', 'grading_scheme_updated');
     });
     it('update validates weights when provided', async () => {
       repo.findById.mockResolvedValue({ id: 'gs-1', isLocked: false });

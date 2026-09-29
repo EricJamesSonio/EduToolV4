@@ -37,19 +37,28 @@ export class ConcernCoreRepository {
       skipDuplicates: true,
     });
   }
-
-  findActiveCategories(orgId: string) {
-    return this.db.concernCategory.findMany({
-      where: { org_id: orgId, is_active: true },
-      orderBy: { label: 'asc' },
+  /** Alphabetical, but the catch-all "Others" category always goes last. */
+  private pinOthersLast<T extends { label: string }>(categories: T[]): T[] {
+    return [...categories].sort((a, b) => {
+      const aOthers = a.label === 'Others';
+      const bOthers = b.label === 'Others';
+      if (aOthers !== bOthers) return aOthers ? 1 : -1;
+      return a.label.localeCompare(b.label);
     });
   }
 
-  findAllCategories(orgId: string) {
-    return this.db.concernCategory.findMany({
-      where: { org_id: orgId },
-      orderBy: { label: 'asc' },
+  async findActiveCategories(orgId: string) {
+    const rows = await this.db.concernCategory.findMany({
+      where: { org_id: orgId, is_active: true },
     });
+    return this.pinOthersLast(rows);
+  }
+
+  async findAllCategories(orgId: string) {
+    const rows = await this.db.concernCategory.findMany({
+      where: { org_id: orgId },
+    });
+    return this.pinOthersLast(rows);
   }
 
   findCategoryByIdInOrg(orgId: string, categoryId: string) {

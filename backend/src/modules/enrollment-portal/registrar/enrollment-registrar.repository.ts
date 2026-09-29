@@ -289,6 +289,35 @@ export class EnrollmentRegistrarRepository {
     });
   }
 
+  /**
+   * Batched variant for the auto-lock sweep: one UPDATE for all expired
+   * pending applications instead of one per row. The pending guard keeps it
+   * idempotent (re-runs are no-ops) even under concurrent sweepers.
+   */
+  lockManyApplications(ids: string[]) {
+    if (ids.length === 0) return Promise.resolve({ count: 0 });
+    return this.db.enrollmentApplication.updateMany({
+      where: { id: { in: ids }, status: EnrollmentApplicationStatus.pending },
+      data: {
+        status: EnrollmentApplicationStatus.locked,
+        locked_at: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Re-read helper for the sweep: which of the candidate ids are locked now.
+   * Only used when the batched UPDATE's count shows a concurrent sweeper
+   * took some rows first (the common path skips this query entirely).
+   */
+  findLockedApplicationsByIds(ids: string[]) {
+    if (ids.length === 0) return Promise.resolve([]);
+    return this.db.enrollmentApplication.findMany({
+      where: { id: { in: ids }, status: EnrollmentApplicationStatus.locked },
+      select: { id: true },
+    });
+  }
+
   // ── Dashboard (Phase: portal overview) ───────────────────────────────────
 
   findPeriodApplications(orgId: string, periodId: string) {

@@ -107,6 +107,7 @@ export class EnrollmentPortalRepository {
         org_id: orgId,
         school_year_id: schoolYearId,
         program_id: programId,
+        deleted_at: null,
       },
       select: { id: true },
     });
@@ -124,6 +125,7 @@ export class EnrollmentPortalRepository {
         org_id: orgId,
         school_year_id: schoolYearId,
         program_id: programId,
+        deleted_at: null,
       },
       select: { id: true },
     });
@@ -141,6 +143,7 @@ export class EnrollmentPortalRepository {
         org_id: orgId,
         school_year_id: schoolYearId,
         program_id: programId,
+        deleted_at: null,
       },
       select: { id: true, course_id: true, strand_id: true },
     });

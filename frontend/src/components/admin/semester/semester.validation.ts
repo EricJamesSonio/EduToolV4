@@ -2,6 +2,10 @@ import type { TermInput } from "@/api/admin/semester.api";
 
 export interface SemesterDraft {
   id?: string;
+  /** Set once a program is chosen in create mode; unused/ignored in edit mode (immutable after creation). */
+  programId?: string;
+  /** Set once a template slot is chosen in create mode; unused/ignored in edit mode. */
+  templateSemesterId?: string;
   name: string;
   startDate: string;
   endDate: string;

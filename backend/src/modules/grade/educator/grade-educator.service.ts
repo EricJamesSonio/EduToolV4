@@ -10,6 +10,7 @@ import {
   AssessmentInclusionReason,
 } from '../core/assessment-inclusion.util';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
+import { NotificationService } from 'src/modules/notification/notification.service';
 import {
   SetManualScoreDto,
   SetGradeVisibilityDto,
@@ -31,6 +32,7 @@ export class GradeEducatorService {
     private readonly repo: GradeRepository,
     private readonly core: GradeCoreService,
     private readonly auditLog: AuditLogService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async setGradeVisibility(
@@ -74,7 +76,19 @@ export class GradeEducatorService {
     educatorId: string,
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    return this.repo.publishByStudent(studentId, termId, orgId);
+    const published = await this.repo.publishByStudent(studentId, termId, orgId);
+
+    // Locking makes the final grade visible — notify the student.
+    this.notifications
+      .createNotification({
+        orgId,
+        accountId: studentId,
+        type: 'grade_locked',
+        payload: { classId, termId },
+      })
+      .catch(() => {}); // non-blocking, never throws
+
+    return published;
   }
 
   async unlockByStudent(
@@ -365,21 +379,40 @@ export class GradeEducatorService {
     if (!cls) throw new NotFoundException('Class not found.');
 
     const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
-    const results: any[] = [];
 
-    for (const term of terms) {
-      const termResult = await this.buildTermResult(
-        classId,
-        term.id,
-        term.name,
-        orgId,
-        cls,
-        { id: term.semesterIndex.toString(), name: term.semesterName },
-      );
-      results.push(termResult);
-    }
+    // Perf Phase 2: class-level invariants are identical for every term, so
+    // fetch them once and build each term in parallel instead of awaiting
+    // T sequential 8-query buildTermResult() calls.
+    const enrolledStudentIds: string[] = cls.enrollments.map(
+      (e: any) => e.student_id,
+    );
+    const [scheme, enrollmentDates, overrides, studentProfiles] =
+      await Promise.all([
+        this.repo.findGradingSchemeForClass(classId, orgId),
+        this.repo.findEnrollmentDatesByClass(classId, orgId),
+        this.repo.findGradingOverridesByClass(classId, orgId),
+        this.repo.findStudentProfiles(enrolledStudentIds),
+      ]);
+    const shared = this.buildSharedTermContext(
+      scheme,
+      enrollmentDates,
+      overrides,
+      studentProfiles,
+    );
 
-    return results;
+    return Promise.all(
+      terms.map((term) =>
+        this.buildTermResult(
+          classId,
+          term.id,
+          term.name,
+          orgId,
+          cls,
+          { id: term.semesterIndex.toString(), name: term.semesterName },
+          shared,
+        ),
+      ),
+    );
   }
 
   async getTermOptions(classId: string, orgId: string, educatorId: string) {
@@ -421,6 +454,147 @@ export class GradeEducatorService {
    * Recompute grade for a single student after submission.
    * Called automatically on submission finish.
    */
+  /**
+   * System-level refresh after a grading scheme / scale change.
+   * Recomputes every term with existing assessments or grades for the class,
+   * skipping locked grade rows (never overwrites finalized grades).
+   * Best-effort per term: one failing term never blocks the others.
+   * Called by GradingScheme / GradingSchemeTemplate / GradingScale services
+   * so "apply succeeds but grades don't change" can't happen silently.
+   */
+  async refreshClassGrades(
+    orgId: string,
+    classId: string,
+    actorId: string,
+    reason: string,
+  ): Promise<{ computed: number; skippedLocked: number; terms: number }> {
+    const [assessments, grades] = await Promise.all([
+      this.repo.findClassAssessments(classId, orgId),
+      this.repo.findByClass(classId, orgId),
+    ]);
+    const termIds = [
+      ...new Set(
+        [...assessments, ...grades]
+          .map((r: any) => r.term_id)
+          .filter((t: unknown): t is string => typeof t === 'string'),
+      ),
+    ];
+    if (termIds.length === 0) {
+      return { computed: 0, skippedLocked: 0, terms: 0 };
+    }
+
+    let computed = 0;
+    let skippedLocked = 0;
+    for (const termId of termIds) {
+      try {
+        const res = await this.computeGradesWithoutOwnership(
+          classId,
+          termId,
+          orgId,
+        );
+        computed += res.computed;
+        skippedLocked += res.skippedLocked;
+      } catch {
+        // Best-effort: record and continue with remaining terms.
+        continue;
+      }
+    }
+
+    await this.auditLog.logActivityEvent({
+      orgId,
+      actorId,
+      action: 'grades_recomputed_scheme_change',
+      entityType: 'class',
+      entityId: classId,
+      metadata: { reason, terms: termIds.length, computed, skippedLocked },
+    });
+
+    return { computed, skippedLocked, terms: termIds.length };
+  }
+
+  /**
+   * Same computation as computeGrades() but without the educator-owns-class
+   * gate — the caller already authorized the scheme/scale mutation.
+   */
+  private async computeGradesWithoutOwnership(
+    classId: string,
+    termId: string,
+    orgId: string,
+  ): Promise<{ computed: number; skippedLocked: number }> {
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) return { computed: 0, skippedLocked: 0 };
+
+    const enrolledStudentIds = (cls.enrollments ?? []).map(
+      (e: any) => e.student_id,
+    );
+    if (enrolledStudentIds.length === 0) return { computed: 0, skippedLocked: 0 };
+
+    const scheme = await this.repo.findGradingSchemeForClass(classId, orgId);
+    if (!scheme) return { computed: 0, skippedLocked: 0 };
+    const categories = componentsToCategories(scheme.components);
+
+    const gradingScale = await this.resolveGradingScale(cls, orgId);
+    if (!gradingScale) return { computed: 0, skippedLocked: 0 };
+    const ranges = gradingScale.ranges as unknown as GradeRange[];
+
+    const [submissions, allAssessments, manualScores, enrollmentDates, overrides] =
+      await Promise.all([
+        this.repo.findSubmissionsForTerm(classId, termId, orgId),
+        this.repo.findAssessmentsForTerm(classId, termId, orgId),
+        this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findEnrollmentDatesByClass(classId, orgId),
+        this.repo.findGradingOverridesByClass(classId, orgId),
+      ]);
+
+    const subsByStudent = new Map<string, any[]>();
+    for (const sub of submissions) {
+      const list = subsByStudent.get(sub.student_id);
+      if (list) list.push(sub);
+      else subsByStudent.set(sub.student_id, [sub]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const manual of manualScores) {
+      const list = manualsByStudent.get(manual.student_id);
+      if (list) list.push(manual);
+      else manualsByStudent.set(manual.student_id, [manual]);
+    }
+    const enrollmentDateByStudent = new Map(
+      enrollmentDates.map((e) => [e.student_id, e.created_at]),
+    );
+    const overridesByKey = new Map(
+      overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
+    );
+
+    const rows = enrolledStudentIds.map((studentId) => {
+      const studentSubmissions = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
+
+      const { excludedAssessmentIds } = this.buildInclusionMaps(
+        allAssessments,
+        enrollmentDateByStudent,
+        overridesByKey,
+        studentId,
+      );
+
+      const finalScore = this.core.computeWeightedScore(
+        studentSubmissions,
+        studentManuals,
+        allAssessments,
+        categories,
+        { excludedAssessmentIds },
+      );
+      const finalGrade = this.core.resolveGrade(finalScore, ranges);
+
+      return { studentId, finalScore, finalGrade };
+    });
+
+    const { computed, skippedLocked } = await this.repo.saveComputedGrades(
+      { orgId, classId, termId, rows },
+      { skipLocked: true },
+    );
+    return { computed, skippedLocked };
+  }
+
   async recomputeStudentGrade(
     classId: string,
     termId: string,
@@ -546,21 +720,36 @@ export class GradeEducatorService {
       this.repo.findGradingOverridesByClass(classId, orgId),
     ]);
 
-    let computed = 0;
-    for (const studentId of enrolledStudentIds) {
-      const studentSubmissions = submissions.filter(
-        (s: any) => s.student_id === studentId,
-      );
-      const studentManuals = manualScores.filter(
-        (m: any) => m.student_id === studentId,
-      );
+    // Perf Phase 2: group once + hoist inclusion maps out of the per-student
+    // loop (previously rebuilt per student), then persist in one batched
+    // repository call instead of N sequential upserts.
+    const subsByStudent = new Map<string, any[]>();
+    for (const sub of submissions) {
+      const list = subsByStudent.get(sub.student_id);
+      if (list) list.push(sub);
+      else subsByStudent.set(sub.student_id, [sub]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const manual of manualScores) {
+      const list = manualsByStudent.get(manual.student_id);
+      if (list) list.push(manual);
+      else manualsByStudent.set(manual.student_id, [manual]);
+    }
+    const enrollmentDateByStudent = new Map(
+      enrollmentDates.map((e) => [e.student_id, e.created_at]),
+    );
+    const overridesByKey = new Map(
+      overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
+    );
+
+    const rows = enrolledStudentIds.map((studentId) => {
+      const studentSubmissions = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
 
       const { excludedAssessmentIds } = this.buildInclusionMaps(
         allAssessments,
-        new Map(enrollmentDates.map((e) => [e.student_id, e.created_at])),
-        new Map(
-          overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
-        ),
+        enrollmentDateByStudent,
+        overridesByKey,
         studentId,
       );
 
@@ -573,16 +762,20 @@ export class GradeEducatorService {
       );
       const finalGrade = this.core.resolveGrade(finalScore, ranges);
 
-      await this.repo.upsert({
+      return { studentId, finalScore, finalGrade };
+    });
+
+    // TICK-GRADE-004: bulk compute honors grade locks (skip, don't
+    // overwrite) — mirroring recomputeStudentGrade. Business-logic change.
+    const { computed, skippedLocked } = await this.repo.saveComputedGrades(
+      {
         orgId,
-        studentId,
         classId,
         termId,
-        finalScore,
-        finalGrade,
-      });
-      computed++;
-    }
+        rows,
+      },
+      { skipLocked: true },
+    );
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -590,10 +783,16 @@ export class GradeEducatorService {
       action: 'grades_computed',
       entityType: 'class',
       entityId: classId,
-      metadata: { termId, studentsComputed: computed },
+      metadata: { termId, studentsComputed: computed, skippedLocked },
     });
 
-    return { computed, message: `Grades computed for ${computed} student(s).` };
+    return {
+      computed,
+      skippedLocked,
+      message:
+        `Grades computed for ${computed} student(s).` +
+        (skippedLocked > 0 ? ` ${skippedLocked} locked skipped.` : ''),
+    };
   }
 
   async setManualScore(
@@ -669,6 +868,27 @@ export class GradeEducatorService {
     return { excludedAssessmentIds, reasons };
   }
 
+  // Class-level data shared across every term of a getGradesByClass() call.
+  // Built once; buildTermResult() falls back to per-term fetching when absent
+  // (single-term path via getGradesByTerm()).
+  private buildSharedTermContext(
+    scheme: any,
+    enrollmentDates: any[],
+    overrides: any[],
+    studentProfiles: Map<string, { name: string; code: string }>,
+  ) {
+    return {
+      scheme,
+      studentProfiles,
+      enrollmentDateByStudent: new Map(
+        enrollmentDates.map((e) => [e.student_id, e.created_at]),
+      ),
+      overridesByKey: new Map(
+        overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
+      ),
+    };
+  }
+
   private async buildTermResult(
     classId: string,
     termId: string,
@@ -676,48 +896,77 @@ export class GradeEducatorService {
     orgId: string,
     cls: any,
     semesterInfo?: { id: string; name: string },
+    shared?: ReturnType<GradeEducatorService['buildSharedTermContext']>,
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map(
       (e: any) => e.student_id,
     );
-    const [
-      submissions,
-      grades,
-      manualScores,
-      allAssessments,
-      scheme,
-      studentProfiles,
-      enrollmentDates,
-      overrides,
-    ] = await Promise.all([
-      this.repo.findSubmissionsForTerm(classId, termId, orgId),
-      this.repo.findByClassAndTerm(classId, termId, orgId),
-      this.repo.findManualScores(classId, termId, orgId),
-      this.repo.findAssessmentsForTerm(classId, termId, orgId),
-      this.repo.findGradingSchemeForClass(classId, orgId),
-      this.repo.findStudentProfiles(enrolledStudentIds),
-      this.repo.findEnrollmentDatesByClass(classId, orgId),
-      this.repo.findGradingOverridesByClass(classId, orgId),
-    ]);
 
-    const enrollmentDateByStudent = new Map(
-      enrollmentDates.map((e) => [e.student_id, e.created_at]),
-    );
-    const overridesByKey = new Map(
-      overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
-    );
+    // Term-level data always varies by term; class-level data is reused when
+    // the caller hoisted it (getGradesByClass) and fetched otherwise.
+    const [submissions, grades, manualScores, allAssessments] =
+      await Promise.all([
+        this.repo.findSubmissionsForTerm(classId, termId, orgId),
+        this.repo.findByClassAndTerm(classId, termId, orgId),
+        this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findAssessmentsForTerm(classId, termId, orgId),
+      ]);
+
+    let scheme: any;
+    let studentProfiles: Map<string, { name: string; code: string }>;
+    let enrollmentDateByStudent: Map<string, Date>;
+    let overridesByKey: Map<string, { include: boolean }>;
+    if (shared) {
+      ({ scheme, studentProfiles, enrollmentDateByStudent, overridesByKey } =
+        shared);
+    } else {
+      const [fetchedScheme, enrollmentDates, overrides, fetchedProfiles] =
+        await Promise.all([
+          this.repo.findGradingSchemeForClass(classId, orgId),
+          this.repo.findEnrollmentDatesByClass(classId, orgId),
+          this.repo.findGradingOverridesByClass(classId, orgId),
+          this.repo.findStudentProfiles(enrolledStudentIds),
+        ]);
+      const ctx = this.buildSharedTermContext(
+        fetchedScheme,
+        enrollmentDates,
+        overrides,
+        fetchedProfiles,
+      );
+      scheme = ctx.scheme;
+      studentProfiles = ctx.studentProfiles;
+      enrollmentDateByStudent = ctx.enrollmentDateByStudent;
+      overridesByKey = ctx.overridesByKey;
+    }
 
     const categories = scheme ? componentsToCategories(scheme.components) : [];
     const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
 
+    // Perf Phase 2: group term rows once instead of filter()/some() per
+    // student (O(S²·A) → O(S·A)) and group assessments by type once.
+    const subsByStudent = new Map<string, any[]>();
+    for (const sub of submissions) {
+      const list = subsByStudent.get(sub.student_id);
+      if (list) list.push(sub);
+      else subsByStudent.set(sub.student_id, [sub]);
+    }
+    const manualsByStudent = new Map<string, any[]>();
+    for (const manual of manualScores) {
+      const list = manualsByStudent.get(manual.student_id);
+      if (list) list.push(manual);
+      else manualsByStudent.set(manual.student_id, [manual]);
+    }
+    const assessmentsByType = new Map<string, any[]>();
+    for (const assessment of allAssessments) {
+      const list = assessmentsByType.get(assessment.type);
+      if (list) list.push(assessment);
+      else assessmentsByType.set(assessment.type, [assessment]);
+    }
+
     const students = enrolledStudentIds.map((studentId) => {
       const profile = studentProfiles.get(studentId);
-      const studentSubs = submissions.filter(
-        (s: any) => s.student_id === studentId,
-      );
-      const studentManuals = manualScores.filter(
-        (m: any) => m.student_id === studentId,
-      );
+      const studentSubs = subsByStudent.get(studentId) ?? [];
+      const studentManuals = manualsByStudent.get(studentId) ?? [];
 
       const submittedAssessmentIds = new Set(
         studentSubs.map((s: any) => s.assessment_id),
@@ -778,6 +1027,13 @@ export class GradeEducatorService {
       }
 
       // Compute total active weight (sum of weights of categories with at least one valid score)
+      // Perf Phase 2: pre-grouped assessments + per-student active-id set
+      // instead of filter().some().some() nesting.
+      const activeSubAssessmentIds = new Set(
+        studentSubs
+          .filter((s: any) => s.status !== 'exempted' && !s.is_exempted)
+          .map((s: any) => s.assessment_id),
+      );
       const totalActiveWeight = categories.reduce((sum, cat) => {
         if (cat.type === 'manual') {
           return studentManuals.some(
@@ -786,16 +1042,9 @@ export class GradeEducatorService {
             ? sum + cat.weight
             : sum;
         }
-        const catAssessments = allAssessments.filter(
-          (a) => a.type === cat.type,
-        );
+        const catAssessments = assessmentsByType.get(cat.type) ?? [];
         const hasActive = catAssessments.some((a) =>
-          studentSubs.some(
-            (s) =>
-              s.assessment_id === a.id &&
-              s.status !== 'exempted' &&
-              !s.is_exempted,
-          ),
+          activeSubAssessmentIds.has(a.id),
         );
         return hasActive ? sum + cat.weight : sum;
       }, 0);

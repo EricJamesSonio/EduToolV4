@@ -39,7 +39,13 @@ export async function checkSchoolYearReadiness(
       id: true,
       name: true,
       type: true,
-      _count: { select: { levels: true, courses: true, strands: true } },
+      _count: {
+        select: {
+          levels: { where: { deleted_at: null } },
+          courses: { where: { deleted_at: null } },
+          strands: { where: { deleted_at: null } },
+        },
+      },
     },
   });
   if (programs.length === 0) {
@@ -53,8 +59,12 @@ export async function checkSchoolYearReadiness(
 
     if (program.type === 'college') {
       const courses = await db.course.findMany({
-        where: { program_id: program.id, org_id: orgId },
-        select: { id: true, name: true, _count: { select: { levels: true } } },
+        where: { program_id: program.id, org_id: orgId, deleted_at: null },
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { levels: { where: { deleted_at: null } } } },
+        },
       });
       for (const course of courses) {
         if (course._count.levels === 0) {
@@ -63,8 +73,12 @@ export async function checkSchoolYearReadiness(
       }
     } else if (program.type === 'senior_high') {
       const strands = await db.strand.findMany({
-        where: { program_id: program.id, org_id: orgId },
-        select: { id: true, name: true, _count: { select: { levels: true } } },
+        where: { program_id: program.id, org_id: orgId, deleted_at: null },
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { levels: { where: { deleted_at: null } } } },
+        },
       });
       for (const strand of strands) {
         if (strand._count.levels === 0) {
@@ -75,7 +89,7 @@ export async function checkSchoolYearReadiness(
   }
 
   const levels = await db.level.findMany({
-    where: { school_year_id: schoolYearId, org_id: orgId },
+    where: { school_year_id: schoolYearId, org_id: orgId, deleted_at: null },
     select: {
       id: true,
       name: true,
@@ -99,11 +113,11 @@ export async function checkSchoolYearReadiness(
   const levelIds = levels.map((l) => l.id);
   const programIds = programs.map((p) => p.id);
   const courses = await db.course.findMany({
-    where: { school_year_id: schoolYearId, org_id: orgId },
+    where: { school_year_id: schoolYearId, org_id: orgId, deleted_at: null },
     select: { id: true },
   });
   const strands = await db.strand.findMany({
-    where: { school_year_id: schoolYearId, org_id: orgId },
+    where: { school_year_id: schoolYearId, org_id: orgId, deleted_at: null },
     select: { id: true },
   });
   const courseIds = courses.map((c) => c.id);

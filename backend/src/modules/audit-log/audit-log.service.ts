@@ -17,6 +17,8 @@ export class AuditLogService {
       entityType: query.entityType,
       entityId: query.entityId,
       actorId: query.actorId,
+      page: query.page,
+      limit: query.limit,
     });
   }
 
@@ -25,8 +27,12 @@ export class AuditLogService {
   async findActivityLogs(orgId: string, query: QueryActivityLogDto) {
     return this.auditLogRepository.findActivityLogs(orgId, {
       classId: query.classId,
+      action: query.action,
+      actionContains: query.actionContains,
       from: query.from ? new Date(query.from) : undefined,
       to: query.to ? new Date(query.to) : undefined,
+      page: query.page,
+      limit: query.limit,
     });
   }
 

@@ -23,19 +23,37 @@ export class NotificationRepository {
   }
 
   /**
-   * Find all active (non-archived) notifications for a user.
-   * Sorted newest first.
+   * Active (non-archived) notifications for a user, newest first.
+   * Perf Phase 4: paginated {data, meta} instead of the full inbox.
    */
-  async findByUser(accountId: string, orgId: string, unreadOnly = false) {
-    return this.db.notification.findMany({
-      where: {
-        account_id: accountId,
-        org_id: orgId,
-        archived_at: null,
-        ...(unreadOnly ? { read_at: null } : {}),
-      },
-      orderBy: { created_at: 'desc' },
-    });
+  async findByUser(
+    accountId: string,
+    orgId: string,
+    unreadOnly = false,
+    page = 1,
+    limit = 20,
+  ) {
+    const where = {
+      account_id: accountId,
+      org_id: orgId,
+      archived_at: null,
+      ...(unreadOnly ? { read_at: null } : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.db.notification.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.db.notification.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findById(id: string, accountId: string) {
@@ -49,6 +67,56 @@ export class NotificationRepository {
       where: { id },
       data: { read_at: new Date() },
     });
+  }
+
+  /** Marks every unread, non-archived notification for this user as read. */
+  async markAllAsRead(accountId: string, orgId: string) {
+    return this.db.notification.updateMany({
+      where: {
+        account_id: accountId,
+        org_id: orgId,
+        read_at: null,
+        archived_at: null,
+      },
+      data: { read_at: new Date() },
+    });
+  }
+
+  /**
+   * Unread counts grouped by notification type — powers the red bell badge
+   * and the "5 new concerns / 10 new applications" summary rows without
+   * having to load every notification.
+   */
+  async countUnreadByType(accountId: string, orgId: string) {
+    const rows = await this.db.notification.groupBy({
+      by: ['type'],
+      where: {
+        account_id: accountId,
+        org_id: orgId,
+        read_at: null,
+        archived_at: null,
+      },
+      _count: { _all: true },
+    });
+
+    return rows.map((r) => ({ type: r.type, count: r._count._all }));
+  }
+
+  /**
+   * Account ids of everyone in the org who should receive staff-facing
+   * notifications: admins and registrars.
+   */
+  async findOrgStaffIds(orgId: string): Promise<string[]> {
+    const rows = await this.db.account.findMany({
+      where: {
+        org_id: orgId,
+        deleted_at: null,
+        status: 'active',
+        OR: [{ role: 'admin' }, { is_registrar: true }],
+      },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
   }
 
   async delete(id: string) {

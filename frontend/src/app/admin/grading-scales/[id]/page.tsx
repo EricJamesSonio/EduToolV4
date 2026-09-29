@@ -70,8 +70,9 @@ const [initialised, setInitialised] = useState(false)
     if (submitted) setRangeErrors(validateRanges(next));
   };
 
-  const isLocked = scale?.isLocked ?? false;
-  const disabled = isLocked || mutation.isPending;
+  // Scales stay editable even after grades exist / school year started.
+  // Saving recalculates unlocked grades; locked grade rows are skipped.
+  const disabled = mutation.isPending;
 
   // Passing threshold display
   const passingThreshold = (() => {
@@ -127,16 +128,14 @@ const [initialised, setInitialised] = useState(false)
         }
       />
 
-      {/* Lock banner */}
-      {isLocked && (
-        <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
-          <Lock className="h-4 w-4 shrink-0" />
-          <span>
-            <strong>Locked</strong> — this scale is locked because a grade has been finalized for
-            this level in the current school year. It cannot be edited.
-          </span>
-        </div>
-      )}
+      {/* Info banner */}
+      <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+        <Lock className="h-4 w-4 shrink-0" />
+        <span>
+          Saving recalculates unlocked grades. Finalized (locked) grade rows
+          are preserved.
+        </span>
+      </div>
 
       {/* Meta row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

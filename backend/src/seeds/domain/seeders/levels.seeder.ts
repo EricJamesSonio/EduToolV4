@@ -1,6 +1,10 @@
 import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
 import { buildLevelDefs } from '../../../modules/org-seeder/data/levels.data';
+import {
+  restoreLevelIfArchived,
+  restoreSectionIfArchived,
+} from '../../../commons/utils/seed-restore';
 
 export async function seedLevelsAndSections(
   orgId: string,
@@ -43,6 +47,8 @@ export async function seedLevelsAndSections(
     const existing = await db.level.findFirst({ where: { id: levelId } });
     if (existing) {
       levelMap[levelKey] = existing.id;
+      // Re-seeding restores an archived level instead of leaving it hidden.
+      await restoreLevelIfArchived(db, existing.id);
     } else {
       const rec = await db.level.create({
         data: {
@@ -76,7 +82,10 @@ export async function seedLevelsAndSections(
       const existingSec = await db.section.findFirst({
         where: { id: sectionId },
       });
-      if (!existingSec) {
+      if (existingSec) {
+        // Re-seeding restores an archived section instead of leaving it hidden.
+        await restoreSectionIfArchived(db, existingSec.id);
+      } else {
         await db.section.create({
           data: {
             id: sectionId,
@@ -108,6 +117,8 @@ export async function seedLevelsAndSections(
         const existing = await db.level.findFirst({ where: { id: levelId } });
         if (existing) {
           levelMap[levelKey] = existing.id;
+          // Re-seeding restores an archived level instead of leaving it hidden.
+          await restoreLevelIfArchived(db, existing.id);
         } else {
           const rec = await db.level.create({
             data: {
@@ -139,7 +150,10 @@ export async function seedLevelsAndSections(
           const existingSec = await db.section.findFirst({
             where: { id: sectionId },
           });
-          if (!existingSec) {
+          if (existingSec) {
+            // Re-seeding restores an archived section instead of leaving it hidden.
+            await restoreSectionIfArchived(db, existingSec.id);
+          } else {
             await db.section.create({
               data: {
                 id: sectionId,
@@ -177,6 +191,8 @@ export async function seedLevelsAndSections(
         const existing = await db.level.findFirst({ where: { id: levelId } });
         if (existing) {
           levelMap[levelKey] = existing.id;
+          // Re-seeding restores an archived level instead of leaving it hidden.
+          await restoreLevelIfArchived(db, existing.id);
         } else {
           const rec = await db.level.create({
             data: {
@@ -210,7 +226,10 @@ export async function seedLevelsAndSections(
           const existingSec = await db.section.findFirst({
             where: { id: sectionId },
           });
-          if (!existingSec) {
+          if (existingSec) {
+            // Re-seeding restores an archived section instead of leaving it hidden.
+            await restoreSectionIfArchived(db, existingSec.id);
+          } else {
             await db.section.create({
               data: {
                 id: sectionId,

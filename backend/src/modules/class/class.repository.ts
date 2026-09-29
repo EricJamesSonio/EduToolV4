@@ -7,6 +7,7 @@ import { resolveSubjectAcademicStructure } from '../enrollment/enrollment-eligib
 export class ClassRepository {
   constructor(private readonly db: DatabaseService) {}
 
+
   async create(data: {
     orgId: string;
     subjectId: string;
@@ -329,6 +330,25 @@ export class ClassRepository {
     });
   }
 
+    async findSectionSubjectClass(
+    orgId: string,
+    sectionId: string,
+    subjectId: string,
+    semesterId: string,
+    excludeClassId?: string,
+  ) {
+    return this.db.class.findFirst({
+      where: {
+        org_id: orgId,
+        section_id: sectionId,
+        subject_id: subjectId,
+        semester_id: semesterId,
+        deleted_at: null,
+        ...(excludeClassId && { id: { not: excludeClassId } }),
+      },
+      select: { id: true },
+    });
+  }
   async findSectionSchedules(
     sectionId: string,
     orgId: string,
@@ -596,5 +616,41 @@ export class ClassRepository {
       subject: cls.subject,
       educatorProfile: cls.educator.profile,
     };
+  }
+
+  /**
+   * Batched variant of findSubjectWithEducator for student class lists: one
+   * query for many classes, selecting only the name fields the list view
+   * needs. Returns a Map keyed by class id.
+   */
+  async findSubjectsWithEducators(
+    ids: string[],
+  ): Promise<
+    Map<
+      string,
+      {
+        subject: { name: string } | null;
+        educatorProfile: { full_name: string } | null;
+      }
+    >
+  > {
+    if (ids.length === 0) return new Map();
+    const classes = await this.db.class.findMany({
+      where: { id: { in: [...new Set(ids)] } },
+      select: {
+        id: true,
+        subject: { select: { name: true } },
+        educator: { select: { profile: { select: { full_name: true } } } },
+      },
+    });
+    return new Map(
+      classes.map((cls) => [
+        cls.id,
+        {
+          subject: cls.subject,
+          educatorProfile: cls.educator?.profile ?? null,
+        },
+      ]),
+    );
   }
 }

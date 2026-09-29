@@ -10,6 +10,7 @@ import {
   useRemovePrerequisite,
 } from "@/hooks/admin/useSubjectPrerequisites";
 import type { Subject } from "@/types/admin/subject.types";
+import { violatesLowerLevelRule } from "@/utils/level-rank";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,11 +35,19 @@ export function PrerequisitesSection({ subject }: { subject: Subject }): React.J
 
   const currentIds = useMemo(() => new Set((prereqs ?? []).map((p) => p.prerequisite_id)), [prereqs]);
 
+  // A prerequisite must come from a LOWER year level than this subject, so
+  // same-year and higher-year subjects are not offered at all.
   const availableToAdd = useMemo(() => {
     return (allSubjects as Subject[]).filter(
-      (s) => s.id !== subject.id && !currentIds.has(s.id),
+      (s) =>
+        s.id !== subject.id &&
+        !currentIds.has(s.id) &&
+        !violatesLowerLevelRule(
+          { level: s.levelName, program: s.programName },
+          { level: subject.levelName, program: subject.programName },
+        ),
     );
-  }, [allSubjects, currentIds, subject.id]);
+  }, [allSubjects, currentIds, subject.id, subject.levelName, subject.programName]);
 
   const handleAdd = async () => {
     if (!selectedToAdd) return;
@@ -81,7 +90,7 @@ export function PrerequisitesSection({ subject }: { subject: Subject }): React.J
           <BookOpen className="h-4 w-4" /> Prerequisites
         </CardTitle>
         <CardDescription className="text-xs">
-          Subjects that must be passed before this one. Soft warning only — students can still request, admin approves as override. Immediate-only (no chain).
+          Subjects that must be passed before this one. Must come from a lower year level than this subject — subjects in the same year can&apos;t be prerequisites. Soft warning only — students can still request, admin approves as override. Immediate-only (no chain).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -92,28 +101,46 @@ export function PrerequisitesSection({ subject }: { subject: Subject }): React.J
           </div>
         ) : (
           <div className="rounded-lg border divide-y">
-            {(prereqs ?? []).map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant="secondary" className="text-xs font-normal shrink-0">
-                    Requires
-                  </Badge>
-                  <span className="text-sm truncate">{p.prerequisite?.name ?? p.prerequisite_id}</span>
-                  {p.prerequisite?.year_level && (
-                    <span className="text-xs text-muted-foreground">· {p.prerequisite.year_level}</span>
-                  )}
+            {(prereqs ?? []).map((p) => {
+              // Links saved before this rule existed are kept, but flagged so
+              // the admin can remove them.
+              const notLower = violatesLowerLevelRule(
+                { level: p.prerequisite?.year_level },
+                { level: subject.levelName },
+              );
+              return (
+                <div key={p.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <Badge variant="secondary" className="text-xs font-normal shrink-0">
+                      Requires
+                    </Badge>
+                    <span className="text-sm truncate">{p.prerequisite?.name ?? p.prerequisite_id}</span>
+                    {p.prerequisite?.year_level && (
+                      <span className="text-xs text-muted-foreground">· {p.prerequisite.year_level}</span>
+                    )}
+                    {notLower && (
+                      <Badge
+                        variant="outline"
+                        title="A prerequisite must be from a lower year level than this subject."
+                        className="text-[11px] font-normal shrink-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-400"
+                      >
+                        <AlertTriangle className="mr-1 h-3 w-3" />
+                        Not a lower year
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => handleRemove(p.prerequisite_id)}
+                    disabled={removeMut.isPending}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                  onClick={() => handleRemove(p.prerequisite_id)}
-                  disabled={removeMut.isPending}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -125,7 +152,9 @@ export function PrerequisitesSection({ subject }: { subject: Subject }): React.J
               </SelectTrigger>
               <SelectContent>
                 {availableToAdd.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-muted-foreground">No more subjects available</div>
+                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                    No lower-level subjects available
+                  </div>
                 ) : (
                   availableToAdd.map((s) => (
                     <SelectItem key={s.id} value={s.id}>

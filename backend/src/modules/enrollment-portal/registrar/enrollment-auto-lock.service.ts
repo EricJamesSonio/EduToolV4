@@ -21,9 +21,26 @@ export class EnrollmentAutoLockService {
     const now = new Date();
     const expired = await this.repo.findExpiredPendingApplications(now);
 
+    // Perf Phase 3: one batched UPDATE instead of one per application.
+    // Re-read the actually-locked rows so audit/count only cover rows this
+    // sweep transitioned (a concurrent sweeper may have taken some first).
+    const { count } = await this.repo.lockManyApplications(
+      expired.map((app) => app.id),
+    );
+    const lockedIds =
+      count === expired.length
+        ? new Set(expired.map((app) => app.id))
+        : new Set(
+            (
+              await this.repo.findLockedApplicationsByIds(
+                expired.map((app) => app.id),
+              )
+            ).map((app) => app.id),
+          );
+
     let lockedCount = 0;
     for (const app of expired) {
-      await this.repo.lockApplication(app.id);
+      if (!lockedIds.has(app.id)) continue;
 
       this.auditLogService
         .logAdminAction({

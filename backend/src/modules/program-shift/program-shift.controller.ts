@@ -1,6 +1,17 @@
 import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { ProgramShiftService } from './program-shift.service';
 import { ShiftProgramDto } from './dto/program-shift.dto';
+
+class ChangeYearDto {
+  @IsString()
+  @IsNotEmpty()
+  levelId!: string;
+
+  @IsOptional()
+  @IsString()
+  sectionId?: string;
+}
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
@@ -19,5 +30,14 @@ export class ProgramShiftController {
     @Body() dto: ShiftProgramDto,
   ) {
     return this.service.shiftProgram(user.org_id, studentSchoolYearId, user.id, dto);
+  }
+
+  @Post('change-year')
+  changeYear(
+    @Param('studentSchoolYearId') studentSchoolYearId: string,
+    @CurrentUser() user: { org_id: string; id: string },
+    @Body() dto: ChangeYearDto,
+  ) {
+    return this.service.changeYear(user.org_id, studentSchoolYearId, user.id, dto);
   }
 }

@@ -50,21 +50,18 @@ export function ActivityLogTab() {
     ...(from    ? { from }    : {}),
     ...(to      ? { to }      : {}),
     ...(classId ? { classId } : {}),
-  }), [from, to, classId]);
+    // Perf Phase 4: exact action match runs server-side (was client .filter).
+    ...(action && action !== "all" ? { action } : {}),
+    page,
+    limit: PAGE_SIZE,
+  }), [from, to, classId, action, page]);
 
-  const { data: raw, isLoading } = useActivityLogs(query);
-
-  const logs = useMemo(() => {
-    const all = Array.isArray(raw) ? raw : [];
-    if (!action || action === "all") return all;
-    return all.filter((l) => l.action === action);
-  }, [raw, action]);
-
-  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
-  const paginated  = useMemo(
-    () => logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [logs, page],
-  );
+  // Perf Phase 4: server-paginated — counts from meta.total, no client
+  // slice/filter over the full history.
+  const { data: pageData, isLoading } = useActivityLogs(query);
+  const logs = useMemo(() => pageData?.data ?? [], [pageData]);
+  const total = pageData?.meta.total ?? 0;
+  const totalPages = Math.max(1, pageData?.meta.totalPages ?? 1);
 
   const clearFilters = useCallback(() => {
     setFrom(""); setTo(""); setAction("all"); setClassId(""); setPage(1);
@@ -165,14 +162,14 @@ export function ActivityLogTab() {
       </div>
 
       <div className="flex items-center justify-between">
-        {!isLoading && logs.length > 0 ? (
+        {!isLoading && total > 0 ? (
           <p className="text-sm text-muted-foreground">
             Showing{" "}
             <span className="font-medium text-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, logs.length)}
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)}
             </span>{" "}
             of{" "}
-            <span className="font-medium text-foreground">{logs.length}</span> entries
+            <span className="font-medium text-foreground">{total}</span> entries
           </p>
         ) : !isLoading ? (
           <p className="text-sm text-muted-foreground">No entries found</p>
@@ -191,7 +188,7 @@ export function ActivityLogTab() {
 
       <DataTable
         columns={columns}
-        data={paginated}
+        data={logs}
         isLoading={isLoading}
         emptyTitle="No activity logs found"
         emptyDescription="No entries match the current filters."

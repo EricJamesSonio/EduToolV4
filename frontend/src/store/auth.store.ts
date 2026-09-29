@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { AuthUser } from "@/types/auth.types";
+import { resetSessionPrompts } from "@/utils/sessionPrompts";
 
 interface AuthState {
   user: AuthUser | null;
@@ -30,12 +31,15 @@ export const useAuthStore = create<AuthStore>()(
 
       setLoading: (isLoading) => set({ isLoading }),
 
-      clearAuth: () =>
+      clearAuth: () => {
+        // New login = new session: let once-per-session prompts show again.
+        resetSessionPrompts();
         set({
           user: null,
           accessToken: null,
           isLoading: false,
-        }),
+        });
+      },
     }),
     {
       name: "auth-store",

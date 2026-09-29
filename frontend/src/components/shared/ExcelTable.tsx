@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, type ReactElement } from "react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -12,7 +13,9 @@ export interface ExcelColumn<T = any> {
   render: (row: T, index: number) => ReactNode;
 }
 
-export function ExcelTable<T extends Record<string, any>>({
+// Perf Phase 7: memoized — grade tables rebuild column defs only when their
+// useMemo inputs change, so identical props skip the rows×cols re-render.
+function ExcelTableInner<T extends Record<string, any>>({
   columns,
   data,
 }: {
@@ -72,3 +75,8 @@ export function ExcelTable<T extends Record<string, any>>({
     </div>
   );
 }
+
+export const ExcelTable = memo(ExcelTableInner) as <T extends Record<string, any>>(props: {
+  columns: ExcelColumn<T>[];
+  data: T[];
+}) => ReactElement | null;

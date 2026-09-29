@@ -14,7 +14,7 @@ describe('AnalyticsService', () => {
     countEducators: jest.fn(),
     countClasses: jest.fn(),
     getEnrollmentBreakdown: jest.fn(),
-    getLockedGrades: jest.fn(),
+    getGradeStats: jest.fn(),
     getEducatorLoad: jest.fn(),
     countUnlockedClasses: jest.fn(),
   };
@@ -126,7 +126,12 @@ describe('AnalyticsService', () => {
   // ── getGradeAnalytics ─────────────────────────────
 
   it('should return empty analytics if no grades', async () => {
-    repo.getLockedGrades.mockResolvedValue([]);
+    repo.getGradeStats.mockResolvedValue({
+      total: 0,
+      averageScore: null,
+      passCount: 0,
+      distribution: {},
+    });
 
     const result = await service.getGradeAnalytics('org1', {}, 'sy1');
 
@@ -137,11 +142,13 @@ describe('AnalyticsService', () => {
   });
 
   it('should calculate passing rate and distribution', async () => {
-    repo.getLockedGrades.mockResolvedValue([
-      { final_score: 80, final_grade: 'A' },
-      { final_score: 70, final_grade: 'B' },
-      { final_score: 90, final_grade: 'A' },
-    ]);
+    // 80/A, 70/B, 90/A → total 3, pass (>=75) 2, distribution A:2 B:1.
+    repo.getGradeStats.mockResolvedValue({
+      total: 3,
+      averageScore: 80,
+      passCount: 2,
+      distribution: { A: 2, B: 1 },
+    });
 
     const result = await service.getGradeAnalytics('org1', {}, 'sy1');
 

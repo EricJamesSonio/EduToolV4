@@ -12,10 +12,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { studentApi } from "@/api/admin/student.api";
 import {
   StudentsTab,
   ClassesTab,
   WeeklyScheduleTab,
+  sectionStudentsKey,
 } from "@/components/admin/section/SectionTabs";
 import type { Section } from "@/types/admin/section.types";
 
@@ -36,6 +39,12 @@ interface SectionDetailViewProps {
   breadcrumbs: Crumb[];
   context?: { label: string; value: React.ReactNode }[];
   notFound?: boolean;
+  /**
+   * Rendered instead of the bare section name. Section names are not unique
+   * across a school year ("A" exists per level/program), so callers pass a
+   * disambiguated title to keep the header from looking like another section.
+   */
+  titleOverride?: string;
 }
 
 export function SectionDetailView({
@@ -48,9 +57,21 @@ export function SectionDetailView({
   breadcrumbs,
   context,
   notFound = false,
+  titleOverride,
 }: SectionDetailViewProps): React.JSX.Element {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("students");
+
+  // Occupancy shown next to the capacity badge is read through the same query
+  // key the Students tab uses, so the header number and the roster below can
+  // never disagree — the historical mismatch came from counting
+  // Profile.metadata.sectionId instead of StudentProgramEnrollment.section_id.
+  const linkedSectionId = section?.id;
+  const { data: roster = [] } = useAsyncQuery(
+    sectionStudentsKey(linkedSectionId ?? "none", schoolYearId),
+    () => studentApi.getAll({ sectionId: linkedSectionId ?? "", schoolYearId }),
+    { enabled: !!linkedSectionId && !!schoolYearId },
+  );
 
   if (isLoading) {
     return (
@@ -82,12 +103,12 @@ export function SectionDetailView({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={section.name}
+        title={titleOverride ?? section.name}
         breadcrumbs={breadcrumbs}
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              Cap. {section.capacity}
+              {roster.length} / {section.capacity} enrolled
             </Badge>
             <button
               onClick={() => router.push(backHref)}

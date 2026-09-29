@@ -24,12 +24,20 @@ export class PrerequisiteSeederService {
         if (!ctx.levelMap[levelKey]) continue;
       }
 
-      const subjectId = ctx.subjectNameToId[s.name];
+      const progKey = deriveProgramKey(s.levelName);
+      // Own scope: its course/strand (major), or the shared bucket (minor).
+      const scopeKey = s.isMinor ? `shared:${progKey}` : (s.courseCode ?? s.strandName ?? progKey);
+      // Fallback scope for prereq names not found in the subject's own
+      // scope — covers a major subject's prereq pointing at a shared minor
+      // (e.g. BSBA's "Business Statistics" → "Mathematics in the Modern World").
+      const fallbackScope = `shared:${progKey}`;
+
+      const subjectId = ctx.getSubjectId(scopeKey, s.name, fallbackScope);
       if (!subjectId) continue;
 
       for (const prereqName of s.prereqNames) {
         const cleanName = prereqName.replace(/\s*\(.*?\)\s*$/, '').trim();
-        const prereqId = ctx.subjectNameToId[cleanName];
+        const prereqId = ctx.getSubjectId(scopeKey, cleanName, fallbackScope);
         if (!prereqId) continue;
 
         await this.db.subjectPrerequisite.upsert({

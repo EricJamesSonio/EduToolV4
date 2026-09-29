@@ -81,7 +81,13 @@ export class SchoolYearReadinessService {
         id: true,
         name: true,
         type: true,
-        _count: { select: { levels: true, courses: true, strands: true } },
+        _count: {
+          select: {
+            levels: { where: { deleted_at: null } },
+            courses: { where: { deleted_at: null } },
+            strands: { where: { deleted_at: null } },
+          },
+        },
       },
     });
 
@@ -104,12 +110,12 @@ export class SchoolYearReadinessService {
 
       if (program.type === 'college') {
         const courses = await this.db.course.findMany({
-          where: { program_id: program.id, org_id: orgId },
+          where: { program_id: program.id, org_id: orgId, deleted_at: null },
           orderBy: { name: 'asc' },
           select: {
             id: true,
             name: true,
-            _count: { select: { levels: true } },
+            _count: { select: { levels: { where: { deleted_at: null } } } },
           },
         });
         for (const course of courses) {
@@ -123,12 +129,12 @@ export class SchoolYearReadinessService {
         }
       } else if (program.type === 'senior_high') {
         const strands = await this.db.strand.findMany({
-          where: { program_id: program.id, org_id: orgId },
+          where: { program_id: program.id, org_id: orgId, deleted_at: null },
           orderBy: { name: 'asc' },
           select: {
             id: true,
             name: true,
-            _count: { select: { levels: true } },
+            _count: { select: { levels: { where: { deleted_at: null } } } },
           },
         });
         for (const strand of strands) {
@@ -143,20 +149,30 @@ export class SchoolYearReadinessService {
       }
     }
 
-    const levels = await this.db.level.findMany({
-      where: { school_year_id: schoolYearId, org_id: orgId },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        _count: {
-          select: {
-            sections: { where: { deleted_at: null } },
-            subjects: true,
-          },
-        },
+const levels = await this.db.level.findMany({
+  where: {
+    school_year_id: schoolYearId,
+    org_id: orgId,
+    deleted_at: null,
+    OR: [
+      { program: { type: 'college' }, course_id: { not: null } },
+      { program: { type: 'senior_high' }, strand_id: { not: null } },
+      {
+        program: { type: { notIn: ['college', 'senior_high'] } },
+        course_id: null,
+        strand_id: null,
       },
-    });
+    ],
+  },
+  orderBy: { name: 'asc' },
+  select: {
+    id: true,
+    name: true,
+    _count: {
+      select: { sections: { where: { deleted_at: null } }, subjects: true },
+    },
+  },
+});
 
     for (const level of levels) {
       this.push(issues, {
@@ -186,11 +202,11 @@ export class SchoolYearReadinessService {
     const levelIds = levels.map((l) => l.id);
     const programIds = programs.map((p) => p.id);
     const courses = await this.db.course.findMany({
-      where: { school_year_id: schoolYearId, org_id: orgId },
+      where: { school_year_id: schoolYearId, org_id: orgId, deleted_at: null },
       select: { id: true, name: true },
     });
     const strands = await this.db.strand.findMany({
-      where: { school_year_id: schoolYearId, org_id: orgId },
+      where: { school_year_id: schoolYearId, org_id: orgId, deleted_at: null },
       select: { id: true, name: true },
     });
     const courseIds = courses.map((c) => c.id);
@@ -383,7 +399,7 @@ export class SchoolYearReadinessService {
     });
     const levelCounts = await this.db.level.groupBy({
       by: ['school_year_id'],
-      where: { org_id: orgId },
+      where: { org_id: orgId, deleted_at: null },
       _count: { _all: true },
     });
     const sectionCounts = await this.db.section.groupBy({

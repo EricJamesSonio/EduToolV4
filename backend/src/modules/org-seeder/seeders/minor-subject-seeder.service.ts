@@ -1,8 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
-import { allMajorSubjects, allMinorSubjects, deriveProgramKey } from '../data/subjects';
+import {
+  allMajorSubjects,
+  allMinorSubjects,
+  deriveProgramKey,
+} from '../data/subjects';
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
+import { findExistingSubject } from '../utils/find-existing-subject.util';
+
+const COLLEGE_MINOR_SCOPE = 'shared:college';
+const SHS_MINOR_SCOPE = 'shared:shs';
 
 @Injectable()
 export class MinorSubjectSeederService {
@@ -37,24 +45,40 @@ export class MinorSubjectSeederService {
 
     for (const s of minors) {
       const excludedFromAll =
-        courseCodes.length > 0 && courseCodes.every((code) => ctx.excludedLevelSubjects[code]?.includes(s.name));
+        courseCodes.length > 0 &&
+        courseCodes.every((code) =>
+          ctx.excludedLevelSubjects[code]?.includes(s.name),
+        );
       if (excludedFromAll) {
         ctx.result.subjects.skipped++;
         continue;
       }
 
-      // No specific level to anchor a department-level minor subject to —
-      // use the first course's first level as a stand-in, matching the
-      // static path's existing "firstCourseCode" convention.
       const firstCourse = profile.courses[0];
-      const levelId = firstCourse ? ctx.levelMap[`${firstCourse.code ?? firstCourse.name}|${firstCourse.levels[0]?.name}`] : null;
+      const levelId = firstCourse
+        ? ctx.levelMap[
+            `${firstCourse.code ?? firstCourse.name}|${firstCourse.levels[0]?.name}`
+          ]
+        : null;
       if (!levelId) {
         ctx.result.subjects.skipped++;
         continue;
       }
 
-      const id = seedId('subject', 'college_ge', 'minor', s.name, ctx.orgId);
-      const existing = await this.db.subject.findFirst({ where: { id } });
+      const id = seedId(
+        'subject',
+        'college_ge',
+        'minor',
+        s.name,
+        ctx.schoolYearId,
+        ctx.orgId,
+      );
+      const existing = await findExistingSubject(this.db, id, {
+        orgId: ctx.orgId,
+        subjectType: 'minor',
+        programId: ctx.programMap['college'],
+        name: s.name,
+      });
 
       let subjectId: string;
       if (existing) {
@@ -78,7 +102,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      ctx.subjectNameToId[s.name] = subjectId;
+      ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId);
 
       for (const [code, courseId] of Object.entries(ctx.courseMap)) {
         if (ctx.excludedLevelSubjects[code]?.includes(s.name)) continue;
@@ -86,7 +110,14 @@ export class MinorSubjectSeederService {
         await this.db.subjectSharing.upsert({
           where: { id: sharingId },
           update: {},
-          create: { id: sharingId, org_id: ctx.orgId, subject_id: subjectId, course_id: courseId, strand_id: null, level_id: null },
+          create: {
+            id: sharingId,
+            org_id: ctx.orgId,
+            subject_id: subjectId,
+            course_id: courseId,
+            strand_id: null,
+            level_id: null,
+          },
         });
       }
     }
@@ -101,14 +132,28 @@ export class MinorSubjectSeederService {
     for (const s of minors) {
       const strandCodes = Object.keys(ctx.strandMap);
       const firstStrand = profile.strands[0];
-      const levelId = firstStrand ? ctx.levelMap[`${firstStrand.name}|${firstStrand.levels[0]?.name}`] : null;
+      const levelId = firstStrand
+        ? ctx.levelMap[`${firstStrand.name}|${firstStrand.levels[0]?.name}`]
+        : null;
       if (!levelId) {
         ctx.result.subjects.skipped++;
         continue;
       }
 
-      const id = seedId('subject', 'shs_minor', 'profile', s.name, ctx.orgId);
-      const existing = await this.db.subject.findFirst({ where: { id } });
+      const id = seedId(
+        'subject',
+        'shs_minor',
+        'profile',
+        s.name,
+        ctx.schoolYearId,
+        ctx.orgId,
+      );
+      const existing = await findExistingSubject(this.db, id, {
+        orgId: ctx.orgId,
+        subjectType: 'minor',
+        programId: ctx.programMap['shs'],
+        name: s.name,
+      });
 
       let subjectId: string;
       if (existing) {
@@ -132,16 +177,29 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      ctx.subjectNameToId[s.name] = subjectId;
+      ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId);
 
       for (const strandName of strandCodes) {
         if (ctx.excludedLevelSubjects[strandName]?.includes(s.name)) continue;
         const strandId = ctx.strandMap[strandName];
-        const sharingId = seedId('sharing', subjectId, strandId, 'profile', ctx.orgId);
+        const sharingId = seedId(
+          'sharing',
+          subjectId,
+          strandId,
+          'profile',
+          ctx.orgId,
+        );
         await this.db.subjectSharing.upsert({
           where: { id: sharingId },
           update: {},
-          create: { id: sharingId, org_id: ctx.orgId, subject_id: subjectId, course_id: null, strand_id: strandId, level_id: null },
+          create: {
+            id: sharingId,
+            org_id: ctx.orgId,
+            subject_id: subjectId,
+            course_id: null,
+            strand_id: strandId,
+            level_id: null,
+          },
         });
       }
     }
@@ -176,8 +234,20 @@ export class MinorSubjectSeederService {
         continue;
       }
 
-      const id = seedId('subject', 'college_ge', 'minor', s.name, ctx.orgId);
-      const existing = await this.db.subject.findFirst({ where: { id } });
+      const id = seedId(
+        'subject',
+        'college_ge',
+        'minor',
+        s.name,
+        ctx.schoolYearId,
+        ctx.orgId,
+      );
+      const existing = await findExistingSubject(this.db, id, {
+        orgId: ctx.orgId,
+        subjectType: 'minor',
+        programId: ctx.programMap['college'],
+        name: s.name,
+      });
 
       let subjectId: string;
       if (existing) {
@@ -201,7 +271,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      ctx.subjectNameToId[s.name] = subjectId;
+      ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId);
 
       for (const [code, courseId] of Object.entries(ctx.courseMap)) {
         const isExcluded = ctx.excludedLevelSubjects[code]?.includes(s.name);
@@ -229,7 +299,6 @@ export class MinorSubjectSeederService {
       (s) => s.isMinor && deriveProgramKey(s.levelName) === 'shs',
     );
 
-    // Pre‑compute which dedupeKeys have at least one strand that selected them
     const strandSelections = new Map<string, Set<string>>();
     for (const s of shsMinorDefs) {
       const dedupeKey = `${s.name}:${s.yearLevel}`;
@@ -277,6 +346,7 @@ export class MinorSubjectSeederService {
           'shs_minor',
           s.yearLevel,
           s.name,
+          ctx.schoolYearId,
           ctx.orgId,
         );
         const existing = await this.db.subject.findFirst({ where: { id } });
@@ -303,7 +373,7 @@ export class MinorSubjectSeederService {
         }
 
         seenShsMinors.set(dedupeKey, subjectId);
-        ctx.subjectNameToId[s.name] = subjectId;
+        ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId);
       }
 
       if (

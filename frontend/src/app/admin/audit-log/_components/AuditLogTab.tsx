@@ -57,16 +57,16 @@ export function AuditLogTab() {
         ? { entityId: search }
         : { actorId: search }
       : {}),
-  }), [from, to, action, entityType, search]);
+    page,
+    limit: PAGE_SIZE,
+  }), [from, to, action, entityType, search, page]);
 
-  const { data: raw, isLoading } = useAuditLogs(query);
-  const logs = useMemo(() => (Array.isArray(raw) ? raw : []), [raw]);
-
-  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
-  const paginated  = useMemo(
-    () => logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [logs, page],
-  );
+  // Perf Phase 4: server-paginated — the table renders the fetched page and
+  // counts come from meta.total (no full-history download + client slice).
+  const { data: pageData, isLoading } = useAuditLogs(query);
+  const logs = useMemo(() => pageData?.data ?? [], [pageData]);
+  const total = pageData?.meta.total ?? 0;
+  const totalPages = Math.max(1, pageData?.meta.totalPages ?? 1);
 
   const clearFilters = useCallback(() => {
     setFrom(""); setTo(""); setAction("all"); setEntityType("all"); setSearch(""); setPage(1);
@@ -185,14 +185,14 @@ export function AuditLogTab() {
       </div>
 
       <div className="flex items-center justify-between">
-        {!isLoading && logs.length > 0 ? (
+        {!isLoading && total > 0 ? (
           <p className="text-sm text-muted-foreground">
             Showing{" "}
             <span className="font-medium text-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, logs.length)}
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)}
             </span>{" "}
             of{" "}
-            <span className="font-medium text-foreground">{logs.length}</span> entries
+            <span className="font-medium text-foreground">{total}</span> entries
           </p>
         ) : !isLoading ? (
           <p className="text-sm text-muted-foreground">No entries found</p>
@@ -211,7 +211,7 @@ export function AuditLogTab() {
 
       <DataTable
         columns={columns}
-        data={paginated}
+        data={logs}
         isLoading={isLoading}
         emptyTitle="No audit logs found"
         emptyDescription="No entries match the current filters."

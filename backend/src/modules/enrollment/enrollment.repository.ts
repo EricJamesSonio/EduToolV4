@@ -134,6 +134,23 @@ export class EnrollmentRepository {
     });
   }
 
+  async countActiveMany(
+    classIds: string[],
+    orgId: string,
+  ): Promise<Map<string, number>> {
+    if (classIds.length === 0) return new Map();
+    const rows = await this.db.enrollment.groupBy({
+      by: ['class_id'],
+      where: {
+        org_id: orgId,
+        class_id: { in: [...new Set(classIds)] },
+        status: 'active',
+      },
+      _count: { _all: true },
+    });
+    return new Map(rows.map((r) => [r.class_id, r._count._all]));
+  }
+
   async updateStatus(id: string, status: string) {
     return this.db.enrollment.update({
       where: { id },

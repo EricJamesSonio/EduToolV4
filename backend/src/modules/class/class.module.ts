@@ -5,7 +5,7 @@ import {
   EducatorClassController,
 } from './class.controller';
 import { ClassService } from './class.service';
-import { ClassRepository } from './class.repository';
+import { ClassCoreModule } from './core/class-core.module';
 import { EnrollmentModule } from '../enrollment/enrollment.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AttendanceModule } from '../attendance/attendance.module';
@@ -15,6 +15,7 @@ import { OrgScheduleConfigModule } from '../org-schedule-config/org-schedule-con
 
 @Module({
   imports: [
+    ClassCoreModule,
     EnrollmentModule,
     AuditLogModule,
     forwardRef(() => AttendanceModule),
@@ -27,7 +28,7 @@ import { OrgScheduleConfigModule } from '../org-schedule-config/org-schedule-con
     StudentClassController,
     EducatorClassController,
   ],
-  providers: [ClassService, ClassRepository],
-  exports: [ClassService, ClassRepository],
+  providers: [ClassService],
+  exports: [ClassService, ClassCoreModule],
 })
 export class ClassModule {}

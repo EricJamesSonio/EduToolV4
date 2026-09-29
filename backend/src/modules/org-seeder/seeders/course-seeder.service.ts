@@ -3,6 +3,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 import { COLLEGE_COURSES, BSED_MAJORS } from '../data/courses.data';
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
+import { restoreCourseIfArchived } from '@/commons/utils/seed-restore';
 
 @Injectable()
 export class CourseSeederService {
@@ -27,7 +28,12 @@ export class CourseSeederService {
 
       if (existing) {
         ctx.courseMap[c.code] = existing.id;
-        ctx.result.courses.already_exists++;
+        // Re-seeding an archived course un-archives it (never leaves it hidden).
+        if (await restoreCourseIfArchived(this.db, existing.id)) {
+          ctx.result.courses.seeded++;
+        } else {
+          ctx.result.courses.already_exists++;
+        }
       } else {
         const rec = await this.db.course.create({
           data: {

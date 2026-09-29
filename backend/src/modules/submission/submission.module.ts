@@ -7,6 +7,7 @@ import { AssessmentModule } from '../assessment/assessment.module';
 import { AssessmentCoreModule } from '../assessment/core/assessment-core.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { GradeEducatorModule } from '../grade/educator/grade-educator.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { GradeEducatorModule } from '../grade/educator/grade-educator.module';
     AssessmentCoreModule,
     AttendanceModule,
     GradeEducatorModule,
+    NotificationModule,
   ],
   controllers: [SubmissionController],
   providers: [SubmissionService, SubmissionRepository],

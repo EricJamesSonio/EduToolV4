@@ -64,10 +64,26 @@ export class CreateSemesterDto {
   @IsUUID()
   schoolYearId: string;
 
+  /**
+   * A Semester belongs to exactly one program — its dates and terms are
+   * that program's own calendar, not something shared across departments.
+   */
+  @IsUUID()
+  programId: string;
+
+  /**
+   * Which slot in the program's assigned SemesterTemplate this Semester
+   * fulfills (e.g. the template's "1st Semester" item for a regular 2-sem
+   * program, or one of three items for a tri-sem program). This — not
+   * `name` — is what resolution/lookup uses going forward.
+   */
+  @IsUUID()
+  templateSemesterId: string;
+
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  name: string; // e.g. "1st Semester", "2nd Semester"
+  name: string; // display label only, e.g. "1st Semester" — pre-filled from the template slot's own name, editable
 
   @IsDateString()
   startDate: string;
@@ -85,6 +101,10 @@ export class CreateSemesterDto {
 // ── PATCH /semester-settings/:id ─────────────────────────────────────────────
 
 export class UpdateSemesterDto {
+  // programId / templateSemesterId are identity fields set at creation and
+  // are not editable afterward — changing which program/slot a Semester
+  // fulfills means creating a new one, not patching this one.
+
   @IsOptional()
   @IsString()
   @MinLength(1)

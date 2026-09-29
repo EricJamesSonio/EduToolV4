@@ -17,12 +17,12 @@ export function buildFullEmail(
   let domain: string;
 
   if (firstDot === -1) {
-    domain = `${base}.${role}`;
+    domain = `${role}.${base}`;
   } else {
     const before = base.slice(0, firstDot);
     const after = base.slice(firstDot);
 
-    domain = `${before}.${role}${after}`;
+    domain = `${role}.${before}${after}`;
   }
 
   return `${cleanUsername}@${domain}`;

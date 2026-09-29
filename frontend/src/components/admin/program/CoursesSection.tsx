@@ -1,21 +1,17 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, BookOpen } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { useDeleteCourse } from "@/hooks/admin/useCourses";
 import { CourseDialog } from "./CourseDialog";
-import { ProgramLevelsSection } from "./ProgramLevelsSection";
+import { ProgramUnitCard } from "./ProgramUnitCard";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { CardGrid } from "@/components/shared/CardGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  listItemCardClass,
-  listItemIconClass,
-  listItemTitleClass,
-} from "@/components/shared/ListItemCard";
-import { cn } from "@/lib/utils";
 import type { CourseSnapshot, Program } from "@/types/admin/program.types";
 
 interface CoursesSectionProps {
@@ -31,6 +27,7 @@ export function CoursesSection({
   courses,
   isEnded,
 }: CoursesSectionProps): React.JSX.Element {
+  const router = useRouter();
   const [dialog, setDialog] = useState<{
     mode: "create" | "edit";
     course?: { id: string; name: string; code: string | null };
@@ -62,11 +59,7 @@ export function CoursesSection({
           </Badge>
         </div>
         {!isEnded && (
-          <Button
-            size="sm"
-            className="h-8 text-xs px-3"
-            onClick={() => setDialog({ mode: "create" })}
-          >
+          <Button size="sm" className="h-8 text-xs px-3" onClick={() => setDialog({ mode: "create" })}>
             <Plus className="mr-1 h-3.5 w-3.5" />
             Add Course
           </Button>
@@ -86,58 +79,28 @@ export function CoursesSection({
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <CardGrid count={courses.length}>
           {courses.map((course) => (
-            <div key={course.id} className={cn(listItemCardClass, "p-3 sm:p-5 sm:space-y-4 lg:p-6")}>
-              <div className="flex items-start gap-3">
-                <div className={cn(listItemIconClass, "bg-[#BFDBFE] text-[#0B1E3A] border-[#93C5FD]", "mt-0.5")}>
-                  <BookOpen className="h-4.5 w-4.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className={cn(listItemTitleClass, "truncate not-interactive")}>{course.name}</h3>
-                  {course.code && (
-                    <Badge variant="outline" className="text-xs font-mono mt-1">
-                      {course.code}
-                    </Badge>
-                  )}
-                </div>
-                {!isEnded && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() =>
-                        setDialog({
-                          mode: "edit",
-                          course: { id: course.id, name: course.name, code: course.code },
-                        })
-                      }
-                      className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      title="Edit course"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(course)}
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Delete course"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Levels scoped to this course */}
-              <div className="border-t pt-4">
-                <ProgramLevelsSection
-                  programId={program.id}
-                  schoolYearId={schoolYearId}
-                  programType={program.type}
-                  courseId={course.id}
-                />
-              </div>
-            </div>
+            <ProgramUnitCard
+              key={course.id}
+              name={course.name}
+              code={course.code}
+              icon={BookOpen}
+              iconClass="bg-[#BFDBFE] text-[#0B1E3A] border-[#93C5FD]"
+              levelCount={course.levelCount ?? 0}
+              sectionCount={course.sectionCount ?? 0}
+              isEnded={isEnded}
+              onView={() => router.push(`/admin/programs/${program.id}/courses/${course.id}`)}
+              onEdit={() =>
+                setDialog({
+                  mode: "edit",
+                  course: { id: course.id, name: course.name, code: course.code },
+                })
+              }
+              onDelete={() => setDeleteTarget(course)}
+            />
           ))}
-        </div>
+        </CardGrid>
       )}
 
       {dialog && (

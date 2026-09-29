@@ -91,32 +91,46 @@ export class GradeLockValidator {
 
     const enrolledIds = cls.enrollments.map((e: any) => e.student_id);
 
-    // 2. Build student name map
-    const nameMap =
-      enrolledIds.length > 0
-        ? await this.gradeRepo.findStudentProfiles(enrolledIds)
-        : new Map<string, { name: string; code: string }>();
+    // 2-4. Student names, scheme, and all term data in parallel. Assessments
+    // and submissions load class-wide once (grouped by term in memory)
+    // instead of 2 sequential queries per term (Perf Phase 3).
+    const [nameMap, scheme, terms, termAssessments, termSubmissions] =
+      await Promise.all([
+        enrolledIds.length > 0
+          ? this.gradeRepo.findStudentProfiles(enrolledIds)
+          : Promise.resolve(new Map<string, { name: string; code: string }>()),
+        this.gradeRepo.findGradingSchemeForClass(classId, orgId),
+        this.gradeRepo.findTemplateTermsByClass(classId, orgId),
+        this.gradeRepo.findClassAssessments(classId, orgId),
+        this.gradeRepo.findSubmissionsForClass(classId, orgId),
+      ]);
 
     // 3. Grading scheme components (non-optional)
-    const scheme = await this.gradeRepo.findGradingSchemeForClass(
-      classId,
-      orgId,
-    );
     const nonOptionalComponents =
       scheme?.components?.filter((c: any) => !c.is_optional) ?? [];
 
-    // 4. All terms for this class
-    const terms = await this.gradeRepo.findTemplateTermsByClass(classId, orgId);
+    const assessmentsByTerm = new Map<string, typeof termAssessments>();
+    const termByAssessment = new Map<string, string>();
+    for (const assessment of termAssessments) {
+      termByAssessment.set(assessment.id, assessment.term_id);
+      const list = assessmentsByTerm.get(assessment.term_id);
+      if (list) list.push(assessment);
+      else assessmentsByTerm.set(assessment.term_id, [assessment]);
+    }
+    const submissionsByTerm = new Map<string, typeof termSubmissions>();
+    for (const submission of termSubmissions) {
+      const termId = termByAssessment.get(submission.assessment_id);
+      if (!termId) continue;
+      const list = submissionsByTerm.get(termId);
+      if (list) list.push(submission);
+      else submissionsByTerm.set(termId, [submission]);
+    }
 
     // 5. Track which component categories have at least one assessment
     const coveredCategories = new Set<string>();
 
     for (const term of terms) {
-      const assessments = await this.gradeRepo.findAssessmentsForTerm(
-        classId,
-        term.id,
-        orgId,
-      );
+      const assessments = assessmentsByTerm.get(term.id) ?? [];
       if (assessments.length === 0) continue;
 
       // Mark covered categories
@@ -125,11 +139,7 @@ export class GradeLockValidator {
       }
 
       // Get submissions for this term
-      const submissions = await this.gradeRepo.findSubmissionsForTerm(
-        classId,
-        term.id,
-        orgId,
-      );
+      const submissions = submissionsByTerm.get(term.id) ?? [];
 
       // Group non-draft submissions by (student_id, assessment_id)
       const nonDraftSubs = new Set<string>();

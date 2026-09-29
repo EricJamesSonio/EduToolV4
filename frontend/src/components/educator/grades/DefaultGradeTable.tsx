@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, memo } from "react";
 import { Loader2, Lock } from "lucide-react";
 import { ExcelTable, ExcelColumn } from "@/components/shared/ExcelTable";
 import { cn } from "@/lib/utils";
@@ -10,7 +11,7 @@ import { ManualCell } from "./ManualCell";
 import { useAssessmentStatusOverride } from "@/hooks/educator/useGrades";
 import { gradeColor, fmt } from "./utils";
 
-export function DefaultGradeTable({
+export function DefaultGradeTableInner({
   classId,
   termData,
   onManualCommit,
@@ -29,40 +30,76 @@ export function DefaultGradeTable({
 }) {
   const { students } = termData;
   const overrideMutation = useAssessmentStatusOverride(classId, termData.termId);
-  if (students.length === 0) return <EmptyState />;
 
-  const allAssessments = Array.from(
-    new Map(
-      students.flatMap((s) =>
-        s.assessmentScores.map((a) => [
-          a.assessmentId,
-          { id: a.assessmentId, type: a.type, title: a.title, created_at: a.created_at ?? null },
-        ])
-      )
-    ).values()
-  ).sort((a, b) => {
-    if (!a.created_at && !b.created_at) return 0;
-    if (!a.created_at) return 1;
-    if (!b.created_at) return -1;
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-  });
-
-  const manualCats = Array.from(
-    new Set(
-      students.flatMap((s) =>
-        s.categoryBreakdown
-          .filter((c) => c.manualScore !== null)
-          .map((c) => c.category)
-      )
-    )
+  // Perf Phase 7: derived columns memoized; per-student score/category maps
+  // make cell render O(1) (was .find() per cell). Hooks stay above the empty
+  // early-return so hook order is unconditional.
+  const allAssessments = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          students.flatMap((s) =>
+            s.assessmentScores.map((a) => [
+              a.assessmentId,
+              { id: a.assessmentId, type: a.type, title: a.title, created_at: a.created_at ?? null },
+            ])
+          )
+        ).values()
+      ).sort((a, b) => {
+        if (!a.created_at && !b.created_at) return 0;
+        if (!a.created_at) return 1;
+        if (!b.created_at) return -1;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }),
+    [students]
   );
 
-  const columns: ExcelColumn<StudentGrade>[] = [
-    {
-      key: "student",
-      label: "Student",
-      width: 200,
-      sticky: true,
+  const manualCats = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          students.flatMap((s) =>
+            s.categoryBreakdown
+              .filter((c) => c.manualScore !== null)
+              .map((c) => c.category)
+          )
+        )
+      ),
+    [students]
+  );
+
+  const scoresByStudent = useMemo(() => {
+    const map = new Map<string, Map<string, StudentGrade["assessmentScores"][number]>>();
+    for (const s of students) {
+      const byAssessment = new Map<string, StudentGrade["assessmentScores"][number]>();
+      for (const a of s.assessmentScores) {
+        if (!byAssessment.has(a.assessmentId)) byAssessment.set(a.assessmentId, a);
+      }
+      map.set(s.studentId, byAssessment);
+    }
+    return map;
+  }, [students]);
+
+  const breakdownByStudent = useMemo(() => {
+    const map = new Map<string, Map<string, StudentGrade["categoryBreakdown"][number]>>();
+    for (const s of students) {
+      const byCat = new Map<string, StudentGrade["categoryBreakdown"][number]>();
+      for (const c of s.categoryBreakdown) {
+        const key = c.category.toLowerCase();
+        if (!byCat.has(key)) byCat.set(key, c);
+      }
+      map.set(s.studentId, byCat);
+    }
+    return map;
+  }, [students]);
+
+  const columns: ExcelColumn<StudentGrade>[] = useMemo(
+    () => [
+      {
+        key: "student",
+        label: "Student",
+        width: 200,
+        sticky: true,
         render: (student) => {
           const isSaving = saving.has(student.studentId);
           return (
@@ -85,7 +122,7 @@ export function DefaultGradeTable({
       label: a.title ?? a.type,
       width: 80,
       render: (student: StudentGrade) => {
-        const score = student.assessmentScores.find((s) => s.assessmentId === a.id);
+        const score = scoresByStudent.get(student.studentId)?.get(a.id);
         return (
           <div className="flex justify-center">
             <StatusCell
@@ -120,9 +157,7 @@ export function DefaultGradeTable({
       label: cat,
       width: 75,
       render: (student: StudentGrade) => {
-        const breakdown = student.categoryBreakdown.find(
-          (c) => c.category.toLowerCase() === cat.toLowerCase()
-        );
+        const breakdown = breakdownByStudent.get(student.studentId)?.get(cat.toLowerCase());
         return (
           <ManualCell
             value={breakdown?.manualScore ?? null}
@@ -154,7 +189,24 @@ export function DefaultGradeTable({
         )
       ),
     },
-  ];
+    ],
+    [
+      allAssessments,
+      manualCats,
+      scoresByStudent,
+      breakdownByStudent,
+      classId,
+      saving,
+      isLocked,
+      onManualCommit,
+      onRefresh,
+      overrideMutation,
+    ]
+  );
+
+  if (students.length === 0) return <EmptyState />;
 
   return <ExcelTable columns={columns} data={students} />;
 }
+
+export const DefaultGradeTable = memo(DefaultGradeTableInner);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, memo } from "react";
 import { Lock } from "lucide-react";
 import { ExcelTable, ExcelColumn } from "@/components/shared/ExcelTable";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,11 @@ import { ManualCell } from "./ManualCell";
 import { StudentCategoryDrillDown } from "./StudentCategoryDrillDown";
 import { gradeColor, fmt } from "./utils";
 
-export function CleanGradeTable({
+// Perf Phase 7: derived columns/categories memoized on [students, isLocked,
+// onManualCommit]; per-student breakdown indexed once in a Map so cell render
+// is O(1) instead of O(C) .find() (was O(S·C²) per render). Hooks stay above
+// the empty early-return so hook order is unconditional.
+function CleanGradeTableInner({
   termData,
   onManualCommit,
   isLocked,
@@ -21,24 +25,41 @@ export function CleanGradeTable({
 }) {
   const { students } = termData;
   const [drillDown, setDrillDown] = useState<{ student: StudentGrade; category: string } | null>(null);
-  if (students.length === 0) return <EmptyState />;
 
-  const allCategories = Array.from(
-    new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category)))
-  ).filter((cat) => {
-    return students.some((s) => {
-      const bd = s.categoryBreakdown.find((c) => c.category === cat);
-      return bd?.type !== 'manual' || bd?.manualScore != null;
-    });
-  });
+  const allCategories = useMemo(
+    () =>
+      Array.from(
+        new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category)))
+      ).filter((cat) => {
+        return students.some((s) => {
+          const bd = s.categoryBreakdown.find((c) => c.category === cat);
+          return bd?.type !== 'manual' || bd?.manualScore != null;
+        });
+      }),
+    [students]
+  );
 
-  const columns: ExcelColumn<StudentGrade>[] = [
-    {
-      key: "student",
-      label: "Student",
-      width: 200,
-      sticky: true,
-      render: (student) => (
+  const breakdownByStudent = useMemo(() => {
+    const map = new Map<string, Map<string, StudentGrade["categoryBreakdown"][number]>>();
+    for (const s of students) {
+      const byCat = new Map<string, StudentGrade["categoryBreakdown"][number]>();
+      for (const c of s.categoryBreakdown) {
+        const key = c.category.toLowerCase();
+        if (!byCat.has(key)) byCat.set(key, c);
+      }
+      map.set(s.studentId, byCat);
+    }
+    return map;
+  }, [students]);
+
+  const columns: ExcelColumn<StudentGrade>[] = useMemo(
+    () => [
+      {
+        key: "student",
+        label: "Student",
+        width: 200,
+        sticky: true,
+        render: (student) => (
           <div className="flex items-center gap-1">
             <div className="w-5 h-5 rounded-full bg-[#BFDBFE] border border-[#93C5FD] flex items-center justify-center text-[9px] font-bold text-[#0B1E3A] shrink-0">
               {student.studentName.charAt(0).toUpperCase()}
@@ -56,9 +77,7 @@ export function CleanGradeTable({
       label: cat,
       width: 85,
       render: (student: StudentGrade) => {
-        const bd = student.categoryBreakdown.find(
-          (c) => c.category.toLowerCase() === cat.toLowerCase()
-        );
+        const bd = breakdownByStudent.get(student.studentId)?.get(cat.toLowerCase());
         const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
         if (isManual) {
           return (
@@ -101,7 +120,11 @@ export function CleanGradeTable({
         )
       ),
     },
-  ];
+    ],
+    [allCategories, breakdownByStudent, isLocked, onManualCommit]
+  );
+
+  if (students.length === 0) return <EmptyState />;
 
   return (
     <>
@@ -114,3 +137,5 @@ export function CleanGradeTable({
     </>
   );
 }
+
+export const CleanGradeTable = memo(CleanGradeTableInner);

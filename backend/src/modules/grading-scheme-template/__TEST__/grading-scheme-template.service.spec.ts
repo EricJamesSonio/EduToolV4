@@ -6,6 +6,7 @@ describe('GradingSchemeTemplateService', () => {
   let repo: any;
   let gradingSchemeRepo: any;
   let db: any;
+  let gradeRefresh: any;
   const orgId = 'org-1';
   const templateId = 'tmpl-1';
 
@@ -33,10 +34,13 @@ describe('GradingSchemeTemplateService', () => {
       gradingScheme: { findMany: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn() },
       gradingSchemeComponent: { deleteMany: jest.fn() },
       gradingSchemeTemplate: { findMany: jest.fn() },
+      gradingSchemeProgramAssignment: { findFirst: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
       program: { findMany: jest.fn(), findFirst: jest.fn() },
       class: { findMany: jest.fn() },
+      assessment: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    service = new GradingSchemeTemplateService(repo, gradingSchemeRepo, db);
+    gradeRefresh = { refreshClassGrades: jest.fn().mockResolvedValue({ computed: 0, skippedLocked: 0, terms: 0 }) };
+    service = new GradingSchemeTemplateService(repo, gradingSchemeRepo, db, gradeRefresh);
     jest.clearAllMocks();
   });
 
@@ -118,21 +122,78 @@ describe('GradingSchemeTemplateService', () => {
       db.program.findFirst.mockResolvedValue({ type: 'shs' });
       await expect(service.applyToProgram(orgId, { templateId, programId: 'prog-1' } as any)).rejects.toBeInstanceOf(BadRequestException);
     });
-    it('returns 0 when no classes for program', async () => {
+    it('persists the department default even when no classes exist', async () => {
       repo.findById.mockResolvedValue({ id: templateId, programType: null, name: 'T', components: validComponents });
-      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      db.program.findFirst.mockResolvedValue({ type: 'college', school_year_id: 'sy-1' });
       gradingSchemeRepo.findClassIdsByProgram.mockResolvedValue([]);
       const res = await service.applyToProgram(orgId, { templateId, programId: 'prog-1' } as any);
-      expect(res).toEqual({ success: true, appliedCount: 0 });
+      expect(db.gradingSchemeProgramAssignment.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { program_id_school_year_id: { program_id: 'prog-1', school_year_id: 'sy-1' } },
+        }),
+      );
+      expect(res).toEqual({ success: true, appliedCount: 0, skippedCount: 0 });
     });
-    it('applies to each class', async () => {
+    it('applies to each class by default (overwrite)', async () => {
       repo.findById.mockResolvedValue({ id: templateId, programType: null, name: 'T', components: validComponents });
-      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      db.program.findFirst.mockResolvedValue({ type: 'college', school_year_id: 'sy-1' });
       gradingSchemeRepo.findClassIdsByProgram.mockResolvedValue(['class-1', 'class-2']);
       gradingSchemeRepo.upsertForClass.mockResolvedValue({});
       const res = await service.applyToProgram(orgId, { templateId, programId: 'prog-1' } as any);
       expect(gradingSchemeRepo.upsertForClass).toHaveBeenCalledTimes(2);
-      expect(res.appliedCount).toBe(2);
+      expect(res).toEqual({ success: true, appliedCount: 2, skippedCount: 0 });
+    });
+    it('overwriteExisting=false skips classes that already have a scheme', async () => {
+      repo.findById.mockResolvedValue({ id: templateId, programType: null, name: 'T', components: validComponents });
+      db.program.findFirst.mockResolvedValue({ type: 'college', school_year_id: 'sy-1' });
+      gradingSchemeRepo.findClassIdsByProgram.mockResolvedValue(['class-1', 'class-2', 'class-3']);
+      db.gradingScheme.findMany.mockResolvedValue([{ class_id: 'class-1' }, { class_id: 'class-3' }]);
+      gradingSchemeRepo.upsertForClass.mockResolvedValue({});
+      const res = await service.applyToProgram(orgId, { templateId, programId: 'prog-1', overwriteExisting: false } as any);
+      expect(gradingSchemeRepo.upsertForClass).toHaveBeenCalledTimes(1);
+      expect(gradingSchemeRepo.upsertForClass).toHaveBeenCalledWith(
+        orgId, 'class-2', templateId, expect.anything(), expect.anything(),
+      );
+      expect(res).toEqual({ success: true, appliedCount: 1, skippedCount: 2 });
+      // default is still persisted so future classes inherit
+      expect(db.gradingSchemeProgramAssignment.upsert).toHaveBeenCalled();
+    });
+  });
+
+  describe('program default resolution', () => {
+    it('resolves the stored default even with zero classes', async () => {
+      db.program.findMany.mockResolvedValue([{ id: 'prog-1', name: 'College', type: 'college' }]);
+      gradingSchemeRepo.findClassIdsByProgram.mockResolvedValue([]);
+      db.gradingSchemeProgramAssignment.findFirst.mockResolvedValue({
+        template: { id: templateId, name: 'College Scheme' },
+      });
+      const res = await service.getProgramAssignments(orgId, 'sy-1');
+      expect(res).toEqual([
+        expect.objectContaining({ programId: 'prog-1', templateId, templateName: 'College Scheme' }),
+      ]);
+    });
+    it('falls back to class-derived majority when no stored default', async () => {
+      db.program.findMany.mockResolvedValue([{ id: 'prog-1', name: 'College', type: 'college' }]);
+      gradingSchemeRepo.findClassIdsByProgram.mockResolvedValue(['class-1']);
+      db.gradingSchemeProgramAssignment.findFirst.mockResolvedValue(null);
+      db.gradingScheme.findMany.mockResolvedValue([
+        { template_id: templateId, created_at: new Date() },
+      ]);
+      repo.findById.mockResolvedValue({ id: templateId, name: 'College Scheme' });
+      const res = await service.getProgramAssignments(orgId, 'sy-1');
+      expect(res[0].templateId).toBe(templateId);
+    });
+  });
+
+  describe('removeProgramAssignment', () => {
+    it('clears the stored default even when the program has no classes', async () => {
+      gradingSchemeRepo.findClassIdsByProgram.mockResolvedValue([]);
+      db.gradingSchemeProgramAssignment.findFirst.mockResolvedValue(null);
+      const res = await service.removeProgramAssignment(orgId, 'prog-1', 'sy-1');
+      expect(db.gradingSchemeProgramAssignment.deleteMany).toHaveBeenCalledWith(
+        { where: { org_id: orgId, program_id: 'prog-1', school_year_id: 'sy-1' } },
+      );
+      expect(res).toEqual({ success: true, removedCount: 0 });
     });
   });
 
@@ -148,6 +209,19 @@ describe('GradingSchemeTemplateService', () => {
       // resolveProgramTemplate will return null because no classIds
       await service.autoApplyForNewClass(orgId, 'class-1', 'prog-1', 'sy-1', 'college');
       expect(gradingSchemeRepo.upsertForClass).not.toHaveBeenCalled();
+    });
+    it('inherits the stored department default for a new class', async () => {
+      gradingSchemeRepo.findByClassId.mockResolvedValue(null);
+      gradingSchemeRepo.findClassIdsByProgram.mockResolvedValue([]);
+      db.gradingSchemeProgramAssignment.findFirst.mockResolvedValue({
+        template: { id: templateId, name: 'T' },
+      });
+      repo.findById.mockResolvedValue({ id: templateId, programType: 'college', name: 'T', components: validComponents });
+      gradingSchemeRepo.upsertForClass.mockResolvedValue({});
+      await service.autoApplyForNewClass(orgId, 'class-9', 'prog-1', 'sy-1', 'college');
+      expect(gradingSchemeRepo.upsertForClass).toHaveBeenCalledWith(
+        orgId, 'class-9', templateId, 'T', expect.anything(),
+      );
     });
   });
 

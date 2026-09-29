@@ -77,17 +77,17 @@ getByStrand: async (
     return res.data.data;
   },
 
-  updateOne: async (id: string, name: string): Promise<Level> => {
+  updateOne: async (id: string, count: number): Promise<Level> => {
     const res = await client.patch<{ success: boolean; data: Level }>(
       `/levels/${id}`,
-      { name }
+      { count }
     );
     return res.data.data;
   },
 
   create: async (data: {
     programId: string;
-    name: string;
+    count: number;
     schoolYearId: string;
     courseId?: string;
     strandId?: string;
@@ -99,8 +99,12 @@ getByStrand: async (
     return res.data.data;
   },
 
-  deleteOne: async (id: string): Promise<void> => {
-    await client.delete(`/levels/${id}`);
+  deleteOne: async (id: string): Promise<"deleted" | "archived"> => {
+    const res = await client.delete<{
+      success: boolean;
+      data: "deleted" | "archived";
+    }>(`/levels/${id}`);
+    return res.data.data;
   },
 
   bulkGenerate: async (data: {

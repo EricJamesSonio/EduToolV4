@@ -31,10 +31,11 @@ export function PresentationView({
 }: PresentationViewProps) {
   return (
     <div className="flex-1 relative overflow-hidden">
-      <PresentationOverlay
-        presentation={presentation}
-        currentSlideIndex={currentSlide}
-        onChangeSlide={onChangeSlide}
+<PresentationOverlay
+  presentation={presentation}
+  currentSlideIndex={currentSlide}
+  onChangeSlide={onChangeSlide}
+  showSlideList
         mobileSlidesOpen={mobileSlidesOpen}
         onCloseMobileSlides={onCloseMobileSlides}
         remoteUsers={remoteUsers}

@@ -11,6 +11,10 @@ export interface TermInput {
 
 export interface CreateSemesterRequest {
   schoolYearId: string;
+  /** The program this semester belongs to — its own dates/terms, not shared with any other department. */
+  programId: string;
+  /** Which slot in that program's assigned template this semester fulfills. */
+  templateSemesterId: string;
   name: string;
   startDate: string;
   endDate: string;
@@ -18,10 +22,22 @@ export interface CreateSemesterRequest {
 }
 
 export interface UpdateSemesterRequest {
+  // programId / templateSemesterId are not editable after creation.
   name?: string;
   startDate?: string;
   endDate?: string;
   terms?: TermInput[];
+}
+
+/** One semester slot defined by a program's assigned template, e.g. "1st Semester" (or 3 slots for a tri-sem program). */
+export interface SemesterSlot {
+  templateSemesterId: string;
+  name: string;
+  orderIndex: number;
+  /** Set once a Semester has actually been created for this slot in the given school year. */
+  existingSemesterId: string | null;
+  startDate: string | null;
+  endDate: string | null;
 }
 
 interface TermResponse {
@@ -35,6 +51,7 @@ interface TermResponse {
 interface SemesterResponse {
   id: string;
   school_year_id: string;
+  program_id: string;
   name: string;
   start_date: string;
   end_date: string;
@@ -50,6 +67,7 @@ interface ApiListResponse<T> {
 const mapSemester = (data: SemesterResponse): Semester => ({
   id: data.id,
   schoolYearId: data.school_year_id,
+  programId: data.program_id,
   name: data.name,
   startDate: data.start_date,
   endDate: data.end_date,
@@ -79,6 +97,15 @@ export const semesterApi = {
     });
     const list = res.data.data ?? res.data;
     return Array.isArray(list) ? list.map(mapSemester) : [];
+  },
+
+  /** Slots this program's assigned template defines, with which ones already have a Semester created. */
+  getSemesterSlots: async (programId: string, schoolYearId: string): Promise<SemesterSlot[]> => {
+    const res = await client.get<ApiListResponse<SemesterSlot[]>>(`/programs/${programId}/semester-slots`, {
+      params: { schoolYearId },
+    });
+    const list = res.data.data ?? res.data;
+    return Array.isArray(list) ? list : [];
   },
 
   create: async (data: CreateSemesterRequest): Promise<Semester> => {

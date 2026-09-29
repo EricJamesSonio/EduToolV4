@@ -26,4 +26,16 @@ export const programShiftApi = {
     );
     return res.data.data;
   },
+
+  changeYear: async (
+    schoolYearId: string,
+    studentSchoolYearId: string,
+    data: { levelId: string; sectionId?: string },
+  ): Promise<unknown> => {
+    const res = await client.post<ApiResponse<unknown>>(
+      `/school-years/${schoolYearId}/enrollments/${studentSchoolYearId}/shift/change-year`,
+      data,
+    );
+    return res.data.data;
+  },
 };

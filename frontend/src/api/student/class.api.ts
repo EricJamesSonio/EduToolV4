@@ -20,6 +20,7 @@ export interface StudentClassItem {
     schoolYearId: string;
     semesterId: string;
     capacity: number;
+    enrolledCount?: number;
     schedules: StudentClassSchedule[];
   };
 }
@@ -38,6 +39,10 @@ function normalizeSchedules(
 function normalizeItem(raw: Record<string, unknown>): StudentClassItem {
   const cls = (raw.class ?? raw) as Record<string, unknown>;
   const rawSchedules = Array.isArray(cls.schedules) ? cls.schedules : [];
+  const countRaw =
+    cls.enrolledCount ?? cls.enrolled_count ?? (cls._count as Record<string, unknown> | undefined)?.enrollments;
+  const enrolledCount =
+    typeof countRaw === "number" && Number.isFinite(countRaw) ? countRaw : undefined;
   return {
     enrollmentId: raw.enrollmentId as string,
     enrollmentStatus: raw.enrollmentStatus as string,
@@ -51,6 +56,7 @@ function normalizeItem(raw: Record<string, unknown>): StudentClassItem {
       schoolYearId: cls.schoolYearId as string,
       semesterId: cls.semesterId as string,
       capacity: cls.capacity as number,
+      enrolledCount,
       schedules: normalizeSchedules(rawSchedules),
     },
   };

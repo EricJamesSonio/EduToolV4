@@ -24,6 +24,11 @@ interface SubjectStepProps {
   courseSubjectsOverride?: Record<string, string[]>
   strandSubjectsOverride?: Record<string, string[]>
   levelDefsOverride?: Record<string, string[]>
+  // Profile-derived minor-subject names. When present, these win over the
+  // static COLLEGE_GE_SET/SHS_MINOR_SET fallbacks so a custom minor subject
+  // added in School Profile still gets tagged "minor" correctly here.
+  collegeMinorNamesOverride?: Set<string>
+  shsMinorNamesOverride?: Set<string>
 }
 
 function SubjectTypeTag({ type }: { type: "major" | "minor" }) {
@@ -43,7 +48,7 @@ export function SubjectStep({
   selectedPrograms, selectedLevels, selectedStrands, selectedCourses, selectedSubjects,
   disabledSubjectTitles, onToggleSubject, onSelectAllForGroup, onDeselectAllForGroup,
   allSelectableSubjects, levelSubjectsOverride, courseSubjectsOverride, strandSubjectsOverride,
-  levelDefsOverride,
+  levelDefsOverride, collegeMinorNamesOverride, shsMinorNamesOverride,
 }: SubjectStepProps) {
   if (allSelectableSubjects.length === 0) return null
 
@@ -170,7 +175,7 @@ export function SubjectStep({
             `SHS – ${strand}`,
             strand,
             strandSubjectsOverride?.[strand] ?? SHS_STRAND_SUBJECTS[strand] ?? [],
-            SHS_MINOR_SET,
+            shsMinorNamesOverride ?? SHS_MINOR_SET,
             (name) => SHS_MINOR_LEVEL[name] ?? SHS_MAJOR_YEARS[strand]?.[name],
           ),
         )}
@@ -182,7 +187,7 @@ export function SubjectStep({
             `${code} Subjects`,
             code,
             courseSubjectsOverride?.[code] ?? COURSE_SUBJECTS[code] ?? [],
-            COLLEGE_GE_SET,
+            collegeMinorNamesOverride ?? COLLEGE_GE_SET,
             (name) => COLLEGE_GE_LEVEL[name] ?? COURSE_SUBJECT_YEARS[code]?.[name],
           ),
         )}

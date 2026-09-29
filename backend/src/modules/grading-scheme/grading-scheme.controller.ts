@@ -58,15 +58,16 @@ export class GradingSchemeController {
     return this.service.create(orgId, dto);
   }
 
-  // educator/admin: update existing scheme
+  // educator/admin: update existing scheme (allowed even with assessments)
   @Patch(':id')
   @Roles('admin', 'educator')
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: UpdateGradingSchemeDto,
   ) {
-    return this.service.update(id, orgId, dto);
+    return this.service.update(id, orgId, dto, actorId);
   }
 
   // admin: apply a template to a single class
@@ -74,9 +75,10 @@ export class GradingSchemeController {
   @Roles('admin')
   async applyToClass(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: ApplyTemplateToClassDto,
   ) {
-    return this.service.applyTemplateToClass(orgId, dto);
+    return this.service.applyTemplateToClass(orgId, dto, actorId);
   }
 
   // admin: bulk apply a template to all classes under a program
@@ -85,8 +87,9 @@ export class GradingSchemeController {
   @HttpCode(HttpStatus.OK)
   async applyToProgram(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: ApplyTemplateToProgramDto,
   ) {
-    return this.service.applyTemplateToProgram(orgId, dto);
+    return this.service.applyTemplateToProgram(orgId, dto, actorId);
   }
 }

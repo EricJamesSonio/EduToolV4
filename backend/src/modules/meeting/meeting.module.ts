@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -18,14 +18,14 @@ import { ClassModule } from '../class/class.module';
 import { NotificationModule } from '../notification/notification.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
-import { GroupyModule } from '../groupy/groupy.module';
+import { GroupyCoreModule } from '../groupy/core/groupy-core.module';
 
 @Module({
   imports: [
     ClassModule,
     NotificationModule,
     AuditLogModule,
-    forwardRef(() => GroupyModule),
+    GroupyCoreModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

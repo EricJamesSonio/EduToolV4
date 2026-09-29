@@ -18,6 +18,7 @@ import { SemesterTemplateModule } from '@/modules/semester-template/semester-tem
 import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/grading-scheme-template.module';
 import { SchoolProfileModule } from '@/modules/school-profile/school-profile.module';
 import { ProgramShiftModule } from '@/modules/program-shift/program-shift.module';
+import { SubjectCompletionOverrideModule } from '@/modules/subject-completion-override/subject-completion-override.module';
 import { ClassAssignmentRequestModule } from '@/modules/class-assignment-request/class-assignment-request.module';
 import { AcademicHistoryModule } from '@/modules/academic-history/academic-history.module';
 
@@ -41,6 +42,7 @@ import { AcademicHistoryModule } from '@/modules/academic-history/academic-histo
     GradingSchemeTemplateModule,
     SchoolProfileModule,
     ProgramShiftModule,
+    SubjectCompletionOverrideModule,
     ClassAssignmentRequestModule,
     AcademicHistoryModule,
   ],

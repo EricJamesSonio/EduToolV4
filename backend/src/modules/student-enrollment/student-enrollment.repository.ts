@@ -80,6 +80,39 @@ export class StudentEnrollmentRepository {
     });
   }
 
+  /**
+   * Batched pre-checks for bulkEnrollStudents: existing rows for the target
+   * year + active rows anywhere in the org, in 2 queries instead of 2 per
+   * student.
+   */
+  findByStudentsAndSchoolYear(
+    studentIds: string[],
+    schoolYearId: string,
+    orgId: string,
+  ) {
+    if (studentIds.length === 0) return Promise.resolve([]);
+    return this.db.studentSchoolYear.findMany({
+      where: {
+        student_id: { in: [...new Set(studentIds)] },
+        school_year_id: schoolYearId,
+        org_id: orgId,
+      },
+      select: { student_id: true },
+    });
+  }
+
+  findActiveEnrollmentsForStudents(studentIds: string[], orgId: string) {
+    if (studentIds.length === 0) return Promise.resolve([]);
+    return this.db.studentSchoolYear.findMany({
+      where: {
+        student_id: { in: [...new Set(studentIds)] },
+        org_id: orgId,
+        status: SchoolYearEnrollmentStatus.active,
+      },
+      select: { student_id: true, schoolYear: { select: { name: true } } },
+    });
+  }
+
   enrollStudent(
     orgId: string,
     schoolYearId: string,

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AcademicCalendarService } from '../academic-calendar.service';
 import { AcademicCalendarRepository } from '../academic-calendar.repository';
+import { AppCacheService } from '@/core/cache/app-cache.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import {
   CreateCalendarEventDto,
@@ -10,6 +11,12 @@ import {
 describe('AcademicCalendarService', () => {
   let service: AcademicCalendarService;
   let repository: jest.Mocked<AcademicCalendarRepository>;
+  let cache: {
+    key: jest.Mock;
+    cached: jest.Mock;
+    del: jest.Mock;
+    delByPrefix: jest.Mock;
+  };
 
   const mockRepository = {
     create: jest.fn(),
@@ -21,6 +28,23 @@ describe('AcademicCalendarService', () => {
   };
 
   beforeEach(async () => {
+    const store = new Map<string, unknown>();
+    const mockCache = {
+      key: jest.fn((...parts: Array<string | number>) => parts.join(':')),
+      cached: jest.fn(
+        async (key: string, _ttl: number, loader: () => Promise<unknown>) => {
+          if (!store.has(key)) store.set(key, await loader());
+          return store.get(key);
+        },
+      ),
+      del: jest.fn(),
+      delByPrefix: jest.fn(async (prefix: string) => {
+        for (const k of [...store.keys()]) {
+          if (k.startsWith(prefix)) store.delete(k);
+        }
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AcademicCalendarService,
@@ -28,11 +52,16 @@ describe('AcademicCalendarService', () => {
           provide: AcademicCalendarRepository,
           useValue: mockRepository,
         },
+        {
+          provide: AppCacheService,
+          useValue: mockCache,
+        },
       ],
     }).compile();
 
     service = module.get<AcademicCalendarService>(AcademicCalendarService);
     repository = module.get(AcademicCalendarRepository);
+    cache = module.get(AppCacheService);
     jest.clearAllMocks();
   });
 
@@ -224,6 +253,35 @@ describe('AcademicCalendarService', () => {
       );
 
       expect(result).toBe(false);
+    });
+  });
+
+  // ── PERF PHASE 6 CACHING ────────────────────────────
+
+  describe('caching', () => {
+    it('serves repeated findAll from cache (one repo read)', async () => {
+      repository.findAll.mockResolvedValue([{ id: '1' }] as any);
+
+      await service.findAll('org1', { schoolYearId: 'sy1' } as any);
+      await service.findAll('org1', { schoolYearId: 'sy1' } as any);
+
+      expect(repository.findAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('create invalidates the org calendar prefix', async () => {
+      repository.create.mockResolvedValue({ id: '1' } as any);
+
+      await service.findAll('org1', { schoolYearId: 'sy1' } as any);
+      await service.create('org1', {
+        schoolYearId: 'sy1',
+        title: 'Holiday',
+        type: CalendarEventType.HOLIDAY,
+        startDate: '2026-01-01',
+        endDate: '2026-01-02',
+      });
+      expect(cache.delByPrefix).toHaveBeenCalledWith('org:org1:calendar');
+      await service.findAll('org1', { schoolYearId: 'sy1' } as any);
+      expect(repository.findAll).toHaveBeenCalledTimes(2);
     });
   });
 });

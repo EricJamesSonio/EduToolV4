@@ -119,6 +119,22 @@ export class ProgramController {
     return this.programService.getSemesters(id, schoolYearId, orgId);
   }
 
+  // NEW — drives the semester-creation form. Returns the program's assigned
+  // template's semester slots (e.g. 1st/2nd, or 1st/2nd/3rd for tri-sem),
+  // each flagged with whether it's already been created for this school year.
+  @Get(':id/semester-slots')
+  async getSemesterSlots(
+    @Param('id') id: string,
+    @Query('schoolYearId') schoolYearId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context');
+    }
+
+    return this.programService.getSemesterSlots(id, schoolYearId, orgId);
+  }
+
   @Patch(':id')
   async update(
     @Param('id') id: string,

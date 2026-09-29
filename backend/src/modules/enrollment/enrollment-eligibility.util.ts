@@ -77,6 +77,89 @@ export async function resolveSubjectAcademicStructure(
 }
 
 /**
+ * Batched variant of resolveSubjectAcademicStructure (Perf Phase 5): resolves
+ * structures for many subjects with ONE subject query instead of N × (subject
+ * + up-to-5 program-chain lookups). Program precedence per subject is
+ * identical to the single-subject path (direct → course → strand → level →
+ * first sharing that yields one). Subjects missing from the result (deleted
+ * or out-of-org) map to an empty structure with programId null — the same
+ * outcome as the single path, which callers treat as ineligible.
+ */
+export async function resolveSubjectAcademicStructures(
+  db: DatabaseService,
+  subjectIds: string[],
+  orgId: string,
+): Promise<Map<string, SubjectAcademicStructure>> {
+  const uniqueIds = [...new Set(subjectIds)];
+  const result = new Map<string, SubjectAcademicStructure>();
+  if (uniqueIds.length === 0) return result;
+
+  const subjects = await db.subject.findMany({
+    where: { id: { in: uniqueIds }, org_id: orgId },
+    select: {
+      id: true,
+      program_id: true,
+      course_id: true,
+      strand_id: true,
+      level_id: true,
+      course: { select: { program_id: true } },
+      strand: { select: { program_id: true } },
+      level: { select: { program_id: true } },
+      sharings: {
+        select: {
+          course_id: true,
+          strand_id: true,
+          level_id: true,
+          course: { select: { program_id: true } },
+          strand: { select: { program_id: true } },
+          level: { select: { program_id: true } },
+        },
+      },
+    },
+  });
+
+  for (const subject of subjects) {
+    let programId =
+      subject.program_id ??
+      subject.course?.program_id ??
+      subject.strand?.program_id ??
+      subject.level?.program_id ??
+      null;
+    if (!programId) {
+      for (const sharing of subject.sharings) {
+        programId =
+          sharing.course?.program_id ??
+          sharing.strand?.program_id ??
+          sharing.level?.program_id ??
+          null;
+        if (programId) break;
+      }
+    }
+
+    const courseIds = new Set<string>();
+    const strandIds = new Set<string>();
+    const levelIds = new Set<string>();
+    if (subject.course_id) courseIds.add(subject.course_id);
+    if (subject.strand_id) strandIds.add(subject.strand_id);
+    if (subject.level_id) levelIds.add(subject.level_id);
+    for (const sharing of subject.sharings) {
+      if (sharing.course_id) courseIds.add(sharing.course_id);
+      if (sharing.strand_id) strandIds.add(sharing.strand_id);
+      if (sharing.level_id) levelIds.add(sharing.level_id);
+    }
+
+    result.set(subject.id, {
+      programId,
+      courseIds: [...courseIds],
+      strandIds: [...strandIds],
+      levelIds: [...levelIds],
+    });
+  }
+
+  return result;
+}
+
+/**
  * Returns true only if the student matches ALL applicable structure fields of
  * the class:
  *   - Same program (always required)

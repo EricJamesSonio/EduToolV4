@@ -55,6 +55,7 @@ export class SemesterTemplateService {
       })),
     });
   }
+
   async saveTermDates(
     orgId: string,
     programId: string,
@@ -81,7 +82,12 @@ export class SemesterTemplateService {
       ]),
     );
 
-    // Walk template semesters → terms, upsert Semester + Term rows
+    // Walk template semesters → terms, upsert Semester + Term rows.
+    // Each Semester row belongs to THIS program and THIS template slot —
+    // matched by (program_id, template_semester_id), never by name. Two
+    // programs can both have a template item named "1st Semester" without
+    // colliding, because program_id + template_semester_id is what makes a
+    // Semester row unique now, not its display name.
     const template = assignment.template as any;
     for (const semItem of template.semesters) {
       // Collect dates for all terms in this semester
@@ -98,12 +104,13 @@ export class SemesterTemplateService {
         Math.max(...termDateEntries.map((d) => d.end.getTime())),
       );
 
-      // Upsert Semester row (match by org + school_year + name)
+      // Upsert Semester row — matched by (org, school_year, program, template slot).
       const existingSemester = await this.db.semester.findFirst({
         where: {
           org_id: orgId,
           school_year_id: program.school_year_id,
-          name: semItem.name,
+          program_id: programId,
+          template_semester_id: semItem.id,
         },
       });
 
@@ -116,6 +123,8 @@ export class SemesterTemplateService {
             data: {
               org_id: orgId,
               school_year_id: program.school_year_id,
+              program_id: programId,
+              template_semester_id: semItem.id,
               name: semItem.name,
               start_date: semStart,
               end_date: semEnd,
@@ -155,6 +164,7 @@ export class SemesterTemplateService {
       }
     }
   }
+
   async findAllForOrg(orgId: string) {
     return this.repo.getAllForOrg(orgId);
   }
@@ -262,6 +272,7 @@ export class SemesterTemplateService {
     } else {
       await this.createPlaceholderSemesters(
         orgId,
+        dto.programId,
         program.school_year_id,
         template,
       );
@@ -272,6 +283,7 @@ export class SemesterTemplateService {
 
   private async createPlaceholderSemesters(
     orgId: string,
+    programId: string,
     schoolYearId: string,
     template: any,
   ) {
@@ -280,7 +292,8 @@ export class SemesterTemplateService {
         where: {
           org_id: orgId,
           school_year_id: schoolYearId,
-          name: semItem.name,
+          program_id: programId,
+          template_semester_id: semItem.id,
         },
       });
 
@@ -291,6 +304,8 @@ export class SemesterTemplateService {
         data: {
           org_id: orgId,
           school_year_id: schoolYearId,
+          program_id: programId,
+          template_semester_id: semItem.id,
           name: semItem.name,
           start_date: new Date(),
           end_date: new Date(),
