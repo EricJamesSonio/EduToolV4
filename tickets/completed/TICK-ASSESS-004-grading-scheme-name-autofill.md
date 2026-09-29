@@ -1,12 +1,13 @@
 # TICK-ASSESS-004 — Grading-scheme category name auto-derived from type
 
-Status: merged
+Status: completed
 Priority: medium
 Created: 2026-09-29
 Created by: agent
 Assigned to: agent
 Started: 2026-09-29
 Merged: 2026-09-29 (fast-forward 60eb7e58 + docs cffe5e5e to development, pushed origin)
+Completed: 2026-09-29 (post-merge CI verified, branch + worktree cleaned up, docs updated, handoff closed)
 Worktree: ../EduToolV4-worktrees/TICK-ASSESS-004-grading-scheme-name-autofill
 Branch: agent/TICK-ASSESS-004-grading-scheme-name-autofill
 
@@ -59,6 +60,7 @@ None.
 - 2026-09-29: Claimed, counter ASSESS 3 → 4. TICK-ASSESS-004 confirmed free (no pending/in-progress collision).
 - 2026-09-29: Implemented in worktree off development c34af581. Shared row now auto-fills Name on type change while untouched (`labelForType` + `isAutoName`); 7 seeding sites across the 4 editors pre-fill the label; Name got an `aria-label` (its visible label had no `htmlFor`, so it was unlabeled for AT). New spec 6/6, lint 0 errors, tsc 17/17 parity (0 new), full frontend suite 12/108 green. Commit 60eb7e58. Ready for review.
 - 2026-09-29: Merged. Docs commit cffe5e5e added on the same branch; fast-forward to development (8 files, +205/−12) pushed to origin. Ticket → merged.
+- 2026-09-29: Post-merge CI on cffe5e5e (run 243): `changes` ✅ (frontend=true, backend=false), `frontend-lint` ✅, `frontend-unit-tests` ✅ (npm ci + `npm run test -- --ci` green — includes the 6 new tests), backend jobs correctly **skipped** (no `backend/**` change), `frontend-build` skipped (cascade from `frontend-typecheck`), `frontend-typecheck` ❌ with the **same pre-existing error set** as the previous run (#240, before this change) — `autoSeedNewSchoolYears`, `Semester.programId`, `EnrollStudentPanelProps.onSearchChange`, `ProgramType`, none referencing grading-scheme. `ticket-state-guard` #110 ✅. Branch deleted (`was cffe5e5e`), worktree removed + pruned. Ticket → completed.
 
 ## Commits
 
