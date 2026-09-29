@@ -55,7 +55,7 @@ const SubjectNodeView = memo(function SubjectNodeView({
       )}
       style={{ borderLeftColor: data.swatch }}
     >
-      <Handle type="target" position={Position.Top} className="!bg-slate-400" />
+      <Handle type="target" position={Position.Bottom} className="!bg-slate-400" />
       <div className="flex items-start gap-1.5">
         <span className="text-[13px] font-semibold leading-snug text-slate-900">{data.label}</span>
         {data.completed && (
@@ -89,7 +89,7 @@ const SubjectNodeView = memo(function SubjectNodeView({
       {data.detail && (
         <p className="mt-1 truncate text-[10px] text-slate-400">{data.detail}</p>
       )}
-      <Handle type="source" position={Position.Bottom} className="!bg-slate-400" />
+      <Handle type="source" position={Position.Top} className="!bg-slate-400" />
     </div>
   );
 });
@@ -286,11 +286,11 @@ function computeLayout(nodes: HierarchyNode[], index: GraphIndex): Layout {
   for (const id of xOf.keys()) {
     const x = xOf.get(id) as number;
     minX = Math.min(minX, x);
-    positions.set(id, { x, y: (rowOf.get(id) as number) * ROW_Y });
+    positions.set(id, { x, y: -(rowOf.get(id) as number) * ROW_Y });
   }
 
   const rowYByRank = new Map<number, number>();
-  for (const rank of ranks) rowYByRank.set(rank, (rowStart.get(rank) as number) * ROW_Y);
+  for (const rank of ranks) rowYByRank.set(rank, -(rowStart.get(rank) as number) * ROW_Y);
 
   return { positions, rowYByRank, labelX: (Number.isFinite(minX) ? minX : 0) - LABEL_GAP };
 }
