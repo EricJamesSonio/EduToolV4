@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SubjectHierarchyFilter, type HierarchyFilterValue } from "@/components/admin/subject/hierarchy/SubjectHierarchyFilter";
@@ -48,31 +49,58 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
     return data.nodes.filter((n) => toIds.has(n.id));
   }, [data, selected]);
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Subject Hierarchy"
-        breadcrumbs={[{ label: "Admin" }, { label: "Subjects", href: "/admin/subjects" }, { label: "Hierarchy" }]}
+  const hasScope = !!filter.programId || !!filter.schoolYearId;
+
+  const headerContent = (
+    <div className="space-y-3">
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">Subject Hierarchy</h1>
+      <SubjectHierarchyFilter
+        value={filter}
+        onChange={(v) => {
+          setFilter(v);
+          setSelectedId(null);
+        }}
       />
-
-      <Card className="p-5 space-y-4">
-        <SubjectHierarchyFilter value={filter} onChange={(v) => { setFilter(v); setSelectedId(null); }} />
-        {!filter.programId && !filter.schoolYearId && (
-          <p className="text-sm text-muted-foreground">
-            Select a school year and department — pick a course for College or a strand for SHS — to load the hierarchy from 1st to highest year.
-          </p>
-        )}
-        {data && (
+      {!hasScope && (
+        <p className="text-sm text-muted-foreground">
+          Select a school year and department — pick a course for College or a strand for SHS — to load the hierarchy from 1st to highest year.
+        </p>
+      )}
+      {data && (
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
           <SubjectHierarchyLegend ranks={ranks} levelNameOf={levelNameOf} />
-        )}
-      </Card>
+          <p className="text-xs text-muted-foreground">
+            {data.nodes.length} subjects · {data.edges.length} prerequisite links · {columns.length} years
+            {data.truncated && (
+              <span className="ml-2 text-amber-600">Large scope truncated — narrow by course/strand.</span>
+            )}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground py-10 text-center">Loading hierarchy…</p>
-      ) : data ? (
-        <div className="space-y-2">
-          <div className="relative">
+  return (
+    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[520px] flex-col gap-3">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex shrink-0 flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <span>Admin</span>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <Link href="/admin/subjects" className="hover:text-foreground hover:underline">
+          Subjects
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span className="font-medium text-foreground">Hierarchy</span>
+      </nav>
+
+      <div className="min-h-0 flex-1">
+        {data ? (
+          <div className="relative h-full">
             <SubjectHierarchyGraph
+              fill
+              header={headerContent}
               nodes={data.nodes}
               edges={data.edges}
               selectedId={selectedId}
@@ -146,14 +174,15 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
               </Card>
             )}
           </div>
-          {data.truncated && (
-            <p className="text-xs text-amber-600">Large scope truncated — narrow by course/strand.</p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            {data.nodes.length} subjects · {data.edges.length} prerequisite links · {columns.length} year columns
-          </p>
-        </div>
-      ) : null}
+        ) : (
+          <Card className="h-full p-5">
+            {headerContent}
+            {isLoading && (
+              <p className="text-sm text-muted-foreground py-10 text-center">Loading hierarchy…</p>
+            )}
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
