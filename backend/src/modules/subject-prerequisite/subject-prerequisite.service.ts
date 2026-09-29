@@ -360,4 +360,129 @@ export class SubjectPrerequisiteService {
 
     return results;
   }
-}
+
+  /**
+   * Batched eligibility for MANY students against ONE subject (transposed
+   * relative to checkEligibilityBatch). Backs the admin enrollment surfaces,
+   * which render a list of students for a single class and need to know which
+   * of them the enroll gate would reject.
+   *
+   * Decision rules are identical to checkEligibilityBatch, including manual
+   * SubjectCompletionOverride credits — a transferee with a completion credit
+   * must NOT be reported as blocked, or the UI would contradict the gate.
+   *
+   * Students absent from the returned map are eligible (no prerequisite links,
+   * or every prerequisite satisfied).
+   */
+  async checkEligibilityForStudentsBatch(
+    subject_id: string,
+    student_ids: string[],
+    org_id: string,
+  ): Promise<Map<string, PrerequisiteCheckResultDto>> {
+    const results = new Map<string, PrerequisiteCheckResultDto>();
+    const uniqueStudents = [...new Set(student_ids)];
+    if (uniqueStudents.length === 0) return results;
+
+    const rowsByStudent =
+      await this.prereqRepository.getPrerequisitesWithGradesForStudents(
+        subject_id,
+        uniqueStudents,
+        org_id,
+      );
+
+    // No prerequisite links defined for this subject — everyone is eligible.
+    if (rowsByStudent.size === 0) {
+      for (const studentId of uniqueStudents) {
+        results.set(studentId, { eligible: true, missing: [] });
+      }
+      return results;
+    }
+
+    // Manual completion credits (transferee / pre-system records) satisfy
+    // prerequisites without a Grade row. Fetched for the whole batch in one
+    // query and keyed by student so the per-student credit set is a lookup.
+    const completedByStudent = new Map<string, Set<string>>();
+    try {
+      const delegate = (this.db as unknown as Record<string, unknown>)[
+        'subjectCompletionOverride'
+      ] as
+        | { findMany: (args: unknown) => Promise<{ student_id: string; subject_id: string }[]> }
+        | undefined;
+      if (delegate) {
+        const rows = await delegate.findMany({
+          where: {
+            org_id,
+            student_id: { in: uniqueStudents },
+            status: 'completed',
+          },
+          select: { student_id: true, subject_id: true },
+        });
+        for (const r of rows) {
+          const set = completedByStudent.get(r.student_id) ?? new Set<string>();
+          set.add(r.subject_id);
+          completedByStudent.set(r.student_id, set);
+        }
+      }
+    } catch {
+      // Fall through with no credits — matches the single-student path, which
+      // also swallows this lookup and falls back to a clean set.
+      completedByStudent.clear();
+    }
+
+    // One shared scale cache for the whole batch (was: one lookup per
+    // grade row). Memoization only; failures are never cached.
+    const cache = new Map<
+      string,
+      Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
+    >();
+
+    for (const studentId of uniqueStudents) {
+      const rows = rowsByStudent.get(studentId) ?? [];
+      const overrides = completedByStudent.get(studentId);
+      const missing: PrerequisiteCheckResultDto['missing'] = [];
+
+      for (const row of rows) {
+        if (overrides?.has(row.subject_id)) continue;
+
+        if (!row.grade) {
+          missing.push({
+            subject_id: row.subject_id,
+            subject_name: row.subject_name,
+            reason: 'not_taken',
+          });
+          continue;
+        }
+
+        const grade = row.grade as unknown as {
+          final_score: number;
+          is_locked: boolean;
+          class: { id: string };
+        };
+
+        if (!grade.is_locked) {
+          missing.push({
+            subject_id: row.subject_id,
+            subject_name: row.subject_name,
+            reason: 'not_locked',
+          });
+          continue;
+        }
+
+        const passed = await this.isGradePassing(grade, org_id, cache);
+        if (!passed) {
+          missing.push({
+            subject_id: row.subject_id,
+            subject_name: row.subject_name,
+            reason: 'not_passed',
+          });
+        }
+      }
+
+      results.set(studentId, {
+        eligible: missing.length === 0,
+        missing,
+      });
+    }
+
+    return results;
+  }}
