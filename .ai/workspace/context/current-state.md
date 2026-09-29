@@ -7,6 +7,16 @@ One section per major domain/module. Keep status labels consistent:
 implemented / partially implemented / not implemented / needs investigation
 -->
 
+## Grading-scheme category naming (2026-09-29)
+
+Status: implemented (TICK-ASSESS-004 fast-forwarded to development, commit 60eb7e58)
+
+Implemented:
+
+- Category `Name` auto-fills from the selected type and follows it while untouched; hand-typed names are preserved; all 4 grading-scheme editors pre-fill new rows. Single rule in `GradingSchemeComponentRow` (`labelForType`, `isAutoName`), 7 seeding sites, plus `aria-label` on the previously unlabeled Name input. New spec 6/6 green.
+- Merge gate: rebased branch off `development c34af581` (created fresh, no rebase needed), validated vs baseline — frontend 12 suites / 108 tests green (baseline 11 / 102), lint 0 errors, tsc 17 errors identical to baseline (0 new).
+- Out of scope (flagged): class/template dialog editors still append a *fixed* type instead of the first unused one, so two rows can share a type and therefore a name — harmless, component `name` has no backend uniqueness constraint.
+
 ## Assessment type unification (2026-09-29)
 
 Status: implemented (TICK-ASSESS-001 fast-forwarded to development, commit c29d36d0)

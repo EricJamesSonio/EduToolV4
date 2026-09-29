@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-29 (evening)
+
+### Changed
+
+- Grading-scheme category names auto-derive from the selected type (TICK-ASSESS-004, fast-forward 60eb7e58): picking `behavior` now fills Name with "Behavior", rows created by **Add Category** arrive pre-filled, and a hand-typed name is never overwritten (a name counts as auto while it's empty or still a canonical label). The rule lives once in the shared `GradingSchemeComponentRow` (`labelForType` / `isAutoName`) with 7 seeding sites across all 4 editors (admin scheme editor, class editor, new-template dialog, shared template dialog); the Name input also gained `aria-label="Category name"` — its visible label had no `htmlFor`, so it was unlabeled for assistive tech. Validation on the worktree branch: targeted spec 6/6, frontend 12 suites / 108 tests green (development baseline 11 / 102), lint 0 errors, `tsc` 17/17 parity with baseline (0 new, none in touched files).
+
 ## 2026-09-29
 
 ### Fixed
