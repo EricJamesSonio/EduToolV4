@@ -206,6 +206,12 @@ model Account {
 
   classes Class[] @relation("EducatorClasses")
 
+  // Which subjects an educator is able to teach, recorded up front rather than
+  // inferred from the classes they already hold. The generator assigns only
+  // from this set.
+  educatorSubjects EducatorSubject[]
+  scheduleProfile EducatorScheduleProfile?
+
   @@unique([org_id, email])
   @@index([org_id, role, status])
   @@index([org_id, status, created_at])
@@ -661,9 +667,59 @@ model Subject {
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
   prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
   sharings      SubjectSharing[]
+  educatorSubjects EducatorSubject[]
   completionOverrides SubjectCompletionOverride[]
 }
 
+/// Which subjects an educator is able to teach, declared before any class
+/// exists. Today an educator is only linked to a subject once a class is
+/// created, which is too late for automated generation.
+///
+/// `Subject` has no `deleted_at` — subjects are HARD deleted — so the relation
+/// is Restrict: deleting a subject that still has teachable links must fail
+/// loudly rather than silently orphan the educator's profile.
+model EducatorSubject {
+  id          String   @id @default(uuid())
+  org_id      String
+  educator_id String
+  subject_id  String
+  created_at  DateTime @default(now())
+
+  educator Account @relation(fields: [educator_id], references: [id], onDelete: Cascade)
+  subject  Subject @relation(fields: [subject_id], references: [id], onDelete: Restrict)
+
+  @@unique([educator_id, subject_id])
+  @@index([org_id, subject_id])
+  @@index([org_id, educator_id])
+}
+
+/// Which weekdays an educator is available, plus optional load limits.
+///
+/// One row per educator, created lazily. Absence of a row and
+/// `use_custom_availability = false` both mean "available on every school day",
+/// so a brand-new educator needs no setup. The boolean exists only to tell
+/// "not configured yet" apart from "configured to nothing".
+///
+/// `available_weekdays` is stored raw and INTERSECTED with the org's active
+/// weekdays at read time, so narrowing the school week later never requires
+/// rewriting every educator row.
+model EducatorScheduleProfile {
+  id                     String   @id @default(uuid())
+  org_id                 String
+  educator_id            String   @unique
+  use_custom_availability Boolean @default(false)
+  available_weekdays     Int[]    @default([])
+  max_minutes_per_day    Int?
+  max_minutes_per_week   Int?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  educator Account @relation(fields: [educator_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id])
+}
+
+/// One subject shared across several courses/strands/levels.
 model SubjectSharing {
   id         String  @id @default(uuid())
   org_id     String

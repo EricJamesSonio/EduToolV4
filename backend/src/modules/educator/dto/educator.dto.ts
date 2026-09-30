@@ -13,6 +13,10 @@ import {
   ArrayMaxSize,
   ValidateNested,
   Matches,
+  IsUUID,
+  IsBoolean,
+  IsIn,
+  Max,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -77,6 +81,55 @@ export class UpdateEducatorStatusDto {
 }
 
 // ── GET /educators ────────────────────────────────────────────────────────────
+
+export class SetEducatorSubjectsDto {
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @ArrayMaxSize(500)
+  subjectIds!: string[];
+}
+
+export class CarryOverEducatorSubjectsDto {
+  @IsUUID()
+  fromSchoolYearId!: string;
+
+  @IsUUID()
+  toSchoolYearId!: string;
+
+  /** Optional: limit the carry-over to specific educators. */
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @ArrayMaxSize(500)
+  educatorIds?: string[];
+}
+
+export class SetEducatorScheduleProfileDto {
+  /** false = available on every school day (the default, no setup needed). */
+  @IsBoolean()
+  useCustomAvailability!: boolean;
+
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @IsIn([0, 1, 2, 3, 4, 5, 6], {
+    each: true,
+    message: 'availableWeekdays entries must be 0-6 (0 = Sunday)',
+  })
+  availableWeekdays: number[] = [];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  maxMinutesPerDay?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10080)
+  maxMinutesPerWeek?: number;
+}
 
 export class QueryEducatorDto {
   @IsOptional()

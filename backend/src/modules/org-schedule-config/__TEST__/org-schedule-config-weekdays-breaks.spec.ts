@@ -27,7 +27,7 @@ describe('OrgScheduleConfigService weekdays + breaks', () => {
   const makeService = (rows: any[] = []) => {
     const repo = {
       upsertDefaults: jest.fn().mockResolvedValue(row),
-      upsert: jest.fn().mockImplementation(async (_org: string, data: unknown) => ({ ...row, ...data })),
+      upsert: jest.fn().mockImplementation(async (_org: string, data: Record<string, unknown>) => ({ ...row, ...data })),
     };
     const cache = {
       key: jest.fn((...parts: Array<string | number>) => parts.join(':')),

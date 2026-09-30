@@ -26,15 +26,7 @@ import {
 } from './subject.types';
 import { mapSubjectToResponse } from './subject.mapper';
 import { validateSubjectScope } from './subject.validator';
-
-/**
- * The slice of the org schedule config this module needs. Declared as a
- * structural interface so SubjectService does not depend on the concrete
- * OrgScheduleConfigService class (and its module).
- */
-export interface OrgScheduleConfigProvider {
-  getByOrg(orgId: string): Promise<{ slotDuration: number }>;
-}
+import type { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 
 @Injectable()
 export class SubjectService {

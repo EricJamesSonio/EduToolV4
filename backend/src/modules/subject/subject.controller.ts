@@ -14,6 +14,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { SubjectService } from './subject.service';
+import { EducatorSubjectService } from '../educator/educator-subject.service';
 import {
   CreateSubjectDto,
   UpdateSubjectDto,
@@ -29,7 +30,10 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 @Controller('subjects')
 @UseGuards(AuthGuard, RolesGuard)
 export class SubjectController {
-  constructor(private readonly subjectService: SubjectService) {}
+  constructor(
+    private readonly subjectService: SubjectService,
+    private readonly educatorSubjectService: EducatorSubjectService,
+  ) {}
 
   @Post()
   @Roles('admin')
@@ -55,6 +59,20 @@ export class SubjectController {
     @Query() query: SubjectHierarchyQueryDto,
   ) {
     return this.subjectService.getHierarchy(orgId, query);
+  }
+
+  /**
+   * GET /subjects/:id/educators
+   * Educators who can teach this subject. Drives the "suggested" ordering in
+   * the class dialog. Declared before `:id` so it is not shadowed by it.
+   */
+  @Get(':id/educators')
+  @Roles('admin')
+  async listEducators(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.educatorSubjectService.listEducatorsForSubject(orgId, id);
   }
 
   @Get(':id')
