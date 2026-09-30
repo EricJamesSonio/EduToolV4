@@ -1,5 +1,6 @@
 // frontend/src/api/student/class.api.ts
 import apiClient from "@/api/client";
+import { toHHmm } from "@/utils/scheduleTime.utils";
 
 export interface StudentClassSchedule {
   weekday: number;
@@ -30,9 +31,12 @@ function normalizeSchedules(
 ): StudentClassSchedule[] {
   return schedules.map((s) => ({
     weekday: s.weekday as number,
-    // backend returns snake_case — normalize to camelCase here
-    startTime: (s.startTime ?? s.start_time ?? "") as string,
-    endTime: (s.endTime ?? s.end_time ?? "") as string,
+    // backend returns snake_case AND ISO datetimes — convert to "HH:mm" here
+    // so every consumer (class cards, schedule grid) gets a usable time.
+    // Passing the raw ISO string through rendered schedules as unparseable
+    // text and collapsed the weekly grid.
+    startTime: toHHmm(s.startTime ?? s.start_time),
+    endTime: toHHmm(s.endTime ?? s.end_time),
   }));
 }
 
