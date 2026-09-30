@@ -66,7 +66,7 @@ const SubjectNodeView = memo(function SubjectNodeView({
       </div>
       {data.enrolled && (
         <div className="mt-1">
-          <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <span className="rounded-sm bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
             Enrolled now
           </span>
         </div>
@@ -74,14 +74,14 @@ const SubjectNodeView = memo(function SubjectNodeView({
       <p className="mt-1 text-[11px] text-slate-500">{data.levelName ?? `Year ${data.yearRank}`}</p>
       <div className="mt-1 flex items-center gap-2 text-[10px] font-medium">
         {data.prereqCount > 0 ? (
-          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-600">
+          <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-slate-600">
             {data.prereqCount} pre-req{data.prereqCount > 1 ? "s" : ""}
           </span>
         ) : (
-          <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-emerald-700">Entry</span>
+          <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-emerald-700">Entry</span>
         )}
         {data.dependentCount > 0 && (
-          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-600">
+          <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-slate-600">
             → {data.dependentCount}
           </span>
         )}
@@ -106,7 +106,7 @@ const YearHeaderView = memo(function YearHeaderView({
   data: YearHeaderData;
 }): React.JSX.Element {
   return (
-    <div className="flex w-48 items-center justify-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200">
+    <div className="flex w-48 items-center justify-center gap-2 rounded-sm bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200">
       <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: data.swatch }} />
       <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{data.title}</span>
       <span className="text-[10px] text-slate-400">({data.count})</span>
@@ -438,7 +438,7 @@ export function SubjectHierarchyGraph({
             {years.map((y) => (
               <div
                 key={y.rank}
-                className="flex items-center justify-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200"
+                className="flex items-center justify-center gap-2 rounded-sm bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200"
               >
                 <span
                   className="inline-block h-3 w-3 rounded-full"
