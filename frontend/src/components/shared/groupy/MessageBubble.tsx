@@ -173,7 +173,7 @@ function ReactionBadges({
               onReact(type);
             }}
             className={cn(
-              "inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] leading-none transition-colors",
+              "inline-flex items-center gap-0.5 rounded-sm border px-1.5 py-0.5 text-[11px] leading-none transition-colors",
               isMine
                 ? "bg-background border-primary/50"
                 : "bg-background border-border"
