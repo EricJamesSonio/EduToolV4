@@ -54,19 +54,36 @@ export function DefaultGradeTableInner({
     [students]
   );
 
-  const manualCats = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          students.flatMap((s) =>
-            s.categoryBreakdown
-              .filter((c) => c.manualScore !== null)
-              .map((c) => c.category)
-          )
-        )
-      ),
-    [students]
-  );
+  // TICK-GRADE-005: which columns are educator-scored.
+  //
+  // This used to be
+  //   students.flatMap(s => s.categoryBreakdown.filter(c => c.manualScore !== null).map(c => c.category))
+  // which is a chicken-and-egg bug: a category only became an editable column
+  // once a student already had a score, but a score can only be entered once the
+  // column exists. So Behavior rendered as a permanent, un-editable "—".
+  //
+  // Now every category is scanned instead of just the scored ones, and
+  // editability comes from the backend's isManualScored. Dedupe by lowercase
+  // name because manual scores are matched case-insensitively on the backend,
+  // so "Behavior" and "behavior" are the same category and must be one column.
+  const manualCats = useMemo(() => {
+    const byKey = new Map<
+      string,
+      { name: string; maxScore: number | null }
+    >();
+    for (const s of students) {
+      for (const c of s.categoryBreakdown) {
+        if (!c.isManualScored) continue;
+        const key = c.category.toLowerCase();
+        if (byKey.has(key)) continue;
+        byKey.set(key, {
+          name: c.category,
+          maxScore: c.maxScore ?? null,
+        });
+      }
+    }
+    return [...byKey.values()];
+  }, [students]);
 
   const scoresByStudent = useMemo(() => {
     const map = new Map<string, Map<string, StudentGrade["assessmentScores"][number]>>();
@@ -153,16 +170,21 @@ export function DefaultGradeTableInner({
       },
     })),
     ...manualCats.map((cat) => ({
-      key: `manual_${cat}`,
-      label: cat,
+      key: `manual_${cat.name}`,
+      // TICK-GRADE-005: show the cap in the header so the educator knows the
+      // ceiling before clicking ("Behavior /20" when the category is worth 20).
+      label: cat.maxScore != null ? `${cat.name} /${cat.maxScore}` : cat.name,
       width: 75,
       render: (student: StudentGrade) => {
-        const breakdown = breakdownByStudent.get(student.studentId)?.get(cat.toLowerCase());
+        const breakdown = breakdownByStudent
+          .get(student.studentId)
+          ?.get(cat.name.toLowerCase());
         return (
           <ManualCell
             value={breakdown?.manualScore ?? null}
+            maxScore={cat.maxScore}
             studentId={student.studentId}
-            category={cat}
+            category={cat.name}
             isLocked={isLocked}
             onCommit={onManualCommit}
             compact

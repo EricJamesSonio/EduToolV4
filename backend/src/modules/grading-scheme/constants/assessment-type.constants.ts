@@ -34,3 +34,41 @@ export const ASSESSMENT_TYPE_VALUES: readonly string[] =
 
 export type AssessmentComponentType =
   (typeof ComponentType)[keyof typeof ComponentType];
+
+/**
+ * Types that are scored directly by the educator rather than produced and
+ * auto-graded by an assessment.
+ *
+ * TICK-GRADE-005: Behavior / Participation / Attendance / Performance Task
+ * cannot be judged by a machine, so on the Grades page they are editable cells
+ * the educator fills in directly (`ManualScore`) instead of columns derived
+ * from assessments. `grade-core.service.ts` routes these through
+ * `isManualScoredCategory()`.
+ *
+ * NOTE: this block is duplicated from TICK-ASSESS-005's
+ * `SYSTEM_GRADABLE_TYPES` / `MANUAL_ONLY_TYPES`, which added the same split for
+ * the assessment wizard. The two tickets were developed on parallel branches
+ * from `development`; the ASSESS branch is rebased onto this one (or this onto
+ * that) and the duplicate collapsed into whichever definition lands first. Kept
+ * declared here — derived from the enum, with the complement computed — so this
+ * branch is self-contained and testable on its own.
+ */
+export const SYSTEM_GRADABLE_TYPES: readonly AssessmentComponentType[] = [
+  ComponentType.WRITTEN_WORK,
+  ComponentType.QUARTERLY_ASSESSMENT,
+  ComponentType.EXAM,
+  ComponentType.QUIZ,
+  ComponentType.ASSIGNMENT,
+  ComponentType.PROJECT,
+  ComponentType.RECITATION,
+  ComponentType.ACTIVITY,
+  ComponentType.CUSTOM,
+  ComponentType.OTHER,
+];
+
+/** The complement of `SYSTEM_GRADABLE_TYPES` over the canonical 14. */
+export const MANUAL_ONLY_TYPES: readonly AssessmentComponentType[] =
+  ASSESSMENT_TYPE_VALUES.filter(
+    (t): t is AssessmentComponentType =>
+      !SYSTEM_GRADABLE_TYPES.includes(t as AssessmentComponentType),
+  ) as AssessmentComponentType[];

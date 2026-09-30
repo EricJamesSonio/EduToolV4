@@ -26,16 +26,16 @@ function CleanGradeTableInner({
   const { students } = termData;
   const [drillDown, setDrillDown] = useState<{ student: StudentGrade; category: string } | null>(null);
 
+  // TICK-GRADE-005: same chicken-and-egg bug as DefaultGradeTable, in the
+  // `type !== 'manual' || manualScore != null` filter — a manual category with
+  // no score yet was filtered out, so it could never be given one. Use the
+  // backend's isManualScored instead of the 'manual' marker (which is never
+  // persisted) and do not require a score to exist.
   const allCategories = useMemo(
     () =>
       Array.from(
         new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category)))
-      ).filter((cat) => {
-        return students.some((s) => {
-          const bd = s.categoryBreakdown.find((c) => c.category === cat);
-          return bd?.type !== 'manual' || bd?.manualScore != null;
-        });
-      }),
+      ),
     [students]
   );
 
@@ -74,15 +74,26 @@ function CleanGradeTableInner({
       },
     ...allCategories.map((cat) => ({
       key: cat,
-      label: cat,
+      // TICK-GRADE-005: label with the cap when the category is educator-scored.
+      label: (() => {
+        const bd = students[0]?.categoryBreakdown.find(
+          (c) => c.category.toLowerCase() === cat.toLowerCase()
+        );
+        return bd?.isManualScored && bd?.maxScore != null
+          ? `${cat} /${bd.maxScore}`
+          : cat;
+      })(),
       width: 85,
       render: (student: StudentGrade) => {
         const bd = breakdownByStudent.get(student.studentId)?.get(cat.toLowerCase());
-        const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
-        if (isManual) {
+        // TICK-GRADE-005: editability comes from isManualScored, not from
+        // "a manual score happens to exist" — otherwise the cell can never
+        // become editable.
+        if (bd?.isManualScored) {
           return (
             <ManualCell
               value={bd?.manualScore ?? null}
+              maxScore={bd?.maxScore ?? null}
               studentId={student.studentId}
               category={cat}
               isLocked={isLocked}
@@ -121,7 +132,7 @@ function CleanGradeTableInner({
       ),
     },
     ],
-    [allCategories, breakdownByStudent, isLocked, onManualCommit]
+    [allCategories, students, breakdownByStudent, isLocked, onManualCommit]
   );
 
   if (students.length === 0) return <EmptyState />;
