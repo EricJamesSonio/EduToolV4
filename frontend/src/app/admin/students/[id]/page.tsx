@@ -28,7 +28,7 @@ import { AcademicHistoryPanel } from "@/components/admin/student/detail/Academic
 import { ShiftProgramDialog } from "@/components/admin/student/detail/ShiftProgramDialog";
 import { ChangeYearDialog } from "@/components/admin/student/detail/ChangeYearDialog";
 import { SubjectCompletionPanel } from "@/components/admin/student/detail/SubjectCompletionPanel";
-import { StudentSchedulePanel } from "@/components/shared/StudentSchedulePanel";
+import { SchedulePanel } from "@/components/shared/SchedulePanel";
 import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
@@ -251,7 +251,7 @@ const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.stude
               <CalendarDays className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold not-interactive">Schedule</h2>
             </div>
-            <StudentSchedulePanel
+            <SchedulePanel
               classes={scheduleClasses}
               isLoading={enrollmentsLoading}
               emptyTitle="No classes yet"
