@@ -61,7 +61,7 @@ export function GradeLockGlobalTemplates({
                     <span>{LOCK_TYPE_LABELS[t.lockType] ?? t.lockType}</span>
                     {t.lock_deadline && (
                       <>
-                        <span aria-hidden>·</span>
+                        <span aria-hidden>&middot;</span>
                         <span>
                           Deadline:{" "}
                           {format(new Date(t.lock_deadline), "MMM d, yyyy h:mm a")}
