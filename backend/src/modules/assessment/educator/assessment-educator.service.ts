@@ -687,11 +687,13 @@ export class AssessmentEducatorService {
       })),
     );
 
-    this.generation.clearPreview(previewId);
-    this.logger.log(
-      `[Assessment] ${generated.length} questions confirmed for ${assessment.id}`,
-    );
-    return { ...assessment, questions: generated };
+this.generation.clearPreview(previewId);
+this.logger.log(
+  `[Assessment] ${generated.length} questions confirmed for ${assessment.id}`,
+);
+
+const questions = await this.core.getQuestions(assessment.id);
+return { ...assessment, questions };
   }
 
   async cancelPreview(previewId: string) {
