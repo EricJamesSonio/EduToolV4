@@ -5,10 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import {
   Pencil, Lock, LockOpen,
-  AlertTriangle, Eye, Share2, X,
+  AlertTriangle, Share2, X,
 } from "lucide-react";
 import { subjectApi } from "@/api/admin/subject.api";
 import { levelApi } from "@/api/admin/level.api";
@@ -19,6 +18,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ShareSubjectDialog } from "@/components/admin/subject/ShareSubjectDialog";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
 import { PrerequisitesSection } from "@/components/admin/subject/PrerequisitesSection";
+import { LinkedClassesSection } from "@/components/admin/subject/LinkedClassesSection";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +134,6 @@ export default function SubjectDetailPage({
   params: Promise<{ id: string }>;
 }): React.JSX.Element {
   const { id } = use(params);
-  const router  = useRouter();
   const queryClient = useQueryClient();
 
   const [editOpen, setEditOpen]           = useState(false);
@@ -282,17 +281,7 @@ export default function SubjectDetailPage({
 
       <PrerequisitesSection subject={subject} />
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold not-interactive">Linked Classes</h2>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => router.push(`/admin/classes?subjectId=${subject.id}`)}
-        >
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          View All Classes
-        </Button>
-      </div>
+      <LinkedClassesSection subjectId={subject.id} schoolYearId={activeSchoolYearId} />
 
       {editOpen && (
         <SubjectDialog

@@ -6,13 +6,23 @@ export interface ClassFilters {
   educatorId: string | undefined;
   programId: string | undefined;
   search: string | undefined;
+  /**
+   * Narrows the list to a single subject. Set from `?subjectId=` on the Classes
+   * page — without it, arriving from a subject's "Linked Classes" section
+   * showed every class in the school year instead of that subject's classes.
+   * `undefined` means "no subject filter", which is the default everywhere else.
+   */
+  subjectId: string | undefined;
 }
 
-export function useClassFilters() {
+export function useClassFilters(initialSubjectId?: string) {
   const [filterProgramId, setFilterProgramIdRaw] = useState<string>("all");
   const [filterSemesterId, setFilterSemesterId] = useState<string>("all");
   const [filterEducatorId, setFilterEducatorId] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
+  // Locked to the arrival param: the Classes page has no subject filter control,
+  // so letting it drift would silently un-filter a list the user came to see.
+  const [subjectId] = useState<string | undefined>(initialSubjectId);
 
   // Changing department invalidates whatever semester was selected —
   // always fall back to "all" so the Select never points at a stale id.
@@ -38,8 +48,9 @@ export function useClassFilters() {
       educatorId: filterEducatorId !== "all" ? filterEducatorId : undefined,
       programId: filterProgramId !== "all" ? filterProgramId : undefined,
       search: search.trim() ? search.trim() : undefined,
+      subjectId,
     }),
-    [filterSemesterId, filterEducatorId, filterProgramId, search]
+    [filterSemesterId, filterEducatorId, filterProgramId, search, subjectId]
   );
 
   function resetSemester() {

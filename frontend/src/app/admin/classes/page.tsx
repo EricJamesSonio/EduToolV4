@@ -60,7 +60,7 @@ function ClassesPageInner(): React.JSX.Element {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
-  const filters = useClassFilters();
+  const filters = useClassFilters(defaultSubjectId);
 
   const {
     filterProgramId,
