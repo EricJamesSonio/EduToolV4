@@ -6,7 +6,15 @@ import type { Class } from "@/types/admin/class.types";
 import { minutesToDisplayLabel } from "@/utils/classes.utils";
 
 /** Weekday index (0 = Sunday) to short label. */
-export const SCHEDULE_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const SCHEDULE_WEEKDAYS = [
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+];
 
 export interface ScheduleRange {
   weekday: number;
@@ -22,15 +30,16 @@ export interface DraftCell {
 export type ScheduleSource = "section" | "educator" | "both";
 
 export const SOURCE_STYLES: Record<ScheduleSource, string> = {
-  section:  "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
-  educator: "bg-chart-4/15 border-dashed border-[var(--chart-4)]/60 text-[var(--chart-4)]",
-  both:     "bg-destructive/15 border-destructive/40 text-destructive",
+  section: "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
+  educator:
+    "bg-chart-4/15 border-dashed border-[var(--chart-4)]/60 text-[var(--chart-4)]",
+  both: "bg-destructive/15 border-destructive/40 text-destructive",
 };
 
 export const SOURCE_LABELS: Record<ScheduleSource, string> = {
-  section:  "Section",
+  section: "Section",
   educator: "Educator busy",
-  both:     "Section & educator",
+  both: "Section & educator",
 };
 
 interface WeeklyScheduleGridProps {
@@ -128,7 +137,9 @@ function layoutOverlaps(dayBlocks: ScheduleBlock[]): PositionedBlock[] {
     }
 
     const colCount = columnEnds.length;
-    placed.forEach((p) => { p.colCount = colCount; });
+    placed.forEach((p) => {
+      p.colCount = colCount;
+    });
     result.push(...placed);
 
     cluster = [];
@@ -233,7 +244,8 @@ export function WeeklyScheduleGrid({
       .map((t) => t - start)
       .filter((o) => o > 0);
 
-    const rawGcd = offsets.length > 0 ? offsets.reduce((a, b) => gcd(a, b)) : 30;
+    const rawGcd =
+      offsets.length > 0 ? offsets.reduce((a, b) => gcd(a, b)) : 30;
 
     const chosen =
       MIN_INTERVAL_CANDIDATES.find((c) => rawGcd % c === 0) ??
@@ -246,14 +258,18 @@ export function WeeklyScheduleGrid({
 
   const { dayLayout, totalDataCols } = useMemo(() => {
     let col = 2;
-    const layout: Record<number, { startCol: number; colCount: number; blocks: PositionedBlock[] }> = {};
+    const layout: Record<
+      number,
+      { startCol: number; colCount: number; blocks: PositionedBlock[] }
+    > = {};
 
     for (const d of days) {
       const dayBlocks = blocks.filter((b) => b.weekday === d);
       const positioned = layoutOverlaps(dayBlocks);
-      const colCount = positioned.length > 0
-        ? Math.max(...positioned.map((b) => b.colCount))
-        : 1;
+      const colCount =
+        positioned.length > 0
+          ? Math.max(...positioned.map((b) => b.colCount))
+          : 1;
 
       layout[d] = { startCol: col, colCount, blocks: positioned };
       col += colCount;
@@ -263,14 +279,19 @@ export function WeeklyScheduleGrid({
   }, [days, blocks]);
 
   const pickingLocked =
-    (interactive && maxPicks != null && pickedRanges.length >= maxPicks) ?? false;
+    (interactive && maxPicks != null && pickedRanges.length >= maxPicks) ??
+    false;
 
   const winStart = windowStartMin ?? 0;
   const winEnd = windowEndMin ?? 0;
 
   const isOccupied = (weekday: number, minute: number): boolean =>
-    blocks.some((b) => b.weekday === weekday && minute >= b.startMin && minute < b.endMin) ||
-    pickedRanges.some((r) => r.weekday === weekday && minute >= r.startMin && minute < r.endMin);
+    blocks.some(
+      (b) => b.weekday === weekday && minute >= b.startMin && minute < b.endMin,
+    ) ||
+    pickedRanges.some(
+      (r) => r.weekday === weekday && minute >= r.startMin && minute < r.endMin,
+    );
 
   const isFreeRange = (weekday: number, from: number, to: number): boolean => {
     for (let m = from; m < to; m += interval) {
@@ -316,7 +337,9 @@ export function WeeklyScheduleGrid({
   if (blocks.length === 0 && !interactive) {
     return (
       <div className="flex flex-col items-center justify-center py-12 border rounded-md">
-        <p className="text-sm font-medium not-interactive">No schedule to display</p>
+        <p className="text-sm font-medium not-interactive">
+          No schedule to display
+        </p>
         <p className="text-xs text-muted-foreground not-interactive">
           Assign this educator to a class with a schedule.
         </p>
@@ -330,7 +353,11 @@ export function WeeklyScheduleGrid({
 
   const preview =
     interactive && draftStart && hover && canEnd(hover.weekday, hover.minute)
-      ? { weekday: draftStart.weekday, startMin: draftStart.minute, endMin: hover.minute }
+      ? {
+          weekday: draftStart.weekday,
+          startMin: draftStart.minute,
+          endMin: hover.minute,
+        }
       : null;
 
   return (
@@ -342,13 +369,15 @@ export function WeeklyScheduleGrid({
           gridTemplateRows: `auto repeat(${numRows}, ${interval * PX_PER_MINUTE}px)`,
         }}
       >
-        <div className="sticky top-0 z-10 bg-card border-b border-r" />
+<div className="sticky top-0 z-10 bg-primary text-primary-foreground border-b border-r border-primary-foreground/20 py-2 px-0.5 text-center text-xs font-bold not-interactive truncate">
+  Hours
+</div>
         {days.map((d) => {
           const { startCol, colCount } = dayLayout[d];
           return (
             <div
               key={`head-${d}`}
-              className="sticky top-0 z-10 bg-card border-b border-r py-1 px-0.5 text-center text-[10px] font-semibold text-muted-foreground not-interactive truncate"
+            className="sticky top-0 z-10 bg-primary text-primary-foreground border-b border-r border-primary-foreground/20 py-2 px-0.5 text-center text-xs font-bold not-interactive truncate"
               style={{ gridColumn: `${startCol} / span ${colCount}` }}
             >
               {SCHEDULE_WEEKDAYS[d]}
@@ -418,14 +447,18 @@ export function WeeklyScheduleGrid({
         {days.map((d) => {
           const { startCol, blocks: dayBlocks } = dayLayout[d];
           return dayBlocks.map((b) => {
-            const rowStart = 2 + Math.round((b.startMin - gridStart) / interval);
-            const rowSpan = Math.max(1, Math.round((b.endMin - b.startMin) / interval));
+            const rowStart =
+              2 + Math.round((b.startMin - gridStart) / interval);
+            const rowSpan = Math.max(
+              1,
+              Math.round((b.endMin - b.startMin) / interval),
+            );
 
             return (
               <div
                 key={b.key}
                 title={`${b.label}${b.sublabel ? ` · ${b.sublabel}` : ""}${b.tag ? ` - ${SOURCE_LABELS[b.tag]}` : ""}`}
-                className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${
+                className={`border px-1.5 py-1 overflow-hidden ${
                   b.tag ? SOURCE_STYLES[b.tag] : colorForClass(b.classId)
                 }`}
                 style={{
@@ -456,7 +489,7 @@ export function WeeklyScheduleGrid({
 
         {interactive && preview && dayLayout[preview.weekday] && (
           <div
-            className="bg-primary/15 border-primary/60 border rounded-md pointer-events-none"
+            className="bg-primary/15 border-primary/60 border pointer-events-none"
             style={{
               gridRow: `${2 + Math.round((preview.startMin - gridStart) / interval)} / span ${Math.max(1, Math.round((preview.endMin - preview.startMin) / interval))}`,
               gridColumn: dayLayout[preview.weekday].startCol,
@@ -468,12 +501,16 @@ export function WeeklyScheduleGrid({
           pickedRanges.map((range, idx) => {
             const { startCol } = dayLayout[range.weekday] ?? {};
             if (startCol == null) return null;
-            const rowStart = 2 + Math.round((range.startMin - gridStart) / interval);
-            const rowSpan = Math.max(1, Math.round((range.endMin - range.startMin) / interval));
+            const rowStart =
+              2 + Math.round((range.startMin - gridStart) / interval);
+            const rowSpan = Math.max(
+              1,
+              Math.round((range.endMin - range.startMin) / interval),
+            );
             return (
               <div
                 key={`pick-${idx}-${range.startMin}`}
-                className="m-0.5 rounded-md border bg-primary/15 border-primary/60 px-1.5 py-1 overflow-hidden"
+                className="border bg-primary/15 border-primary/60 px-1.5 py-1 overflow-hidden"
                 style={{
                   gridRow: `${rowStart} / span ${rowSpan}`,
                   gridColumn: startCol,
