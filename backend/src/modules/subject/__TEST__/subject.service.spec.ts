@@ -1,5 +1,6 @@
 import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { SubjectService } from '../subject.service';
+import type { DatabaseService } from '@/core/database/database.provider';
 
 describe('SubjectService', () => {
   let service: SubjectService;
@@ -25,7 +26,15 @@ describe('SubjectService', () => {
       findSharings: jest.fn(),
       clearSharings: jest.fn(),
     };
-    service = new SubjectService(repo);
+    // `db` backs the read-only tree/list queries (hierarchy, program groups),
+    // which these cases do not exercise — the doubles exist so the constructor
+    // arity matches the service, not to assert on them.
+    service = new SubjectService(repo, {
+      level: { findMany: jest.fn() },
+      program: { findMany: jest.fn() },
+      subject: { findMany: jest.fn() },
+      subjectPrerequisite: { findMany: jest.fn() },
+    } as unknown as DatabaseService);
     jest.clearAllMocks();
   });
 

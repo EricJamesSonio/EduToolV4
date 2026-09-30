@@ -10,12 +10,7 @@ import {
   AppCacheService,
   APP_CACHE_TTL,
 } from '@/core/cache/app-cache.service';
-import { getScheduleViolation, toMinutes } from './schedule-window.util';
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
+import { toMinutes } from './schedule-window.util';
 
 function timeFromDate(d: Date): string {
   const h = d.getHours().toString().padStart(2, '0');

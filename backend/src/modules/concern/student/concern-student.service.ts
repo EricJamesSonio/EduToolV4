@@ -1,5 +1,5 @@
 // src/modules/concern/student/concern-student.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConcernCoreService } from '../core/concern-core.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { ConcernDigestService } from '../digest/concern-digest.service';
@@ -44,6 +44,15 @@ export class ConcernStudentService {
       dto.subject,
       dto.body,
     );
+
+    // The concern row was just created in a transaction inside the core
+    // service, so the re-read by id cannot miss. If it ever does, surface it
+    // explicitly rather than dereferencing null and masking the real cause.
+    if (!concern) {
+      throw new InternalServerErrorException(
+        'Concern was created but could not be reloaded.',
+      );
+    }
 
     // In-app notifications to all org admins/registrars — single batch call.
     // Payload carries everything the bell needs to render + deep-link
