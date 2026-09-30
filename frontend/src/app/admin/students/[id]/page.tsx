@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Pencil, KeyRound, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Pencil, KeyRound, ShieldCheck, ArrowLeft, CalendarDays, ScrollText, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -28,6 +28,11 @@ import { AcademicHistoryPanel } from "@/components/admin/student/detail/Academic
 import { ShiftProgramDialog } from "@/components/admin/student/detail/ShiftProgramDialog";
 import { ChangeYearDialog } from "@/components/admin/student/detail/ChangeYearDialog";
 import { SubjectCompletionPanel } from "@/components/admin/student/detail/SubjectCompletionPanel";
+import { StudentSchedulePanel } from "@/components/shared/StudentSchedulePanel";
+import {
+  Tabs, TabsContent, TabsList, TabsTrigger,
+} from "@/components/ui/tabs";
+import { studentEnrollmentsToScheduleClasses } from "@/utils/studentSchedule.utils";
 import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
 import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
 
@@ -83,6 +88,10 @@ const { data: schoolYearEnrollments } = useAsyncQuery(
 );
 
 const enrollments = enrollmentsRaw ?? [];
+
+  // Weekly schedule derived from the classes this student is enrolled in.
+  // The enrollments payload already includes schedules, so no extra request.
+  const scheduleClasses = studentEnrollmentsToScheduleClasses(enrollments);
 const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_id === id) ?? [];
 const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.student_id === id) ?? null;
   const activePe = useMemo(() => {
@@ -206,9 +215,53 @@ const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.stude
         )}
       </div>
 
-      <AcademicHistoryPanel studentId={id} schoolYearId={activeSchoolYearId ?? undefined} />
+      {/* Academic History / Subject Completion / Schedule are tabbed rather than
+          stacked — three long panels in a row made this page very tall and
+          pushed everything below the fold. */}
+      <Tabs defaultValue="history" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="history" className="gap-1.5">
+            <ScrollText className="h-3.5 w-3.5" />
+            Academic History
+          </TabsTrigger>
+          <TabsTrigger value="completion" className="gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Subject Completion
+          </TabsTrigger>
+          <TabsTrigger value="schedule" className="gap-1.5">
+            <CalendarDays className="h-3.5 w-3.5" />
+            Schedule
+          </TabsTrigger>
+        </TabsList>
 
-      <SubjectCompletionPanel studentId={id} />
+        <TabsContent value="history">
+          <AcademicHistoryPanel
+            studentId={id}
+            schoolYearId={activeSchoolYearId ?? undefined}
+          />
+        </TabsContent>
+
+        <TabsContent value="completion">
+          <SubjectCompletionPanel studentId={id} />
+        </TabsContent>
+
+        <TabsContent value="schedule">
+          <div className="rounded-lg border bg-card p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold not-interactive">Schedule</h2>
+            </div>
+            <StudentSchedulePanel
+              classes={scheduleClasses}
+              isLoading={enrollmentsLoading}
+              emptyTitle="No classes yet"
+              emptyDescription="This student is not enrolled in any classes yet."
+              noScheduleTitle="No schedule yet"
+              noScheduleDescription="This student's classes don't have schedule times assigned yet."
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {editOpen && (
         <EditStudentDialog
