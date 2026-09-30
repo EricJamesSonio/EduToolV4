@@ -188,24 +188,14 @@ function CourseRow({ course }: { course: ProgramCourseCount }) {
 function StatCard({
   label,
   value,
-  hint,
-  icon,
-  iconClass,
 }: {
   label: string;
   value: number;
-  hint: string;
-  icon: React.ReactNode;
-  iconClass: string;
 }) {
   return (
     <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground not-interactive">{label}</p>
-        <span className={iconClass}>{icon}</span>
-      </div>
+      <p className="text-xs text-muted-foreground not-interactive">{label}</p>
       <p className="text-2xl font-semibold tabular-nums not-interactive">{value}</p>
-      <p className="text-xs text-muted-foreground not-interactive">{hint}</p>
     </div>
   );
 }
@@ -390,34 +380,10 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
           />
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Total Applications"
-              value={total}
-              hint="in this period"
-              icon={<Users className="h-4 w-4" />}
-              iconClass="text-info"
-            />
-            <StatCard
-              label="In Review"
-              value={(summary?.pending ?? 0) + (summary?.locked ?? 0)}
-              hint="pending or locked"
-              icon={<CalendarClock className="h-4 w-4" />}
-              iconClass="text-warning"
-            />
-            <StatCard
-              label="Enrolled"
-              value={summary?.approved ?? 0}
-              hint="approved applications"
-              icon={<UserCheck className="h-4 w-4" />}
-              iconClass="text-success"
-            />
-            <StatCard
-              label="Rejected"
-              value={summary?.rejected ?? 0}
-              hint="declined applications"
-              icon={<UserX className="h-4 w-4" />}
-              iconClass="text-destructive"
-            />
+            <StatCard label="Total Applications" value={total} />
+            <StatCard label="In Review" value={(summary?.pending ?? 0) + (summary?.locked ?? 0)} />
+            <StatCard label="Enrolled" value={summary?.approved ?? 0} />
+            <StatCard label="Rejected" value={summary?.rejected ?? 0} />
           </div>
 
           <Tabs value={tab} onValueChange={setTab}>

@@ -16,8 +16,8 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
     ? enrollmentsResponse
     : enrollmentsResponse?.data ?? [];
 
+  const totalStudents = enrollments.length;
   const activeCount   = enrollments.filter((e) => e.status === "active").length;
-  const pendingCount  = enrollments.filter((e) => e.status === "pending").length;
   const totalProgEnrollments = enrollments.reduce(
     (sum, e) => sum + (e.programEnrollments?.length ?? 0),
     0,
@@ -41,22 +41,17 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
               <p className="text-xs text-muted-foreground not-interactive">Total Students</p>
-              <p className="text-2xl font-semibold not-interactive">{enrollments.length}</p>
-              <p className="text-xs text-muted-foreground not-interactive">in this school year</p>
+              <p className="text-2xl font-semibold not-interactive">{totalStudents}</p>
             </div>
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
               <p className="text-xs text-muted-foreground not-interactive">Active</p>
-              <p className="text-2xl font-semibold text-success not-interactive">
+              <p className="text-2xl font-semibold text-foreground not-interactive">
                 {activeCount}
-              </p>
-              <p className="text-xs text-muted-foreground not-interactive">
-                {pendingCount > 0 ? `${pendingCount} pending` : "no pending"}
               </p>
             </div>
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
               <p className="text-xs text-muted-foreground not-interactive">Department Enrollments</p>
               <p className="text-2xl font-semibold not-interactive">{totalProgEnrollments}</p>
-              <p className="text-xs text-muted-foreground not-interactive">across all departments</p>
             </div>
           </div>
         )}
