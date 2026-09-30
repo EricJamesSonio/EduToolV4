@@ -1,10 +1,10 @@
 # TICK-SUBJECT-001 — Subject hierarchy: collapsible header + gate subjects behind course/strand (handoff)
 
-Status: ready-for-review
+Status: merged
 Branch: `agent/TICK-SUBJECT-001-hierarchy-collapse-scope-gate`
 Worktree: `../EduToolV4-worktrees/TICK-SUBJECT-001-hierarchy-collapse-scope-gate`
-Base: `development` @ `8d71f001`
-Commit: `e298220f` (7 files, +512/-47)
+Base: `development` @ `2787a1dd` (rebased from `8d71f001`)
+Commit: `004d5ca5` (7 files, +512/-47) — **merged into `development`**
 
 ## What changed
 
