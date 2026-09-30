@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import { EducatorClassAssignmentManager } from "@/components/admin/educator/EducatorClassAssignmentManager";
+import { EducatorTeachableSubjectsCard } from "@/components/admin/educator/EducatorTeachableSubjectsCard";
+import { EducatorAvailabilityCard } from "@/components/admin/educator/EducatorAvailabilityCard";
 import { EditEducatorDialog } from "@/components/admin/educator/EditEducatorDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +18,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { AxiosError } from "axios";
 
 function getInitials(name: string): string {
@@ -25,6 +32,18 @@ function getInitials(name: string): string {
 export default function EducatorDetailPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
+
+  // Teachable subjects are year-scoped (subjects are recreated per year), so
+  // the admin picks which school year they are editing.
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | undefined>();
+
+  const { data: schoolYearsRaw, isLoading: schoolYearsLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    () => schoolYearApi.getAll()
+  );
+  const schoolYears: SchoolYear[] = schoolYearsRaw ?? [];
+  const schoolYearId =
+    selectedSchoolYearId ?? schoolYears.find((y) => y.status === "active")?.id ?? schoolYears[0]?.id;
 
   const [editOpen, setEditOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -106,6 +125,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={schoolYearsLoading}
+              selectedId={schoolYearId ?? null}
+              onSelect={setSelectedSchoolYearId}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -145,6 +170,16 @@ export default function EducatorDetailPage(): React.JSX.Element {
             <ProfileField icon={Mail}  iconClass="icon-people"    label="Email"       value={educator.email} />
           </div>
         </div>
+      </div>
+
+      {/* Generator inputs: what this educator can teach, and when. */}
+      <div className="rounded-lg border bg-card p-5 space-y-6">
+        <EducatorTeachableSubjectsCard
+          educatorId={educator.id}
+          schoolYearId={schoolYearId}
+        />
+        <Separator />
+        <EducatorAvailabilityCard educatorId={educator.id} />
       </div>
 
       {/* Class assignment manager */}

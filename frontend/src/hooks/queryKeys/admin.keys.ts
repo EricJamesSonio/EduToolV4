@@ -94,6 +94,12 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'educators', 'list', filters] as const,
     detail: (id: string) =>
       [...adminKeys.all, 'educators', 'detail', id] as const,
+    /** Teachable subjects for one educator (Phase 3). */
+    teachableSubjects: (educatorId: string) =>
+      [...adminKeys.all, 'educators', 'teachable-subjects', educatorId] as const,
+    /** Availability profile for one educator (Phase 4). */
+    scheduleProfile: (educatorId: string) =>
+      [...adminKeys.all, 'educators', 'schedule-profile', educatorId] as const,
     assignments: (educatorId: string) =>
       [
         ...adminKeys.all,
@@ -388,6 +394,9 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'subjects', 'list', filters] as const,
     detail: (id: string) =>
       [...adminKeys.all, 'subjects', 'detail', id] as const,
+    /** Educators who can teach this subject (Phase 3). */
+    educators: (id: string) =>
+      [...adminKeys.all, 'subjects', 'educators', id] as const,
   },
 
   concerns: {

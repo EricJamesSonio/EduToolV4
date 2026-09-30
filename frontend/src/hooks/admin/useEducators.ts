@@ -16,6 +16,12 @@ import type {
   CreateEducatorRequest,
   CreateEducatorResponse,
   UpdateEducatorRequest,
+  CarryOverEducatorSubjectsRequest,
+  CarryOverEducatorSubjectsResponse,
+  SetEducatorScheduleProfileRequest,
+  EducatorScheduleProfile,
+  TeachableSubject,
+  SubjectEducator,
 } from "@/api/admin/educator.api";
 
 import type { Educator } from "@/types/admin/educator.types";
@@ -280,3 +286,128 @@ export const useResetEducatorPassword =
       },
     );
   };
+
+
+// ---------------------------------------------
+// TEACHABLE SUBJECTS (Phase 3)
+// ---------------------------------------------
+
+export const useTeachableSubjects = (
+  educatorId: string | undefined,
+): UseQueryResult<TeachableSubject[], Error> => {
+  return useAsyncQuery<TeachableSubject[]>(
+    queryKeys.admin.educators.teachableSubjects(educatorId ?? ""),
+    () => educatorApi.getTeachableSubjects(educatorId!),
+    { enabled: !!educatorId },
+  );
+};
+
+export const useSetTeachableSubjects = () => {
+  const qc = useQueryClient();
+  return useMutationWithInvalidation<
+    { count: number },
+    Error,
+    { educatorId: string; subjectIds: string[] }
+  >(
+    ({ educatorId, subjectIds }) =>
+      educatorApi.setTeachableSubjects(educatorId, subjectIds),
+    {
+      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
+      onSuccess: (result, variables) => {
+        void qc.invalidateQueries({ queryKey: queryKeys.admin.educators.all });
+        toast.success(
+          variables.subjectIds.length === 0
+            ? "Cleared teachable subjects."
+            : `Saved ${result.count} teachable subject${result.count === 1 ? "" : "s"}.`,
+        );
+      },
+      onError: (error: any) => {
+        toast.error(
+          error?.response?.data?.message ||
+            "Failed to save teachable subjects.",
+        );
+      },
+    },
+  );
+};
+
+export const useCarryOverTeachableSubjects = () => {
+  return useMutationWithInvalidation<
+    CarryOverEducatorSubjectsResponse,
+    Error,
+    CarryOverEducatorSubjectsRequest
+  >(
+    (body) => educatorApi.carryOverTeachableSubjects(body),
+    {
+      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
+      onSuccess: (result) => {
+        toast.success(
+          `Copied ${result.created} subject link${result.created === 1 ? "" : "s"}.` +
+            (result.unmatched.length > 0
+              ? ` ${result.unmatched.length} could not be matched.`
+              : ""),
+        );
+      },
+      onError: (error: any) => {
+        toast.error(
+          error?.response?.data?.message || "Failed to copy subjects.",
+        );
+      },
+    },
+  );
+};
+
+export const useSubjectEducators = (
+  subjectId: string | null | undefined,
+): UseQueryResult<SubjectEducator[], Error> => {
+  return useAsyncQuery<SubjectEducator[]>(
+    queryKeys.admin.subjects.educators(subjectId ?? ""),
+    () => educatorApi.getSubjectEducators(subjectId!),
+    { enabled: !!subjectId },
+  );
+};
+
+// ---------------------------------------------
+// AVAILABILITY (Phase 4)
+// ---------------------------------------------
+
+export const useScheduleProfile = (
+  educatorId: string | undefined,
+): UseQueryResult<EducatorScheduleProfile, Error> => {
+  return useAsyncQuery<EducatorScheduleProfile>(
+    queryKeys.admin.educators.scheduleProfile(educatorId ?? ""),
+    () => educatorApi.getScheduleProfile(educatorId!),
+    { enabled: !!educatorId },
+  );
+};
+
+export const useSetScheduleProfile = () => {
+  const qc = useQueryClient();
+  return useMutationWithInvalidation<
+    EducatorScheduleProfile,
+    Error,
+    { educatorId: string } & SetEducatorScheduleProfileRequest
+  >(
+    ({ educatorId, ...body }) =>
+      educatorApi.setScheduleProfile(educatorId, body),
+    {
+      invalidateKeys: [queryKeys.admin.educators.scheduleProfile("")],
+      onSuccess: (result) => {
+        void qc.invalidateQueries({ queryKey: queryKeys.admin.educators.all });
+        toast.success("Availability updated.");
+        // Existing classes are never moved automatically, so say so plainly.
+        if ((result.outsideAvailabilityClassCount ?? 0) > 0) {
+          toast.warning(
+            `${result.outsideAvailabilityClassCount} existing class schedule(s) fall outside the new availability. They were left in place - move them yourself.`,
+            { duration: 8000 },
+          );
+        }
+      },
+      onError: (error: any) => {
+        toast.error(
+          error?.response?.data?.message || "Failed to update availability.",
+        );
+      },
+    },
+  );
+};
