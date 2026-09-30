@@ -1,6 +1,6 @@
 # TICK-SUBJECT-001 — Subject hierarchy: collapsible header + gate subjects behind course/strand
 
-Status: in-progress
+Status: ready-for-review
 Priority: medium
 Created: 2026-09-30
 Created by: agent
@@ -54,26 +54,30 @@ Two issues on `/admin/subjects/hierarchy`:
 
 ## Acceptance Criteria
 
-- [ ] Header collapses/expands from a toggle button (`aria-expanded`,
+- [x] Header collapses/expands from a toggle button (`aria-expanded`,
       `aria-controls`)
-- [ ] Collapsed state persists across page loads
-- [ ] Collapsed header still shows title + `N subjects · M prerequisite links ·
+- [x] Collapsed state persists across page loads
+- [x] Collapsed header still shows title + `N subjects · M prerequisite links ·
       K years`
-- [ ] Department with no course/strand → hierarchy loads after department only
-- [ ] College department with courses → no subjects until a course is picked
-- [ ] SHS department with strands → no subjects until a strand is picked
-- [ ] Bare school year loads nothing (no cross-department dump)
-- [ ] Switching from a ready scope back to an incomplete one clears the graph
+- [x] Department with no course/strand → hierarchy loads after department only
+- [x] College department with courses → no subjects until a course is picked
+- [x] SHS department with strands → no subjects until a strand is picked
+- [x] Bare school year loads nothing (no cross-department dump)
+- [x] Switching from a ready scope back to an incomplete one clears the graph
       (no stale subjects leaking through `placeholderData`)
-- [ ] Hint text names the outstanding step (course vs strand)
-- [ ] No second network request for the department list (shared cache key)
-- [ ] Unit tests for the readiness rule; render test for the collapse toggle
-- [ ] lint + typecheck show 0 new errors vs baseline; tests green
+- [x] Hint text names the outstanding step (course vs strand)
+- [x] No second network request for the department list (shared cache key)
+- [x] Unit tests for the readiness rule; render test for the collapse toggle
+- [x] lint + typecheck show 0 new errors vs baseline; tests green
 
 ## Confidence
 
-- Score: 90/100 (Requirement 20, Codebase verification 20, Architecture 20,
-  Edge cases 15, Blast radius 15).
+- Score: 96/100 (Requirement 20, Codebase verification 20, Architecture 20,
+  Edge cases 18, Blast radius 18). Raised from 90 after implementation: both
+  non-obvious failure modes were found and closed before finishing — the
+  `placeholderData`-on-disabled-query leak (which would have made the fix look
+  like a no-op) and the unreachable-selection dead end for non-college/non-shs
+  programs. Both now have regression tests.
 - Assumption (disclosed): the collapsed/expanded preference is persisted to
   `localStorage`, following the existing `useSubjectPreset` / `useClassPreset`
   pattern. Trivial to drop if unwanted.
@@ -86,9 +90,17 @@ Two issues on `/admin/subjects/hierarchy`:
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: `frontend` jest `src/components/admin/subject/hierarchy` 27/27
+  (14 new scope-rule + 13 pre-existing graph/scopeKey) and
+  `src/app/admin/subjects/hierarchy` 6/6 (new collapse render tests).
+- Full suite: `frontend` jest **22 suites / 231 tests green** (was 20 suites /
+  211 before this ticket; +2 suites / +20 tests). `eslint src` 0 output.
+  `tsc --noEmit` **20 errors before / 20 after with byte-identical error sets**
+  (`Compare-Object` on the normalized lists) — baseline measured by reverting to
+  pristine `8d71f001` and re-running, not assumed. No error references
+  `hierarchy` or `useHierarchyPrograms`.
+- Development integration: not run (branch not merged; per the branch model the
+  reviewer merges then re-runs the full suite on `development`).
 
 ## Blocker
 
@@ -105,10 +117,19 @@ None.
   sets `placeholderData: (prev) => prev` (line 39), which React Query applies
   even to a disabled query. Rendering must be gated on readiness as well as the
   fetch.
+- 2026-09-30 — Implemented. `hierarchyScope.ts`, `useHierarchyPrograms.ts`, hook
+  gate + data suppression, collapsible header. 20 new tests green.
+- 2026-09-30 — Confidence re-scored 90 → 96 (see above).
+- 2026-09-30 — Baseline measured, not assumed: reverted to pristine `8d71f001`
+  and re-ran `tsc --noEmit`. A first attempt at this compared against a tree
+  where the new files had been stashed but their imports left behind, which
+  produced 9 phantom `TS2307`/`TS7006` errors; discarded it and re-measured on a
+  genuinely clean tree. True baseline is 20 errors, identical to after.
 
 ## Commits
 
-- (pending)
+- `e298220f` — feat(subject): collapsible hierarchy header + gate subjects
+  behind course/strand (7 files, +512/-47)
 
 ## Notes
 
