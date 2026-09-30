@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { EnrollmentPortalService } from './enrollment-portal.service';
 import { EnrollmentSessionGuard } from './enrollment-session.guard';
 import { EnrollmentSession } from './enrollment-session.decorator';
@@ -45,6 +46,8 @@ export class EnrollmentPortalController {
   }
 
   @Post(':orgSlug/:periodToken/otp')
+  // Public + unauthenticated + sends an email.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async sendOtp(
     @Param('orgSlug') orgSlug: string,
     @Param('periodToken') periodToken: string,
@@ -54,6 +57,7 @@ export class EnrollmentPortalController {
   }
 
   @Post(':orgSlug/:periodToken/otp/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async verifyOtp(
     @Param('orgSlug') orgSlug: string,
     @Param('periodToken') periodToken: string,

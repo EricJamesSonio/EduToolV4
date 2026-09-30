@@ -1,13 +1,15 @@
 import { UseQueryResult, UseMutationResult, useQueryClient } from "@tanstack/react-query";
-import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { useAsyncQuery, useAsyncMutation, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { gradeLockApi } from "@/api/admin/grade-lock.api";
+import { gradeLockApi, BulkAssignError } from "@/api/admin/grade-lock.api";
 import type {
   GradeLock,
   GradeLockSetting,
   GradeLockResponse,
   AutoLockResponse,
   UnlockRequest,
+  BulkAssignTotals,
+  BulkAssignOptions,
 } from "@/types/admin/grade-lock.types";
 import { toast } from "sonner";
 
@@ -77,6 +79,66 @@ export const useAssignSetting = (): UseMutationResult<GradeLock, Error, { classI
       },
       onError: (err: any) => {
         toast.error(err?.response?.data?.message || "Failed to apply template");
+      },
+    },
+  );
+};
+
+// Assign setting to MANY classes.
+//
+// Deliberately NOT useMutationWithInvalidation: that invalidates in onSuccess
+// only, so a run that fails halfway through several chunks would leave the
+// table showing stale data. Here the whole chunked run is a single mutation,
+// and the cache is invalidated exactly once at the end of it — on success AND
+// on partial failure.
+export const useAssignSettingBulk = (): UseMutationResult<
+  BulkAssignTotals,
+  Error,
+  { classIds: string[]; settingId: string } & BulkAssignOptions
+> => {
+  const queryClient = useQueryClient();
+  const lockListKey = queryKeys.admin.gradeLock.list();
+
+  return useAsyncMutation<
+    BulkAssignTotals,
+    Error,
+    { classIds: string[]; settingId: string } & BulkAssignOptions
+  >(
+    ({ classIds, settingId, signal, onProgress }) =>
+      gradeLockApi.assignSettingBulk(classIds, settingId, { signal, onProgress }),
+    {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: lockListKey });
+
+        const skipped =
+          data.skippedLocked + data.skippedUnchanged + data.skippedInvalid;
+
+        toast.success(
+          skipped > 0
+            ? `Template applied to ${data.assigned} of ${data.requested} classes (${skipped} skipped)`
+            : `Template applied to ${data.assigned} classes`,
+        );
+      },
+      onError: (error: Error) => {
+        const bulk = error as BulkAssignError;
+
+        if (bulk?.cancelled) {
+          // User-initiated abort: partial state still needs a refresh.
+          queryClient.invalidateQueries({ queryKey: lockListKey });
+          toast.warning(
+            `Cancelled — template applied to ${bulk.partial.assigned} of ${bulk.partial.requested} classes`,
+          );
+          return;
+        }
+
+        // Even a failed run may have applied whole chunks before the error,
+        // so refresh rather than leaving the table stale.
+        queryClient.invalidateQueries({ queryKey: lockListKey });
+        toast.error(
+          bulk?.partial?.assigned
+            ? `${error.message} — applied to ${bulk.partial.assigned} of ${bulk.partial.requested} before failing`
+            : error?.message || "Failed to apply template",
+        );
       },
     },
   );

@@ -10,12 +10,14 @@ import type {
   CreateGradeLockSettingDto,
   UpdateGradeLockSettingDto,
   AssignSettingDto,
+  AssignSettingBulkDto,
   LockClassDto,
   UnlockClassDto,
   OverrideGradeLockDto,
   RequestUnlockDto,
   GrantUnlockDto,
 } from './dto/grade-lock.dto';
+import type { BulkAssignResult } from './grade-lock-operations.service';
 
 @Injectable()
 export class GradeLockService {
@@ -57,6 +59,14 @@ export class GradeLockService {
 
   assignSetting(orgId: string, actorId: string, dto: AssignSettingDto) {
     return this.operations.assignSetting(orgId, actorId, dto);
+  }
+
+  assignSettingBulk(
+    orgId: string,
+    actorId: string,
+    dto: AssignSettingBulkDto,
+  ): Promise<BulkAssignResult> {
+    return this.operations.assignSettingBulk(orgId, actorId, dto);
   }
 
   async autoAssignOnClassCreate(

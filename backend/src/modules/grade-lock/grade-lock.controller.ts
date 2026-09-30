@@ -16,10 +16,12 @@ import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { Throttle } from '@nestjs/throttler';
 import {
   CreateGradeLockSettingDto,
   UpdateGradeLockSettingDto,
   AssignSettingDto,
+  AssignSettingBulkDto,
   LockClassDto,
   UnlockClassDto,
   OverrideGradeLockDto,
@@ -84,6 +86,19 @@ export class GradeLockController {
   @HttpCode(HttpStatus.OK)
   assignSetting(@CurrentUser() user: any, @Body() dto: AssignSettingDto) {
     return this.service.assignSetting(user.org_id, user.id, dto);
+  }
+
+  // Bulk template assignment. Tightened from the 100/min global default: this
+  // is the most write-heavy endpoint in the module, so it gets its own budget.
+  @Post('assign-bulk')
+  @Roles('admin')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  assignSettingBulk(
+    @CurrentUser() user: any,
+    @Body() dto: AssignSettingBulkDto,
+  ) {
+    return this.service.assignSettingBulk(user.org_id, user.id, dto);
   }
 
   // ─── Lock Actions ──────────────────────────────────────────────────────────
