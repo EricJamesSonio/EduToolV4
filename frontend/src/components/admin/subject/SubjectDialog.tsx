@@ -10,6 +10,9 @@ import type { CreateSubjectRequest, UpdateSubjectRequest } from "@/api/admin/sub
 import type { Subject, SubjectType } from "@/types/admin/subject.types";
 import type { Level } from "@/types/admin/level.types";
 import { programApi } from "@/api/admin/program.api";
+
+/** Valid session lengths. Must stay in step with the backend's allowed values. */
+const SESSION_MINUTE_OPTIONS = [15, 20, 25, 30, 45, 60, 90, 120];
 import { levelApi } from "@/api/admin/level.api";
 import { DialogForm } from "@/components/shared/DialogForm";
 import { Button } from "@/components/ui/button";
@@ -33,6 +36,9 @@ interface SubjectFormValues {
   courseId: string;
   strandId: string;
   subjectType: SubjectType;
+  /** Empty string = "use the program default". */
+  sessionsPerWeek: string;
+  sessionMinutes: string;
 }
 
 interface SubjectDialogProps {
@@ -79,6 +85,10 @@ export function SubjectDialog({
       courseId: subject?.courseId ?? defaultCourseId ?? "",
       strandId: subject?.strandId ?? defaultStrandId ?? "",
       subjectType: (subject?.subjectType ?? defaultSubjectType) as SubjectType,
+      sessionsPerWeek:
+        subject?.sessionsPerWeek != null ? String(subject.sessionsPerWeek) : "",
+      sessionMinutes:
+        subject?.sessionMinutes != null ? String(subject.sessionMinutes) : "",
     },
   });
 
@@ -158,6 +168,13 @@ export function SubjectDialog({
         levelId: values.levelId || (isEdit ? null : undefined),
         courseId: values.courseId || (isEdit ? null : undefined),
         strandId: values.strandId || (isEdit ? null : undefined),
+        // Empty means "use the program default", which the API stores as null.
+        sessionsPerWeek: values.sessionsPerWeek
+          ? Number(values.sessionsPerWeek)
+          : null,
+        sessionMinutes: values.sessionMinutes
+          ? Number(values.sessionMinutes)
+          : null,
       };
       return isEdit
         ? subjectApi.update(subject!.id, payload as UpdateSubjectRequest)
@@ -269,6 +286,56 @@ export function SubjectDialog({
           </Tabs>
         </div>
       )}
+
+      {/* Weekly sessions — optional, falls back to the department default */}
+      <div className="space-y-1.5">
+        <Label>Weekly sessions</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <Select
+            value={watch("sessionsPerWeek") || undefined}
+            onValueChange={(v) =>
+              setValue("sessionsPerWeek", v ?? "", { shouldDirty: true })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Default" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Default</SelectItem>
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} per week
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={watch("sessionMinutes") || undefined}
+            onValueChange={(v) =>
+              setValue("sessionMinutes", v ?? "", { shouldDirty: true })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Default" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Default</SelectItem>
+              {SESSION_MINUTE_OPTIONS.map((m) => (
+                <SelectItem key={m} value={String(m)}>
+                  {m} min
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Leave on Default to follow the department standard
+          {subject?.effectiveSessionsPerWeek
+            ? ` (currently ${subject.effectiveSessionsPerWeek} × ${subject.effectiveSessionMinutes}m)`
+            : ""}
+          . Session length must be a multiple of the school&apos;s slot length.
+        </p>
+      </div>
 
       {/* Department — always shown (create + edit) */}
       <div className="space-y-1.5">

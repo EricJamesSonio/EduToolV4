@@ -67,6 +67,33 @@ export function useSubjectColumns(
       },
     },
     {
+      // Effective weekly requirement, e.g. "5 × 60m". Muted when it is only
+      // the program default, so a configured value stands out in the list.
+      id: "weeklySessions",
+      header: "Weekly",
+      cell: (info) => {
+        const row = info.row.original;
+        const count = row.effectiveSessionsPerWeek ?? 5;
+        const minutes = row.effectiveSessionMinutes ?? 60;
+        const isDefault = row.sessionRequirementSource !== "explicit";
+        return (
+          <span
+            className={cn(
+              "text-xs whitespace-nowrap",
+              isDefault ? "text-muted-foreground" : "text-foreground font-medium",
+            )}
+            title={
+              isDefault
+                ? "Using the department default"
+                : "Configured for this subject"
+            }
+          >
+            {count} × {minutes}m
+          </span>
+        );
+      },
+    },
+    {
       header: "Lock Status",
       accessorKey: "lockStatus",
       cell: (info) => {
