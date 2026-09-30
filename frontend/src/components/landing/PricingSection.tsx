@@ -79,7 +79,7 @@ export function PricingSection() {
             }
           >
             {plan.popular && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-sm">
                 Most Popular
               </span>
             )}
