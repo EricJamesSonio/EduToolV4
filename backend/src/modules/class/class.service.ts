@@ -58,6 +58,24 @@ export class ClassService {
   // Resolve semester automatically from schoolYearId
   // ---------------------------------------------------------------------------
 
+  /**
+   * Resolve the semester a class belongs to.
+   *
+   * A `Semester` belongs to exactly one program (migration
+   * 20260925113449_add_semester_program_scope), so EVERY lookup here is scoped
+   * by `program_id`.
+   *
+   * This matters: a school year routinely has one semester named "1st
+   * Semester" per program. Matching on name alone returned whichever row the
+   * database happened to order first, so a BSCS class could be filed under the
+   * JHS program's semester. A fallback to "any semester in this school year"
+   * was worse — it could cross programs entirely.
+   *
+   * Order of preference:
+   *   1. the exact `template_semester_id` the program's template defines
+   *   2. same program + same name (a semester created without the template link)
+   *   3. any semester of THIS program (still never another program's)
+   */
   private async resolveSemesterId(
     schoolYearId: string,
     programId: string,
@@ -88,31 +106,37 @@ export class ClassService {
       );
     }
 
-    // Try matching by name first
-    const semester = await this.db.semester.findFirst({
-      where: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        name: firstTemplateSemester.name,
-      },
+    const base = {
+      org_id: orgId,
+      school_year_id: schoolYearId,
+      program_id: programId,
+    };
+
+    // 1. The precise link: this program fulfilling this template semester.
+    const byTemplate = await this.db.semester.findFirst({
+      where: { ...base, template_semester_id: firstTemplateSemester.id },
       orderBy: { start_date: 'asc' },
     });
+    if (byTemplate) return byTemplate.id;
 
-    if (semester) return semester.id;
-
-    // Fallback: any semester for this school year
-    const fallback = await this.db.semester.findFirst({
-      where: { org_id: orgId, school_year_id: schoolYearId },
+    // 2. Same program, same name — covers semesters created before the
+    //    template link was populated.
+    const byName = await this.db.semester.findFirst({
+      where: { ...base, name: firstTemplateSemester.name },
       orderBy: { start_date: 'asc' },
     });
+    if (byName) return byName.id;
 
-    if (!fallback) {
-      throw new BadRequestException(
-        'No semesters found for this school year. Please create semesters in Semester Settings first.',
-      );
-    }
+    // 3. Any semester belonging to THIS program.
+    const anyForProgram = await this.db.semester.findFirst({
+      where: base,
+      orderBy: { start_date: 'asc' },
+    });
+    if (anyForProgram) return anyForProgram.id;
 
-    return fallback.id;
+    throw new BadRequestException(
+      `No semesters found for this program in the selected school year. Please create its semesters in Semester Settings first.`,
+    );
   }
 
 
