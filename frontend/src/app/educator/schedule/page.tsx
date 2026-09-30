@@ -10,8 +10,9 @@ import { useAuthProfile } from "@/hooks/useAuthProfile";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { EducatorScheduleGrid } from "@/components/admin/educator/EducatorScheduleGrid";
+import { WeeklyScheduleGrid } from "@/components/shared/WeeklyScheduleGrid";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
 
 export default function EducatorSchedulePage(): React.JSX.Element {
   const { data: profile } = useAuthProfile();
@@ -19,13 +20,15 @@ export default function EducatorSchedulePage(): React.JSX.Element {
 
   // Reuse the admin classes endpoint (educator-role allowed) — it already
   // returns schedules as "HH:mm" plus subject/section names, which is exactly
-  // what EducatorScheduleGrid consumes. Schedules are only loaded for the
+  // what WeeklyScheduleGrid consumes. Schedules are only loaded for the
   // current user's own educator id.
   const { data: classes = [], isLoading } = useAsyncQuery(
     [...queryKeys.admin.classes.list({ educatorId }), "own-schedule"] as const,
     () => classApi.getAll({ educatorId }),
     { enabled: !!educatorId },
   );
+
+  const window = useScheduleWindow();
 
   const hasAnySchedule = useMemo(
     () => classes.some((cls) => (cls.schedules?.length ?? 0) > 0),
@@ -55,7 +58,13 @@ export default function EducatorSchedulePage(): React.JSX.Element {
           description="Your classes don't have schedule times assigned yet. Contact your administrator."
         />
       ) : (
-        <EducatorScheduleGrid classes={classes} />
+        <WeeklyScheduleGrid
+          classes={classes}
+          windowStartMin={window.windowStartMin}
+          windowEndMin={window.windowEndMin}
+          stepMin={window.stepMin}
+          showAllDays
+        />
       )}
     </div>
   );
