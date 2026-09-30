@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StudentSchedulePanel } from "@/components/shared/StudentSchedulePanel";
+import { SchedulePanel } from "@/components/shared/SchedulePanel";
 import { Button } from "@/components/ui/button";
 import { useStudentClasses } from "@/hooks/student/useStudentClasses";
 import { useStudentSemesters } from "@/hooks/student/useStudentSemesters";
@@ -58,7 +58,7 @@ export default function StudentSchedulePage(): React.JSX.Element {
         </Button>
       </div>
 
-      <StudentSchedulePanel
+      <SchedulePanel
         classes={visibleClasses}
         isLoading={isLoading}
         emptyTitle="No classes yet"
