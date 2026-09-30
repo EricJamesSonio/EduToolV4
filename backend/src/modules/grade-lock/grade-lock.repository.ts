@@ -2,6 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { Prisma } from '@prisma/client';
 
+/**
+ * Either the root DatabaseService (for reads outside a transaction) or a
+ * Prisma transaction client. Lets the bulk-assign reads and writes share one
+ * code path while only the writes run inside runInTx.
+ */
+export type GradeLockDb = Pick<
+  DatabaseService,
+  'class' | 'gradeLock' | 'gradeLockEvent'
+>;
+
+export interface GradeLockEventInput {
+  org_id: string;
+  class_id: string;
+  actor_id: string;
+  type: string;
+  reason?: string;
+  metadata?: Prisma.InputJsonValue;
+}
+
 @Injectable()
 export class GradeLockRepository {
   constructor(private readonly db: DatabaseService) {}
@@ -129,6 +148,82 @@ export class GradeLockRepository {
     return this.db.gradeLock.create({
       data: { org_id: orgId, class_id: classId, setting_id: settingId },
     });
+  }
+
+  // ─── Bulk assignment (set-based; no per-class queries) ───────────────────
+
+  /**
+   * Which of the requested class ids actually exist, are in this org, and are
+   * not soft-deleted. Lean select — this path never loads class/subject/setting
+   * relations, so the cost is flat in the number of ids.
+   */
+  async findActiveClassIds(
+    client: GradeLockDb,
+    orgId: string,
+    classIds: string[],
+  ): Promise<string[]> {
+    const rows = await client.class.findMany({
+      where: { org_id: orgId, id: { in: classIds }, deleted_at: null },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
+  /**
+   * Current lock state for the given classes. `setting_id` is selected so the
+   * caller can skip no-ops (already on the target template) without a second
+   * round trip.
+   */
+  async findLockStates(client: GradeLockDb, orgId: string, classIds: string[]) {
+    return client.gradeLock.findMany({
+      where: { org_id: orgId, class_id: { in: classIds } },
+      select: { class_id: true, is_locked: true, setting_id: true },
+    });
+  }
+
+  /**
+   * Point unlocked locks at a new setting. `setting_id: { not }` is what makes
+   * this idempotent — a re-run of the same bulk assign rewrites nothing, so no
+   * rows are touched and no event is emitted.
+   */
+  async reassignUnlocked(
+    client: GradeLockDb,
+    orgId: string,
+    classIds: string[],
+    settingId: string,
+  ) {
+    return client.gradeLock.updateMany({
+      where: {
+        org_id: orgId,
+        class_id: { in: classIds },
+        is_locked: false,
+        setting_id: { not: settingId },
+      },
+      data: { setting_id: settingId },
+    });
+  }
+
+  async createLocks(
+    client: GradeLockDb,
+    orgId: string,
+    classIds: string[],
+    settingId: string,
+  ) {
+    return client.gradeLock.createMany({
+      data: classIds.map((class_id) => ({
+        org_id: orgId,
+        class_id,
+        setting_id: settingId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  async createEvents(
+    client: GradeLockDb,
+    data: GradeLockEventInput[],
+  ) {
+    return client.gradeLockEvent.createMany({ data });
   }
 
   async setLocked(classId: string, lockedBy: string) {

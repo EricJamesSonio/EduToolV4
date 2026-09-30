@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Settings } from "lucide-react";
+import { Layers, Settings } from "lucide-react";
 import { Pagination } from "@/components/shared/Pagination";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
@@ -15,9 +15,9 @@ import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSe
 import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog";
 import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats";
 import { GradeLockGlobalTemplates } from "@/components/admin/grade-lock/GradeLockGlobalTemplates";
-import { GradeLockGlobalRuleBanner } from "@/components/admin/grade-lock/GradeLockGlobalRuleBanner";
 import { GradeLockUnlockRequestsPanel } from "@/components/admin/grade-lock/GradeLockUnlockRequestsPanel";
 import { GradeLockApplyTemplateDialog } from "@/components/admin/grade-lock/GradeLockApplyTemplateDialog";
+import { GradeLockApplyAllDialog } from "@/components/admin/grade-lock/GradeLockApplyAllDialog";
 import { GradeLockUnlockActionDialog } from "@/components/admin/grade-lock/GradeLockUnlockActionDialog";
 
 import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns";
@@ -38,6 +38,7 @@ export default function GradeLockPage(): React.ReactElement {
 
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null);
   const [applyTarget, setApplyTarget] = useState<GradeLock | null>(null);
+  const [applyAllOpen, setApplyAllOpen] = useState(false);
 
   const [actionTarget, setActionTarget] = useState<UnlockRequest | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
@@ -161,6 +162,15 @@ export default function GradeLockPage(): React.ReactElement {
       />
 
       <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setApplyAllOpen(true)}
+          disabled={filteredLocks.length === 0}
+          className="gap-2"
+        >
+          <Layers className="h-4 w-4" />
+          Apply to All
+        </Button>
         <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
           <Settings className="h-4 w-4" />
           Manage Templates
@@ -168,7 +178,6 @@ export default function GradeLockPage(): React.ReactElement {
       </div>
 
       <GradeLockGlobalTemplates templates={templates} onEdit={setEditTarget} />
-      <GradeLockGlobalRuleBanner deadline={activeTemplate?.lock_deadline} />
 
       <GradeLockHierarchyFilter
         selectedSchoolYearId={selectedSchoolYearId ?? ""}
@@ -215,6 +224,15 @@ export default function GradeLockPage(): React.ReactElement {
         defaultTemplateId={activeTemplate?.id ?? templates[0]?.id ?? ""}
         onClose={() => setApplyTarget(null)}
         
+      />
+
+      <GradeLockApplyAllDialog
+        open={applyAllOpen}
+        onClose={() => setApplyAllOpen(false)}
+        templates={templates}
+        defaultTemplateId={activeTemplate?.id ?? templates[0]?.id ?? ""}
+        classIds={filteredLocks.map((l) => l.class_id)}
+        locks={filteredLocks}
       />
 
       <GradeLockSettingModal

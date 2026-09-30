@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 
 import { PlatformService } from './platform.service';
 import { LoginPlatformDto } from './dto/login-platform.dto';
@@ -23,6 +24,8 @@ export class PlatformController {
   // ─── PUBLIC ───────────────────────────────────────────────────────────────
 
   @Post('login')
+  // Platform-owner login is effectively root access — strictest limit here.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   login(@Body() dto: LoginPlatformDto) {
     return this.service.login(dto.password);
   }

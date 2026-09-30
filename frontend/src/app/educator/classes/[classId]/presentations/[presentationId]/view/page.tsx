@@ -115,6 +115,8 @@ export default function PresentationViewerPage(): React.JSX.Element {
   const currentSlide = pres.slides[slide];
   const ts = TEMPLATE_STYLES[pres.template] ?? TEMPLATE_STYLES.green;
   const hideTitle = /^Slide \d+$/i.test(currentSlide.title ?? "");
+  const isFirst = slide === 0;
+  const isLast = slide === pres.slides.length - 1;
 
   return (
     <div className="flex flex-col items-center">
@@ -170,36 +172,51 @@ export default function PresentationViewerPage(): React.JSX.Element {
           )}
         </div>
 
-        {slide > 0 && (
+        {!isFirst && (
           <button
             onClick={() => goTo(slide - 1)}
-            className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-zinc-700 transition-all opacity-0 hover:opacity-100"
+            className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/35 text-white transition-colors"
+            title="Previous slide"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
         )}
-        {slide < pres.slides.length - 1 && (
+        {!isLast && (
           <button
             onClick={() => goTo(slide + 1)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-zinc-700 transition-all opacity-0 hover:opacity-100"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/35 text-white transition-colors"
+            title="Next slide"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
         )}
       </div>
 
-      {/* Progress dots */}
-      <div className="flex items-center gap-1.5 mt-4 mb-8">
-        {pres.slides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => goTo(i)}
-            className={cn(
-              "h-2 rounded-full transition-all",
-              i === slide ? "w-6 bg-primary" : "w-2 bg-zinc-300 hover:bg-zinc-400"
-            )}
-          />
-        ))}
+      {/* Prev / Next controls */}
+      <div className="flex items-center gap-3 mt-4 mb-8">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => goTo(slide - 1)}
+          disabled={isFirst}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <span className="text-xs text-muted-foreground tabular-nums min-w-[3.5rem] text-center">
+          {slide + 1} / {pres.slides.length}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => goTo(slide + 1)}
+          disabled={isLast}
+        >
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

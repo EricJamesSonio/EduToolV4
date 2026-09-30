@@ -1,4 +1,5 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { DatabaseService } from '../../core/database/database.provider';
 
 interface HealthPayload {
@@ -12,6 +13,9 @@ interface DetailedHealthPayload extends HealthPayload {
   dbLatencyMs?: number;
 }
 
+// Uptime pollers hit these continuously; rate limiting them would make the
+// health check itself the thing that fails during an incident.
+@SkipThrottle({ default: true })
 @Controller()
 export class HealthController {
   constructor(private readonly db: DatabaseService) {}

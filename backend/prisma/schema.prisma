@@ -1257,6 +1257,10 @@ model GradeLock {
 
   class   Class            @relation(fields: [class_id], references: [id])
   setting GradeLockSetting @relation(fields: [setting_id], references: [id])
+
+  // Serves countActiveLocksForSetting / deleteLocksForSetting, which both
+  // filter (org_id, setting_id). Without it those two are full scans.
+  @@index([org_id, setting_id])
 }
 
 model GradeLockEvent {
