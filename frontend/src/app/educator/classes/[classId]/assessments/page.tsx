@@ -237,7 +237,7 @@ export default function AssessmentsPage(): React.JSX.Element {
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[a.status]}`}
+                      className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium border ${STATUS_COLORS[a.status]}`}
                     >
                       {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                     </span>
