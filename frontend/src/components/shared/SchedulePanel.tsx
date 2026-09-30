@@ -47,8 +47,14 @@ export function SchedulePanel({
   footer,
 }: SchedulePanelProps): React.JSX.Element {
   // Declared before any early return: hooks must run unconditionally.
-  const { windowStartMin, windowEndMin, stepMin, showAllDays } =
-    useScheduleWindow();
+  const {
+    windowStartMin,
+    windowEndMin,
+    stepMin,
+    showAllDays,
+    activeWeekdays,
+    blockedRanges,
+  } = useScheduleWindow();
 
   if (isLoading) {
     return (
@@ -90,6 +96,8 @@ export function SchedulePanel({
         windowStartMin={windowStartMin}
         windowEndMin={windowEndMin}
         stepMin={stepMin}
+        activeWeekdays={activeWeekdays}
+        blockedRanges={blockedRanges}
         showAllDays={showAllDays}
       />
       {footer}

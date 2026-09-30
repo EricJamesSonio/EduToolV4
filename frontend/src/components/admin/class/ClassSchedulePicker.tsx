@@ -26,7 +26,7 @@ import { roomUsageToClasses } from "@/utils/roomSchedule.utils";
 import type { CreateClassForm } from "./CreateClassDialog.types";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
-import { orgScheduleConfigApi } from "@/api/admin/org-schedule-config.api";
+import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
 import { useRooms, useRoomUsage } from "@/hooks/admin/useRooms";
 
 export interface ScheduleConflictState {
@@ -78,15 +78,17 @@ export function ClassSchedulePicker({
 }: ClassSchedulePickerProps) {
   const { getValues, setValue } = useFormContext<CreateClassForm>();
 
-  const { data: scheduleCfg, isLoading: cfgLoading } = useAsyncQuery(
-    adminQueryKeys.orgScheduleConfig.detail(),
-    orgScheduleConfigApi.get,
-    { meta: { preset: "static", feature: "organization" } },
-  );
-
-  const windowStartMin = scheduleCfg ? timeToMinutes(scheduleCfg.startTime) : undefined;
-  const windowEndMin = scheduleCfg ? timeToMinutes(scheduleCfg.endTime) : undefined;
-  const stepMin = scheduleCfg?.slotDuration ?? 30;
+  // One source of truth for the school's operating window, active weekdays and
+  // breaks. Previously this component fetched the org schedule config itself,
+  // which meant the picker and every read-only timetable could drift apart.
+  const {
+    windowStartMin,
+    windowEndMin,
+    stepMin,
+    activeWeekdays,
+    blockedRanges,
+  } = useScheduleWindow();
+  const cfgLoading = false;
 
   const initialSchedules = getValues("schedules") ?? [];
 
@@ -495,7 +497,7 @@ export function ClassSchedulePicker({
             classes={gridClasses}
             classTags={classTags}
             getSublabel={getBlockSublabel}
-            isLoading={isLoading || cfgLoading || !scheduleCfg}
+            isLoading={isLoading || cfgLoading}
             interactive
             showAllDays
             pickedRanges={ranges}
@@ -505,6 +507,8 @@ export function ClassSchedulePicker({
             windowStartMin={windowStartMin}
             windowEndMin={windowEndMin}
             stepMin={stepMin}
+            activeWeekdays={activeWeekdays}
+            blockedRanges={blockedRanges}
             onDraftStart={setDraft}
             onPickRange={handlePickRange}
           />
