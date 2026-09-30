@@ -2,7 +2,7 @@ export default function HelpPage() {
   return (
     <article className="max-w-none">
       <div className="mb-12">
-        <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full mb-4">
+        <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-sm mb-4">
           Always updated
         </span>
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
