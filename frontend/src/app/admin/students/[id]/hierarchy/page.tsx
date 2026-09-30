@@ -333,7 +333,7 @@ export default function StudentHierarchyPage({
                     </Badge>
                   </div>
                   {selected && enrolledSet.has(selected.id) && (
-                    <span className="inline-block w-fit rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                    <span className="inline-block w-fit rounded-sm bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
                       Currently enrolled this school year
                     </span>
                   )}
