@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { MANUAL_ONLY_TYPES } from '@/modules/grading-scheme/constants/assessment-type.constants';
 
 export interface SchemeCategory {
   name: string;
@@ -8,6 +9,51 @@ export interface SchemeCategory {
 }
 
 export type RubricCategory = SchemeCategory;
+
+/**
+ * TICK-GRADE-005: is this category scored directly by the educator?
+ *
+ * Historically the only marker was the literal `type === 'manual'`, but that
+ * value is never persisted: schemes store Behavior as `type='behavior'`. So a
+ * manually-entered Behavior score was silently ignored by the grade engine,
+ * which instead looked for assessments of `type='behavior'` and found none.
+ *
+ * `'manual'` is still honored (legacy rows and the frontend data-seeder both
+ * emit it, even though the DTO rejects it — see FOLLOW_UPS.md), but the real
+ * signal is the type set: participation / behavior / attendance /
+ * performance_task are educator-scored categories that are entered directly on
+ * the Grades page rather than produced by an assessment.
+ *
+ * Kept in one place because this decision is load-bearing for authoritative
+ * grade math — it must be identical in `computeWeightedScore`,
+ * `buildCategoryBreakdown`, and the totalActiveWeight reducers.
+ */
+export function isManualScoredCategory(type: string): boolean {
+  return (
+    type === 'manual' ||
+    (MANUAL_ONLY_TYPES as readonly string[]).includes(type)
+  );
+}
+
+/**
+ * The maximum an educator may enter for a manually-scored category.
+ *
+ * TICK-GRADE-005: the editor needs a real cap, not an unbounded 0-100. Prefers
+ * the scheme's explicit `maxScore`; otherwise falls back to the category weight
+ * (Behavior at 20% behaves like "/20"). Returns null when neither is usable, so
+ * callers can degrade to the previous unbounded behavior rather than guess.
+ */
+export function manualCategoryMax(
+  category: Pick<SchemeCategory, 'maxScore' | 'weight'>,
+): number | null {
+  if (category.maxScore != null && category.maxScore > 0) {
+    return category.maxScore;
+  }
+  if (category.weight != null && category.weight > 0) {
+    return category.weight;
+  }
+  return null;
+}
 
 export interface GradeRange {
   minPercent: number;
@@ -110,7 +156,7 @@ export class GradeCoreService {
     for (const category of categories) {
       const weight = category.weight;
 
-      if (category.type === 'manual') {
+      if (isManualScoredCategory(category.type)) {
         const manual = manualByCategory.get(category.name.toLowerCase());
         if (manual !== undefined) {
           totalWeightedScore += manual.score * weight;
@@ -215,7 +261,7 @@ export class GradeCoreService {
       let manualScore: number | null = null;
       let isAllExempted = false;
 
-      if (category.type === 'manual') {
+      if (isManualScoredCategory(category.type)) {
         const manual = manualByCategory.get(category.name.toLowerCase());
         manualScore = manual?.score ?? null;
         if (manualScore != null) {
@@ -298,6 +344,12 @@ export class GradeCoreService {
       return {
         category: category.name,
         type: category.type,
+        // TICK-GRADE-005: the frontend needs the cap to label the column
+        // ("Behavior /20") and clamp the input, and needs `type` to decide the
+        // column is editable at all (previously it inferred that from a
+        // non-null manualScore, which could never bootstrap).
+        isManualScored: isManualScoredCategory(category.type),
+        maxScore: manualCategoryMax(category),
         weight: category.weight,
         rawAverage: isAllExempted ? null : Math.round(rawAverage * 100) / 100,
         manualScore,

@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { EducatorScheduleGrid } from "@/components/admin/educator/EducatorScheduleGrid";
+import { SchedulePanel } from "@/components/shared/SchedulePanel";
 import type { Class } from "@/types/admin/class.types";
 import {
   Users, BookOpen, CalendarDays,
@@ -69,13 +69,20 @@ export function StudentsTab({
     () => studentApi.getAll({ sectionId: section.id, schoolYearId }),
   );
 
-  // Build a lookup of the section's students → their matching program enrollment,
-  // so the "Move" action can reuse AssignSectionDialog.
-  const { data: syEnrollments = [] } = useAsyncQuery(
+  const { data: syEnrollmentsRaw } = useAsyncQuery(
     queryKeys.admin.studentEnrollment.list({ schoolYearId }),
-    () => studentEnrollmentApi.getBySchoolYear(schoolYearId, 1, MAX_SELECT_LIMIT).then((r) => r.data),
+    () => studentEnrollmentApi.getBySchoolYear(schoolYearId, 1, MAX_SELECT_LIMIT),
     { enabled: students.length > 0 },
   );
+
+  // Defensive: the endpoint's pagination envelope has changed shape before
+  // (data/total/page/limit vs data/meta) — accept either, and a bare array,
+  // rather than assume `.data` is always the list.
+  const syEnrollments: StudentSchoolYearEnrollment[] = Array.isArray(syEnrollmentsRaw)
+    ? syEnrollmentsRaw
+    : Array.isArray((syEnrollmentsRaw as { data?: unknown })?.data)
+      ? (syEnrollmentsRaw as { data: StudentSchoolYearEnrollment[] }).data
+      : [];
 
   const enrollmentByStudentId = useMemo(() => {
     const map = new Map<string, { enrollment: StudentSchoolYearEnrollment; programEnrollment: ProgramEnrollmentSnapshot }>();
@@ -276,7 +283,12 @@ export function WeeklyScheduleTab({
 
   return (
     <div className="p-4">
-      <EducatorScheduleGrid classes={classes} getSublabel={educatorSublabel} />
+      <SchedulePanel
+        classes={classes}
+        getSublabel={educatorSublabel}
+        emptyTitle="No classes in this section"
+        emptyDescription="Assign students to this section to see their schedule."
+      />
     </div>
   );
 }

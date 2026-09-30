@@ -1,6 +1,9 @@
 export const TOKEN_COST: Record<string, number> = {
   identification: 120,
-  true_false: 80,
+  // TICK-ASSESS-005: this was `true_false` while the wizard/DTO/frontend/DB all
+  // used `true_or_false`, so `TOKEN_COST['true_or_false']` missed and silently
+  // fell back to 150 — wrong chunk sizing and `maxTokens` for every T/F chunk.
+  true_or_false: 80,
   multiple_choice: 280,
   enumeration: 150,
   essay: 100,

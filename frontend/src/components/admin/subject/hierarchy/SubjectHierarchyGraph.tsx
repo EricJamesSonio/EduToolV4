@@ -66,7 +66,7 @@ const SubjectNodeView = memo(function SubjectNodeView({
       </div>
       {data.enrolled && (
         <div className="mt-1">
-          <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <span className="rounded-sm bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
             Enrolled now
           </span>
         </div>
@@ -74,14 +74,14 @@ const SubjectNodeView = memo(function SubjectNodeView({
       <p className="mt-1 text-[11px] text-slate-500">{data.levelName ?? `Year ${data.yearRank}`}</p>
       <div className="mt-1 flex items-center gap-2 text-[10px] font-medium">
         {data.prereqCount > 0 ? (
-          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-600">
+          <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-slate-600">
             {data.prereqCount} pre-req{data.prereqCount > 1 ? "s" : ""}
           </span>
         ) : (
-          <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-emerald-700">Entry</span>
+          <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-emerald-700">Entry</span>
         )}
         {data.dependentCount > 0 && (
-          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-600">
+          <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-slate-600">
             → {data.dependentCount}
           </span>
         )}
@@ -106,7 +106,7 @@ const YearHeaderView = memo(function YearHeaderView({
   data: YearHeaderData;
 }): React.JSX.Element {
   return (
-    <div className="flex w-48 items-center justify-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200">
+    <div className="flex w-48 items-center justify-center gap-2 rounded-sm bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200">
       <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: data.swatch }} />
       <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{data.title}</span>
       <span className="text-[10px] text-slate-400">({data.count})</span>
@@ -129,7 +129,7 @@ interface Props {
   fill?: boolean;
 }
 
-interface GraphIndex {
+export interface GraphIndex {
   byId: Map<string, HierarchyNode>;
   childrenOf: Map<string, string[]>;
   parentsOf: Map<string, string[]>;
@@ -173,7 +173,7 @@ function average(values: number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-function buildGraphIndex(nodes: HierarchyNode[], edges: HierarchyEdge[]): GraphIndex {
+export function buildGraphIndex(nodes: HierarchyNode[], edges: HierarchyEdge[]): GraphIndex {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const childrenOf = new Map<string, string[]>();
   const parentsOf = new Map<string, string[]>();
@@ -296,16 +296,27 @@ function computeLayout(nodes: HierarchyNode[], index: GraphIndex): Layout {
   return { positions, rowYByRank, labelX: (Number.isFinite(minX) ? minX : 0) - LABEL_GAP };
 }
 
-function collectRelated(start: string, next: Map<string, string[]>): Set<string> {
-  const found = new Set<string>();
-  const stack = [...(next.get(start) ?? [])];
-  while (stack.length) {
-    const id = stack.pop() as string;
-    if (found.has(id)) continue;
-    found.add(id);
-    stack.push(...(next.get(id) ?? []));
-  }
-  return found;
+/**
+ * DIRECT neighbours of the selected subject: its own prerequisites and the
+ * subjects that directly require it. Exactly one hop.
+ *
+ * This deliberately does NOT walk the chain transitively. A transitive walk
+ * lights the entire ancestor/descendant closure, so selecting one subject
+ * highlighted its prerequisites' prerequisites and so on "until the end" —
+ * noisy and out of phase. Exported and unit-tested so the one-hop rule cannot
+ * silently regress back into a full traversal.
+ */
+export function directNeighbors(
+  start: string,
+  index: GraphIndex,
+): { prereqs: string[]; dependents: string[]; lit: Set<string> } {
+  const prereqs = [...(index.parentsOf.get(start) ?? [])];
+  const dependents = [...(index.childrenOf.get(start) ?? [])];
+  return {
+    prereqs,
+    dependents,
+    lit: new Set([start, ...prereqs, ...dependents]),
+  };
 }
 
 export function SubjectHierarchyGraph({
@@ -344,12 +355,11 @@ export function SubjectHierarchyGraph({
     const enrolledSet = new Set(enrolledSubjectIds ?? []);
     const dimSet = dimIds ? new Set(dimIds) : null;
 
-    let lit: Set<string> | null = null;
-    if (selectedId && index.byId.has(selectedId)) {
-      lit = new Set([selectedId]);
-      collectRelated(selectedId, index.parentsOf).forEach((id) => lit?.add(id));
-      collectRelated(selectedId, index.childrenOf).forEach((id) => lit?.add(id));
-    }
+    // Direct neighbours only (one hop) — see directNeighbors.
+    const lit =
+      selectedId && index.byId.has(selectedId)
+        ? directNeighbors(selectedId, index).lit
+        : null;
 
     const labelNodes: Node[] = years.map((y) => ({
       id: `__year-${y.rank}`,
@@ -428,7 +438,7 @@ export function SubjectHierarchyGraph({
             {years.map((y) => (
               <div
                 key={y.rank}
-                className="flex items-center justify-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200"
+                className="flex items-center justify-center gap-2 rounded-sm bg-white px-3 py-1.5 shadow-sm ring-1 ring-slate-200"
               >
                 <span
                   className="inline-block h-3 w-3 rounded-full"

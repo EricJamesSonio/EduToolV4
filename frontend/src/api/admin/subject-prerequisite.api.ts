@@ -66,3 +66,58 @@ export const subjectPrerequisiteApi = {
     return res.data.data;
   },
 };
+
+/** One student's eligibility for one subject. */
+export interface StudentSubjectEligibility {
+  eligible: boolean;
+  missing: PrerequisiteCheckResult["missing"];
+}
+
+/** Eligibility keyed by student id, then subject id. */
+export type StudentEligibilityMap = Record<
+  string,
+  Record<string, StudentSubjectEligibility>
+>;
+
+/**
+ * Transposed batch check: one subject, many students.
+ *
+ * The enrollment surfaces need "who in this section is blocked?" rather than
+ * "which classes is this student blocked from?". Batched server-side so a
+ * whole section costs a fixed number of queries instead of one pair per
+ * student.
+ */
+export const subjectPrerequisiteBatchApi = {
+  checkBatch: async (
+    subjectIds: string[],
+    studentIds: string[],
+  ): Promise<StudentEligibilityMap> => {
+    if (subjectIds.length === 0 || studentIds.length === 0) return {};
+    const res = await client.post<ApiResponse<StudentEligibilityMap>>(
+      "/subject-prerequisites/check-batch",
+      { subject_ids: subjectIds, student_ids: studentIds },
+    );
+    const payload = res.data?.data;
+
+    // Guard the wire contract instead of silently returning {}. The backend
+    // ResponseInterceptor wraps the handler result as { success, data }, so a
+    // correctly-shaped response unwraps to a plain map of studentId -> subject
+    // map. A nested `{ data: ... }` here means an envelope regression, and
+    // returning {} would make every student look eligible — the same as the
+    // feature not existing. Fail loudly so it surfaces as a query error.
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error(
+        "Unexpected prerequisite batch response shape — expected a map of studentId -> subject results.",
+      );
+    }
+    if (
+      "data" in (payload as Record<string, unknown>)
+    ) {
+      throw new Error(
+        "Prerequisite batch response was double-wrapped (data.data) — backend envelope regression.",
+      );
+    }
+
+    return payload as StudentEligibilityMap;
+  },
+};

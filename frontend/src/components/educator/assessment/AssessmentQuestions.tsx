@@ -62,11 +62,10 @@ export function AssessmentQuestions({
         </div>
       ) : (
         <div className="space-y-4">
-          {questions.map((q, i) => (
-            <div
-              key={q.id}
-              className="rounded-xl border bg-background p-5 space-y-4"
-            >
+{questions.map((q, i) => (
+  <div key={q.id ?? `q-${q.order ?? i}`}
+    className="rounded-xl border bg-background p-5 space-y-4"
+  >
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-wide text-muted-foreground">
                   Item {i + 1} — {q.type.replace(/_/g, " ")}
@@ -77,12 +76,11 @@ export function AssessmentQuestions({
                 {q.text}
               </p>
 
-              {q.choices && q.choices.length > 0 && (
-                <div className="space-y-2">
-                  {q.choices.map((c) => (
-                    <div
-                      key={c.label}
-                      className={cn(
+    {q.choices && q.choices.length > 0 && (
+      <div className="space-y-2">
+{q.choices.map((c, ci) => (
+  <div key={`${q.id ?? i}-${c.label ?? ci}`}
+            className={cn(
                         "flex items-center gap-3 rounded-lg border px-3 py-2 text-sm",
                         q.correctAnswer === c.text
                           ? "border-[#86EFAC] bg-[#98FB98] text-[#0B1E3A]"

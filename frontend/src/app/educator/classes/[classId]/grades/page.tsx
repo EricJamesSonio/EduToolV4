@@ -66,8 +66,16 @@ export default function GradesPage() {
         toast.success(`${category} score updated.`);
         qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, activeTermId) });
         qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
-      } catch {
-        toast.error("Failed to save score. Please try again.");
+      } catch (err) {
+        // TICK-GRADE-005: surface the server's reason (e.g. "cannot exceed the
+        // category maximum of 20", or an unknown category). A generic
+        // "try again" left the educator with no idea what to fix, which matters
+        // now that the server rejects over-cap scores.
+        const axiosErr = err as { response?: { data?: { message?: string } } };
+        toast.error(
+          axiosErr?.response?.data?.message ??
+            "Failed to save score. Please try again."
+        );
       } finally {
         setSaving((prev) => {
           const next = new Set(prev);

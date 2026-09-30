@@ -208,22 +208,24 @@ export function Step3({
               }
               className="w-full rounded-md border bg-card px-3 py-2 text-sm"
             >
-              {schemeTypes.length > 0
-                ? schemeTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {TYPE_LABELS[t] ??
-                        t
-                          .replace(/_/g, " ")
-                          .replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </option>
-                  ))
-                : (["quiz", "activity", "exam", "custom"] as const).map(
-                    (t) => (
-                      <option key={t} value={t}>
-                        {TYPE_LABELS[t]}
-                      </option>
-                    )
-                  )}
+              {schemeTypes.length > 0 ? (
+                schemeTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {TYPE_LABELS[t] ??
+                      t
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </option>
+                ))
+              ) : (
+                // TICK-ASSESS-005: the hardcoded `["quiz","activity","exam","custom"]`
+                // fallback was a 5th divergent type list — it bypassed the class
+                // grading scheme entirely and could offer a type the scheme does
+                // not contain (the backend then rejects it with a confusing 400).
+                // Show an honest empty state instead; the backend stays
+                // authoritative on which types are valid.
+                <option value="">No assessment types in this grading scheme</option>
+              )}
             </select>
           </div>
           <div className="space-y-1.5">

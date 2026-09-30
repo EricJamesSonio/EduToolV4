@@ -26,13 +26,27 @@ export interface ConceptExtractResult {
   promptVersion: string;
 }
 
+/**
+ * Question types the AI generator can produce.
+ *
+ * TICK-ASSESS-005: these must stay spelled identically to
+ * `QUESTION_TYPES` in `modules/assessment/dto/assessment.dto.ts` and to the
+ * frontend `QuestionType` union. The values previously used `true_false` while
+ * every other layer used `true_or_false`; because the call site used an
+ * unchecked `as QuestionBlueprint['type']` cast, the mismatch compiled fine and
+ * then failed at runtime by missing the prompt-builder lookup and silently
+ * falling back to the `identification` format. Use `toBlueprintType()` to
+ * convert instead of casting.
+ */
+export type AiQuestionType =
+  | 'identification'
+  | 'true_or_false'
+  | 'multiple_choice'
+  | 'essay'
+  | 'enumeration';
+
 export interface QuestionBlueprint {
-  type:
-    | 'identification'
-    | 'true_false'
-    | 'multiple_choice'
-    | 'essay'
-    | 'enumeration';
+  type: AiQuestionType;
   sections: string[];
   numbers: string;
   count: number;

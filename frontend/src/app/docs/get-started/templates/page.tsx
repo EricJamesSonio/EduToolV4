@@ -2,7 +2,7 @@ export default function TemplatesPage() {
   return (
     <article className="max-w-none">
       <div className="mb-12">
-        <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full mb-4">
+        <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-sm mb-4">
           6 min read
         </span>
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
@@ -48,7 +48,7 @@ export default function TemplatesPage() {
                 Standard 3-year SHS curriculum structure with tracks and strands
               </p>
             </div>
-            <span className="shrink-0 px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+            <span className="shrink-0 px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-sm">
               Popular
             </span>
           </div>

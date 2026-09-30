@@ -15,6 +15,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cardGridClass } from "@/lib/utils";
+import {
+  readinessEntityTarget,
+  readinessTarget,
+} from "@/utils/readinessTargets";
+import Link from "next/link";
 import { AlertTriangle, BookOpen, CircleAlert, CheckCircle2 } from "lucide-react";
 import type { SchoolYearReadiness } from "@/types/admin/school-year.types";
 
@@ -140,17 +145,71 @@ export default function SchoolYearDetailPage({
             </h3>
           </div>
           {!readiness.ready && readiness.issues.length > 0 && (
-            <ul className="space-y-1 pl-6">
-              {readiness.issues.map((issue, i) => (
-                <li key={issue.ref?.id ?? `${issue.code}-${i}`} className="flex items-start gap-2 text-xs">
-                  <span
-                    className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${
-                      issue.severity === "blocking" ? "bg-amber-500" : "bg-sky-400"
-                    }`}
-                  />
-                  <span className="text-muted-foreground">{issue.message}</span>
-                </li>
-              ))}
+            <ul className="space-y-1.5 pl-6">
+              {readiness.issues.map((issue, i) => {
+                const issueHref = readinessTarget(issue, id);
+                const entities = issue.entities ?? [];
+                // `count` is the true total; `entities` is capped by the
+                // backend, so the difference is what the chips cannot show.
+                const hiddenCount = Math.max(
+                  0,
+                  (issue.count ?? entities.length) - entities.length,
+                );
+                return (
+                  <li
+                    key={issue.ref?.id ?? `${issue.code}-${i}`}
+                    className="flex items-start gap-2 text-xs"
+                  >
+                    <span
+                      className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${
+                        issue.severity === "blocking" ? "bg-amber-500" : "bg-sky-400"
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      {issueHref ? (
+                        <Link
+                          href={issueHref}
+                          className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        >
+                          {issue.message}
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">{issue.message}</span>
+                      )}
+
+                      {entities.length > 0 && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {entities.map((entity) => {
+                            const entityHref = readinessEntityTarget(entity, id);
+                            const label = entity.name;
+                            return entityHref ? (
+                              <Link
+                                key={entity.id}
+                                href={entityHref}
+                                className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground underline-offset-2 hover:bg-muted-foreground/10 hover:text-foreground hover:underline"
+                              >
+                                {label}
+                              </Link>
+                            ) : (
+                              <span
+                                key={entity.id}
+                                className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                              >
+                                {label}
+                              </span>
+                            );
+                          })}
+                          {hiddenCount > 0 && (
+                            <span className="text-[11px] text-muted-foreground/70">
+                              +{hiddenCount} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

@@ -69,13 +69,27 @@ export interface GetStudentsQuery {
 }
 
 export interface StudentEnrollment {
-  id:       string;
-  class_id: string;
-  status:   string;
+  id:         string;
+  class_id:   string;
+  status:     string;
+  // On the wire via the included class relation; used to scope the schedule.
+  semester_id?: string | null;
+  school_year_id?: string | null;
   class?: {
     id:         string;
     subject_id: string;
     subject?:   { id: string; name: string };
+    // Already present on the wire (Enrollment.findByStudentAcrossOrg includes
+    // `schedules: true`); previously undeclared, so the admin student page
+    // could not build a weekly schedule from this endpoint.
+    schedules?: Array<{
+      id?:       string;
+      weekday:   number;
+      startTime?: string;
+      endTime?:   string;
+      start_time?: string;
+      end_time?:   string;
+    }>;
   };
 }
 

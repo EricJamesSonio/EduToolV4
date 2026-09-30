@@ -69,7 +69,7 @@ export function Step1({
               </div>
               <span
                 className={cn(
-                  "inline-block text-xs px-2 py-0.5 rounded-full border",
+                  "inline-block text-xs px-2 py-0.5 rounded-sm border",
                   hasConcept
                     ? "badge-success"
                     : "badge-muted"

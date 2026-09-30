@@ -22,6 +22,7 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
     programId: filter.programId,
     courseId: filter.courseId,
     strandId: filter.strandId,
+    levelId: filter.levelId,
   });
 
   const ranks = useMemo(() => (data?.levels ?? []).map((l) => l.rank), [data]);
@@ -56,6 +57,7 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Subject Hierarchy</h1>
       <SubjectHierarchyFilter
         value={filter}
+        levels={data?.levels}
         onChange={(v) => {
           setFilter(v);
           setSelectedId(null);
@@ -63,7 +65,7 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
       />
       {!hasScope && (
         <p className="text-sm text-muted-foreground">
-          Select a school year and department — pick a course for College or a strand for SHS — to load the hierarchy from 1st to highest year.
+          Select a school year and department — pick a course for College or a strand for SHS — then narrow to a level to see only that level's subjects.
         </p>
       )}
       {data && (

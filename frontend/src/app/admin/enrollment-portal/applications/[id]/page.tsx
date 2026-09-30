@@ -44,7 +44,9 @@ export default function ApplicationDetailPage({
 
   if (isLoading) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">Loading application…</div>
+      <div className="p-6 text-sm text-muted-foreground">
+        Loading application…
+      </div>
     );
   }
 
@@ -52,7 +54,10 @@ export default function ApplicationDetailPage({
     return (
       <div className="p-6 text-sm text-destructive">
         Application not found.{" "}
-        <Link href="/admin/enrollment-portal/applications" className="underline">
+        <Link
+          href="/admin/enrollment-portal/applications"
+          className="underline"
+        >
           Back to applications
         </Link>
       </div>
@@ -65,7 +70,10 @@ export default function ApplicationDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/admin/enrollment-portal/applications" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/admin/enrollment-portal/applications"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Applications
         </Link>
 
@@ -80,7 +88,11 @@ export default function ApplicationDetailPage({
               >
                 <Check className="h-4 w-4" /> Approve
               </Button>
-              <Button size="sm" variant="destructive" onClick={() => setRejectOpen(true)}>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setRejectOpen(true)}
+              >
                 <Ban className="h-4 w-4" /> Reject
               </Button>
             </>
@@ -90,7 +102,9 @@ export default function ApplicationDetailPage({
               size="sm"
               variant="outline"
               onClick={() =>
-                unlockMutation.mutate({ application_code: app.application_code })
+                unlockMutation.mutate({
+                  application_code: app.application_code,
+                })
               }
               disabled={unlockMutation.isPending}
             >
@@ -109,13 +123,18 @@ export default function ApplicationDetailPage({
             <dl className="divide-y">
               <Row
                 label="Name"
-                value={[app.first_name, app.middle_name, app.last_name].filter(Boolean).join(" ")}
+                value={[app.first_name, app.middle_name, app.last_name]
+                  .filter(Boolean)
+                  .join(" ")}
               />
               <Row label="Email" value={app.personal_email} />
               <Row label="Age" value={app.age} />
               <Row label="Address" value={app.address} />
               <Row label="Contact number" value={app.contact_number} />
-              <Row label="Last school graduated" value={app.last_school_graduated} />
+              <Row
+                label="Last school graduated"
+                value={app.last_school_graduated}
+              />
             </dl>
           </CardContent>
         </Card>
@@ -126,12 +145,24 @@ export default function ApplicationDetailPage({
           </CardHeader>
           <CardContent>
             <dl className="divide-y">
-              <Row label="Code" value={<span className="font-mono">{app.application_code}</span>} />
+              <Row
+                label="Code"
+                value={
+                  <span className="font-mono">{app.application_code}</span>
+                }
+              />
               <Row label="Department" value={app.program?.name} />
-              <Row label="Course" value={app.course?.name} />
-              <Row label="Strand" value={app.strand?.name} />
-              <Row label="Level" value={app.level?.name} />
-              <Row label="Assigned section" value={app.section?.name} />
+              {app.course && <Row label="Course" value={app.course.name} />}
+              {app.strand && <Row label="Strand" value={app.strand.name} />}
+              <Row
+                label={
+                  app.course ? "Year level" : app.strand ? "Grade" : "Level"
+                }
+                value={app.level?.name}
+              />
+              {app.section && (
+                <Row label="Assigned section" value={app.section.name} />
+              )}
               <Row label="Period" value={app.period?.name} />
               <Row label="School year" value={app.school_year?.name} />
               <Row label="Submitted" value={fmt(app.submitted_at)} />
@@ -151,11 +182,17 @@ export default function ApplicationDetailPage({
         confirmLabel="Approve"
         isLoading={approveMutation.isPending}
         onConfirm={() =>
-          approveMutation.mutate(app.id, { onSuccess: () => setConfirmApprove(false) })
+          approveMutation.mutate(app.id, {
+            onSuccess: () => setConfirmApprove(false),
+          })
         }
       />
 
-      <RejectApplicationDialog open={rejectOpen} application={app} onClose={() => setRejectOpen(false)} />
+      <RejectApplicationDialog
+        open={rejectOpen}
+        application={app}
+        onClose={() => setRejectOpen(false)}
+      />
     </div>
   );
 }

@@ -224,4 +224,94 @@ export class SubjectPrerequisiteRepository {
 
     return grouped;
   }
-}
+
+  /**
+   * Batched variant for MANY students against ONE subject (transposed
+   * relative to getPrerequisitesWithGradesForSubjects). Backs the admin
+   * enrollment surfaces, which need "who in this list is blocked?" rather
+   * than "which classes is this student blocked from?".
+   *
+   * 2 queries for the whole batch instead of 2 per student. Latest-wins
+   * grade resolution runs per (student, prerequisite) pair and matches the
+   * single-student path. Students with no unmet rows are simply absent from
+   * the returned map.
+   */
+  async getPrerequisitesWithGradesForStudents(
+    subject_id: string,
+    student_ids: string[],
+    org_id: string,
+  ): Promise<
+    Map<
+      string,
+      Array<{ subject_id: string; subject_name: string; grade: unknown }>
+    >
+  > {
+    const uniqueStudents = [...new Set(student_ids)];
+    const grouped = new Map<
+      string,
+      Array<{ subject_id: string; subject_name: string; grade: unknown }>
+    >();
+    if (uniqueStudents.length === 0) return grouped;
+
+    const prereqs = await this.db.subjectPrerequisite.findMany({
+      where: { subject_id, org_id },
+      include: {
+        prerequisite: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (prereqs.length === 0) return grouped;
+
+    const prerequisiteSubjectIds = [
+      ...new Set(prereqs.map((p) => p.prerequisite_id)),
+    ];
+
+    const grades = await this.db.grade.findMany({
+      where: {
+        org_id,
+        student_id: { in: uniqueStudents },
+        is_locked: true,
+        class: {
+          subject_id: { in: prerequisiteSubjectIds },
+        },
+      },
+      orderBy: [
+        { class: { schoolYear: { start_date: 'asc' } } },
+        { id: 'asc' },
+      ],
+      include: {
+        class: {
+          select: { id: true, subject_id: true, school_year_id: true },
+        },
+      },
+    });
+
+    // Keyed by student + prerequisite subject so "latest wins" resolves
+    // independently per student. Rows arrive oldest-first, so the last
+    // write for a key is the most recent grade.
+    const gradesByKey = new Map<string, (typeof grades)[number]>();
+    for (const g of grades) {
+      gradesByKey.set(`${g.student_id}::${g.class.subject_id}`, g);
+    }
+
+    for (const p of prereqs) {
+      for (const studentId of uniqueStudents) {
+        const row = {
+          subject_id: p.prerequisite_id,
+          subject_name: p.prerequisite.name,
+          grade:
+            gradesByKey.get(`${studentId}::${p.prerequisite_id}`) ?? null,
+        };
+        const list = grouped.get(studentId);
+        if (list) list.push(row);
+        else grouped.set(studentId, [row]);
+      }
+    }
+
+    return grouped;
+  }}

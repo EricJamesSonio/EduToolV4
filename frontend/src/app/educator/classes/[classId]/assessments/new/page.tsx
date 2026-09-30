@@ -28,6 +28,7 @@ import {
   getSectionsForRanges,
   TYPE_LABELS,
   ASSESSMENT_TYPE_VALUES,
+  typesForGradingMode,
 } from "@/components/educator/assessment-builder";
 import type { BuilderState, ConceptItemInfo } from "@/components/educator/assessment-builder";
 import type { AssessmentType, GradingMode } from "@/types/educator/assessment.types";
@@ -53,10 +54,20 @@ export default function NewAssessmentPage() {
     queryKeys.educator.gradingSchemes.detail(classId),
     () => educatorGradingSchemeApi.getForClass(classId),
   );
-  const schemeTypes = (gradingScheme?.components
+  // Every type in the class scheme, narrowed to the canonical allow-list.
+  const schemeTypeValues = (gradingScheme?.components
     ?.map((c) => c.type) ?? []).filter(
-      (t): t is AssessmentType => (ASSESSMENT_TYPE_VALUES as readonly string[]).includes(t),
+      (t): t is AssessmentType =>
+        (ASSESSMENT_TYPE_VALUES as readonly string[]).includes(t),
     );
+  // TICK-ASSESS-005: the type picker must respect the active grading mode.
+  // Previously one unfiltered list fed both Step3 (system) and ManualStep1, so
+  // `behavior` / `participation` were selectable under System-Graded — the AI
+  // then auto-graded them and the score was averaged in by weight.
+  const schemeTypes = typesForGradingMode(
+    schemeTypeValues,
+    state.gradingMode
+  );
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
 

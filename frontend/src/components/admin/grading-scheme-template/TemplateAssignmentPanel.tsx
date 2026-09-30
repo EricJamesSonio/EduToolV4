@@ -40,6 +40,8 @@ import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-templat
 import type { ProgramTemplateAssignment } from "@/types/admin/grading-scheme-template.types";
 import type { AxiosError } from "axios";
 
+const EMPTY_ASSIGNMENTS: ProgramTemplateAssignment[] = [];
+const EMPTY_CLASS_ASSIGNMENTS: { classId: string; templateId: string }[] = [];
 interface ClassInfo {
   id: string;
   name: string;
@@ -106,11 +108,11 @@ export function TemplateAssignmentPanel({
   const [classTemplates, setClassTemplates] = useState<Record<string, string>>({});
   const [appliedClasses, setAppliedClasses] = useState<Set<string>>(new Set());
 
-  const { data: assignments = [], isLoading: assignmentsLoading } =
-    useGradingSchemeProgramAssignments(schoolYearId);
+const { data: assignments = EMPTY_ASSIGNMENTS, isLoading: assignmentsLoading } =
+  useGradingSchemeProgramAssignments(schoolYearId);
 
-  const { data: classAssignments = [], isLoading: classAssignmentsLoading } =
-    useGradingSchemeClassAssignments(schoolYearId);
+const { data: classAssignments = EMPTY_CLASS_ASSIGNMENTS, isLoading: classAssignmentsLoading } =
+  useGradingSchemeClassAssignments(schoolYearId);
 
   const applyToProgram = useApplyTemplateToProgram();
   const applyToClass = useApplyTemplateToClass();

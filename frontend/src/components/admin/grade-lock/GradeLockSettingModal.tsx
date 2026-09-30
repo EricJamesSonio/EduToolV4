@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { format } from "date-fns"
 import { Calendar } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -27,37 +28,40 @@ interface GradeLockSettingModalProps {
     name?: string
     lock_deadline?: string | null
   } | null
+  /** ISO date of the school year end; deadlines before it are rejected. */
+  minDeadline?: string | null
 }
+
+const toLocalInput = (iso?: string | null): string =>
+  iso ? format(new Date(iso), "yyyy-MM-dd'T'HH:mm") : ""
 
 export function GradeLockSettingModal({
   open,
   onClose,
   existingSetting,
+  minDeadline,
 }: GradeLockSettingModalProps): React.ReactElement {
   const isEdit = !!existingSetting
 
-const [name, setName] = useState(existingSetting?.name ?? "")
-const [deadline, setDeadline] = useState(
-  existingSetting?.lock_deadline
-    ? new Date(existingSetting.lock_deadline).toISOString().slice(0, 16)
-    : ""
-)
-
-useEffect(() => {
-  setName(existingSetting?.name ?? "")
-  setDeadline(
-    existingSetting?.lock_deadline
-      ? new Date(existingSetting.lock_deadline).toISOString().slice(0, 16)
-      : ""
+  const [name, setName] = useState(existingSetting?.name ?? "")
+  const [deadline, setDeadline] = useState(
+    toLocalInput(existingSetting?.lock_deadline),
   )
-}, [existingSetting?.id])
+
+  useEffect(() => {
+    setName(existingSetting?.name ?? "")
+    setDeadline(toLocalInput(existingSetting?.lock_deadline))
+  }, [existingSetting?.id, open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const createMutation = useCreateGradeLockSetting()
   const updateMutation = useUpdateGradeLockSetting()
   const isPending = createMutation.isPending || updateMutation.isPending
 
+  const minInput = toLocalInput(minDeadline)
+  const belowMin = !!deadline && !!minInput && deadline < minInput
+
   const handleSubmit = async (): Promise<void> => {
-    if (!name.trim() || !deadline) return
+    if (!name.trim() || !deadline || belowMin) return
 
     try {
       if (isEdit && existingSetting?.id) {
@@ -116,11 +120,21 @@ useEffect(() => {
             <Input
               type="datetime-local"
               value={deadline}
+              min={minInput || undefined}
               onChange={(e) => setDeadline(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              This will be used when applying the template to school years.
-            </p>
+            {belowMin ? (
+              <p className="text-xs text-destructive">
+                Deadline cannot be before the end of the school year (
+                {format(new Date(minDeadline as string), "MMM d, yyyy h:mm a")}).
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {minInput
+                  ? `Must be on or after the school year end (${format(new Date(minDeadline as string), "MMM d, yyyy h:mm a")}).`
+                  : "This will be used when applying the template to school years."}
+              </p>
+            )}
           </div>
         </div>
 
@@ -129,7 +143,10 @@ useEffect(() => {
             Cancel
           </Button>
 
-          <Button onClick={handleSubmit} disabled={!name || !deadline || isPending}>
+          <Button
+            onClick={handleSubmit}
+            disabled={!name.trim() || !deadline || belowMin || isPending}
+          >
             {isPending
               ? "Saving…"
               : isEdit

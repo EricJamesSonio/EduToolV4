@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Throttle } from '@nestjs/throttler';
 import type { Response, Request } from 'express';
 import type { CookieOptions } from 'express-serve-static-core';
 import { AuthService } from './auth.service';
@@ -36,6 +37,8 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  // Credential-stuffing defence: 10/min per IP, well under the 100/min global.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,
@@ -139,12 +142,16 @@ export class AuthController {
   }
 
   @Post('verify-otp')
+  // The OTP is 6 digits, so an unthrottled endpoint is brute-forceable.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }
 
   @Post('resend-otp')
+  // Each call sends an email — 5/min bounds both abuse and mail cost.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() dto: ResendOtpDto) {
     return this.authService.resendOtp(dto);
@@ -153,12 +160,15 @@ export class AuthController {
   // ─── Admin Request (public applicant side) ──────────────────────────────
 
   @Post('admin-request/otp')
+  // Sends an email on a fully public, unauthenticated route.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async sendAdminRequestOtp(@Body() dto: SendAdminRequestOtpDto) {
     return this.authService.sendAdminRequestOtp(dto);
   }
 
   @Post('admin-request/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async verifyAdminRequestOtp(@Body() dto: VerifyAdminRequestOtpDto) {
     return this.authService.verifyAdminRequestOtp(dto);
@@ -174,6 +184,7 @@ export class AuthController {
 
   @Post('admin-request/submit')
   @UseGuards(AdminRequestSessionGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async submitAdminRequest(
     @AdminRequestSession() session: AdminRequestSessionClaims,

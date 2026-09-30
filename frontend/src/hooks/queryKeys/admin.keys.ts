@@ -69,6 +69,17 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'classes', 'distinct-educators', filters] as const,
   },
 
+  subjectPrerequisites: {
+    all: [...adminKeys.all, 'subject-prerequisites'] as const,
+    checkBatch: (subjectIds: string[], studentIds: string[]) =>
+      [
+        ...adminKeys.all,
+        'subject-prerequisites',
+        'check-batch',
+        [...subjectIds].sort().join(','),
+        [...studentIds].sort().join(','),
+      ] as const,
+  },
   courses: {
     all: [...adminKeys.all, 'courses'] as const,
     list: (filters?: QueryFilters) =>

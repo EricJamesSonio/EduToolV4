@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Eye, Save, PaintBucket, Check } from "lucide-react";
+import { Loader2, Eye, Save } from "lucide-react";
+
 import { useLesson } from "@/hooks/educator/useLessons";
 import {
   usePresentation, useCreatePresentation, useUpdatePresentation,
@@ -17,12 +18,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TEMPLATE_STYLES } from "@/lib/presentation-templates";
 import {
-  TemplateSelector, SlideOrganizer, LessonContentPanel, PreviewModal,
+  SlideOrganizer, LessonContentPanel, PreviewModal,
   type SlideDraft, type FontSize,
 } from "@/components/educator/presentation-builder";
+import { TemplateDropdown } from "@/components/educator/presentation-builder/TemplateSelector";
+import { FontSelector } from "@/components/educator/presentation-builder/FontSelector";
 import { newSlideId, parseWords } from "@/components/educator/presentation-builder/utils";
 import { FONT_FAMILIES, type FontFamily } from "@/components/educator/presentation-builder/types";
-import { cn } from "@/lib/utils";
 
 export default function PresentationBuilderPage(): React.JSX.Element {
   const { classId }        = useParams<{ classId: string }>();
@@ -256,73 +258,23 @@ export default function PresentationBuilderPage(): React.JSX.Element {
         }
       />
 
-      {/* Title + Template */}
+      {/* ── Unified toolbar: Title + Template + Font ──────────────────────── */}
       <Card size="sm">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 space-y-1.5">
-            <label className="text-sm font-medium">Presentation Title</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter presentation title" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Template</label>
-            <TemplateSelector value={template} onChange={setTemplate} />
-          </div>
-        </div>
-      </Card>
-
-      {/* ── Font toolbar ─────────────────────────────────────────────────────
-          Selecting a font = sets activeFont for NEW slides only.
-          "Apply all" button = explicitly applies that font to every existing slide. */}
-      <Card size="sm">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <PaintBucket className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-sm font-medium">Default font for new slides</span>
-            {slides.length > 0 && (
-              <span className="text-xs text-muted-foreground ml-auto">
-                Click a font to set default · "Apply all" to update existing slides
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {FONT_FAMILIES.map((ff) => {
-              const isActive = activeFont === ff.value;
-              return (
-                <div key={ff.value} className="flex items-center gap-0.5">
-                  {/* Font selector button */}
-                  <button
-                    onClick={() => setActiveFont(ff.value)}
-                    title={`Set "${ff.label}" as default for new slides`}
-                    className={cn(
-                      "h-8 px-3 rounded-l-lg border text-xs transition-all",
-                      isActive
-                        ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A] font-semibold"
-                        : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
-                    )}
-                    style={{ fontFamily: ff.stack }}
-                  >
-                    {isActive && <Check className="h-3 w-3 inline mr-1" />}
-                    {ff.label}
-                  </button>
-
-                  {/* Apply-to-all button — only show when slides exist */}
-                  {slides.length > 0 && (
-                    <button
-                      onClick={() => applyFontToAll(ff.value)}
-                      title={`Apply "${ff.label}" to ALL existing slides`}
-                      className={cn(
-                        "h-8 px-1.5 rounded-r-lg border-y border-r text-[10px] transition-all",
-                        isActive
-                          ? "border-[#93C5FD] bg-[#BFDBFE]/50 text-[#0B1E3A] hover:bg-[#BFDBFE]"
-                          : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
-                      )}
-                    >
-                      All
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Presentation title"
+            className="h-9 flex-1 min-w-0"
+          />
+          <div className="flex items-center gap-2 shrink-0">
+            <TemplateDropdown value={template} onChange={setTemplate} />
+            <FontSelector
+              value={activeFont}
+              hasSlides={slides.length > 0}
+              onChange={setActiveFont}
+              onApplyAll={applyFontToAll}
+            />
           </div>
         </div>
       </Card>

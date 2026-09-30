@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { X } from "lucide-react";
 import {
-  EducatorScheduleGrid,
+  WeeklyScheduleGrid,
   SOURCE_LABELS,
   SOURCE_STYLES,
   type DraftCell,
   type ScheduleRange,
   type ScheduleSource,
-} from "@/components/admin/educator/EducatorScheduleGrid";
+} from "@/components/shared/WeeklyScheduleGrid";
 import type { Class } from "@/types/admin/class.types";
 import {
   WEEKDAY_LABELS,
@@ -124,7 +124,7 @@ export function ClassSchedulePicker({
 
   // Merge both sources for the visual grid — every block contending for
   // either the educator's week or the section's week shows up in one place.
-  // Each block's own subject/section sublabel (from EducatorScheduleGrid)
+  // Each block's own subject/section sublabel (from WeeklyScheduleGrid)
   // already distinguishes "this is the educator's other class" from "this is
   // the section's other class" without needing extra color-coding.
   const gridClasses = useMemo(() => {
@@ -271,7 +271,7 @@ export function ClassSchedulePicker({
         </div>
       ) : (
         <>
-          <EducatorScheduleGrid
+          <WeeklyScheduleGrid
             classes={gridClasses}
             classTags={classTags}
             isLoading={isLoading || cfgLoading || !scheduleCfg}

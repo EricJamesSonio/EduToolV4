@@ -10,5 +10,12 @@ export { ManualStep1 } from "./ManualStep1";
 export { ManualStep2 } from "./ManualStep2";
 
 export { getConceptContent, getSectionsForRanges } from "./utils";
-export { TYPE_LABELS, ASSESSMENT_TYPE_VALUES } from "./constants";
+export {
+  TYPE_LABELS,
+  ASSESSMENT_TYPE_VALUES,
+  SYSTEM_GRADABLE_ASSESSMENT_TYPES,
+  MANUAL_ONLY_ASSESSMENT_TYPES,
+  isSystemGradable,
+  typesForGradingMode,
+} from "./constants";
 export type { BuilderState, ConceptContent, ConceptItemInfo } from "./types";

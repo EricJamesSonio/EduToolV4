@@ -78,7 +78,7 @@ export function NotificationDropdown(): React.JSX.Element {
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold">Notifications</h3>
             {unreadCount > 0 && (
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+              <span className="rounded-sm bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
                 {unreadCount} new
               </span>
             )}

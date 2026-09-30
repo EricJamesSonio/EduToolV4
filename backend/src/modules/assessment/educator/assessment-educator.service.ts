@@ -122,6 +122,10 @@ export class AssessmentEducatorService {
     const effectiveGradingMode = this.creation.resolveGradingMode(dto);
     const isManual = effectiveGradingMode === GradingMode.MANUAL;
 
+    // TICK-ASSESS-005: must run AFTER resolveGradingMode, because the check is
+    // against the *effective* mode (system can become hybrid via manual sections).
+    this.creation.assertTypeMatchesGradingMode(dto.type, effectiveGradingMode);
+
     if (!isManual) await this.creation.validateSystemDto(dto);
 
     const assessment = await this.creation.createAssessmentRecord(
@@ -634,6 +638,13 @@ export class AssessmentEducatorService {
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
     await this.creation.assertTypeMatchesScheme(classId, orgId, dto.type);
+    // TICK-ASSESS-005: the preview path generates and persists questions, so it
+    // needs the same gradability guard as `create` — validating only on create
+    // would let a system-graded `behavior` be generated and saved.
+    this.creation.assertTypeMatchesGradingMode(
+      dto.type,
+      this.creation.resolveGradingMode(dto),
+    );
     const previewId = await this.generation.startPreview(
       classId,
       orgId,
@@ -687,11 +698,13 @@ export class AssessmentEducatorService {
       })),
     );
 
-    this.generation.clearPreview(previewId);
-    this.logger.log(
-      `[Assessment] ${generated.length} questions confirmed for ${assessment.id}`,
-    );
-    return { ...assessment, questions: generated };
+this.generation.clearPreview(previewId);
+this.logger.log(
+  `[Assessment] ${generated.length} questions confirmed for ${assessment.id}`,
+);
+
+const questions = await this.core.getQuestions(assessment.id);
+return { ...assessment, questions };
   }
 
   async cancelPreview(previewId: string) {

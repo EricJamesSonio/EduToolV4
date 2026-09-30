@@ -1034,7 +1034,7 @@ function StatusPill({ status }: { status: string }) {
     rejected: "bg-destructive/10 text-destructive",
   };
   return (
-    <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium capitalize", map[status] ?? "bg-muted text-muted-foreground")}>
+    <span className={cn("rounded-sm px-2.5 py-1 text-xs font-medium capitalize", map[status] ?? "bg-muted text-muted-foreground")}>
       {status}
     </span>
   );

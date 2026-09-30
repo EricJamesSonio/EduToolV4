@@ -207,7 +207,7 @@ function AnswerCard({
             Item {index + 1} — {typeLabel(answer.question.type)}
           </span>
           {isManual && (
-            <span className="text-[10px] text-[#0B1E3A] font-medium bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D] px-2 py-0.5 rounded-full">
+            <span className="text-[10px] text-[#0B1E3A] font-medium bg-[#FDE68A] text-[#0B1E3A] border border-[#FCD34D] px-2 py-0.5 rounded-sm">
               Manual
             </span>
           )}

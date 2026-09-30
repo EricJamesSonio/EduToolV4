@@ -354,7 +354,7 @@ export function SolutionSection() {
             <button
               key={r.key}
               onClick={() => setRole(r.key as Role)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+              className={`px-4 py-2 rounded-sm text-sm font-medium transition ${
                 role === r.key
                   ? "bg-primary text-white"
                   : "bg-muted text-muted-foreground"

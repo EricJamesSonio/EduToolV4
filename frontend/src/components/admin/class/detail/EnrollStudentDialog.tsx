@@ -5,7 +5,7 @@ import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { UserX } from "lucide-react";
+import { UserX, Lock } from "lucide-react";
 
 import { classApi } from "@/api/admin/class.api";
 
@@ -16,17 +16,29 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { toArray } from "../utils/classDetail.utils";
+import { useSubjectsPrerequisiteCheck } from "@/hooks/admin/useSubjectPrerequisites";
+import {
+  getMissingPrerequisites,
+  hasUnmetPrerequisites,
+  prerequisiteBlockMessage,
+  describeMissingPrerequisites,
+  type PrerequisiteMiss,
+} from "@/utils/prerequisites";
 
 interface EnrollStudentDialogProps {
   classId: string;
   open: boolean;
   onClose: () => void;
+  /** The class subject''s id — enables the prerequisite pre-check. */
+  subjectId?: string | null;
 }
 
 interface StudentOption {
   id: string;
   fullName: string;
   studentId?: string;
+  /** Unmet prerequisites for this class''s subject. Non-empty = cannot enroll. */
+  missingPrerequisites?: PrerequisiteMiss[];
   status?: string;
   levelName?: string | null;
   programName?: string | null;
@@ -47,6 +59,7 @@ export function EnrollStudentDialog({
   classId,
   open,
   onClose,
+  subjectId,
 }: EnrollStudentDialogProps): React.JSX.Element {
   const [search, setSearch] = useState("");
 
@@ -55,7 +68,30 @@ export function EnrollStudentDialog({
     () => classApi.getEligibleStudents(classId),
     { enabled: open && !!classId },
   );
-  const eligible = toArray<StudentOption>(eligibleRaw);
+  const structuralEligible = toArray<StudentOption>(eligibleRaw);
+
+  const candidateIds = useMemo(
+    () => structuralEligible.map((s) => s.id),
+    [structuralEligible],
+  );
+
+  // One batched check for the whole candidate list. Blocked students stay
+  // listed but cannot be enrolled — the server gate would reject them.
+  const prereqCheck = useSubjectsPrerequisiteCheck(
+    open ? subjectId ?? null : null,
+    candidateIds,
+  );
+
+  const eligible = useMemo(() => {
+    if (!subjectId) return structuralEligible;
+    // The batch map is keyed by STUDENT id first, then subject id
+    // (see getMissingPrerequisites) — do not read the outer level with a
+    // subject id, that silently yields undefined and unblocks everyone.
+    return structuralEligible.map((s) => {
+      const missing = getMissingPrerequisites(prereqCheck.data, s.id, subjectId);
+      return missing.length > 0 ? { ...s, missingPrerequisites: missing } : s;
+    });
+  }, [structuralEligible, prereqCheck.data, subjectId]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -127,12 +163,32 @@ export function EnrollStudentDialog({
                   .filter(Boolean)
                   .join(" · ");
 
+                const blocked = hasUnmetPrerequisites(
+                  student.missingPrerequisites,
+                );
+
                 return (
                   <button
                     key={student.id}
-                    onClick={() => enrollMutation.mutate(student.id)}
+                    aria-disabled={blocked}
+                    onClick={() => {
+                      if (blocked) {
+                        toast.warning(
+                          prerequisiteBlockMessage(
+                            student.fullName,
+                            student.missingPrerequisites,
+                          ),
+                        );
+                        return;
+                      }
+                      enrollMutation.mutate(student.id);
+                    }}
                     disabled={enrollMutation.isPending}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed ${
+                      blocked
+                        ? "opacity-60 cursor-not-allowed"
+                        : "hover:bg-muted/40"
+                    }`}
                   >
                     <div>
                       <p className="text-sm font-medium">{student.fullName}</p>
@@ -142,11 +198,28 @@ export function EnrollStudentDialog({
                           : ""}
                         {structure}
                       </p>
+                      {blocked && (
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                          <Lock className="h-3 w-3" />
+                          {`Unmet prerequisite: ${describeMissingPrerequisites(
+                            student.missingPrerequisites,
+                          )}`}
+                        </p>
+                      )}
                     </div>
-                    {structure && (
-                      <Badge variant="secondary" className="text-xs shrink-0">
-                        Eligible
+                    {blocked ? (
+                      <Badge
+                        variant="secondary"
+                        className="shrink-0 text-xs text-muted-foreground"
+                      >
+                        Prerequisite
                       </Badge>
+                    ) : (
+                      structure && (
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          Eligible
+                        </Badge>
+                      )
                     )}
                   </button>
                 );

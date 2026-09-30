@@ -36,7 +36,7 @@ export function DepartmentTabs({ departments, activeType, onSelect }: Department
             aria-selected={selected}
             onClick={() => onSelect(dept.type)}
             className={cn(
-              "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+              "rounded-sm border px-3.5 py-1.5 text-xs font-medium transition-colors",
               selected
                 ? "border-primary bg-primary text-primary-foreground shadow-sm"
                 : "bg-background hover:bg-muted/50 border-muted-foreground/20",

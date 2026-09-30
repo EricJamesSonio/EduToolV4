@@ -13,6 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Lock } from "lucide-react";
+import {
+  hasUnmetPrerequisites,
+  prerequisiteBlockMessage,
+  type PrerequisiteMiss,
+} from "@/utils/prerequisites";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -59,6 +65,37 @@ export function EnrollStudentInClassDialog({ open, studentId, onClose }: Props):
   );
 
   const classes = useMemo(() => (Array.isArray(classesRaw) ? classesRaw : []), [classesRaw]);
+
+  /**
+   * The eligible-classes-for-student endpoint already returns the live
+   * prerequisite outcome per class (has_prerequisite_warning /
+   * prerequisite_warnings), so no extra request is needed here — unlike the
+   * other two enrollment surfaces, which had no prerequisite data at all.
+   */
+  const blockedClassIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const c of classes) {
+      const raw = c as unknown as {
+        has_prerequisite_warning?: boolean;
+        prerequisite_warnings?: PrerequisiteMiss[];
+      };
+      if (hasUnmetPrerequisites(raw.prerequisite_warnings)) {
+        ids.add(c.id);
+      }
+    }
+    return ids;
+  }, [classes]);
+
+  const missingPrereqsByClass = useMemo(() => {
+    const map = new Map<string, PrerequisiteMiss[]>();
+    for (const c of classes) {
+      const raw = c as unknown as { prerequisite_warnings?: PrerequisiteMiss[] };
+      if (raw.prerequisite_warnings?.length) {
+        map.set(c.id, raw.prerequisite_warnings);
+      }
+    }
+    return map;
+  }, [classes]);
   const selectedClass = useMemo(() => classes.find((c) => c.id === selectedClassId) ?? null, [classes, selectedClassId]);
 
   const mutation = useMutationWithInvalidation(
@@ -137,12 +174,26 @@ export function EnrollStudentInClassDialog({ open, studentId, onClose }: Props):
                   const cap = c.capacity ?? 0;
                   const isFull = cap > 0 && enrolled >= cap;
                   const capacityLabel = cap > 0 ? `${enrolled}/${cap}` : `${enrolled} enrolled`;
+                  const blocked = blockedClassIds.has(c.id);
+                  const missing = missingPrereqsByClass.get(c.id) ?? [];
                   return (
                     <button
                       key={c.id}
                       type="button"
-                      onClick={() => setSelectedClassId(c.id)}
-                      className={`flex w-full items-start gap-3 px-3 py-3 text-left transition hover:bg-accent/50 ${isSelected ? "bg-accent" : ""}`}
+                      aria-disabled={blocked}
+                      onClick={() => {
+                        if (blocked) {
+                          toast.warning(
+                            prerequisiteBlockMessage(
+                              c.subjectName ?? "This class",
+                              missing,
+                            ),
+                          );
+                          return;
+                        }
+                        setSelectedClassId(c.id);
+                      }}
+                      className={`flex w-full items-start gap-3 px-3 py-3 text-left transition ${isSelected ? "bg-accent" : ""} ${blocked ? "cursor-not-allowed opacity-60" : "hover:bg-accent/50"}`}
                     >
                       <span
                         className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"}`}
@@ -155,6 +206,12 @@ export function EnrollStudentInClassDialog({ open, studentId, onClose }: Props):
                           {c.sectionName ? <Badge variant="outline" className="text-[10px]">{c.sectionName}</Badge> : null}
                           {c.programName ? <Badge variant="outline" className="text-[10px]">{c.programName}</Badge> : null}
                           {isFull ? <Badge variant="destructive" className="text-[10px]">Full</Badge> : null}
+                          {blocked ? (
+                            <Badge variant="secondary" className="gap-1 text-[10px] text-muted-foreground">
+                              <Lock className="h-3 w-3" />
+                              Prerequisite
+                            </Badge>
+                          ) : null}
                         </span>
                         <span className="mt-1 block text-xs text-muted-foreground">
                           {[c.courseName, c.strandName].filter(Boolean).join(" · ") || null}

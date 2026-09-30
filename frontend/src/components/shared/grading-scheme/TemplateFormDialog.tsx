@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { GradingSchemeComponentRow, COMPONENT_TYPES } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
+import { GradingSchemeComponentRow, COMPONENT_TYPES, labelForType } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -65,7 +65,7 @@ function splitEqually(total: number, n: number): number[] {
 function makeDefaultRows(): EditableRow[] {
   const weights = splitEqually(100, DEFAULT_TYPES.length);
   return DEFAULT_TYPES.map((type, i) => ({
-    name:       "",
+    name:       labelForType(type),
     type,
     weight:     weights[i],
     isOptional: false,
@@ -177,7 +177,13 @@ export function TemplateFormDialog({
         COMPONENT_TYPES.find((t) => !usedTypes.has(t.value))?.value ?? "custom";
       return rebalanceWeights([
         ...prev,
-        { name: "", type: nextType, weight: 0, isOptional: false, _touched: false },
+        {
+          name: labelForType(nextType),
+          type: nextType,
+          weight: 0,
+          isOptional: false,
+          _touched: false,
+        },
       ]);
     });
 
