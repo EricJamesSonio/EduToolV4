@@ -2,10 +2,19 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { GradeRepository } from './grade.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { SetManualScoreDto } from './dto/grade.dto';
+// TICK-GRADE-005: single source of truth for "is this category scored
+// directly by the educator" and for its maximum. Must match
+// grade-core.service.ts exactly, or the weighted score and the breakdown
+// disagree with each other.
+import {
+  isManualScoredCategory,
+  manualCategoryMax,
+} from './core/grade-core.service';
 
 // TODO: Add a `type` column to GradingSchemeComponent in schema.prisma
 // (e.g. type String @default("manual")) so components can map to assessment.type.
@@ -247,13 +256,24 @@ export class GradeService {
       );
     }
 
+    // TICK-GRADE-005: the frontend clamps to the category max for UX, but the
+    // server is authoritative for grade data (CORE.md Part 1). Resolve the
+    // category first so a typo cannot create an orphan ManualScore row that
+    // silently never affects any grade, and so the cap is enforced here.
+    const { score } = await this.resolveManualScoreInput(
+      classId,
+      orgId,
+      dto.category,
+      dto.score,
+    );
+
     const saved = await this.repo.upsertManualScore({
       orgId,
       classId,
       studentId,
       termId,
       category: dto.category,
-      score: dto.score,
+      score,
     });
 
     await this.auditLog.logActivityEvent({
@@ -262,10 +282,56 @@ export class GradeService {
       action: 'manual_score_set',
       entityType: 'class',
       entityId: classId,
-      metadata: { termId, studentId, category: dto.category, score: dto.score },
+      metadata: { termId, studentId, category: dto.category, score },
     });
 
     return saved;
+  }
+
+  /**
+   * TICK-GRADE-005: validate a manual score against the class grading scheme.
+   *
+   * Prevents two things:
+   *  - an orphan `ManualScore` row for a category that does not exist. Manual
+   *    scores are matched by category NAME, so a typo or stale name is silently
+   *    ignored by the grade engine while the educator believes they saved a
+   *    score.
+   *  - a score above the category maximum, which would otherwise inflate the
+   *    weighted grade past 100.
+   */
+  private async resolveManualScoreInput(
+    classId: string,
+    orgId: string,
+    categoryName: string,
+    score: number,
+  ): Promise<{ score: number }> {
+    const scheme = await this.repo.findGradingSchemeForClass(classId, orgId);
+    if (!scheme) {
+      throw new NotFoundException('No grading scheme found for this class.');
+    }
+    const categories = componentsToCategories(scheme.components);
+    const category = categories.find(
+      (c) => c.name.toLowerCase() === categoryName.toLowerCase(),
+    );
+    if (!category) {
+      throw new BadRequestException(
+        `"${categoryName}" is not a category in this class's grading scheme. ` +
+          `Allowed: ${categories.map((c) => c.name).join(', ')}`,
+      );
+    }
+    if (!isManualScoredCategory(category.type)) {
+      throw new BadRequestException(
+        `"${categoryName}" is scored from its assessments, not entered manually. ` +
+          `Set the score on the assessment instead.`,
+      );
+    }
+    const max = manualCategoryMax(category);
+    if (max != null && score > max) {
+      throw new BadRequestException(
+        `Score for "${categoryName}" cannot exceed the category maximum of ${max}.`,
+      );
+    }
+    return { score };
   }
 
   private async buildTermResult(
@@ -349,7 +415,7 @@ export class GradeService {
       });
 
       const totalActiveWeight = categories.reduce((sum, cat) => {
-        if (cat.type === 'manual') {
+        if (isManualScoredCategory(cat.type)) {
           return studentManuals.some(
             (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
           )
@@ -403,7 +469,7 @@ export class GradeService {
     for (const category of categories) {
       const weight = category.weight;
 
-      if (category.type === 'manual') {
+      if (isManualScoredCategory(category.type)) {
         const manual = manualScores.find(
           (m) => m.category.toLowerCase() === category.name.toLowerCase(),
         );
@@ -455,7 +521,7 @@ export class GradeService {
       let manualScore: number | null = null;
       let isAllExempted = false;
 
-      if (category.type === 'manual') {
+      if (isManualScoredCategory(category.type)) {
         const manual = manualScores.find(
           (m) => m.category.toLowerCase() === category.name.toLowerCase(),
         );
@@ -499,6 +565,12 @@ export class GradeService {
       return {
         category: category.name,
         type: category.type,
+        // TICK-GRADE-005: the frontend decides whether a column is editable
+        // from isManualScored, and labels/clamps it with maxScore. Without
+        // these it had to infer editability from a non-null manualScore, which
+        // can never bootstrap (no score -> no column -> no way to enter one).
+        isManualScored: isManualScoredCategory(category.type),
+        maxScore: manualCategoryMax(category),
         weight: category.weight,
         rawAverage: isAllExempted ? null : Math.round(rawAverage * 100) / 100,
         manualScore,

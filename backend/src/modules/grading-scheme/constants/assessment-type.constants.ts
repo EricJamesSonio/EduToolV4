@@ -36,14 +36,20 @@ export type AssessmentComponentType =
   (typeof ComponentType)[keyof typeof ComponentType];
 
 /**
- * Types the AI can actually auto-grade.
+ * Types the AI can actually auto-grade. The complement, `MANUAL_ONLY_TYPES`, is
+ * the set scored directly by the educator.
  *
- * TICK-ASSESS-005: the 14-value enum above answers "which types exist?" but not
- * "which types may be used with system/hybrid grading?". Without that second
- * answer, the wizard happily offered `behavior` under System-Graded
- * (`new/page.tsx` + `Step3.tsx:211-226`), the AI generated auto-graded
- * multiple-choice questions for it, and `grade-core.service.ts` averaged the
- * result by weight — a semantically wrong category silently entering the grade.
+ * The 14-value enum above answers "which types exist?" but not "which types
+ * may be auto-graded?". Without that second answer two bugs followed:
+ *
+ *  - TICK-ASSESS-005: the wizard offered `behavior` under System-Graded
+ *    (`new/page.tsx` + `Step3.tsx`), the AI generated auto-graded questions for
+ *    it, and `grade-core.service.ts` averaged the result by weight — a
+ *    semantically wrong category silently entering the grade.
+ *  - TICK-GRADE-005: on the Grades page the Behavior cell could never be
+ *    edited, and a score entered for it would have been ignored. These types
+ *    are now editable cells the educator fills in directly (`ManualScore`);
+ *    `grade-core.service.ts` routes them via `isManualScoredCategory()`.
  *
  * Manual-only = the things a machine cannot judge:
  *   - `participation`, `behavior` — educator observation, not question/answer
@@ -54,7 +60,8 @@ export type AssessmentComponentType =
  * automatically *excluded* from system grading until someone deliberately
  * opts it in, so the safe direction is the default. The complement
  * (`MANUAL_ONLY_TYPES`) is computed rather than declared so the two can never
- * disagree. Parity is pinned by `__TEST__/assessment-type.constants.spec.ts`.
+ * disagree. Parity is pinned by `__TEST__/assessment-type.constants.spec.ts`
+ * and `__TEST__/assessment-type-gradability.spec.ts`.
  *
  * NOTE: this is orthogonal to the legacy `'manual'` scheme-component marker,
  * which is a category-level flag in the grading engine and NOT part of the

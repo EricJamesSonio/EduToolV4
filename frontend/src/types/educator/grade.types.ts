@@ -22,6 +22,16 @@ export interface AssessmentScore {
 export interface CategoryBreakdown {
   category: string;
   type?: string;
+  /**
+   * TICK-GRADE-005: true when the educator scores this category directly
+   * (Behavior, Participation, Attendance, Performance Task) instead of it being
+   * derived from assessments. Drives whether the column renders as an editable
+   * cell. Previously the frontend inferred this from a non-null `manualScore`,
+   * which could never bootstrap: no score -> no column -> no way to enter one.
+   */
+  isManualScored?: boolean;
+  /** The maximum an educator may enter. null = no explicit cap. */
+  maxScore?: number | null;
   weight: number;
   rawAverage: number;
   manualScore: number | null;
