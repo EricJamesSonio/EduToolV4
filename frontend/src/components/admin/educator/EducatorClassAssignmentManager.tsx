@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Plus, X } from "lucide-react";
-import { EducatorScheduleGrid } from "./EducatorScheduleGrid";
+import { WeeklyScheduleGrid } from "@/components/shared/WeeklyScheduleGrid";
 
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -173,7 +173,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
           emptyDescription="Assign this educator to a class."
         />
       ) : (
-        <EducatorScheduleGrid classes={assigned} isLoading={isLoading} />
+        <WeeklyScheduleGrid classes={assigned} isLoading={isLoading} />
       )}
 
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
