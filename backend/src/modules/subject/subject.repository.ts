@@ -143,6 +143,8 @@ export class SubjectRepository {
     strandId?: string;
     yearLevel?: string;
     termLabel?: string;
+    sessionsPerWeek?: number | null;
+    sessionMinutes?: number | null;
   }) {
     const subject = await this.db.subject.create({
       data: {
@@ -156,6 +158,8 @@ export class SubjectRepository {
         strand_id: data.strandId ?? null,
         year_level: data.yearLevel ?? null,
         term_label: data.termLabel ?? null,
+        sessions_per_week: data.sessionsPerWeek ?? null,
+        session_minutes: data.sessionMinutes ?? null,
         is_locked: false,
       },
     });
@@ -425,6 +429,8 @@ export class SubjectRepository {
       strandId?: string | null;
       yearLevel?: string | null;
       termLabel?: string | null;
+      sessionsPerWeek?: number | null;
+      sessionMinutes?: number | null;
     },
   ) {
     const subject = await this.db.subject.update({
@@ -449,6 +455,12 @@ export class SubjectRepository {
           : {}),
         ...(data.termLabel !== undefined
           ? { term_label: { set: data.termLabel } }
+          : {}),
+        ...(data.sessionsPerWeek !== undefined
+          ? { sessions_per_week: data.sessionsPerWeek }
+          : {}),
+        ...(data.sessionMinutes !== undefined
+          ? { session_minutes: data.sessionMinutes }
           : {}),
       },
     });

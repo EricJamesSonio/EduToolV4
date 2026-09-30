@@ -644,6 +644,13 @@ model Subject {
   is_locked    Boolean @default(false)
   year_level   String?
   term_label   String?
+  // How often and how long this subject meets per week. Both NULLABLE on
+  // purpose: null means "use the program-type default", so existing subjects
+  // stay valid and an org that never configures this still works.
+  // `session_minutes` must be a multiple of the org's slot duration, so a class
+  // can always be placed on the slot grid.
+  sessions_per_week Int?
+  session_minutes   Int?
 
   program Program? @relation(fields: [program_id], references: [id])
   course  Course?  @relation(fields: [course_id], references: [id])
