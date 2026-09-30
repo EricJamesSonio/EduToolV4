@@ -1,6 +1,6 @@
 # TICK-ASSESS-005 — Split assessment types into system-gradable vs manual-only
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-30
 Created by: agent
@@ -72,6 +72,32 @@ not to resolve it inline.
 
 ## Relevant Areas
 
+- shared/rules/confidence-gating.md (critical-risk override: grading + migration)
+- shared/skills/database/MUST-HAVES.md §Grading invariants
+- shared/skills/backend/MUST-HAVES.md, shared/skills/frontend/MUST-HAVES.md
+- shared/skills/testing/MUST-HAVES.md
+- backend/src/modules/grading-scheme/constants/assessment-type.constants.ts
+- backend/src/core/ai/{types,constants,prompt-builder.util}.ts
+- backend/src/modules/assessment/{dto,educator/helpers,educator}
+- frontend/src/components/educator/assessment-builder/*
+- frontend/src/app/educator/classes/[classId]/assessments/new/page.tsx
+
+## Acceptance Criteria
+
+- [x] `isSystemGradable()` + `SYSTEM_GRADABLE_TYPES` exported from the canonical
+      backend constants, derived from the enum (no second hardcoded list)
+- [x] Manual-only types (participation/behavior/attendance/performance_task) are
+      absent from the System-Graded type picker
+- [x] Backend returns 400 when a manual-only type is used with system/hybrid mode,
+      on both `create` and `generatePreview`
+- [x] No `as QuestionBlueprint['type']` cast remains; unknown question type
+      throws a typed error instead of falling back to `identification`
+- [x] True/False generates with the True/False prompt format and correct token cost
+- [x] `Step3.tsx` hardcoded type fallback removed
+- [x] Parity spec pins backend/frontend lists
+- [x] `'manual'` untouched in code; open decision recorded in FOLLOW_UPS.md
+- [x] Targeted tests pass; lint/typecheck clean in worktree
+
 ## Confidence
 
 - Score: 86/100 (Requirement clarity 23, Codebase verification 21,
@@ -102,9 +128,25 @@ not to resolve it inline.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: PASS — backend `grading-scheme` + `assessment-creation.helper` 4
+  suites / 67 tests green (2 new specs: assessment-type-gradability covering the
+  gradability split, the true_or_false unification, TOKEN_COST coverage, and
+  buildChunkPrompt per-type output + throw-on-unknown; plus 9 new
+  assertTypeMatchesGradingMode cases). Frontend new spec 23/23 green.
+- Module-scoped: backend assessment + grading-scheme + grade = 19 suites / 193
+  tests green.
+- Full suite: backend 87 suites / 925 tests — failure set **byte-identical to
+  the development baseline**, 0 new: 9 pre-existing suites (class, educator,
+  level, meeting-gateway-rate-limit, program, registrar, school-year, semester,
+  subject-prerequisite). Baseline was captured on a clean `origin/development`
+  worktree to prove `subject-prerequisite` fails without this change.
+  Frontend 18 suites / 190 tests green.
+- Static: backend `tsc --noEmit` = **0 errors**; eslint clean on all touched
+  paths (fixed one unused-import warning found in review).
+- One self-inflicted regression caught and fixed during validation:
+  `assessment-educator.spec.ts`'s mock `creation` object lacked the new
+  `assertTypeMatchesGradingMode`, so `create` threw. Added the mock.
+- Development integration: not run (branch is ready-for-review, not merged).
 
 ## Blocker
 
@@ -123,10 +165,17 @@ None.
   the migration entirely and raised the score.
 - 2026-09-30: Scope decision — Step 3 (migration) **dropped** as unnecessary per
   the DB evidence above. Remaining scope is code-only, no schema change.
+- 2026-09-30: Implemented and committed 8ca7f6c7 (19 files, +654/-59).
+  `origin/development` advanced to 4e11beaa while this branch was open, so the
+  branch is **stale and needs a rebase onto 4e11beaa before merge** (a rebase
+  was required for TICK-ASSESS-001 for the same reason).
+- 2026-09-30: Validation done; one real regression found and fixed (educator
+  spec mock). Targeted 4/67, module 19/193, full backend 87/925 with a baseline-
+  identical failure set, frontend 18/190, tsc 0, eslint clean. → ready-for-review.
 
 ## Commits
 
-- (pending)
+- 114f7d0b feat(assess): split system-gradable vs manual-only types; fix true_or_false generation
 
 ## Notes
 
@@ -136,29 +185,3 @@ None.
 - The open `'manual'` question is deliberately left for its own ticket, per
   FOLLOW_UPS.md.
 
-
-- shared/rules/confidence-gating.md (critical-risk override: grading + migration)
-- shared/skills/database/MUST-HAVES.md §Grading invariants
-- shared/skills/backend/MUST-HAVES.md, shared/skills/frontend/MUST-HAVES.md
-- shared/skills/testing/MUST-HAVES.md
-- backend/src/modules/grading-scheme/constants/assessment-type.constants.ts
-- backend/src/core/ai/{types,constants,prompt-builder.util}.ts
-- backend/src/modules/assessment/{dto,educator/helpers,educator}
-- frontend/src/components/educator/assessment-builder/*
-- frontend/src/app/educator/classes/[classId]/assessments/new/page.tsx
-
-## Acceptance Criteria
-
-- [ ] `isSystemGradable()` + `SYSTEM_GRADABLE_TYPES` exported from the canonical
-      backend constants, derived from the enum (no second hardcoded list)
-- [ ] Manual-only types (participation/behavior/attendance/performance_task) are
-      absent from the System-Graded type picker
-- [ ] Backend returns 400 when a manual-only type is used with system/hybrid mode,
-      on both `create` and `generatePreview`
-- [ ] No `as QuestionBlueprint['type']` cast remains; unknown question type
-      throws a typed error instead of falling back to `identification`
-- [ ] True/False generates with the True/False prompt format and correct token cost
-- [ ] `Step3.tsx` hardcoded type fallback removed
-- [ ] Parity spec pins backend/frontend lists
-- [ ] `'manual'` untouched in code; open decision recorded in FOLLOW_UPS.md
-- [ ] Targeted tests pass; lint/typecheck clean in worktree
