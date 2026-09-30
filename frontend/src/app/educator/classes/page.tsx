@@ -41,6 +41,8 @@ import type { EducatorClass } from "@/types/educator/class.types";
 import type { Subject } from "@/types/admin/subject.types";
 import type { Semester } from "@/types/admin/semester.types";
 
+import { getDefaultSemesterId } from "@/utils/semester.utils";
+
 interface EnrichedClass extends EducatorClass {
   subjectName:  string | null;
   sectionName:  string | null;
@@ -51,38 +53,6 @@ interface EnrichedClass extends EducatorClass {
   levelName:    string | null;
   courseName:   string | null;
   strandName:   string | null;
-}
-
-/**
- * Picks the semester that should be selected by default, in priority order:
- * 1. A semester whose date range contains today ("currently active" by date).
- * 2. If none is currently active, the next upcoming semester (earliest
- *    start date that's still in the future).
- * 3. If nothing is upcoming either (every semester has already ended),
- *    fall back to the most recently ended one so the view isn't empty.
- * Returns null only when there are no semesters at all.
- */
-function getDefaultSemesterId(semesters: Pick<Semester, "id" | "startDate" | "endDate">[]): string | null {
-  if (semesters.length === 0) return null;
-
-  const now = Date.now();
-
-  const current = semesters.find((s) => {
-    const start = new Date(s.startDate).getTime();
-    const end = new Date(s.endDate).getTime();
-    return start <= now && now <= end;
-  });
-  if (current) return current.id;
-
-  const upcoming = semesters
-    .filter((s) => new Date(s.startDate).getTime() > now)
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-  if (upcoming.length > 0) return upcoming[0].id;
-
-  const past = [...semesters].sort(
-    (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime(),
-  );
-  return past[0]?.id ?? null;
 }
 
 function ClassCard({
