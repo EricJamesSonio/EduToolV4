@@ -136,10 +136,13 @@ export class ClassService {
   private async assertScheduleConfig(orgId: string, slots: TimeSlot[]): Promise<void> {
     const cfg = await this.orgScheduleConfigService.getByOrg(orgId);
     for (const slot of slots) {
+      // `weekday` is passed so the org's active-weekday rule is enforced too:
+      // a class cannot land on a day the school does not hold classes.
       const violation = getScheduleViolation(
         cfg,
         this.dateToMinutes(slot.startTime),
         this.dateToMinutes(slot.endTime),
+        slot.weekday,
       );
       if (violation) {
         throw new BadRequestException(

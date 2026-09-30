@@ -173,13 +173,20 @@ model OrgEnrollmentSetting {
 }
 
 model OrgScheduleConfig {
-  id            String   @id @default(uuid())
-  org_id        String   @unique
-  start_time    String   @default("07:00")
-  end_time      String   @default("17:00")
+  id         String   @id @default(uuid())
+  org_id     String   @unique
+  start_time String   @default("07:00")
+  end_time   String   @default("17:00")
   slot_duration Int      @default(30)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  // Weekdays (0 = Sunday .. 6 = Saturday) the school holds classes. Defaults to
+  // ALL seven: an inert default that cannot invalidate existing data, so the
+  // migration needs no backfill. An admin narrows it to the real school week.
+  active_weekdays Int[] @default([0, 1, 2, 3, 4, 5, 6])
+  // Org-wide breaks (lunch, recess). Global for all weekdays in v1; per-day
+  // breaks are out of scope. Each entry is { label, start, end } with HH:mm.
+  breaks        Json    @default("[]")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model Account {
