@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { EducatorScheduleGrid } from "@/components/admin/educator/EducatorScheduleGrid";
+import { WeeklyScheduleGrid } from "@/components/shared/WeeklyScheduleGrid";
 import type { Class } from "@/types/admin/class.types";
 import {
   Users, BookOpen, CalendarDays,
@@ -276,7 +276,7 @@ export function WeeklyScheduleTab({
 
   return (
     <div className="p-4">
-      <EducatorScheduleGrid classes={classes} getSublabel={educatorSublabel} />
+      <WeeklyScheduleGrid classes={classes} getSublabel={educatorSublabel} />
     </div>
   );
 }
