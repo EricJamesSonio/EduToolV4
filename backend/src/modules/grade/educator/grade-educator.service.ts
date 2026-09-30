@@ -4,7 +4,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { GradeRepository } from '../grade.repository';
-import { GradeCoreService, GradeRange } from '../core/grade-core.service';
+import {
+  GradeCoreService,
+  GradeRange,
+  isManualScoredCategory,
+} from '../core/grade-core.service';
 import {
   resolveAssessmentInclusion,
   AssessmentInclusionReason,
@@ -1035,7 +1039,7 @@ export class GradeEducatorService {
           .map((s: any) => s.assessment_id),
       );
       const totalActiveWeight = categories.reduce((sum, cat) => {
-        if (cat.type === 'manual') {
+        if (isManualScoredCategory(cat.type)) {
           return studentManuals.some(
             (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
           )

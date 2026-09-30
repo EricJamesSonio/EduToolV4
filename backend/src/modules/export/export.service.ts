@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { GradeRepository } from '../grade/grade.repository';
+// TICK-GRADE-005: exports must agree with the grade engine on which categories
+// are educator-scored, or a CSV/PDF reports a score the grade does not include.
+import { isManualScoredCategory } from '../grade/core/grade-core.service';
 import PDFDocument from 'pdfkit';
 
 interface SchemeComponent {
@@ -66,7 +69,7 @@ export class ExportService {
         );
 
         for (const comp of components) {
-          if (comp.type === 'manual') {
+          if (isManualScoredCategory(comp.type)) {
             // Match by component type — explicit, no name fallback
             const manual = manualScores.find(
               (m: any) => m.category === comp.type,
@@ -250,7 +253,7 @@ export class ExportService {
         for (const comp of components) {
           let scoreText = 'N/A';
 
-          if (comp.type === 'manual') {
+          if (isManualScoredCategory(comp.type)) {
             // Use comp.type for exact match — no name.toLowerCase() guessing
             const manual = manualScores.find(
               (m: any) => m.category === comp.type,
