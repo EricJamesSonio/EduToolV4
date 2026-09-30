@@ -2,6 +2,21 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-09-30
+
+### Fixed
+
+- Manual-only assessment types no longer selectable under System-Graded, and True/False no longer generates as Multiple Choice (TICK-ASSESS-005, `f378f39c`): two defects, one root cause — no single source of truth for which types the AI can auto-grade. `SYSTEM_GRADABLE_TYPES` / `MANUAL_ONLY_TYPES` / `isSystemGradable()` (derived from the enum, complement computed) now answer it, and the backend rejects a manual-only type with system/hybrid mode on both `create` and `generatePreview`; the wizard filters the picker by grading mode and `Step3`'s hardcoded `["quiz","activity","exam","custom"]` fallback (a 5th divergent list) is gone. The T/F bug was a string mismatch — the wizard sent `true_or_false` while the AI layer keyed on `true_false`, and an unchecked `as QuestionBlueprint['type']` cast let it compile, then fail at runtime when the prompt-builder lookup missed and **silently fell back to the identification format**; unified on `true_or_false`, replaced both casts with a throwing `toAiQuestionType()`, made `buildChunkPrompt` throw instead of falling back, and fixed the `TOKEN_COST` key (it was falling back to 150, corrupting chunk sizing). **No migration** — verified against the live dev DB that `Question` has zero `true_false`/`true_or_false` rows and the one `behavior` assessment is already `grading_mode='manual'`, so the fix prevents new bad rows rather than repairing old ones.
+- Behavior/Participation/Performance/Attendance are now scored directly on the Grades page (TICK-GRADE-005, `f877f96f`): the click-to-edit `ManualCell`, the `PATCH .../manual` endpoint, the `ManualScore` upsert and the grade math all already existed — the wiring gap was two bugs. **(1)** Editable columns were derived from categories that *already had a score* (`manualScore !== null`), so a score needed a column and a column needed a score: the Behavior cell was a permanent un-editable `—`. `DefaultGradeTable` and `CleanGradeTable` now derive columns from the grading scheme. **(2)** `category.type === 'manual'` was the only thing routing a manual score into the grade, across 7 call sites — but schemes persist `type='behavior'`, so a saved Behavior score was silently ignored and its weight dropped from the average. `isManualScoredCategory()` now derives the manual set from the canonical types and still honors the legacy `'manual'` literal. Per-category cap added: `max_score` when set, else the category weight (Behavior at 20% renders `Behavior /20`), enforced in the cell *and* authoritatively server-side, which also rejects unknown categories so no orphan `ManualScore` row can be created.
+
+### Changed
+
+- The duplicate `SYSTEM_GRADABLE_TYPES` / `MANUAL_ONLY_TYPES` declarations left by the two parallel branches were collapsed to one set when GRADE-005 merged into development; the doc comment now describes both bugs the split fixes.
+
+### Merge validation
+
+- Both tickets merged to `development` (ASSESS-005 fast-forward `f378f39c`; GRADE-005 merge commit `f877f96f`). Baseline captured on a fresh `verify-merge` worktree before merging — BE 86 suites / 888 tests with 9 failing, `tsc` 20; FE 17 suites / 167 tests — vs after: BE 88 / 951 with the **same 9 pre-existing failures, 0 new**, `tsc` 20 (none in touched files); FE 19 / 199. **Zero regressions; +63 backend and +32 frontend tests passing.** The predicted duplicate-constant conflict materialized and was resolved by hand. Not verified: a browser click-through of the Grades page — the bootstrap bug was diagnosed from source, not reproduced.
+
 ## 2026-09-29 (evening)
 
 ### Changed
