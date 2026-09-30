@@ -10,8 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { programApi } from "@/api/admin/program.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { useHierarchyPrograms } from "@/hooks/admin/useHierarchyPrograms";
 import type { HierarchyLevel, HierarchyScope } from "@/api/admin/subject-hierarchy.api";
 import { PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
 
@@ -44,15 +44,7 @@ export function SubjectHierarchyFilter({ value, onChange, levels = [] }: Props):
     refetchOnWindowFocus: false,
   });
 
-  const { data: programs = [] } = useQuery({
-    queryKey: ["admin", "programs", value.schoolYearId ?? "none"],
-    queryFn: () => programApi.getAll(value.schoolYearId as string),
-    enabled: !!value.schoolYearId,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
-  });
+  const { data: programs = [] } = useHierarchyPrograms(value.schoolYearId);
 
   const selectedProgram = useMemo(
     () => programs.find((p) => p.id === value.programId) ?? null,
