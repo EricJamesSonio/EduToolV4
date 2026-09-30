@@ -6,6 +6,7 @@ import { SemesterModule } from '@/modules/semester/semester.module';
 import { LevelModule } from '@/modules/level/level.module';
 import { ProgramModule } from '@/modules/program/program.module';
 import { SectionModule } from '@/modules/section/section.module';
+import { RoomModule } from '@/modules/room/room.module';
 import { SubjectModule } from '@/modules/subject/subject.module';
 import { TranscriptModule } from '@/modules/transcript/transcript.module';
 import { ExportModule } from '@/modules/export/export.module';
@@ -30,6 +31,7 @@ import { AcademicHistoryModule } from '@/modules/academic-history/academic-histo
     LevelModule,
     ProgramModule,
     SectionModule,
+    RoomModule,
     SubjectModule,
     TranscriptModule,
     ExportModule,

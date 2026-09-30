@@ -6,6 +6,10 @@ export interface ClassSchedule {
   weekday: number; // 0=Sun, 1=Mon, ..., 6=Sat
   startTime: string; // "HH:mm"
   endTime: string;   // "HH:mm"
+  /** Optional room for this slot. null/undefined = no room assigned. */
+  roomId?: string | null;
+  /** Denormalized room name, so the UI can show it without a second fetch. */
+  roomName?: string | null;
 }
 
 export type EnrollmentStatus = "active" | "pending" | "removed";

@@ -12,6 +12,7 @@ interface ScheduleLike {
   weekday: number;
   startTime: string;
   endTime: string;
+  roomName?: string | null;
 }
 
 export function timeToMinutes(hhmm: string): number {
@@ -72,14 +73,22 @@ export function formatScheduleLines(
 ): string[] {
   if (!schedules?.length) return [];
 
-  const groups = new Map<string, { start: number; end: number; days: Set<number> }>();
+  const groups = new Map<string, {
+    start: number;
+    end: number;
+    days: Set<number>;
+    rooms: Set<string>;
+  }>();
   for (const s of schedules) {
     const start = parseClockMinutes(s.startTime);
     const end = parseClockMinutes(s.endTime);
     if (start === null || end === null) continue;
     const key = `${start}-${end}`;
-    const group = groups.get(key) ?? { start, end, days: new Set<number>() };
+    const group =
+      groups.get(key) ?? { start, end, days: new Set<number>(), rooms: new Set<string>() };
     group.days.add(s.weekday);
+    // Rooms are optional; only named ones count.
+    if (s.roomName) group.rooms.add(s.roomName);
     groups.set(key, group);
   }
 
@@ -94,10 +103,19 @@ export function formatScheduleLines(
         DAY_DISPLAY_ORDER.indexOf(a.days[0]) - DAY_DISPLAY_ORDER.indexOf(b.days[0]) ||
         a.group.start - b.group.start,
     )
-    .map(
-      ({ group, days }) =>
-        `${days.map((d) => WEEKDAY_LABELS[d]).join(", ")} · ${formatMinutes(group.start)} – ${formatMinutes(group.end)}`,
-    );
+    .map(({ group, days }) => {
+      const base =
+        `${days.map((d) => WEEKDAY_LABELS[d]).join(", ")} · ${formatMinutes(group.start)} – ${formatMinutes(group.end)}`;
+      // Only name the room when the whole group shares one. A mixed group would
+      // otherwise imply every day is in that room, which is wrong.
+      if (group.rooms.size === 1) {
+        return `${base} · ${[...group.rooms][0]}`;
+      }
+      if (group.rooms.size > 1) {
+        return `${base} · ${group.rooms.size} rooms`;
+      }
+      return base;
+    });
 }
 
 export function formatSchedule(

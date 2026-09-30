@@ -30,12 +30,16 @@ import {
 } from './dto/class.dto';
 import {
   parseTimeToDate,
-  slotsOverlap,
   toTimeSlot,
+  minuteSlotsOverlap,
+  toMinuteSlot,
+  type MinuteSlot,
 } from './class-schedule.util';
 import { SubjectPrerequisiteService } from '../subject-prerequisite/subject-prerequisite.service';
 
-type TimeSlot = ReturnType<typeof toTimeSlot>;
+/** A parsed schedule slot. `roomId` rides along so a single pass can both
+ *  persist the assignment and run the room conflict check. */
+type TimeSlot = ReturnType<typeof toTimeSlot> & { roomId?: string | null };
 
 @Injectable()
 export class ClassService {
@@ -180,6 +184,12 @@ export class ClassService {
     );
 
     if (dto.sectionId) {
+      await this.assertNoSectionConflict(
+        dto.sectionId,
+        orgId,
+        slots,
+        dto.schoolYearId,
+      );
       await this.assertNoDuplicateSubjectInSection(
         orgId,
         dto.sectionId,
@@ -187,6 +197,9 @@ export class ClassService {
         semesterId,
       );
     }
+
+    // No-ops when no slot has a room — rooms are optional.
+    await this.assertRoomsFree(orgId, slots, dto.schoolYearId);
 
     // Class capacity is derived from its section. With no section it falls
     // back to 0, which the enrollment checks treat as "no cap".
@@ -340,15 +353,32 @@ export class ClassService {
         cls.school_year_id,
         id,
       );
-    if (dto.sectionId && dto.sectionId !== cls.section_id) {
-      await this.assertNoDuplicateSubjectInSection(
-        orgId,
-        dto.sectionId,
-        cls.subject_id,
-        cls.semester_id,
-        id,
-      );
-    };
+
+      // Moving a section re-checks that section's week even if its slots did
+      // not change, since the class now competes for a different schedule.
+      if (newSectionId) {
+        await this.assertNoSectionConflict(
+          newSectionId,
+          orgId,
+          slots,
+          cls.school_year_id,
+          id,
+        );
+      }
+
+      if (dto.sectionId && dto.sectionId !== cls.section_id) {
+        await this.assertNoDuplicateSubjectInSection(
+          orgId,
+          dto.sectionId,
+          cls.subject_id,
+          cls.semester_id,
+          id,
+        );
+      }
+
+      // Excludes this class so its own current slots don't self-conflict.
+      await this.assertRoomsFree(orgId, slots, cls.school_year_id, id);
+
       await this.classRepository.replaceSchedules(orgId, id, slots);
     } else if (dto.educatorId && dto.educatorId !== cls.educator_id) {
       // Educator changed without schedule change — validate against existing schedules
@@ -826,7 +856,12 @@ export class ClassService {
           `Schedule weekday ${s.weekday}: start time must be before end time.`,
         );
       }
-      return { weekday: s.weekday, startTime: start, endTime: end };
+      return {
+        weekday: s.weekday,
+        startTime: start,
+        endTime: end,
+        roomId: s.roomId ?? null,
+      };
     });
   }
 
@@ -842,24 +877,160 @@ export class ClassService {
       orgId,
       schoolYearId,
     );
-    for (const existingSlot of existing) {
-      if (excludeClassId && (existingSlot as any).class_id === excludeClassId)
-        continue;
-      const slot = toTimeSlot({
-        weekday: existingSlot.weekday,
-        startTime: new Date(existingSlot.start_time),
-        endTime: new Date(existingSlot.end_time),
-      });
-      for (const newSlot of newSlots) {
-        if (slotsOverlap(slot, newSlot)) {
+
+    const taken: MinuteSlot[] = existing
+      .filter((slot) => slot.class_id !== excludeClassId)
+      .map((slot) =>
+        toMinuteSlot(
+          slot.weekday,
+          new Date(slot.start_time),
+          new Date(slot.end_time),
+        ),
+      );
+
+    for (const newSlot of newSlots) {
+      const asMinutes = toMinuteSlot(
+        newSlot.weekday,
+        newSlot.startTime,
+        newSlot.endTime,
+      );
+      if (taken.some((e) => minuteSlotsOverlap(e, asMinutes))) {
+        throw new ConflictException(
+          `Educator already has a class on weekday ${newSlot.weekday} that overlaps with this time slot.`,
+        );
+      }
+    }
+  }
+
+  private async assertNoSectionConflict(
+    sectionId: string,
+    orgId: string,
+    newSlots: TimeSlot[],
+    schoolYearId: string,
+    excludeClassId?: string,
+  ) {
+    const existing = await this.classRepository.findSectionSchedules(
+      sectionId,
+      orgId,
+      schoolYearId,
+    );
+
+    const taken: MinuteSlot[] = existing
+      .filter((slot) => slot.class_id !== excludeClassId)
+      .map((slot) =>
+        toMinuteSlot(
+          slot.weekday,
+          new Date(slot.start_time),
+          new Date(slot.end_time),
+        ),
+      );
+
+    for (const newSlot of newSlots) {
+      const asMinutes = toMinuteSlot(
+        newSlot.weekday,
+        newSlot.startTime,
+        newSlot.endTime,
+      );
+      if (taken.some((e) => minuteSlotsOverlap(e, asMinutes))) {
+        throw new ConflictException(
+          `Section already has a class on weekday ${newSlot.weekday} that overlaps with this time slot.`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Room availability check. Rooms are OPTIONAL, so a batch with no room on
+   * any slot is valid and returns immediately — nothing to check.
+   *
+   * Scoped by org_id (tenant isolation) and by the class's school year, since
+   * a room is only "booked" relative to the year the booking belongs to.
+   * Archived classes are excluded: they are read-only and hidden from active
+   * views, so they must never block a new assignment.
+   */
+  private async assertRoomsFree(
+    orgId: string,
+    newSlots: TimeSlot[],
+    schoolYearId: string,
+    excludeClassId?: string,
+  ): Promise<void> {
+    const withRoom = newSlots.filter((s) => !!s.roomId);
+    if (withRoom.length === 0) return;
+
+    const roomIds = [...new Set(withRoom.map((s) => s.roomId as string))];
+
+    // A class cannot book the same room twice at overlapping times. The client
+    // blocks this, but the endpoint is reachable directly, so enforce it here
+    // too rather than trusting the form.
+    for (let i = 0; i < withRoom.length; i++) {
+      for (let j = i + 1; j < withRoom.length; j++) {
+        const a = withRoom[i];
+        const b = withRoom[j];
+        if (a.roomId !== b.roomId) continue;
+        if (
+          minuteSlotsOverlap(
+            toMinuteSlot(a.weekday, a.startTime, a.endTime),
+            toMinuteSlot(b.weekday, b.startTime, b.endTime),
+          )
+        ) {
           throw new ConflictException(
-            `Educator already has a class on weekday ${slot.weekday} that overlaps with this time slot.`,
+            'Two of this class\'s slots use the same room at overlapping times.',
+          );
+        }
+      }
+    }
+
+    // Verify every id actually belongs to this org before trusting it. Without
+    // this, a crafted payload could probe another org's room ids.
+    const owned = await this.db.room.findMany({
+      where: { id: { in: roomIds }, org_id: orgId },
+      select: { id: true },
+    });
+    if (owned.length !== roomIds.length) {
+      throw new BadRequestException(
+        'One or more selected rooms do not exist.',
+      );
+    }
+
+    const existing = await this.db.classSchedule.findMany({
+      where: {
+        org_id: orgId,
+        room_id: { in: roomIds },
+        class: { school_year_id: schoolYearId, deleted_at: null },
+      },
+      include: { room: { select: { name: true } } },
+    });
+
+    for (const booked of existing) {
+      if (excludeClassId && booked.class_id === excludeClassId) continue;
+
+      const bookedMinutes = toMinuteSlot(
+        booked.weekday,
+        new Date(booked.start_time),
+        new Date(booked.end_time),
+      );
+
+      for (const incoming of withRoom) {
+        if (incoming.roomId !== booked.room_id) continue;
+        if (
+          minuteSlotsOverlap(
+            bookedMinutes,
+            toMinuteSlot(
+              incoming.weekday,
+              incoming.startTime,
+              incoming.endTime,
+            ),
+          )
+        ) {
+          throw new ConflictException(
+            `${booked.room?.name ?? 'That room'} is already booked on weekday ${booked.weekday} at an overlapping time.`,
           );
         }
       }
     }
   }
-    private async assertNoDuplicateSubjectInSection(
+
+  private async assertNoDuplicateSubjectInSection(
     orgId: string,
     sectionId: string,
     subjectId: string,
@@ -877,36 +1048,6 @@ export class ClassService {
       throw new ConflictException(
         'This section already has a class for this subject in this semester. Add another time slot to that class instead of creating a new one.',
       );
-    }
-  }
-
-  private async assertNoSectionConflict(
-    sectionId: string,
-    orgId: string,
-    newSlots: TimeSlot[],
-    schoolYearId: string,
-    excludeClassId?: string,
-  ) {
-    const existing = await this.classRepository.findSectionSchedules(
-      sectionId,
-      orgId,
-      schoolYearId,
-    );
-    for (const existingSlot of existing) {
-      if (excludeClassId && (existingSlot as any).class_id === excludeClassId)
-        continue;
-      const slot = toTimeSlot({
-        weekday: existingSlot.weekday,
-        startTime: new Date(existingSlot.start_time),
-        endTime: new Date(existingSlot.end_time),
-      });
-      for (const newSlot of newSlots) {
-        if (slotsOverlap(slot, newSlot)) {
-          throw new ConflictException(
-            `Section already has a class on weekday ${slot.weekday} that overlaps with this time slot.`,
-          );
-        }
-      }
     }
   }
 }

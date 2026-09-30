@@ -47,6 +47,12 @@ export class ScheduleSlotDto {
 
   @IsString()
   endTime!: string;
+
+  /** Optional room for this slot. Omit / null = no room, which is the default
+   *  and behaves exactly as it did before rooms existed. */
+  @IsOptional()
+  @IsUUID()
+  roomId?: string;
 }
 
 export class CreateClassDto {

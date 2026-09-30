@@ -29,6 +29,20 @@ describe('ClassService', () => {
     return d.toISOString();
   }
 
+  /**
+   * Same wall-clock time, but stamped `daysAgo` days in the past. Reproduces
+   * the real bug: slots are persisted with the date the class was created, so
+   * two classes created on different days used to never be seen as overlapping.
+   */
+  function shiftedISO(hhmm: string, daysAgo: number) {
+    const [h, m] = hhmm.split(':').map(Number);
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    d.setHours(h, m, 0, 0);
+    d.setMilliseconds(0);
+    return d.toISOString();
+  }
+
   beforeEach(() => {
     repo = {
       create: jest.fn(),
@@ -39,6 +53,7 @@ describe('ClassService', () => {
       findSchedulesByClass: jest.fn(),
       findEducatorSchedules: jest.fn(),
       findSectionSchedules: jest.fn(),
+      findSectionSubjectClass: jest.fn().mockResolvedValue(null),
       replaceSchedules: jest.fn().mockResolvedValue([]),
       softDelete: jest.fn(),
       lockGradingSchemeForClass: jest.fn().mockResolvedValue({}),
@@ -81,6 +96,7 @@ describe('ClassService', () => {
       semester: { findFirst: jest.fn() },
       section: { findFirst: jest.fn() },
       classSchedule: { findMany: jest.fn() },
+      room: { findMany: jest.fn().mockResolvedValue([]) },
       orgScheduleConfig: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     service = new ClassService(repo, enrollmentService, attendanceService, auditLogService, gradingTemplateService, subjectPrerequisiteService as never, db, orgScheduleConfigService as never);
@@ -438,6 +454,296 @@ describe('ClassService', () => {
       repo.create.mockResolvedValue({ id: classId });
       repo.findById.mockResolvedValue({ id: classId });
       await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '09:00', '10:00')] } as any, actorId)).resolves.toBeDefined();
+    });
+  });
+
+  // ==========================================================================
+  // Conflict detection compares WALL-CLOCK time, not timestamps.
+  //
+  // parseTimeToDate stamps today's date on each slot, and slots are stored with
+  // whatever date they were created on. Comparing full timestamps therefore made
+  // a class created last week and one created today look non-overlapping even at
+  // identical weekday + clock time. Every test below FAILS against the old
+  // timestamp-based comparison.
+  // ==========================================================================
+  describe('conflict detection across different creation dates', () => {
+    it('educator conflict is detected when the existing slot was created days ago', async () => {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      mockResolveSemesterSuccess();
+      repo.findEducatorSchedules.mockResolvedValue([
+        { weekday: 1, start_time: shiftedISO('08:00', 7), end_time: shiftedISO('09:00', 7), class_id: 'other-class' },
+      ]);
+      db.classSchedule.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:30', '09:30')] } as any, actorId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('section conflict is detected when the existing slot was created days ago', async () => {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      mockResolveSemesterSuccess();
+      repo.findEducatorSchedules.mockResolvedValue([]);
+      repo.findSectionSchedules.mockResolvedValue([
+        { weekday: 3, start_time: shiftedISO('10:00', 14), end_time: shiftedISO('11:00', 14), class_id: 'other' },
+      ]);
+
+      await expect(
+        service.create(orgId, { subjectId, educatorId, sectionId: 'sec-1', schoolYearId, schedules: [makeSlot(3, '10:30', '11:30')] } as any, actorId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('still allows adjacent slots regardless of creation date', async () => {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      mockResolveSemesterSuccess();
+      repo.findEducatorSchedules.mockResolvedValue([
+        { weekday: 1, start_time: shiftedISO('08:00', 7), end_time: shiftedISO('09:00', 7), class_id: 'other-class' },
+      ]);
+      db.classSchedule.findMany.mockResolvedValue([]);
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+
+      // 09:00-10:00 starts exactly when the existing one ends -> not a conflict.
+      await expect(
+        service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '09:00', '10:00')] } as any, actorId),
+      ).resolves.toBeDefined();
+    });
+
+    it('ignores same clock time on a different weekday', async () => {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      mockResolveSemesterSuccess();
+      repo.findEducatorSchedules.mockResolvedValue([
+        { weekday: 1, start_time: shiftedISO('08:00', 7), end_time: shiftedISO('09:00', 7), class_id: 'other-class' },
+      ]);
+      db.classSchedule.findMany.mockResolvedValue([]);
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+
+      await expect(
+        service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(2, '08:00', '09:00')] } as any, actorId),
+      ).resolves.toBeDefined();
+    });
+  });
+  // ==========================================================================
+  // Rooms are OPTIONAL. No room on any slot = nothing to validate.
+  // ==========================================================================
+  describe('room assignment (optional)', () => {
+    const roomId = 'room-201';
+
+    function primeCreate() {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      mockResolveSemesterSuccess();
+      repo.findEducatorSchedules.mockResolvedValue([]);
+      db.room.findMany.mockResolvedValue([{ id: roomId }]);
+    }
+
+    /** An existing booking on `roomId`, created 3 days ago. */
+    function bookedRoom() {
+      return [{
+        class_id: 'other-class',
+        room_id: roomId,
+        weekday: 1,
+        start_time: shiftedISO('08:00', 3),
+        end_time: shiftedISO('09:00', 3),
+        room: { name: 'Room 201' },
+      }];
+    }
+
+    it('is a no-op when no slot has a room', async () => {
+      primeCreate();
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+      db.classSchedule.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId),
+      ).resolves.toBeDefined();
+      // Never even looks a room up when rooms aren't used.
+      expect(db.room.findMany).not.toHaveBeenCalled();
+    });
+
+    it('persists the room id onto the slot', async () => {
+      primeCreate();
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+      db.classSchedule.findMany.mockResolvedValue([]);
+
+      await service.create(orgId, {
+        subjectId, educatorId, schoolYearId,
+        schedules: [{ ...makeSlot(1, '08:00', '09:00'), roomId }],
+      } as any, actorId);
+
+      expect(repo.replaceSchedules).toHaveBeenCalledWith(
+        orgId, classId,
+        [expect.objectContaining({ roomId })],
+      );
+    });
+
+    it('rejects a room already booked at an overlapping time', async () => {
+      primeCreate();
+      db.classSchedule.findMany.mockResolvedValue(bookedRoom());
+
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [{ ...makeSlot(1, '08:30', '09:30'), roomId }],
+        } as any, actorId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('allows the same room on a different weekday', async () => {
+      primeCreate();
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+      db.classSchedule.findMany.mockResolvedValue(bookedRoom());
+
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [{ ...makeSlot(2, '08:00', '09:00'), roomId }],
+        } as any, actorId),
+      ).resolves.toBeDefined();
+    });
+
+    it('allows the same room at an adjacent time on the same weekday', async () => {
+      primeCreate();
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+      db.classSchedule.findMany.mockResolvedValue(bookedRoom());
+
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [{ ...makeSlot(1, '09:00', '10:00'), roomId }],
+        } as any, actorId),
+      ).resolves.toBeDefined();
+    });
+
+    it('rejects a room id that does not belong to this org', async () => {
+      primeCreate();
+      // Ownership lookup comes back empty -> the id is foreign or bogus.
+      db.room.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [{ ...makeSlot(1, '08:00', '09:00'), roomId: 'someone-elses-room' }],
+        } as any, actorId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('does not conflict with the class being edited (excludeClassId)', async () => {
+      primeCreate();
+      repo.findById.mockResolvedValue({
+        id: classId, school_year_id: schoolYearId, subject_id: subjectId,
+        educator_id: educatorId, section_id: 'sec-1',
+      });
+      repo.update.mockResolvedValue({ id: classId });
+      // No other class competes for this section's or educator's week.
+      repo.findSectionSchedules.mockResolvedValue([]);
+      // The class's OWN existing booking must not block it.
+      db.classSchedule.findMany.mockResolvedValue([
+        { ...bookedRoom()[0], class_id: classId },
+      ]);
+
+      await expect(
+        service.update(classId, orgId, {
+          schedules: [{ ...makeSlot(1, '08:00', '09:00'), roomId }],
+        } as any),
+      ).resolves.toBeDefined();
+    });
+
+    // Two slots of the SAME class claiming one room at overlapping times. The
+    // client blocks this, but the endpoint is directly reachable, so the
+    // server must refuse it too.
+    it('rejects two of its own slots using the same room at overlapping times', async () => {
+      primeCreate();
+      db.classSchedule.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [
+            { ...makeSlot(1, '08:00', '10:00'), roomId },
+            { ...makeSlot(1, '09:00', '11:00'), roomId },
+          ],
+        } as any, actorId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('allows two of its own slots in the same room on different days', async () => {
+      primeCreate();
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+      db.classSchedule.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [
+            { ...makeSlot(1, '08:00', '10:00'), roomId },
+            { ...makeSlot(2, '08:00', '10:00'), roomId },
+          ],
+        } as any, actorId),
+      ).resolves.toBeDefined();
+    });
+
+    it('allows two of its own slots in the same room back-to-back', async () => {
+      primeCreate();
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+      db.classSchedule.findMany.mockResolvedValue([]);
+
+      // Adjacent, not overlapping: 10:00-11:00 starts as 08:00-10:00 ends.
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [
+            { ...makeSlot(1, '08:00', '10:00'), roomId },
+            { ...makeSlot(1, '10:00', '12:00'), roomId },
+          ],
+        } as any, actorId),
+      ).resolves.toBeDefined();
+    });
+
+    it('allows its own slots in two different rooms at the same time', async () => {
+      primeCreate();
+      db.room.findMany.mockResolvedValue([{ id: roomId }, { id: 'room-206' }]);
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId, subject_id: subjectId });
+      db.classSchedule.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.create(orgId, {
+          subjectId, educatorId, schoolYearId,
+          schedules: [
+            { ...makeSlot(1, '08:00', '10:00'), roomId },
+            { ...makeSlot(1, '08:00', '10:00'), roomId: 'room-206' },
+          ],
+        } as any, actorId),
+      ).resolves.toBeDefined();
+    });
+
+    it('does not touch schedules when only the educator changes', async () => {
+      primeCreate();
+      repo.findById.mockResolvedValue({
+        id: classId, school_year_id: schoolYearId, subject_id: subjectId,
+        educator_id: 'old-educator', section_id: 'sec-1',
+      });
+      repo.findSchedulesByClass.mockResolvedValue([
+        { weekday: 1, start_time: shiftedISO('08:00', 3), end_time: shiftedISO('09:00', 3) },
+      ]);
+      repo.findEducatorSchedules.mockResolvedValue([]);
+      repo.update.mockResolvedValue({ id: classId });
+
+      await service.update(classId, orgId, { educatorId: 'new-educator' } as any);
+
+      expect(repo.replaceSchedules).not.toHaveBeenCalled();
     });
   });
 });

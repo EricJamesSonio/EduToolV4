@@ -27,20 +27,69 @@ export interface DraftCell {
   minute: number;
 }
 
-export type ScheduleSource = "section" | "educator" | "both";
+/**
+ * A resource contending for a time slot. The class dialog surfaces three:
+ * the educator's own classes, the section's other classes, and the bookings of
+ * whichever rooms are currently selected on the picked slots.
+ */
+export type ScheduleSource = "section" | "educator" | "room";
 
-export const SOURCE_STYLES: Record<ScheduleSource, string> = {
+/**
+ * A block can be contended by ANY combination of sources, so the tag is a
+ * list rather than a single value. The old shape was
+ * `"section" | "educator" | "both"`, which had no way to express a class that
+ * is both the section's AND booked in a room.
+ */
+export type ScheduleTag = ScheduleSource[];
+
+const SOURCE_STYLES: Record<ScheduleSource, string> = {
   section: "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
   educator:
     "bg-chart-4/15 border-dashed border-[var(--chart-4)]/60 text-[var(--chart-4)]",
-  both: "bg-destructive/15 border-destructive/40 text-destructive",
+  room: "bg-chart-2/15 border-[var(--chart-2)]/30 text-[var(--chart-2)]",
 };
 
-export const SOURCE_LABELS: Record<ScheduleSource, string> = {
+/**
+ * Two or more sources landing on the same existing class is a *description* of
+ * that class ("the section's class AND the educator's class"), not a problem
+ * with the slot being created. It therefore gets a distinct look rather than
+ * the destructive red, which is reserved for "your new slot will be rejected".
+ */
+const CONTENDED_STYLE =
+  "bg-chart-3/15 border-[var(--chart-3)]/40 text-[var(--chart-3)]";
+
+/** A picked slot that collides with something and cannot be saved as-is. */
+export const PICK_CONFLICT_STYLE =
+  "bg-destructive/15 border-destructive/60 text-destructive";
+
+const SOURCE_LABELS: Record<ScheduleSource, string> = {
   section: "Section",
   educator: "Educator busy",
-  both: "Section & educator",
+  room: "Room booked",
 };
+
+/** Block style for a tag: the single source's colour, or red when contended. */
+export function sourceStyle(tag: ScheduleTag | undefined): string | undefined {
+  if (!tag || tag.length === 0) return undefined;
+  if (tag.length === 1) return SOURCE_STYLES[tag[0]];
+  return CONTENDED_STYLE;
+}
+
+/** Human label, e.g. "Section & educator", "Section & room". */
+export function sourceLabel(tag: ScheduleTag | undefined): string {
+  if (!tag || tag.length === 0) return "";
+  return tag.map((s) => SOURCE_LABELS[s]).join(" & ");
+}
+
+/** Swatch style for a legend entry (single source or the contended state). */
+export function legendStyle(key: ScheduleSource | "contended"): string {
+  return key === "contended" ? CONTENDED_STYLE : SOURCE_STYLES[key];
+}
+
+/** Shared by every multi-source block, so it appears once. */
+export function legendLabel(key: ScheduleSource | "contended"): string {
+  return key === "contended" ? "Section & educator" : SOURCE_LABELS[key];
+}
 
 interface WeeklyScheduleGridProps {
   classes: Class[];
@@ -57,7 +106,13 @@ interface WeeklyScheduleGridProps {
   stepMin?: number;
   onDraftStart?: (cell: DraftCell) => void;
   onPickRange?: (range: ScheduleRange) => void;
-  classTags?: Record<string, ScheduleSource>;
+  classTags?: Record<string, ScheduleTag>;
+  /**
+   * Indexes of `pickedRanges` that collide with something and therefore cannot
+   * be saved. Those blocks render in the destructive colour and say why, so the
+   * clash is visible on the grid itself rather than only in a message below it.
+   */
+  conflictedPickIndexes?: number[];
 }
 
 interface ScheduleBlock {
@@ -68,7 +123,7 @@ interface ScheduleBlock {
   endMin: number;
   label: string;
   sublabel: string;
-  tag?: ScheduleSource;
+  tag?: ScheduleTag;
 }
 
 interface PositionedBlock extends ScheduleBlock {
@@ -176,6 +231,7 @@ export function WeeklyScheduleGrid({
   onDraftStart,
   onPickRange,
   classTags,
+  conflictedPickIndexes,
 }: WeeklyScheduleGridProps) {
   const [hover, setHover] = useState<DraftCell | null>(null);
 
@@ -457,9 +513,9 @@ export function WeeklyScheduleGrid({
             return (
               <div
                 key={b.key}
-                title={`${b.label}${b.sublabel ? ` · ${b.sublabel}` : ""}${b.tag ? ` - ${SOURCE_LABELS[b.tag]}` : ""}`}
+                title={`${b.label}${b.sublabel ? ` · ${b.sublabel}` : ""}${b.tag ? ` - ${sourceLabel(b.tag)}` : ""}`}
                 className={`border px-1.5 py-1 overflow-hidden ${
-                  b.tag ? SOURCE_STYLES[b.tag] : colorForClass(b.classId)
+                  sourceStyle(b.tag) ?? colorForClass(b.classId)
                 }`}
                 style={{
                   gridRow: `${rowStart} / span ${rowSpan}`,
@@ -477,9 +533,9 @@ export function WeeklyScheduleGrid({
                 <p className="text-[9px] opacity-70 leading-tight not-interactive">
                   {toLabel(b.startMin)}–{toLabel(b.endMin)}
                 </p>
-                {b.tag && (
+                {b.tag && b.tag.length > 0 && (
                   <p className="text-[9px] font-medium opacity-80 leading-tight truncate not-interactive">
-                    {SOURCE_LABELS[b.tag]}
+                    {sourceLabel(b.tag)}
                   </p>
                 )}
               </div>
@@ -507,21 +563,31 @@ export function WeeklyScheduleGrid({
               1,
               Math.round((range.endMin - range.startMin) / interval),
             );
+            const conflicted = conflictedPickIndexes?.includes(idx) ?? false;
             return (
               <div
                 key={`pick-${idx}-${range.startMin}`}
-                className="border bg-primary/15 border-primary/60 px-1.5 py-1 overflow-hidden"
+                className={`border px-1.5 py-1 overflow-hidden ${
+                  conflicted
+                    ? PICK_CONFLICT_STYLE
+                    : "bg-primary/15 border-primary/60"
+                }`}
                 style={{
                   gridRow: `${rowStart} / span ${rowSpan}`,
                   gridColumn: startCol,
                 }}
               >
                 <p className="text-[11px] font-medium leading-tight truncate not-interactive">
-                  New slot
+                  {conflicted ? "Conflict" : "New slot"}
                 </p>
                 <p className="text-[9px] opacity-70 leading-tight not-interactive">
                   {toLabel(range.startMin)}–{toLabel(range.endMin)}
                 </p>
+                {conflicted && (
+                  <p className="text-[9px] font-medium leading-tight truncate not-interactive">
+                    Can&apos;t save
+                  </p>
+                )}
               </div>
             );
           })}

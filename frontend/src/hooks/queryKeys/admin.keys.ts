@@ -400,6 +400,14 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'concerns', 'categories', filters] as const,
   },
 
+  rooms: {
+    all: [...adminKeys.all, 'rooms'] as const,
+    list: (schoolYearId?: string | null) =>
+      [...adminKeys.all, 'rooms', 'list', schoolYearId ?? null] as const,
+    usage: (schoolYearId: string, roomId?: string | null) =>
+      [...adminKeys.all, 'rooms', 'usage', schoolYearId, roomId ?? null] as const,
+  },
+
   schoolProfile: {
     all: [...adminKeys.all, 'schoolProfile'] as const,
     list: () => [...adminKeys.all, 'schoolProfile', 'list'] as const,

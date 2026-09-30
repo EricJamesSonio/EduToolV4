@@ -734,6 +734,27 @@ model Class {
   @@index([org_id, created_at])
 }
 
+// A physical room ("Room 201"). Org-scoped and deliberately NOT scoped to a
+// school year: a room outlives any single year, only its *bookings* are
+// year-scoped via ClassSchedule. Rooms are optional — a schedule slot with a
+// null room_id behaves exactly as it did before this feature.
+//
+// onDelete Restrict on the ClassSchedule side is the backstop: the service
+// refuses to delete an in-use room first, so this only fires on a direct
+// delete that bypassed the service.
+model Room {
+  id         String   @id @default(uuid())
+  org_id     String
+  name       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  schedules ClassSchedule[]
+
+  @@unique([org_id, name])
+  @@index([org_id])
+}
+
 model ClassSchedule {
   id         String   @id @default(uuid())
   org_id     String
@@ -741,8 +762,16 @@ model ClassSchedule {
   weekday    Int
   start_time DateTime
   end_time   DateTime
+  // Optional room assignment. A class may use different rooms on different
+  // days, so the room lives on the slot and not on the class.
+  room_id    String?
 
   class Class @relation(fields: [class_id], references: [id])
+  room  Room?  @relation(fields: [room_id], references: [id], onDelete: Restrict)
+
+  @@index([room_id])
+  @@index([class_id])
+  @@index([org_id, class_id])
 }
 
 model ClassOwnershipLog {
