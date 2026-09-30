@@ -198,7 +198,7 @@ function PresentationCard({
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {weekNumber !== null && (
             <>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD]">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD]">
                 Week {weekNumber}
               </span>
               <span>·</span>
