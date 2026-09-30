@@ -1,8 +1,8 @@
 # TICK-ASSESS-005 — Assessment type gradability split + true_or_false fix
 
 Branch: `agent/TICK-ASSESS-005-assessment-type-gradability`
-Commit: `114f7d0b`
-Base: `ad5ab278` — **stale**, `origin/development` has moved to `4e11beaa`. Rebase required.
+Commit: **`f378f39c`** (rebased onto `development` 99395d15 — was 114f7d0b on
+stale base ad5ab278). Pushed to origin. **No longer needs a rebase.**
 
 ## What changed
 

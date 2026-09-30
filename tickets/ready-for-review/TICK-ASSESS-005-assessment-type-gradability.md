@@ -147,6 +147,13 @@ not to resolve it inline.
   `assessment-educator.spec.ts`'s mock `creation` object lacked the new
   `assertTypeMatchesGradingMode`, so `create` threw. Added the mock.
 - Development integration: not run (branch is ready-for-review, not merged).
+- **Post-rebase re-validation** (a rebase invalidates prior results): backend 87
+  suites / 925 tests, **same 9 pre-existing failing suites, 0 new**; frontend 18 /
+  190 green; backend tsc 20 pre-existing errors with **0 in touched files**. The
+  single overlapping file (`assessment-educator.service.ts`, where development
+  changed `confirmPreview`) rebased cleanly — verified both this branch's
+  `assertTypeMatchesGradingMode` calls and development's
+  `getQuestions(assessment.id)` are present.
 
 ## Blocker
 
@@ -175,7 +182,9 @@ None.
 
 ## Commits
 
-- 114f7d0b feat(assess): split system-gradable vs manual-only types; fix true_or_false generation
+- f378f39c feat(assess): split system-gradable vs manual-only types; fix true_or_false generation
+  (rebased onto development 99395d15; was 114f7d0b on the stale ad5ab278 base.
+   Branch pushed to origin for the first time — no force-push needed.)
 
 ## Notes
 
