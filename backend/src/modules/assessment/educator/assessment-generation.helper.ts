@@ -8,14 +8,13 @@ import { AssessmentRepository } from '../core/assessment-core.repository';
 import { LessonRepository } from '@/modules/lesson/lesson.repository';
 import {
   AiService,
-  QuestionBlueprint,
   GeneratedQuestion,
   GenerationProgress,
   ConceptBuild,
 } from '@/core/ai/ai.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
-import { CreateAssessmentDto } from '../dto/assessment.dto';
+import { CreateAssessmentDto, toAiQuestionType } from '../dto/assessment.dto';
 
 @Injectable()
 export class AssessmentGenerationHelper {
@@ -148,7 +147,7 @@ export class AssessmentGenerationHelper {
       const conceptRecord = await this.lessonRepo.findConcept(dto.lessonId);
 
       const blueprints = (dto.ranges ?? []).map((r) => ({
-        type: r.questionType as QuestionBlueprint['type'],
+        type: toAiQuestionType(r.questionType),
         sections: r.conceptSections,
         numbers: `${r.from}-${r.to}`,
         count: r.to - r.from + 1,
@@ -251,7 +250,7 @@ export class AssessmentGenerationHelper {
           const generated = await this.aiService.generateQuestions(
             lesson.detail ?? '',
             aiRanges.map((r) => ({
-              type: r.questionType as QuestionBlueprint['type'],
+              type: toAiQuestionType(r.questionType),
               sections: r.conceptSections ?? [],
               numbers: `${r.from}-${r.to}`,
               count: r.to - r.from + 1,

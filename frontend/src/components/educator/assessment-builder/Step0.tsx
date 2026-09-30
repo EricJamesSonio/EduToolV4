@@ -75,8 +75,8 @@ export function Step0({
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {mode === "system"
-                    ? "Questions are auto-generated from lesson concepts and auto-graded. Add Manual (Educator-Written) sections to include manually graded components — the system automatically treats it as hybrid."
-                    : "Educator creates an assessment with free-form instructions. No auto-grading — scores are set manually. Best for projects, recitation, and behavior."}
+                    ? "Questions are auto-generated from lesson concepts and auto-graded. Only auto-gradable categories (Quiz, Exam, Assignment, Activity, …) can be used here — educator-scored ones like Behavior, Participation and Attendance must be Manual-Graded. Add Manual (Educator-Written) sections to include manually graded components — the system automatically treats it as hybrid."
+                    : "Educator creates an assessment with free-form instructions. No auto-grading — scores are set manually. Required for educator-scored categories like Behavior, Participation, Attendance and Performance Task."}
                 </p>
               </div>
             </div>

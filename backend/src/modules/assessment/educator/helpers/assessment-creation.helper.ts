@@ -3,6 +3,10 @@ import { AssessmentRepository } from '../../core/assessment-core.repository';
 import { LessonRepository } from '@/modules/lesson/lesson.repository';
 import { DatabaseService } from '@/core/database/database.provider';
 import { CreateAssessmentDto, GradingMode } from '../../dto/assessment.dto';
+import {
+  MANUAL_ONLY_TYPES,
+  isSystemGradable,
+} from '@/modules/grading-scheme/constants/assessment-type.constants';
 
 @Injectable()
 export class AssessmentCreationHelper {
@@ -24,6 +28,36 @@ export class AssessmentCreationHelper {
         `Assessment type "${type}" is not in the class's grading scheme. Allowed: ${validTypes.join(', ')}`,
       );
     }
+  }
+
+  /**
+   * TICK-ASSESS-005: reject manual-only types under auto-grading.
+   *
+   * `assertTypeMatchesScheme` only proves the type is *in* the scheme; it says
+   * nothing about whether the AI can grade it. That gap let `behavior` be
+   * created as a System-Graded assessment: the AI emitted auto-graded
+   * multiple-choice questions for it and `grade-core.service.ts` averaged the
+   * result by weight — a semantically wrong category entering the grade.
+   *
+   * This is the authoritative server-side check (CORE.md Part 1: never trust the
+   * client). It rejects rather than silently coercing `gradingMode` to manual,
+   * because auto-correcting would hide a real educator mistake.
+   *
+   * Called for BOTH `create` and `generatePreview` — the preview path creates
+   * and persists questions, so validating only on create would leave a hole.
+   */
+  assertTypeMatchesGradingMode(
+    type: string,
+    effectiveGradingMode: GradingMode,
+  ): void {
+    if (effectiveGradingMode === GradingMode.MANUAL) return;
+    if (isSystemGradable(type)) return;
+
+    throw new BadRequestException(
+      `"${type}" cannot be system-graded — it is an educator-scored category. ` +
+        `Create it as a Manual-Graded assessment instead. ` +
+        `Manual-only types: ${MANUAL_ONLY_TYPES.join(', ')}.`,
+    );
   }
 
   resolveGradingMode(dto: CreateAssessmentDto): GradingMode {
