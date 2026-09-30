@@ -1,6 +1,6 @@
 # TICK-GRADE-005 — Direct manual scoring for Behavior/Participation/Performance/Attendance
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-09-30
 Created by: agent
@@ -91,9 +91,34 @@ from the type set rather than by adding `'manual'` back.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: PASS — backend `src/modules/grade` 12 suites / 92 tests, all green.
+  6 pre-existing grade specs (grade-core, grade-compute-batching,
+  grade-educator-batching, grade-educator, grade-lock-proof,
+  grade-student-batching) unchanged and green, plus a new
+  `manual-category-scoring.spec.ts` (20 cases) covering
+  `isManualScoredCategory`, `manualCategoryMax`, the weighted-score routing
+  (including the exact regression: a `behavior` category scored 100 with no
+  `behavior` assessment contributes 40% weight, not 0), case-insensitive name
+  matching, legacy `type:'manual'` parity, and the new `isManualScored` /
+  `maxScore` breakdown flags with no score present.
+  Frontend new `ManualCell.test.tsx` 9/9 green.
+- Full suite: backend 87 suites / 914 tests — failure set **identical to the
+  development baseline**, 0 new: 9 pre-existing suites (class, educator, level,
+  meeting-gateway-rate-limit, program, registrar, school-year, semester,
+  subject-prerequisite). Frontend 18 suites / 176 tests green.
+- Static: backend `tsc --noEmit` = 20 pre-existing errors, **none in any touched
+  file**; frontend `tsc --noEmit` = **0 errors**; eslint clean on
+  grade/export/grading-scheme.
+- Self-inflicted issue caught and corrected during implementation: a bulk
+  PowerShell rewrite of four backend files corrupted their encoding (BOM +
+  mojibake). Reverted with `git checkout` and reapplied via the editor; verified
+  0 mojibake bytes and no BOM in every touched file before committing.
+- Two of my own new tests failed initially on wrong assumptions about the
+  service signature (assessments need `total_items`/`grading_mode`;
+  `buildCategoryBreakdown` takes `allAssessments` as its 3rd arg) and one
+  hand-computed expectation was wrong (70, not 80). Corrected the tests, not
+  the code.
+- Development integration: not run (branch is ready-for-review, not merged).
 
 ## Blocker
 
@@ -106,10 +131,24 @@ None.
 - 2026-09-30: Confidence 84/100 as above. Proceeding on the recommended
   interpretations for the three unanswered questions, each disclosed in the
   Confidence section so the reviewer can correct a wrong assumption.
+- 2026-09-30: Implemented and committed f6fa683e (13 files, +645/-49). Two real
+  bugs found, not one: the bootstrap filter AND the `type === 'manual'` routing
+  in 7 call sites (grade-core, grade.service, grade-educator, grade-student,
+  export). Also fixed the same bootstrap bug in `CleanGradeTable`, which was not
+  in the original ticket body.
+- 2026-09-30: Validation green — grade module 12/92, full backend 87/914 with a
+  baseline-identical failure set, frontend 18/176, backend tsc 20 pre-existing
+  (0 in touched files), frontend tsc 0, eslint clean. → ready-for-review.
+- 2026-09-30: Reviewer note — this branch and TICK-ASSESS-005 both declare
+  `SYSTEM_GRADABLE_TYPES` / `MANUAL_ONLY_TYPES` in
+  `assessment-type.constants.ts` because they were developed on parallel
+  branches from `development`. The duplicate must be collapsed when one is
+  rebased onto the other; the definitions are byte-identical and both derive
+  from the enum, so the collapse is a straight delete of one copy.
 
 ## Commits
 
-- (pending)
+- f6fa683e feat(grade): let educators score Behavior/Participation directly on the Grades page
 
 ## Notes
 
@@ -127,11 +166,11 @@ None.
 
 ## Acceptance Criteria
 
-- [ ] Behavior/Participation/Performance/Attendance columns appear on the Grades
+- [x] Behavior/Participation/Performance/Attendance columns appear on the Grades
       page with no prior score and no prior assessment
-- [ ] Clicking the cell edits inline and persists to `ManualScore`
-- [ ] The saved score feeds the weighted grade for that category
-- [ ] Column header shows the max; input is clamped to it
-- [ ] Assessment columns (Quiz/Exam/…) keep their existing behavior
-- [ ] Regression tests on computeWeightedScore + buildCategoryBreakdown green
-- [ ] `manualCats` no longer depends on `manualScore !== null`
+- [x] Clicking the cell edits inline and persists to `ManualScore`
+- [x] The saved score feeds the weighted grade for that category
+- [x] Column header shows the max; input is clamped to it
+- [x] Assessment columns (Quiz/Exam/…) keep their existing behavior
+- [x] Regression tests on computeWeightedScore + buildCategoryBreakdown green
+- [x] `manualCats` no longer depends on `manualScore !== null`
