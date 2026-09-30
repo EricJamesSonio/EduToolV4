@@ -10,7 +10,7 @@ Branch: development (owner-directed; no feature worktree)
 Plans: auto-class/phase-3-educator-teachable-subjects.md,
        auto-class/phase-4-educator-availability.md
 Depends on: TICK-ORG-002 (active weekdays), TICK-SUBJECT-002 (session reqs)
-Commit: 9b829e6b
+Commits: 9b829e6b (backend), 4bc2a275 (frontend)
 
 ## Problem
 
@@ -47,9 +47,13 @@ late to plan — and availability is unknowable.
 
 ## Confidence
 
-- Score: 90%
-- backend `tsc --noEmit`: 0 errors; unit 1043 passing (+26 new); failing set
-  unchanged at the same 7 pre-existing suites / 24 tests; eslint clean.
+- Score: 92%
+- Measured, both stacks:
+  - backend `tsc --noEmit`: 0 errors; unit 1044 passing (+26 new over the 1017
+    baseline for this ticket); failing set unchanged at the same 7 pre-existing
+    suites / 24 tests
+  - frontend `tsc`: unchanged at its 20-error pre-existing baseline, none in
+    touched files; unit 270/270; eslint clean
 - Disclosed: the schema diff was verified purely additive (`git diff | grep '^-'`
   is empty), because an earlier edit of mine did silently drop the
   `model SubjectSharing {` line and broke the schema.
@@ -74,6 +78,10 @@ None.
 
 2026-09-30 — Filed and implemented (9b829e6b) after TICK-SUBJECT-002.
 
+2026-09-30 — Frontend added (4bc2a275): educator detail page now has a school-year
+selector plus a card with both sections; searchable multi-select for teachable
+subjects and a weekday/limits editor for availability.
+
 2026-09-30 — Two self-corrections during the work:
 - An edit silently deleted `model SubjectSharing {` from schema.prisma. Caught
   by `prisma generate` failing with P1012, then confirmed the fix with a
@@ -81,10 +89,14 @@ None.
 - I initially gave `EducatorSubject` the same repository shape twice (raw row
   in `findOne`, mapped row in `upsert`), which did not typecheck. Unified both
   on the raw Prisma row and mapped in one place, in the service.
+- The UI kit here is Base UI, not Radix: `PopoverTrigger` renders its own button
+  and accepts neither `asChild` nor children. Cost two iterations; noted in the
+  commit so the next person does not repeat it.
 
 ## Commits
 
 - 9b829e6b — feat(educator): teachable subjects and availability for the generator
+- 4bc2a275 — feat(educator): teachable subjects and availability UI
 
 ## Notes
 
@@ -104,8 +116,7 @@ ClassModule, which reaches back toward subject; adding the org schedule config
 dependency there would risk a circular module graph. `DatabaseModule` is
 `@Global`, so the standalone module needs no database import.
 
-**Not done (deliberately):** the frontend for both features. The plan puts a
-"Teachable subjects" card on the educator detail page and an availability card
-beside it. Those are real UI work and are the natural next ticket — the API is
-in place and the shapes are settled. Also not done: the manual class dialog
-still does not surface a "suggested" educator from teachable subjects.
+**Still open:** the manual class dialog does not yet surface a "suggested"
+educator from teachable subjects, even though `useSubjectEducators` now exists
+for it. That is the last Phase 3/4 acceptance item and belongs with the
+generator UI, since both touch the same dialog.
