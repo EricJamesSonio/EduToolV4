@@ -47,7 +47,7 @@ export function ScopedSubjects({
                   onClick={() => onToggleLevel(level.key)}
                   aria-pressed={selected}
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    "rounded-sm border px-3 py-1.5 text-xs font-medium transition-colors",
                     selected
                       ? "border-primary bg-primary text-primary-foreground"
                       : "bg-background hover:bg-muted/50 border-muted-foreground/20",
