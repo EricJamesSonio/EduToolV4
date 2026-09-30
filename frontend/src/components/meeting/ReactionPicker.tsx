@@ -62,7 +62,7 @@ export function ReactionPicker({ reactions, onPick, onClose }: ReactionPickerPro
     <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
       {/* Rate-limit notice */}
       {throttled && (
-        <div className="bg-warning/15 border border-warning/40 rounded-full px-4 py-1 text-xs font-semibold text-warning-foreground whitespace-nowrap backdrop-blur" style={{ animation: "fadeInUp 0.15s ease" }}>
+        <div className="bg-warning/15 border border-warning/40 rounded-sm px-4 py-1 text-xs font-semibold text-warning-foreground whitespace-nowrap backdrop-blur" style={{ animation: "fadeInUp 0.15s ease" }}>
           Too many reactions — wait a moment 😅
         </div>
       )}
