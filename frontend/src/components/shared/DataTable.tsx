@@ -50,10 +50,6 @@ function DataTableInner<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const hasFixedWidths = columns.some(
-    (c) => c.size !== undefined || c.minSize !== undefined
-  );
-
   const table = useReactTable({
     data,
     columns,
@@ -80,93 +76,104 @@ function DataTableInner<TData, TValue>({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-md border">
-        <Table className={cn(hasFixedWidths && "table-fixed")}>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} data-header-variant={headerVariant}>
-                {headerGroup.headers.map((header) => {
-                  const canSort = header.column.getCanSort();
-                  const sorted = header.column.getIsSorted();
-                  const width =
-                    header.column.columnDef.size !== undefined ||
-                    header.column.columnDef.minSize !== undefined
-                      ? header.column.getSize()
-                      : undefined;
-                  return (
-                    <TableHead
-                      key={header.id}
-                      style={width !== undefined ? { width } : undefined}
-                      className={cn(
-                        canSort &&
-                          "cursor-pointer select-none hover:bg-muted/50 transition-colors"
-                      )}
-                      onClick={
-                        canSort
-                          ? header.column.getToggleSortingHandler()
-                          : undefined
-                      }
-                    >
-                      {header.isPlaceholder ? null : (
-                        <div className="flex items-center gap-1.5">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {canSort && (
-                            <span className="text-muted-foreground">
-                              {sorted === "asc" ? (
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              ) : sorted === "desc" ? (
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              ) : (
-                                <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-
-          {!isEmpty && (
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={cn(
-                    onRowClick && "cursor-pointer hover:bg-muted/50"
-                  )}
-                  onClick={() => onRowClick?.(row.original)}
-                >
-                  {row.getVisibleCells().map((cell) => {
+      <div className="rounded-md border bg-card">
+        {/*
+          Horizontal scroll instead of squishing columns: the table always
+          uses auto layout (sized to its content) and never table-fixed,
+          which previously caused text to visually spill into neighboring
+          cells whenever any column declared a fixed size. Wide tables now
+          scroll left/right within this container instead of colliding.
+        */}
+        <div className="overflow-x-auto rounded-md">
+          <Table className="w-max min-w-full">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} data-header-variant={headerVariant}>
+                  {headerGroup.headers.map((header) => {
+                    const canSort = header.column.getCanSort();
+                    const sorted = header.column.getIsSorted();
                     const width =
-                      cell.column.columnDef.size !== undefined ||
-                      cell.column.columnDef.minSize !== undefined
-                        ? cell.column.getSize()
+                      header.column.columnDef.size !== undefined ||
+                      header.column.columnDef.minSize !== undefined
+                        ? header.column.getSize()
                         : undefined;
                     return (
-                      <TableCell
-                        key={cell.id}
-                        style={width !== undefined ? { width } : undefined}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
+                      <TableHead
+                        key={header.id}
+                        style={width !== undefined ? { width, minWidth: width } : undefined}
+                        className={cn(
+                          "whitespace-nowrap",
+                          canSort &&
+                            "cursor-pointer select-none hover:bg-muted/50 transition-colors"
                         )}
-                      </TableCell>
+                        onClick={
+                          canSort
+                            ? header.column.getToggleSortingHandler()
+                            : undefined
+                        }
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div className="flex items-center gap-1.5">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {canSort && (
+                              <span className="text-muted-foreground">
+                                {sorted === "asc" ? (
+                                  <ArrowUp className="h-3.5 w-3.5" />
+                                ) : sorted === "desc" ? (
+                                  <ArrowDown className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </TableHead>
                     );
                   })}
                 </TableRow>
               ))}
-            </TableBody>
-          )}
-        </Table>
+            </TableHeader>
+
+            {!isEmpty && (
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className={cn(
+                      onRowClick && "cursor-pointer hover:bg-muted/50"
+                    )}
+                    onClick={() => onRowClick?.(row.original)}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const width =
+                        cell.column.columnDef.size !== undefined ||
+                        cell.column.columnDef.minSize !== undefined
+                          ? cell.column.getSize()
+                          : undefined;
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          style={width !== undefined ? { width, minWidth: width } : undefined}
+                          className="whitespace-nowrap"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </div>
 
         {isEmpty && !isLoading && (
           <div className="flex flex-col items-center justify-center gap-2 bg-card px-6 py-14 text-center">

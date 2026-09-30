@@ -9,35 +9,43 @@ import { hasAnySchedule } from "@/utils/studentSchedule.utils";
 import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
 import type { Class } from "@/types/admin/class.types";
 
-interface StudentSchedulePanelProps {
+interface SchedulePanelProps {
   classes: Class[];
   isLoading?: boolean;
-  /** Copy shown when the student has no classes at all. */
+  /** Per-block secondary line, e.g. the educator for a section timetable. */
+  getSublabel?: (cls: Class) => string;
   emptyTitle?: string;
   emptyDescription?: string;
-  /** Copy shown when classes exist but have no schedule times assigned. */
+  /** Copy shown when classes exist but carry no schedule times. */
   noScheduleTitle?: string;
   noScheduleDescription?: string;
+  /** Rendered under the grid, e.g. a caption explaining the time window. */
+  footer?: React.ReactNode;
 }
 
 /**
- * Weekly schedule derived from the classes a student is enrolled in.
+ * The single read-only weekly schedule surface.
  *
- * Reuses the same WeeklyScheduleGrid as the educator and section views, so all
- * three read identically. The caller supplies the already-mapped `Class[]`
- * (see utils/studentSchedule.utils) - this component owns the empty and
- * loading states, and supplies the school's full operating window so the
- * timetable shows every day and slot rather than only the class span.
+ * Every timetable view uses this: the educator portal, the student portal, and
+ * the admin educator / student / section pages. It owns the school's operating
+ * window (Mon-Sun, every slot, even where empty) as well as the loading and
+ * empty states, so a schedule fix is one edit instead of per-consumer wiring
+ * that can silently drift.
+ *
+ * The interactive slot-picking grid (ClassSchedulePicker) deliberately does NOT
+ * use this - it already supplies its own window while picking.
  */
-export function StudentSchedulePanel({
+export function SchedulePanel({
   classes,
   isLoading = false,
+  getSublabel,
   emptyTitle = "No classes yet",
-  emptyDescription = "You are not enrolled in any classes yet.",
+  emptyDescription = "There are no classes to show.",
   noScheduleTitle = "No schedule yet",
   noScheduleDescription =
-    "Your classes don't have schedule times assigned yet.",
-}: StudentSchedulePanelProps): React.JSX.Element {
+    "These classes don't have schedule times assigned yet.",
+  footer,
+}: SchedulePanelProps): React.JSX.Element {
   // Declared before any early return: hooks must run unconditionally.
   const { windowStartMin, windowEndMin, stepMin, showAllDays } =
     useScheduleWindow();
@@ -75,12 +83,16 @@ export function StudentSchedulePanel({
   }
 
   return (
-    <WeeklyScheduleGrid
-      classes={classes}
-      windowStartMin={windowStartMin}
-      windowEndMin={windowEndMin}
-      stepMin={stepMin}
-      showAllDays={showAllDays}
-    />
+    <div className="space-y-2">
+      <WeeklyScheduleGrid
+        classes={classes}
+        getSublabel={getSublabel}
+        windowStartMin={windowStartMin}
+        windowEndMin={windowEndMin}
+        stepMin={stepMin}
+        showAllDays={showAllDays}
+      />
+      {footer}
+    </div>
   );
 }
