@@ -91,6 +91,21 @@ export class GradeLockRepository {
       select: { id: true },
     });
   }
+    async findDeadlineFloor(orgId: string): Promise<Date | null> {
+    const active = await this.db.schoolYear.findFirst({
+      where: { org_id: orgId, status: 'active', end_date: { not: null } },
+      orderBy: { end_date: 'desc' },
+      select: { end_date: true },
+    });
+    if (active?.end_date) return active.end_date;
+
+    const latest = await this.db.schoolYear.findFirst({
+      where: { org_id: orgId, end_date: { not: null } },
+      orderBy: { end_date: 'desc' },
+      select: { end_date: true },
+    });
+    return latest?.end_date ?? null;
+  }
 
   // ─── GradeLock (per-class) ─────────────────────────────────────────────────
 

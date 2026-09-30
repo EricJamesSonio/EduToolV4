@@ -11,9 +11,7 @@ function resolveStatus(lock: GradeLock): GradeLockStatus {
   if (lock.lockStatus) return lock.lockStatus;
 
   if (lock.is_locked) {
-    return lock.locked_by === "system"
-      ? "auto_locked"
-      : "locked";
+    return lock.locked_by === "system" ? "auto_locked" : "locked";
   }
 
   return "unlocked";
@@ -22,53 +20,26 @@ function resolveStatus(lock: GradeLock): GradeLockStatus {
 export function GradeLockStats({
   gradeLocks,
 }: GradeLockStatsProps): React.ReactElement {
-  const counts = {
-    total: gradeLocks.length,
-    unlocked: gradeLocks.filter(
-      (l) => resolveStatus(l) === "unlocked"
-    ).length,
-    locked: gradeLocks.filter(
-      (l) => resolveStatus(l) === "locked"
-    ).length,
-    autoLocked: gradeLocks.filter(
-      (l) => resolveStatus(l) === "auto_locked"
-    ).length,
-  };
+  const countOf = (status: GradeLockStatus): number =>
+    gradeLocks.filter((l) => resolveStatus(l) === status).length;
 
   const stats = [
-    {
-      label: "Total Classes",
-      value: counts.total,
-      valueClass: "text-foreground",
-    },
-    {
-      label: "Unlocked",
-      value: counts.unlocked,
-      valueClass: "text-muted-foreground",
-    },
-    {
-      label: "Locked",
-      value: counts.locked,
-      valueClass: "text-destructive",
-    },
-    {
-      label: "Auto-Locked",
-      value: counts.autoLocked,
-      valueClass: "text-warning",
-    },
+    { label: "Total Classes", value: gradeLocks.length, valueClass: "text-foreground" },
+    { label: "Unlocked", value: countOf("unlocked"), valueClass: "text-muted-foreground" },
+    { label: "Scheduled", value: countOf("scheduled"), valueClass: "text-primary" },
+    { label: "Overdue", value: countOf("overdue"), valueClass: "text-warning" },
+    { label: "Locked", value: countOf("locked"), valueClass: "text-destructive" },
+    { label: "Auto-Locked", value: countOf("auto_locked"), valueClass: "text-warning" },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {stats.map(({ label, value, valueClass }) => (
         <div
           key={label}
           className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/20"
         >
-          <p className="text-xs text-muted-foreground not-interactive">
-            {label}
-          </p>
-
+          <p className="text-xs text-muted-foreground not-interactive">{label}</p>
           <p
             className={`mt-2 text-2xl font-semibold tracking-tight not-interactive ${valueClass}`}
           >

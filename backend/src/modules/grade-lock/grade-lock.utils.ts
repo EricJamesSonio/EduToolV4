@@ -35,13 +35,21 @@ function mapLock(lock: any, orgId: string, educatorMap: Map<string, string>) {
 
   const subjectName = lock.class.subject?.name ?? 'Unknown Subject';
 
+  const { isExpired, deadline } = setting
+    ? resolveDeadline(setting)
+    : { isExpired: false, deadline: null };
+
   const lockStatus = lock.is_locked
     ? lock.locked_by === 'system'
       ? 'auto_locked'
       : 'locked'
-    : 'unlocked';
-
-  const { deadline } = setting ? resolveDeadline(setting) : { deadline: null };
+    : !setting
+      ? 'unlocked'
+      : isExpired
+        ? 'overdue'
+        : deadline
+          ? 'scheduled'
+          : 'unlocked';
 
   return {
     id: lock.id,
@@ -68,6 +76,7 @@ function mapLock(lock: any, orgId: string, educatorMap: Map<string, string>) {
 
     class: {
       id: lock.class.id,
+          setting_id: lock.setting_id ?? null,
       subject_id: lock.class.subject_id,
       educator_id: lock.class.educator_id,
       school_year_id: lock.class.school_year_id,
