@@ -2,7 +2,6 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
-  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -11,7 +10,6 @@ import {
   Max,
   Min,
   ArrayMinSize,
-  ValidateNested,
 } from 'class-validator';
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
