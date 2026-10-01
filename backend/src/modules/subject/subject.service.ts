@@ -26,7 +26,7 @@ import {
 } from './subject.types';
 import { mapSubjectToResponse } from './subject.mapper';
 import { validateSubjectScope } from './subject.validator';
-import type { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
+import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 
 @Injectable()
 export class SubjectService {
@@ -34,10 +34,14 @@ export class SubjectService {
     private readonly subjectRepository: SubjectRepository,
     private readonly db: DatabaseService,
     /**
-     * The org's slot duration, needed to validate `sessionMinutes`. Read through
-     * a narrow interface rather than injecting OrgScheduleConfigService directly:
-     * that keeps subject -> org-schedule-config one-directional and makes this
-     * service trivial to unit-test.
+     * The org's slot duration, needed to validate `sessionMinutes`.
+     *
+     * Typed as the narrow `OrgScheduleConfigProvider` contract rather than the
+     * concrete service, so subject -> org-schedule-config stays
+     * one-directional and this service is trivial to unit-test. It is imported
+     * as a VALUE, not `import type`: `emitDecoratorMetadata` makes Nest read the
+     * runtime token off the constructor, and a type-only import erases it,
+     * leaving Nest unable to resolve the dependency at boot.
      */
     private readonly orgScheduleConfigService: OrgScheduleConfigProvider,
   ) {}

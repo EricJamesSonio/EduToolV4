@@ -6,7 +6,9 @@ import {
   type ScheduleProfileRow,
   type EffectiveScheduleProfile,
 } from './educator-schedule-profile.repository';
-import type { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
+// A VALUE import, not `import type`: emitDecoratorMetadata needs the runtime
+// token so Nest can inject this. See schedule-window.provider.ts.
+import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 
 /**
  * Fewer effective weekdays = scarcer. The generator assigns the scarcest

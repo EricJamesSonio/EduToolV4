@@ -5,6 +5,8 @@ import { EducatorScheduleProfileRepository } from './educator-schedule-profile.r
 import { EducatorScheduleProfileService } from './educator-schedule-profile.service';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { OrgScheduleConfigModule } from '../org-schedule-config/org-schedule-config.module';
+import { OrgScheduleConfigService } from '../org-schedule-config/org-schedule-config.service';
+import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 
 /**
  * Owns the two educator-facing planning attributes added for the automated
@@ -24,12 +26,19 @@ import { OrgScheduleConfigModule } from '../org-schedule-config/org-schedule-con
     EducatorSubjectRepository,
     EducatorScheduleProfileService,
     EducatorScheduleProfileRepository,
+    // Bind the narrow contract to the real service so consumers depend on the
+    // contract while Nest still has something concrete to inject.
+    {
+      provide: OrgScheduleConfigProvider,
+      useExisting: OrgScheduleConfigService,
+    },
   ],
   exports: [
     EducatorSubjectService,
     EducatorSubjectRepository,
     EducatorScheduleProfileService,
     EducatorScheduleProfileRepository,
+    OrgScheduleConfigProvider,
   ],
 })
 export class EducatorPlanningModule {}
