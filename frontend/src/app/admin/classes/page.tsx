@@ -7,7 +7,7 @@ import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { DoorOpen, GraduationCap, Plus } from "lucide-react";
+import { DoorOpen, GraduationCap, Plus, Wand2 } from "lucide-react";
 import { useClassPreset } from "@/hooks/admin/useClassPreset";
 import { ClassPresetButton } from "@/components/admin/class/ClassPresetButton";
 
@@ -42,6 +42,7 @@ import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ClassesFilterBar } from "@/components/admin/class/ClassesFilterBar";
 import { ClassesTable } from "@/components/admin/class/ClassesTable";
 import { CreateClassDialog } from "@/components/admin/class/CreateClassDialog";
+import { ClassGeneratorDialog } from "@/components/admin/class/ClassGeneratorDialog";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 function ClassesPageInner(): React.JSX.Element {
@@ -56,6 +57,7 @@ function ClassesPageInner(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(
     defaultSubjectId !== undefined
   );
+  const [generatorOpen, setGeneratorOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<Class | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
@@ -302,6 +304,16 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
             <DoorOpen className="mr-1.5 h-4 w-4" />
             Rooms
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              ensureOrganization(() => setGeneratorOpen(true))
+            }
+          >
+            <Wand2 className="mr-1.5 h-4 w-4" />
+            Auto-generate
+          </Button>
           <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             New Class
@@ -374,6 +386,16 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
      defaultSectionId={presetActive ? preset!.sectionId : undefined}
    />
       )}
+
+      {generatorOpen && (
+        <ClassGeneratorDialog
+          open={generatorOpen}
+          onClose={() => setGeneratorOpen(false)}
+          schoolYearId={selectedSchoolYearId ?? undefined}
+          onGenerated={() => setGeneratorOpen(false)}
+        />
+      )}
+
 
       {archiveTarget && (
         <ConfirmDialog

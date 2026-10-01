@@ -399,6 +399,18 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'subjects', 'educators', id] as const,
   },
 
+  classGenerator: {
+    all: [...adminKeys.all, 'class-generator'] as const,
+    readiness: (schoolYearId: string, programIds: string) =>
+      [
+        ...adminKeys.all,
+        'class-generator',
+        'readiness',
+        schoolYearId,
+        programIds,
+      ] as const,
+  },
+
   concerns: {
     all: [...adminKeys.all, 'concerns'] as const,
     list: (filters?: QueryFilters) =>
