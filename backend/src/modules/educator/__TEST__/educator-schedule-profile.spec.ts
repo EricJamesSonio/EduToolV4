@@ -119,27 +119,15 @@ describe('EducatorScheduleProfileService', () => {
       ).rejects.toThrow(/must be 0-6/);
     });
 
-    it('rejects a non-positive daily limit', async () => {
-      const { service } = makeService();
-      await expect(
-        service.set('org-1', 'ed-1', {
-          useCustomAvailability: false,
-          availableWeekdays: [],
-          maxMinutesPerDay: 0,
-        }),
-      ).rejects.toThrow(/per day must be positive/);
-    });
-
-    it('rejects perDay > perWeek', async () => {
-      const { service } = makeService();
-      await expect(
-        service.set('org-1', 'ed-1', {
-          useCustomAvailability: false,
-          availableWeekdays: [],
-          maxMinutesPerDay: 400,
-          maxMinutesPerWeek: 300,
-        }),
-      ).rejects.toThrow(/cannot exceed/);
+    it('clears any previously stored load limits (feature removed)', async () => {
+      const { service, repo } = makeService();
+      await service.set('org-1', 'ed-1', {
+        useCustomAvailability: true,
+        availableWeekdays: [2, 4],
+      });
+      // Availability is days-only now; stale minute limits must not linger.
+      expect(repo.upsert.mock.calls[0][2].maxMinutesPerDay).toBeNull();
+      expect(repo.upsert.mock.calls[0][2].maxMinutesPerWeek).toBeNull();
     });
 
     it('accepts a valid custom set', async () => {

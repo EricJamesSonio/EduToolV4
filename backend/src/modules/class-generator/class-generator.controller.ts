@@ -4,6 +4,7 @@ import {
   GenerateClassesDto,
   CommitGenerateDto,
   GenerateReadinessDto,
+  GeneratorRosterQueryDto,
 } from './dto/class-generator.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -50,6 +51,20 @@ export class ClassGeneratorController {
     });
   }
 
+  /**
+   * GET /class-generator/roster?schoolYearId=
+   *
+   * Who can teach what this year, for the generate page's roster panel.
+   * Read-only. Everything is org-scoped inside the service.
+   */
+  @Get('roster')
+  async roster(
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: GeneratorRosterQueryDto,
+  ) {
+    return this.generator.roster(orgId, query.schoolYearId);
+  }
+
   /** POST /class-generator/preview — builds a plan. Writes nothing. */
   @Post('preview')
   async preview(
@@ -61,6 +76,7 @@ export class ClassGeneratorController {
       schoolYearId: dto.schoolYearId,
       programIds: dto.programIds,
       semesterId: dto.semesterId,
+      sectionIds: dto.sectionIds,
       windowStart: dto.windowStart,
       windowEnd: dto.windowEnd,
       maxItems: dto.maxItems,
@@ -89,6 +105,7 @@ export class ClassGeneratorController {
         schoolYearId: dto.schoolYearId,
         programIds: dto.programIds,
         semesterId: dto.semesterId,
+        sectionIds: dto.sectionIds,
         windowStart: dto.windowStart,
         windowEnd: dto.windowEnd,
         maxItems: dto.maxItems,
@@ -101,17 +118,27 @@ export class ClassGeneratorController {
     orgId: string,
     dto: GenerateClassesDto,
   ): Promise<void> {
-    const [semesters, programs] = await Promise.all([
+    const sectionIds = [...new Set(dto.sectionIds ?? [])];
+    const [semesters, programs, sections] = await Promise.all([
       this.db.semester.count({
         where: { id: dto.semesterId, org_id: orgId },
       }),
       this.db.program.count({
         where: { id: { in: dto.programIds }, org_id: orgId },
       }),
+      sectionIds.length > 0
+        ? this.db.section.count({
+            where: { id: { in: sectionIds }, org_id: orgId },
+          })
+        : 0,
     ]);
-    if (semesters !== 1 || programs !== new Set(dto.programIds).size) {
+    if (
+      semesters !== 1 ||
+      programs !== new Set(dto.programIds).size ||
+      sections !== sectionIds.length
+    ) {
       throw new ForbiddenException(
-        'The selected semester or department does not belong to this organization.',
+        'The selected semester, department, or section does not belong to this organization.',
       );
     }
   }

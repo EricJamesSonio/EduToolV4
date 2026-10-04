@@ -17,15 +17,14 @@ describe('resolveSessionRequirement', () => {
 
   it('uses college defaults for a college program', () => {
     const r = resolveSessionRequirement({}, 'college', 30);
-    expect(r.sessionsPerWeek).toBe(2);
-    expect(r.sessionMinutes).toBe(90);
+    expect(r.sessionsPerWeek).toBe(1);
+    expect(r.sessionMinutes).toBe(180);
   });
 
   it('uses kinder and daycare defaults', () => {
-    // Kinder defaults to 45m. Use a 15m slot so this asserts the DEFAULT value
-    // itself; the rounding behaviour is covered separately below.
-    expect(resolveSessionRequirement({}, 'kinder', 15).sessionMinutes).toBe(45);
-    expect(resolveSessionRequirement({}, 'daycare', 30).sessionMinutes).toBe(30);
+    // Both default to 60m, already a multiple of common slots.
+    expect(resolveSessionRequirement({}, 'kinder', 15).sessionMinutes).toBe(60);
+    expect(resolveSessionRequirement({}, 'daycare', 30).sessionMinutes).toBe(60);
   });
 
   it('prefers explicit values over the default', () => {
@@ -61,10 +60,10 @@ describe('resolveSessionRequirement', () => {
   });
 
   it('rounds a DEFAULT up to the slot but never an explicit value', () => {
-    // Kinder default is 45m; at a 30m slot it must round up to 60m.
-    expect(resolveSessionRequirement({}, 'kinder', 30).sessionMinutes).toBe(60);
-    // At a 15m slot 45m is already a multiple, so no rounding.
-    expect(resolveSessionRequirement({}, 'kinder', 15).sessionMinutes).toBe(45);
+    // Elementary default is 60m; at a 45m slot it must round up to 90m.
+    expect(resolveSessionRequirement({}, 'elementary', 45).sessionMinutes).toBe(90);
+    // At a 30m slot 60m is already a multiple, so no rounding.
+    expect(resolveSessionRequirement({}, 'elementary', 30).sessionMinutes).toBe(60);
 
     // An explicit 45 stays 45 even at a 30m slot — rounding it would hide a
     // bad row instead of surfacing it at save time.

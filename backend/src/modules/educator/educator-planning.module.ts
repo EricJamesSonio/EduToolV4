@@ -5,6 +5,7 @@ import { EducatorScheduleProfileRepository } from './educator-schedule-profile.r
 import { EducatorScheduleProfileService } from './educator-schedule-profile.service';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { OrgScheduleConfigModule } from '../org-schedule-config/org-schedule-config.module';
+import { ClassModule } from '../class/class.module';
 import { OrgScheduleConfigService } from '../org-schedule-config/org-schedule-config.service';
 import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 
@@ -20,7 +21,10 @@ import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-windo
  * `DatabaseModule` is @Global, so no database import is needed.
  */
 @Module({
-  imports: [AuditLogModule, OrgScheduleConfigModule],
+  // ClassModule is imported for ClassOccupancyService (existing-class load
+  // in capacity math). Acyclic: nothing in ClassModule's subtree imports
+  // this planning module.
+  imports: [AuditLogModule, OrgScheduleConfigModule, ClassModule],
   providers: [
     EducatorSubjectService,
     EducatorSubjectRepository,

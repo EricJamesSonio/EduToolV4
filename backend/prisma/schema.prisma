@@ -683,6 +683,14 @@ model EducatorSubject {
   org_id      String
   educator_id String
   subject_id  String
+  /// Sections this educator handles for the subject. The generator only
+  /// places classes for explicitly assigned (subject, section) pairs.
+  section_ids String[] @default([])
+  /// Slot positions (1-based counts, e.g. slot 1 and 2 of a 2x/week subject)
+  /// picked per section. A pair generates only when one educator holds all
+  /// of the subject's weekly positions. Rows predating this column read as
+  /// whole-pair claims (see the service, not the schema).
+  section_slots Json @default("[]")
   created_at  DateTime @default(now())
 
   educator Account @relation(fields: [educator_id], references: [id], onDelete: Cascade)

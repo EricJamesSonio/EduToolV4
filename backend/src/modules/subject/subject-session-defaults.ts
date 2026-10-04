@@ -23,12 +23,12 @@ export interface SessionRequirement {
  * admin overrides them per subject, which flips `source` to 'explicit'.
  */
 export const SUBJECT_SESSION_DEFAULTS: Record<string, Omit<SessionRequirement, 'source'>> = {
-  daycare: { sessionsPerWeek: 5, sessionMinutes: 30 },
-  kinder: { sessionsPerWeek: 5, sessionMinutes: 45 },
+  daycare: { sessionsPerWeek: 5, sessionMinutes: 60 },
+  kinder: { sessionsPerWeek: 5, sessionMinutes: 60 },
   elementary: { sessionsPerWeek: 5, sessionMinutes: 60 },
-  jhs: { sessionsPerWeek: 5, sessionMinutes: 60 },
-  shs: { sessionsPerWeek: 5, sessionMinutes: 60 },
-  college: { sessionsPerWeek: 2, sessionMinutes: 90 },
+  jhs: { sessionsPerWeek: 5, sessionMinutes: 120 },
+  shs: { sessionsPerWeek: 5, sessionMinutes: 120 },
+  college: { sessionsPerWeek: 1, sessionMinutes: 180 },
 };
 
 /** Fallback for a program type with no entry above (e.g. a custom type). */

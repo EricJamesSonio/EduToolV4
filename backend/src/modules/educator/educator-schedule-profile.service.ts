@@ -67,8 +67,6 @@ export class EducatorScheduleProfileService {
     dto: {
       useCustomAvailability: boolean;
       availableWeekdays: number[];
-      maxMinutesPerDay?: number | null;
-      maxMinutesPerWeek?: number | null;
     },
   ) {
     await this.repo.assertEducator(orgId, educatorId);
@@ -88,25 +86,14 @@ export class EducatorScheduleProfileService {
       );
     }
 
-    const perDay = dto.maxMinutesPerDay ?? null;
-    const perWeek = dto.maxMinutesPerWeek ?? null;
-    if (perDay !== null && perDay <= 0) {
-      throw new BadRequestException('Max minutes per day must be positive.');
-    }
-    if (perWeek !== null && perWeek <= 0) {
-      throw new BadRequestException('Max minutes per week must be positive.');
-    }
-    if (perDay !== null && perWeek !== null && perDay > perWeek) {
-      throw new BadRequestException(
-        'Max minutes per day cannot exceed max minutes per week.',
-      );
-    }
-
+    // Load limits were removed: an available day means the educator is
+    // available for the whole org schedule window that day. Stored limits from
+    // before the removal are cleared here; the columns stay for history.
     const saved = await this.repo.upsert(orgId, educatorId, {
       useCustomAvailability: dto.useCustomAvailability,
       availableWeekdays: dto.useCustomAvailability ? weekdays : [],
-      maxMinutesPerDay: perDay,
-      maxMinutesPerWeek: perWeek,
+      maxMinutesPerDay: null,
+      maxMinutesPerWeek: null,
     });
 
     const orgActive = await this.orgActiveWeekdays(orgId);

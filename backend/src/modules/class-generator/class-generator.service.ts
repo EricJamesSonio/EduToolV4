@@ -8,7 +8,10 @@ import {
 } from '../class/class-conflict.util';
 import { resolveSessionRequirement } from '../subject/subject-session-defaults';
 import { intersectWeekdays } from '../educator/educator-schedule-profile.repository';
-import { EducatorSubjectRepository } from '../educator/educator-subject.repository';
+import {
+  EducatorSubjectRepository,
+  type SubjectSlotClaim,
+} from '../educator/educator-subject.repository';
 // A VALUE import, not `import type`: emitDecoratorMetadata needs the runtime
 // token so Nest can inject this. See schedule-window.provider.ts.
 import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
@@ -22,11 +25,31 @@ export interface GenerateRequest {
   schoolYearId: string;
   programIds: string[];
   semesterId: string;
+  /** Optional subset of section ids. Omit/empty = every section in scope. */
+  sectionIds?: string[];
   /** Optional narrowing of the daily window, e.g. '08:00' to '15:00'. */
   windowStart?: string;
   windowEnd?: string;
   /** Cap on generated items, so one bad run cannot flood the org. */
   maxItems?: number;
+}
+
+export interface RosterEducator {
+  educatorId: string;
+  name: string | null;
+  useCustomAvailability: boolean;
+  effectiveWeekdays: number[];
+  /** Subject ids (in the requested school year) this educator can teach. */
+  teachableSubjectIds: string[];
+  /** Sections this educator handles, keyed by subject id. */
+  sectionsBySubject: Record<string, string[]>;
+  /** Weekly slot positions picked per section, keyed by subject then section. */
+  slotsBySubject: Record<string, Record<string, number[]>>;
+}
+
+export interface RosterResult {
+  educators: RosterEducator[];
+  activeWeekdays: number[];
 }
 
 /** One section × subject pair the generator believes is needed. */
@@ -47,12 +70,39 @@ export interface DemandItem {
   unplacedReason?: string;
 }
 
+export type GeneratorReadinessSeverity = 'blocking' | 'warning';
+
+export type GeneratorReadinessEntityType =
+  | 'program'
+  | 'subject'
+  | 'section'
+  | 'educator';
+
+export interface GeneratorReadinessEntity {
+  id: string;
+  name: string;
+  type: GeneratorReadinessEntityType;
+}
+
+export interface GeneratorReadinessIssue {
+  code: string;
+  severity: GeneratorReadinessSeverity;
+  message: string;
+  count?: number;
+  entities?: GeneratorReadinessEntity[];
+  ref?: { type: GeneratorReadinessEntityType; id: string; name: string };
+}
+
 export interface ReadinessReport {
   ok: boolean;
   activeWeekdays: number[];
   warnings: string[];
   blockers: string[];
+  issues: GeneratorReadinessIssue[];
 }
+
+/** Detail lists are capped like the school-year readiness endpoint. */
+const MAX_READINESS_ENTITIES = 10;
 
 export interface GenerateResult {
   items: DemandItem[];
@@ -86,9 +136,14 @@ export class ClassGeneratorService {
       throw new BadRequestException('Select at least one department.');
     }
     const cfg = await this.orgScheduleConfig.getByOrg(req.orgId);
-    const activeWeekdays = cfg.activeWeekdays ?? [0, 1, 2, 3, 4, 5, 6];
-    const scope = await this.loadScope(req);
-    return this.buildReadiness(scope, activeWeekdays, req);
+    const slot = cfg.slotDuration || 30;
+    const scope = await this.loadScope(req, slot);
+    const occupied = await this.occupancy.load({
+      orgId: req.orgId,
+      schoolYearId: req.schoolYearId,
+      scope: 'school-year',
+    });
+    return this.buildReadiness(scope, cfg, req, occupied);
   }
 
   /**
@@ -122,19 +177,18 @@ export class ClassGeneratorService {
       breaks: cfg.breaks,
     });
 
-    const scope = await this.loadScope(req);
-    const readiness = this.buildReadiness(scope, activeWeekdays, req);
+    const scope = await this.loadScope(req, slot);
+    const occupied = await this.occupancy.load({
+      orgId: req.orgId,
+      schoolYearId: req.schoolYearId,
+      scope: 'school-year',
+    });
+    const readiness = this.buildReadiness(scope, cfg, req, occupied);
 
     // Existing bookings PLUS everything placed earlier in this run. Without
     // the second part the batch would be planned against stale availability
     // and would collide with itself.
-    const working: OccupiedSlot[] = (
-      await this.occupancy.load({
-        orgId: req.orgId,
-        schoolYearId: req.schoolYearId,
-        scope: 'school-year',
-      })
-    ).map((o) => ({ ...o }));
+    const working: OccupiedSlot[] = occupied.map((o) => ({ ...o }));
 
     const items: DemandItem[] = [];
 
@@ -142,99 +196,158 @@ export class ClassGeneratorService {
       for (const section of scope.sections) {
         if (section.level_id !== subject.level_id) continue;
 
-        const requirement = resolveSessionRequirement(
-          {
-            sessionsPerWeek: subject.sessions_per_week,
-            sessionMinutes: subject.session_minutes,
-          },
-          subject.program?.type ?? null,
-          slot,
-        );
-        if (requirement.sessionMinutes > MAX_SESSION_MINUTES) continue;
+        // One resolved truth per subject, shared with readiness + capacity.
+        // Falls back to inline resolution for subjects outside the year map
+        // (e.g. a crafted program scope); identical inputs, identical result.
+        const cached = scope.yearRequirements.get(subject.id);
+        const requirement = cached
+          ? { sessionsPerWeek: cached.positions, sessionMinutes: cached.minutes }
+          : resolveSessionRequirement(
+              {
+                sessionsPerWeek: subject.sessions_per_week,
+                sessionMinutes: subject.session_minutes,
+              },
+              subject.program?.type ?? null,
+              slot,
+            );
 
         const item = this.buildItem(
           section,
           subject,
           requirement.sessionsPerWeek,
           requirement.sessionMinutes,
-          scope,
           activeWeekdays,
         );
 
-        // Prefer educators set to teach this subject; fall back to any active
-        // educator so a fresh org still gets a usable plan (warning, not block).
-        const preferred = scope.eligibleBySubject.get(subject.id) ?? [];
-        const fallback = scope.allEducatorIds;
-        const candidates = preferred.length > 0 ? preferred : fallback;
+        // Report, don't silently drop: with free-write lengths an admin can
+        // set 4h on a subject and would otherwise wonder why it never appears.
+        if (requirement.sessionMinutes > MAX_SESSION_MINUTES) {
+          item.unplacedReason = `Needs ${requirement.sessionMinutes}m per session, over the ${MAX_SESSION_MINUTES}m placement limit. Shorten it in the subject's weekly sessions.`;
+          items.push(item);
+          continue;
+        }
 
-        // Whenever no one is set to teach this subject, say so — whether or not
-        // placement then succeeds. An admin must know the assignment ignored
-        // their subject preferences either way.
-        if (preferred.length === 0) {
+        // Strict demand with slot positions: a pair generates only when ONE
+        // educator holds every weekly position (slot 1..S). Legacy
+        // whole-pair rows count as holding all positions. Claims outside the
+        // run scope (another section filter) simply do not appear here.
+        const pairClaims = (scope.assignmentsBySubject.get(subject.id) ?? [])
+          .filter((c) => c.sectionId === section.id);
+
+        if (pairClaims.length === 0) {
+          item.unplacedReason = `No educator is assigned to ${subject.name} for ${section.name}. Assign slots on the educator's page.`;
+          items.push(item);
+          continue;
+        }
+
+        // Defensive grouping: exclusivity is enforced on write, but legacy
+        // data may predate it. Most positions wins; earliest claim breaks
+        // ties; the rest are named rather than silently dropped.
+        const positionsOf = (c: (typeof pairClaims)[number]): Set<number> => {
+          if (c.wholePair) {
+            return new Set(
+              Array.from(
+                { length: requirement.sessionsPerWeek },
+                (_, i) => i + 1,
+              ),
+            );
+          }
+          return new Set(
+            c.slots.filter(
+              (n) => n >= 1 && n <= requirement.sessionsPerWeek,
+            ),
+          );
+        };
+        const byEducator = new Map<
+          string,
+          { name: string | null; positions: Set<number>; earliest: number }
+        >();
+        for (const c of pairClaims) {
+          const entry = byEducator.get(c.educatorId) ?? {
+            name: c.educatorName,
+            positions: new Set<number>(),
+            earliest: c.createdAt.getTime(),
+          };
+          for (const n of positionsOf(c)) entry.positions.add(n);
+          entry.earliest = Math.min(entry.earliest, c.createdAt.getTime());
+          if (!entry.name) entry.name = c.educatorName;
+          byEducator.set(c.educatorId, entry);
+        }
+        const ranked = [...byEducator.entries()].sort(
+          (a, b) =>
+            b[1].positions.size - a[1].positions.size ||
+            a[1].earliest - b[1].earliest,
+        );
+        const [holderId, holder] = ranked[0];
+        if (ranked.length > 1) {
+          const names = ranked
+            .slice(1)
+            .map(([, e]) => e.name ?? 'Another educator');
           item.warnings.push(
-            'No educator is set to teach this subject; assigned to any available educator.',
+            `${names.join(', ')} also hold(s) this pair from before exclusivity; ${holder.name ?? 'the earliest hold'} is used.`,
           );
         }
 
-        // Scarcest first, so a Tue/Thu-only educator is not consumed by a
-        // subject that anyone could have taken.
-        candidates.sort(
-          (a, b) =>
-            (scope.availability.get(a)?.length ?? 99) -
-            (scope.availability.get(b)?.length ?? 99),
-        );
-
-        let placed = false;
-        for (const educatorId of candidates) {
-          const days =
-            scope.customAvailability.has(educatorId)
-              ? intersectWeekdays(
-                  scope.availability.get(educatorId) ?? [],
-                  activeWeekdays,
-                )
-              : activeWeekdays;
-          if (days.length === 0) continue;
-
-          const chosen = this.placeSlots({
-            educatorId,
-            sectionId: section.id,
-            required: requirement.sessionsPerWeek,
-            duration: requirement.sessionMinutes,
-            days,
-            freeRanges,
-            working,
-            activeWeekdays,
-            blockedRanges,
-          });
-
-          // Partial placement is worse than none: it would create a class
-          // whose shape does not match its declared requirement.
-          if (chosen.length < requirement.sessionsPerWeek) continue;
-
-          item.educatorId = educatorId;
-          item.educatorName = scope.educatorName.get(educatorId) ?? null;
-          item.slots = chosen;
-          placed = true;
-
-          for (const s of chosen) {
-            working.push({
-              classId: `pending:${section.id}:${subject.id}`,
-              weekday: s.weekday,
-              startMin: s.startMin,
-              endMin: s.endMin,
-              educatorId,
-              sectionId: section.id,
-              roomId: null,
-            });
-          }
-          break;
+        if (holder.positions.size < requirement.sessionsPerWeek) {
+          item.educatorId = holderId;
+          item.educatorName =
+            holder.name ?? scope.educatorName.get(holderId) ?? null;
+          item.unplacedReason =
+            `Only ${holder.positions.size} of ${requirement.sessionsPerWeek} weekly slots ` +
+            `of ${subject.name} for ${section.name} are assigned to ${item.educatorName ?? 'an educator'}. Assign the rest on their page.`;
+          items.push(item);
+          continue;
         }
 
-        if (!placed) {
-          item.unplacedReason =
-            candidates.length === 0
-              ? 'No active educator to assign.'
-              : 'No free slot on an available school day.';
+        const educatorId = holderId;
+        item.educatorId = educatorId;
+        item.educatorName =
+          holder.name ?? scope.educatorName.get(holderId) ?? null;
+        const days = scope.customAvailability.has(educatorId)
+          ? intersectWeekdays(
+              scope.availability.get(educatorId) ?? [],
+              activeWeekdays,
+            )
+          : activeWeekdays;
+
+        if (days.length === 0) {
+          item.unplacedReason = `${item.educatorName ?? 'The assigned educator'} has no available school days. Adjust their availability.`;
+          items.push(item);
+          continue;
+        }
+
+        const chosen = this.placeSlots({
+          educatorId,
+          sectionId: section.id,
+          required: requirement.sessionsPerWeek,
+          duration: requirement.sessionMinutes,
+          days,
+          freeRanges,
+          working,
+          activeWeekdays,
+          blockedRanges,
+        });
+
+        // Partial placement is worse than none: it would create a class
+        // whose shape does not match its declared requirement.
+        if (chosen.length < requirement.sessionsPerWeek) {
+          item.unplacedReason = 'No free slot on an available school day.';
+          items.push(item);
+          continue;
+        }
+
+        item.slots = chosen;
+
+        for (const s of chosen) {
+          working.push({
+            classId: `pending:${section.id}:${subject.id}`,
+            weekday: s.weekday,
+            startMin: s.startMin,
+            endMin: s.endMin,
+            educatorId,
+            sectionId: section.id,
+            roomId: null,
+          });
         }
         items.push(item);
       }
@@ -326,13 +439,25 @@ export class ClassGeneratorService {
     return picked;
   }
 
-  /** Everything the generator needs for the scope, read in a few queries. */
-  private async loadScope(req: GenerateRequest) {
+  /**
+   * Everything the generator needs for the scope, read in a few queries.
+   *
+   * Eligibility and assignments load YEAR-wide (not program-filtered): an
+   * educator's capacity counts picks in every department, and a claim map is
+   * still correct when read for one subject at a time. Callers only ever look
+   * up in-scope subjects, so the superset never leaks across programs.
+   */
+  private async loadScope(req: GenerateRequest, slot: number) {
     const sectionWhere = {
       org_id: req.orgId,
       school_year_id: req.schoolYearId,
       deleted_at: null,
       level: { program_id: { in: req.programIds } },
+      // A selected id outside the scope (wrong year, department, or org)
+      // simply matches nothing — never an error, never another org's data.
+      ...(req.sectionIds && req.sectionIds.length > 0
+        ? { id: { in: req.sectionIds } }
+        : {}),
     };
     const educatorWhere = {
       org_id: req.orgId,
@@ -377,12 +502,46 @@ export class ClassGeneratorService {
       }),
     ]);
 
-    // Second pass: eligibility is keyed by subject id, which the first query
-    // produced. Two round-trips beat one per subject.
-    const eligibleBySubject = await this.educatorSubjects.getEligibleEducatorsBySubject(
-      req.orgId,
-      subjects.map((s) => s.id),
-    );
+    // Second pass: eligibility, assignments, and session requirements are
+    // keyed by subject id. Year-wide (not program-filtered) so capacity math
+    // sees every pick; callers look up in-scope subjects only. Batched
+    // round-trips beat one per subject.
+    const yearSubjectRows = await this.db.subject.findMany({
+      where: { org_id: req.orgId, level: { school_year_id: req.schoolYearId } },
+      select: { id: true },
+    });
+    const yearSubjectIds = yearSubjectRows.map((s) => s.id);
+    const [eligibleBySubject, assignmentsBySubject, sessionFields] =
+      yearSubjectIds.length > 0
+        ? await Promise.all([
+            this.educatorSubjects.getEligibleEducatorsBySubject(
+              req.orgId,
+              yearSubjectIds,
+            ),
+            this.educatorSubjects.getAssignmentsBySubject(
+              req.orgId,
+              yearSubjectIds,
+            ),
+            this.educatorSubjects.subjectLevels(req.orgId, yearSubjectIds),
+          ])
+        : [new Map(), new Map(), new Map()];
+    // One resolved truth for weekly positions + minutes, shared by preview
+    // placement, coverage math, and readiness.
+    const yearRequirements = new Map<string, { positions: number; minutes: number }>();
+    for (const [id, info] of sessionFields) {
+      const resolved = resolveSessionRequirement(
+        {
+          sessionsPerWeek: info.sessionsPerWeek,
+          sessionMinutes: info.sessionMinutes,
+        },
+        info.programType,
+        slot,
+      );
+      yearRequirements.set(id, {
+        positions: resolved.sessionsPerWeek,
+        minutes: resolved.sessionMinutes,
+      });
+    }
 
     const availability = new Map<string, number[]>();
     const customAvailability = new Set<string>();
@@ -400,6 +559,8 @@ export class ClassGeneratorService {
       sections,
       subjects,
       eligibleBySubject,
+      assignmentsBySubject,
+      yearRequirements,
       availability,
       customAvailability,
       educatorName,
@@ -410,34 +571,310 @@ export class ClassGeneratorService {
   /**
    * Explains what is missing BEFORE the admin commits to anything.
    *
-   * Missing optional configuration is a WARNING, not a blocker: a school that
-   * has never set teachable subjects should still be able to generate, just
-   * without subject preferences. Only genuinely impossible states block.
+   * Structured like the school-year readiness endpoint (code / severity /
+   * entities) so the UI can link each gap straight to the page that fixes it.
+   * Only genuinely impossible states block; everything else is a warning —
+   * the plan still builds for whatever IS assigned, and each unplaced item
+   * says why.
    */
   private buildReadiness(
     scope: Awaited<ReturnType<ClassGeneratorService['loadScope']>>,
-    activeWeekdays: number[],
+    cfg: Awaited<ReturnType<OrgScheduleConfigProvider['getByOrg']>>,
     req: GenerateRequest,
+    occupied: OccupiedSlot[],
   ): ReadinessReport {
+    const activeWeekdays = cfg.activeWeekdays ?? [0, 1, 2, 3, 4, 5, 6];
+    const issues: GeneratorReadinessIssue[] = [];
     const warnings: string[] = [];
     const blockers: string[] = [];
 
+    const educatorName = (id: string): string =>
+      scope.educatorName.get(id) ?? id.slice(0, 8);
+    const cappedEntities = <T extends GeneratorReadinessEntity>(
+      list: T[],
+    ): T[] => list.slice(0, MAX_READINESS_ENTITIES);
+
     if (activeWeekdays.length === 0) {
-      blockers.push('The school has no active weekdays configured.');
+      issues.push({
+        code: 'no_active_weekdays',
+        severity: 'blocking',
+        message: 'The school has no active weekdays configured.',
+      });
     }
     if (scope.allEducatorIds.length === 0) {
-      blockers.push('No active educators in this organization.');
+      issues.push({
+        code: 'no_educators',
+        severity: 'blocking',
+        message: 'No active educators in this organization.',
+      });
     }
     if (scope.sections.length === 0) {
-      blockers.push('No sections in the selected departments for this school year.');
+      issues.push({
+        code: 'no_sections',
+        severity: 'blocking',
+        message:
+          req.sectionIds && req.sectionIds.length > 0
+            ? 'None of the selected sections belong to the chosen departments for this school year.'
+            : 'No sections in the selected departments for this school year.',
+      });
+    } else if (req.sectionIds && req.sectionIds.length > 0) {
+      warnings.push(
+        `Limited to ${scope.sections.length} selected section(s).`,
+      );
     }
     if (scope.subjects.length === 0) {
-      blockers.push('No subjects in the selected departments.');
+      issues.push({
+        code: 'no_subjects',
+        severity: 'blocking',
+        message: 'No subjects in the selected departments.',
+      });
     }
-    if (scope.eligibleBySubject.size === 0) {
-      warnings.push(
-        'No educator has teachable subjects set. Subjects will be assigned to any available educator.',
+
+    // Per-educator availability, teachable coverage, and slot coverage —
+    // all derivable from the already-loaded scope, no extra queries.
+    // Covered positions per in-scope pair (subject -> section -> positions).
+    // Legacy whole-pair holds expand to the full weekly count.
+    const inScopeSectionIds = new Set(scope.sections.map((s) => s.id));
+    const pairCovered = new Map<string, Map<string, Set<number>>>();
+    const holderSections = new Set<string>();
+    for (const [subjectId, claims] of scope.assignmentsBySubject) {
+      const positions = scope.yearRequirements.get(subjectId)?.positions ?? 0;
+      if (positions === 0) continue;
+      for (const c of claims) {
+        if (!inScopeSectionIds.has(c.sectionId)) continue;
+        const covered: Set<number> = c.wholePair
+          ? new Set<number>(
+              Array.from({ length: positions }, (_, i) => i + 1),
+            )
+          : new Set<number>(
+              c.slots.filter((n) => n >= 1 && n <= positions),
+            );
+        if (covered.size === 0) continue;
+        holderSections.add(c.sectionId);
+        let perSection = pairCovered.get(subjectId);
+        if (!perSection) {
+          perSection = new Map<string, Set<number>>();
+          pairCovered.set(subjectId, perSection);
+        }
+        // Exclusivity is enforced on write; first (earliest) hold wins here.
+        if (!perSection.has(c.sectionId)) {
+          perSection.set(c.sectionId, covered);
+        }
+      }
+    }
+
+    const teachableByEducator = new Map<string, Set<string>>();
+    for (const [subjectId, educatorIds] of scope.eligibleBySubject) {
+      for (const id of educatorIds) {
+        const set = teachableByEducator.get(id) ?? new Set<string>();
+        set.add(subjectId);
+        teachableByEducator.set(id, set);
+      }
+    }
+
+    const educatorsNoSubjects = scope.allEducatorIds.filter(
+      (id) => !(teachableByEducator.get(id)?.size ?? 0),
+    );
+    if (educatorsNoSubjects.length > 0) {
+      issues.push({
+        code: 'educator_no_subjects',
+        severity: 'warning',
+        message: `${educatorsNoSubjects.length} educator(s) have no teachable subjects and will sit out generation.`,
+        count: educatorsNoSubjects.length,
+        entities: cappedEntities(
+          educatorsNoSubjects.map((id) => ({
+            id,
+            name: educatorName(id),
+            type: 'educator' as const,
+          })),
+        ),
+      });
+    }
+
+    const educatorsNoDays = scope.allEducatorIds.filter((id) => {
+      const days = scope.customAvailability.has(id)
+        ? intersectWeekdays(scope.availability.get(id) ?? [], activeWeekdays)
+        : [...activeWeekdays];
+      return days.length === 0;
+    });
+    if (educatorsNoDays.length > 0) {
+      issues.push({
+        code: 'educator_no_days',
+        severity: 'warning',
+        message: `${educatorsNoDays.length} educator(s) have no available school day and cannot be placed.`,
+        count: educatorsNoDays.length,
+        entities: cappedEntities(
+          educatorsNoDays.map((id) => ({
+            id,
+            name: educatorName(id),
+            type: 'educator' as const,
+          })),
+        ),
+      });
+    }
+
+    const subjectsNoEducator = scope.subjects.filter(
+      (s) => !(scope.eligibleBySubject.get(s.id)?.length ?? 0),
+    );
+    if (subjectsNoEducator.length > 0) {
+      issues.push({
+        code: 'subject_no_educator',
+        severity: 'warning',
+        message: `${subjectsNoEducator.length} subject(s) have no educator set to teach them and will stay unplaced.`,
+        count: subjectsNoEducator.length,
+        entities: cappedEntities(
+          subjectsNoEducator.map((s) => ({
+            id: s.id,
+            name: s.name,
+            type: 'subject' as const,
+          })),
+        ),
+      });
+    }
+
+    const coveredPositionsOf = (subjectId: string): number => {
+      let total = 0;
+      for (const set of pairCovered.get(subjectId)?.values() ?? []) {
+        total += set.size;
+      }
+      return total;
+    };
+    const subjectsNoSlots = scope.subjects.filter(
+      (s) =>
+        (scope.eligibleBySubject.get(s.id)?.length ?? 0) > 0 &&
+        coveredPositionsOf(s.id) === 0,
+    );
+    if (subjectsNoSlots.length > 0) {
+      issues.push({
+        code: 'subject_no_slots',
+        severity: 'warning',
+        message: `${subjectsNoSlots.length} subject(s) have educators but no weekly slots assigned, so they generate nothing.`,
+        count: subjectsNoSlots.length,
+        entities: cappedEntities(
+          subjectsNoSlots.map((s) => ({
+            id: s.id,
+            name: s.name,
+            type: 'subject' as const,
+          })),
+        ),
+      });
+    }
+
+    const sectionsUnclaimed = scope.sections.filter(
+      (sec) => !holderSections.has(sec.id),
+    );
+    if (sectionsUnclaimed.length > 0 && scope.subjects.length > 0) {
+      issues.push({
+        code: 'section_no_assignment',
+        severity: 'warning',
+        message: `${sectionsUnclaimed.length} section(s) have no assigned subject pair and will get no classes.`,
+        count: sectionsUnclaimed.length,
+        entities: cappedEntities(
+          sectionsUnclaimed.map((sec) => ({
+            id: sec.id,
+            name: sec.name,
+            type: 'section' as const,
+          })),
+        ),
+      });
+    }
+
+    // Partially picked pairs: positions nobody holds yet.
+    let openPositions = 0;
+    const gappedSubjects = new Set<string>();
+    for (const [subjectId, perSection] of pairCovered) {
+      const positions =
+        scope.yearRequirements.get(subjectId)?.positions ?? 0;
+      for (const covered of perSection.values()) {
+        const missing = positions - covered.size;
+        if (missing > 0) {
+          openPositions += missing;
+          gappedSubjects.add(subjectId);
+        }
+      }
+    }
+    if (openPositions > 0) {
+      const gapped = scope.subjects.filter((s) => gappedSubjects.has(s.id));
+      issues.push({
+        code: 'slots_unassigned',
+        severity: 'warning',
+        message: `${openPositions} weekly slot(s) still have no educator across ${gapped.length} subject(s).`,
+        count: openPositions,
+        entities: cappedEntities(
+          gapped.map((s) => ({
+            id: s.id,
+            name: s.name,
+            type: 'subject' as const,
+          })),
+        ),
+      });
+    }
+
+    // Educators already over capacity (picks year-wide + live classes vs the
+    // schedule window). Save-time validation blocks new over-picks; this
+    // surfaces drift from classes created afterwards.
+    const perDayMin = getFreeMinuteRanges({
+      startTime: cfg.startTime,
+      endTime: cfg.endTime,
+      slotDuration: cfg.slotDuration || 30,
+      activeWeekdays: cfg.activeWeekdays,
+      breaks: cfg.breaks,
+    }).reduce((n, r) => n + (r.endMin - r.startMin), 0);
+    const existingByEducator = new Map<string, number>();
+    for (const o of occupied) {
+      existingByEducator.set(
+        o.educatorId,
+        (existingByEducator.get(o.educatorId) ?? 0) + (o.endMin - o.startMin),
       );
+    }
+    const pickedByEducator = new Map<string, number>();
+    for (const [subjectId, claims] of scope.assignmentsBySubject) {
+      const req = scope.yearRequirements.get(subjectId);
+      if (!req) continue;
+      for (const c of claims) {
+        const positions = c.wholePair
+          ? req.positions
+          : new Set(c.slots.filter((n) => n >= 1 && n <= req.positions)).size;
+        pickedByEducator.set(
+          c.educatorId,
+          (pickedByEducator.get(c.educatorId) ?? 0) + positions * req.minutes,
+        );
+      }
+    }
+    const effectiveDays = new Map<string, number[]>();
+    for (const id of scope.allEducatorIds) {
+      effectiveDays.set(
+        id,
+        scope.customAvailability.has(id)
+          ? intersectWeekdays(scope.availability.get(id) ?? [], activeWeekdays)
+          : [...activeWeekdays],
+      );
+    }
+    const overCapacity = scope.allEducatorIds.filter((id) => {
+      const capacity = (effectiveDays.get(id)?.length ?? 0) * perDayMin;
+      const used =
+        (pickedByEducator.get(id) ?? 0) + (existingByEducator.get(id) ?? 0);
+      return capacity > 0 && used > capacity;
+    });
+    if (overCapacity.length > 0) {
+      issues.push({
+        code: 'educator_over_capacity',
+        severity: 'warning',
+        message: `${overCapacity.length} educator(s) are over weekly capacity (picks plus live classes exceed their available time).`,
+        count: overCapacity.length,
+        entities: cappedEntities(
+          overCapacity.map((id) => ({
+            id,
+            name: educatorName(id),
+            type: 'educator' as const,
+          })),
+        ),
+      });
+    }
+
+    for (const issue of issues) {
+      if (issue.severity === 'blocking') blockers.push(issue.message);
+      else warnings.push(issue.message);
     }
 
     // The school-year conflict scope means a Semester 1 class already blocks the
@@ -446,8 +883,153 @@ export class ClassGeneratorService {
       'Conflicts are checked across the whole school year, so existing classes in another semester will still block these slots.',
     );
 
-    void req;
-    return { ok: blockers.length === 0, activeWeekdays, warnings, blockers };
+    return {
+      ok: blockers.length === 0,
+      activeWeekdays,
+      warnings,
+      blockers,
+      issues,
+    };
+  }
+
+  /**
+   * Who can teach what, for the generate page's roster panel. Read-only.
+   *
+   * Everything in a few batched queries: year subjects, active educators,
+   * schedule profiles, and the subject -> educator eligibility map, inverted
+   * here into educator -> subjects. Teachable links are scoped to the school
+   * year so a previous year's subjects never show up.
+   */
+  async roster(orgId: string, schoolYearId: string): Promise<RosterResult> {
+    const cfg = await this.orgScheduleConfig.getByOrg(orgId);
+    const activeWeekdays = cfg.activeWeekdays ?? [0, 1, 2, 3, 4, 5, 6];
+
+    const [subjects, educators, profiles] = await Promise.all([
+      this.db.subject.findMany({
+        where: { org_id: orgId, level: { school_year_id: schoolYearId } },
+        select: { id: true },
+      }),
+      this.db.account.findMany({
+        where: {
+          org_id: orgId,
+          role: 'educator' as const,
+          status: 'active' as const,
+          deleted_at: null,
+        },
+        select: { id: true, profile: { select: { full_name: true } } },
+      }),
+      this.db.educatorScheduleProfile.findMany({
+        where: { org_id: orgId },
+        select: {
+          educator_id: true,
+          use_custom_availability: true,
+          available_weekdays: true,
+        },
+      }),
+    ]);
+
+    const subjectIds = subjects.map((s) => s.id);
+    const [eligibleBySubject, assignmentsBySubject, sessionFields] =
+      subjectIds.length > 0
+        ? await Promise.all([
+            this.educatorSubjects.getEligibleEducatorsBySubject(
+              orgId,
+              subjectIds,
+            ),
+            this.educatorSubjects.getAssignmentsBySubject(orgId, subjectIds),
+            this.educatorSubjects.subjectLevels(orgId, subjectIds),
+          ])
+        : [
+            new Map<string, string[]>(),
+            new Map<string, SubjectSlotClaim[]>(),
+            new Map(),
+          ];
+
+    const slot = cfg.slotDuration || 30;
+    const positionsOfSubject = new Map<string, number>();
+    for (const [id, info] of sessionFields) {
+      positionsOfSubject.set(
+        id,
+        resolveSessionRequirement(
+          {
+            sessionsPerWeek: info.sessionsPerWeek,
+            sessionMinutes: info.sessionMinutes,
+          },
+          info.programType,
+          slot,
+        ).sessionsPerWeek,
+      );
+    }
+
+    const teachable = new Map<string, string[]>();
+    for (const [subjectId, educatorIds] of eligibleBySubject) {
+      for (const educatorId of educatorIds) {
+        const list = teachable.get(educatorId) ?? [];
+        list.push(subjectId);
+        teachable.set(educatorId, list);
+      }
+    }
+    // educator -> subject -> sections/slots, inverted once for all rows.
+    // Legacy whole-pair holds expand to every position of the subject.
+    const sectionsByEducator = new Map<string, Map<string, string[]>>();
+    const slotsByEducator = new Map<
+      string,
+      Map<string, Map<string, number[]>>
+    >();
+    for (const [subjectId, claims] of assignmentsBySubject) {
+      const positions = positionsOfSubject.get(subjectId) ?? 0;
+      for (const c of claims) {
+        let perSubject = sectionsByEducator.get(c.educatorId);
+        if (!perSubject) {
+          perSubject = new Map<string, string[]>();
+          sectionsByEducator.set(c.educatorId, perSubject);
+        }
+        const picked = perSubject.get(subjectId) ?? [];
+        if (!picked.includes(c.sectionId)) picked.push(c.sectionId);
+        perSubject.set(subjectId, picked);
+
+        let perSubjectSlots = slotsByEducator.get(c.educatorId);
+        if (!perSubjectSlots) {
+          perSubjectSlots = new Map<string, Map<string, number[]>>();
+          slotsByEducator.set(c.educatorId, perSubjectSlots);
+        }
+        const perSection =
+          perSubjectSlots.get(subjectId) ?? new Map<string, number[]>();
+        const slots = c.wholePair
+          ? Array.from({ length: positions }, (_, i) => i + 1)
+          : [...new Set(c.slots)].sort((a, b) => a - b);
+        const merged = new Set([...(perSection.get(c.sectionId) ?? []), ...slots]);
+        perSection.set(c.sectionId, [...merged].sort((a, b) => a - b));
+        perSubjectSlots.set(subjectId, perSection);
+      }
+    }
+
+    const profileByEducator = new Map(profiles.map((p) => [p.educator_id, p]));
+    const rosterEducators: RosterEducator[] = educators.map((e) => {
+      const p = profileByEducator.get(e.id);
+      const useCustom = p?.use_custom_availability ?? false;
+      const effectiveWeekdays = useCustom
+        ? intersectWeekdays(p?.available_weekdays ?? [], activeWeekdays)
+        : [...activeWeekdays];
+      return {
+        educatorId: e.id,
+        name: e.profile?.full_name ?? null,
+        useCustomAvailability: useCustom,
+        effectiveWeekdays: [...effectiveWeekdays].sort((a, b) => a - b),
+        teachableSubjectIds: teachable.get(e.id) ?? [],
+        sectionsBySubject: Object.fromEntries(
+          sectionsByEducator.get(e.id) ?? [],
+        ),
+        slotsBySubject: Object.fromEntries(
+          [...(slotsByEducator.get(e.id) ?? [])].map(([subjectId, perSection]) => [
+            subjectId,
+            Object.fromEntries(perSection),
+          ]),
+        ),
+      };
+    });
+
+    return { educators: rosterEducators, activeWeekdays };
   }
 
   private buildItem(
@@ -455,7 +1037,6 @@ export class ClassGeneratorService {
     subject: { id: string; name: string },
     sessionsPerWeek: number,
     sessionMinutes: number,
-    scope: Awaited<ReturnType<ClassGeneratorService['loadScope']>>,
     activeWeekdays: number[],
   ): DemandItem {
     const warnings: string[] = [];
@@ -471,7 +1052,10 @@ export class ClassGeneratorService {
       levelName: section.level.name,
       subjectId: subject.id,
       subjectName: subject.name,
-      educatorId: scope.eligibleBySubject.get(subject.id)?.[0] ?? null,
+      // Strict demand: only the placement step below may set the educator,
+      // from the pair's earliest claim. Guessing here would show an educator
+      // on items that were never actually assigned to anyone.
+      educatorId: null,
       educatorName: null,
       sessionsPerWeek,
       sessionMinutes,

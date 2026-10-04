@@ -139,6 +139,18 @@ describe('SubjectService', () => {
       expect(res.title).toBe('Updated');
       expect(repo.clearSharings).not.toHaveBeenCalled();
     });
+    it('persists a count-only session change (minutes left on default)', async () => {
+      // Regression: editing weekly sessions from Default to a count with no
+      // explicit length must save sessions_per_week and clear session_minutes.
+      repo.findById.mockResolvedValue({ id: subjectId, org_id: orgId, name: 'Math', program_id: programId, subject_type: 'major', level_id: 'lvl1', is_locked: false });
+      repo.findDuplicateByName.mockResolvedValue(null);
+      repo.update.mockResolvedValue({ id: subjectId, org_id: orgId, name: 'Math', subject_type: 'major', is_locked: false, sessions_per_week: 1, session_minutes: null });
+      await service.update(subjectId, orgId, { sessionsPerWeek: 1, sessionMinutes: null } as any);
+      expect(repo.update).toHaveBeenCalledWith(subjectId, expect.objectContaining({
+        sessionsPerWeek: 1,
+        sessionMinutes: null,
+      }));
+    });
   });
 
   describe('lock / unlock', () => {

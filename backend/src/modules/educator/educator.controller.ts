@@ -23,6 +23,8 @@ import {
   UpdateEducatorStatusDto,
   BulkCreateEducatorDto,
   SetEducatorSubjectsDto,
+  SetEducatorSubjectSlotsDto,
+  EducatorCapacityQueryDto,
   CarryOverEducatorSubjectsDto,
   SetEducatorScheduleProfileDto,
 } from './dto/educator.dto';
@@ -97,6 +99,49 @@ export class EducatorController {
     @Body() dto: SetEducatorSubjectsDto,
   ) {
     return this.educatorSubjectService.replaceSet(orgId, id, dto.subjectIds, actorId);
+  }
+
+  /**
+   * GET /educators/:id/capacity?schoolYearId=
+   * Weekly capacity breakdown for the assignment UI: what the schedule
+   * allows, what live classes already take, what picks take, what is left.
+   */
+  @Get(':id/capacity')
+  @Roles('admin')
+  async capacity(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: EducatorCapacityQueryDto,
+  ) {
+    return this.educatorSubjectService.capacity(
+      orgId,
+      id,
+      query.schoolYearId,
+    );
+  }
+
+  /**
+   * PUT /educators/:id/subject-slots
+   * Replaces which weekly slot positions the educator handles per subject
+   * section. Slots are 1-based counts (slot 1..S), never days or times.
+   * Every subject must already be linked; pairs held by another educator
+   * are rejected; picks plus existing classes must fit weekly capacity.
+   */
+  @Put(':id/subject-slots')
+  @Roles('admin')
+  async setSubjectSlots(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: SetEducatorSubjectSlotsDto,
+  ) {
+    return this.educatorSubjectService.setSlots(
+      orgId,
+      id,
+      dto.schoolYearId,
+      dto.assignments,
+      actorId,
+    );
   }
 
   /**

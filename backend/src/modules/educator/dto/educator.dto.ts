@@ -84,7 +84,9 @@ export class UpdateEducatorStatusDto {
 
 export class SetEducatorSubjectsDto {
   @IsArray()
-  @IsUUID('4', { each: true })
+  // Any UUID version: seeded rows use deterministic v5 ids, admin-created
+  // rows use v4. The schema id is a plain String either way.
+  @IsUUID(undefined, { each: true })
   @ArrayMaxSize(500)
   subjectIds!: string[];
 }
@@ -99,9 +101,56 @@ export class CarryOverEducatorSubjectsDto {
   /** Optional: limit the carry-over to specific educators. */
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
+  // Any UUID version (see SetEducatorSubjectsDto).
+  @IsUUID(undefined, { each: true })
   @ArrayMaxSize(500)
   educatorIds?: string[];
+}
+
+export class SubjectSlotPickDto {
+  @IsUUID()
+  sectionId!: string;
+
+  /**
+   * 1-based weekly positions (slot 1..S of the subject's sessions-per-week).
+   * Empty clears the section. Upper-bounded by the DTO session cap; the
+   * service enforces the exact per-subject count.
+   */
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(7, { each: true })
+  slots!: number[];
+}
+
+export class SubjectSlotAssignmentDto {
+  @IsUUID()
+  subjectId!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => SubjectSlotPickDto)
+  sections!: SubjectSlotPickDto[];
+}
+
+export class SetEducatorSubjectSlotsDto {
+  @IsUUID()
+  schoolYearId!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => SubjectSlotAssignmentDto)
+  assignments!: SubjectSlotAssignmentDto[];
+}
+
+export class EducatorCapacityQueryDto {
+  @IsUUID()
+  schoolYearId!: string;
 }
 
 export class SetEducatorScheduleProfileDto {
@@ -117,18 +166,6 @@ export class SetEducatorScheduleProfileDto {
     message: 'availableWeekdays entries must be 0-6 (0 = Sunday)',
   })
   availableWeekdays: number[] = [];
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(1440)
-  maxMinutesPerDay?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(10080)
-  maxMinutesPerWeek?: number;
 }
 
 export class QueryEducatorDto {

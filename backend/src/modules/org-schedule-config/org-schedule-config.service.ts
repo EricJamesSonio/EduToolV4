@@ -231,12 +231,15 @@ export class OrgScheduleConfigService {
       Array.isArray(row.active_weekdays) && row.active_weekdays.length > 0
         ? [...row.active_weekdays].sort((a, b) => a - b)
         : [0, 1, 2, 3, 4, 5, 6];
+    // A row with blank times (e.g. written before validation existed) must not
+    // poison every schedule grid into fit-to-content fallback: fall back to the
+    // same defaults a fresh org gets.
     return {
       id: row.id,
       orgId: row.org_id,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      slotDuration: row.slot_duration,
+      startTime: row.start_time || '07:00',
+      endTime: row.end_time || '17:00',
+      slotDuration: row.slot_duration || 30,
       activeWeekdays,
       breaks: parseBreaks(row.breaks),
       createdAt: row.created_at,

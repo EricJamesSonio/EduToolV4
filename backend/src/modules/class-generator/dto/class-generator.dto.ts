@@ -10,6 +10,7 @@ import {
   Max,
   Min,
   ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -20,11 +21,24 @@ export class GenerateClassesDto {
 
   @IsArray()
   @ArrayMinSize(1, { message: 'Select at least one department.' })
-  @IsUUID('4', { each: true })
+  // Any UUID version: seeded rows use deterministic v5 ids.
+  @IsUUID(undefined, { each: true })
   programIds!: string[];
 
   @IsUUID()
   semesterId!: string;
+
+  /**
+   * Optional subset of sections to generate for. Omit or empty = every
+   * section in the selected departments (previous behavior). Ids that do not
+   * belong to the scope simply match nothing.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  // Any UUID version (see programIds above).
+  @IsUUID(undefined, { each: true })
+  sectionIds?: string[];
 
   /** Optional narrowing of the daily window; defaults to the org window. */
   @IsOptional()
@@ -61,6 +75,12 @@ export class GenerateReadinessDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  @IsUUID('4', { each: true })
+  // Any UUID version (see GenerateClassesDto).
+  @IsUUID(undefined, { each: true })
   programIds!: string[];
+}
+
+export class GeneratorRosterQueryDto {
+  @IsUUID()
+  schoolYearId!: string;
 }

@@ -13,6 +13,65 @@ export interface TeachableSubjectRow {
   courseName: string | null;
   strandId: string | null;
   strandName: string | null;
+  /** Sections this educator handles for the subject (assigned pairs). */
+  sectionIds: string[];
+  /** Weekly slot positions picked per section. */
+  sectionSlots: SubjectSlotPick[];
+}
+
+export interface SubjectSectionAssignment {
+  subjectId: string;
+  sectionIds: string[];
+}
+
+export interface SubjectSlotPick {
+  sectionId: string;
+  /** 1-based weekly positions, e.g. [1, 2] of a 2x/week subject. */
+  slots: number[];
+}
+
+export interface SubjectSlotAssignment {
+  subjectId: string;
+  sections: SubjectSlotPick[];
+}
+
+export interface SubjectSectionClaim {
+  subjectId: string;
+  sectionId: string;
+  educatorId: string;
+  educatorName: string | null;
+  createdAt: Date;
+}
+
+/**
+ * One educator's hold on one section: which weekly positions they handle.
+ * `wholePair` marks legacy rows (section_ids with no slots JSON), which read
+ * as holding every position so nothing silently unassigns.
+ */
+export interface SubjectSlotClaim {
+  subjectId: string;
+  sectionId: string;
+  educatorId: string;
+  educatorName: string | null;
+  slots: number[];
+  wholePair: boolean;
+  createdAt: Date;
+}
+
+/** section_slots JSON shape, validated defensively on every read. */
+export function parseSectionSlots(value: unknown): SubjectSlotPick[] {
+  if (!Array.isArray(value)) return [];
+  const out: SubjectSlotPick[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue;
+    const { sectionId, slots } = entry as Record<string, unknown>;
+    if (typeof sectionId !== 'string') continue;
+    const clean = Array.isArray(slots)
+      ? [...new Set(slots.filter((n) => Number.isInteger(n) && n > 0))]
+      : [];
+    out.push({ sectionId, slots: clean });
+  }
+  return out;
 }
 
 @Injectable()
@@ -24,6 +83,8 @@ export class EducatorSubjectRepository {
     return this.db.educatorSubject.findMany({
       where: { org_id: orgId, educator_id: educatorId },
       select: {
+        section_ids: true,
+        section_slots: true,
         subject: {
           select: {
             id: true,
@@ -59,6 +120,10 @@ export class EducatorSubjectRepository {
    * Replaces the educator's whole set in one transaction, so a partial set is
    * never observable. `skipDuplicates` makes this safe against a subject that
    * is already linked.
+   *
+   * Section assignments survive for retained subjects: deleting and
+   * recreating the rows would otherwise wipe the per-subject section picks
+   * every time the subject set is saved.
    */
   async replaceSet(
     orgId: string,
@@ -66,6 +131,13 @@ export class EducatorSubjectRepository {
     subjectIds: string[],
   ): Promise<number> {
     return this.db.$transaction(async (tx) => {
+      const existing = await tx.educatorSubject.findMany({
+        where: { org_id: orgId, educator_id: educatorId },
+        select: { subject_id: true, section_ids: true },
+      });
+      const sectionsBySubject = new Map(
+        existing.map((r) => [r.subject_id, r.section_ids ?? []]),
+      );
       await tx.educatorSubject.deleteMany({
         where: { org_id: orgId, educator_id: educatorId },
       });
@@ -75,6 +147,7 @@ export class EducatorSubjectRepository {
           org_id: orgId,
           educator_id: educatorId,
           subject_id,
+          section_ids: sectionsBySubject.get(subject_id) ?? [],
         })),
         skipDuplicates: true,
       });
@@ -96,6 +169,142 @@ export class EducatorSubjectRepository {
       })),
       skipDuplicates: true,
     });
+  }
+
+  /**
+   * Replaces the slot picks for the given subjects (one row per subject).
+   * Every subject must already be linked to the educator — the caller
+   * validates that, so a section can never dangle off an unlinked subject.
+   * `section_ids` is derived as the sections with >= 1 pick, so the legacy
+   * "handles" column can never drift from the slots JSON.
+   */
+  async setSlots(
+    orgId: string,
+    educatorId: string,
+    assignments: SubjectSlotAssignment[],
+  ): Promise<void> {
+    if (assignments.length === 0) return;
+    await this.db.$transaction(
+      assignments.map((a) => {
+        const clean = a.sections.map((s) => ({
+          sectionId: s.sectionId,
+          slots: [...new Set(s.slots)].sort((x, y) => x - y),
+        }));
+        return this.db.educatorSubject.updateMany({
+          where: {
+            org_id: orgId,
+            educator_id: educatorId,
+            subject_id: a.subjectId,
+          },
+          data: {
+            section_ids: clean
+              .filter((s) => s.slots.length > 0)
+              .map((s) => s.sectionId),
+            section_slots: clean,
+          },
+        });
+      }),
+    );
+  }
+
+  /**
+   * The other active educator holding one (subject, section) pair, if any.
+   * One educator per pair is a hard rule: a second claim is rejected, not
+   * warned. Legacy rows (section_ids with no slots entry) count as holding
+   * the whole pair; an explicit empty pick counts as released.
+   */
+  async findSectionHolder(
+    orgId: string,
+    subjectId: string,
+    sectionId: string,
+    excludeEducatorId: string,
+  ): Promise<{ educatorId: string; educatorName: string | null } | null> {
+    const rows = await this.db.educatorSubject.findMany({
+      where: {
+        org_id: orgId,
+        subject_id: subjectId,
+        educator_id: { not: excludeEducatorId },
+        educator: {
+          is: { role: 'educator', status: 'active', deleted_at: null },
+        },
+      },
+      select: {
+        educator_id: true,
+        section_ids: true,
+        section_slots: true,
+        educator: { select: { profile: { select: { full_name: true } } } },
+      },
+    });
+    for (const r of rows) {
+      const entry = parseSectionSlots(r.section_slots).find(
+        (s) => s.sectionId === sectionId,
+      );
+      const holds = entry
+        ? entry.slots.length > 0
+        : (r.section_ids ?? []).includes(sectionId);
+      if (holds) {
+        return {
+          educatorId: r.educator_id,
+          educatorName: r.educator?.profile?.full_name ?? null,
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Bulk lookup for the strict generator and coverage math: per subject,
+   * every eligible (educator, section, slot picks) hold. ONE query for the
+   * whole scope. Inactive educators are excluded; their links are retained
+   * but never used. Legacy rows (no slots entry) read as whole-pair holds.
+   */
+  async getAssignmentsBySubject(
+    orgId: string,
+    subjectIds: string[],
+  ): Promise<Map<string, SubjectSlotClaim[]>> {
+    const out = new Map<string, SubjectSlotClaim[]>();
+    if (subjectIds.length === 0) return out;
+    const rows = await this.db.educatorSubject.findMany({
+      where: {
+        org_id: orgId,
+        subject_id: { in: subjectIds },
+        educator: {
+          is: { role: 'educator', status: 'active', deleted_at: null },
+        },
+      },
+      select: {
+        subject_id: true,
+        educator_id: true,
+        section_ids: true,
+        section_slots: true,
+        created_at: true,
+        educator: { select: { profile: { select: { full_name: true } } } },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+    for (const r of rows) {
+      const picks = parseSectionSlots(r.section_slots);
+      const bySection = new Map<string, number[]>();
+      for (const p of picks) bySection.set(p.sectionId, p.slots);
+      for (const sectionId of r.section_ids ?? []) {
+        if (!bySection.has(sectionId)) bySection.set(sectionId, []);
+      }
+      const list = out.get(r.subject_id) ?? [];
+      for (const [sectionId, slots] of bySection) {
+        const explicit = picks.some((p) => p.sectionId === sectionId);
+        list.push({
+          subjectId: r.subject_id,
+          sectionId,
+          educatorId: r.educator_id,
+          educatorName: r.educator?.profile?.full_name ?? null,
+          slots,
+          wholePair: !explicit,
+          createdAt: r.created_at,
+        });
+      }
+      out.set(r.subject_id, list);
+    }
+    return out;
   }
 
   /**
@@ -164,6 +373,76 @@ export class EducatorSubjectRepository {
       select: { id: true },
     });
     if (!acc) throw new NotFoundException('Educator not found.');
+  }
+
+  /**
+   * Sections with their level binding, for validating that an assigned
+   * section actually belongs to the subject's level.
+   */
+  async sectionsWithLevels(
+    orgId: string,
+    sectionIds: string[],
+  ): Promise<Map<string, { levelId: string; name: string }>> {
+    const out = new Map<string, { levelId: string; name: string }>();
+    if (sectionIds.length === 0) return out;
+    const rows = await this.db.section.findMany({
+      where: { org_id: orgId, id: { in: sectionIds }, deleted_at: null },
+      select: { id: true, name: true, level_id: true },
+    });
+    for (const r of rows) out.set(r.id, { levelId: r.level_id, name: r.name });
+    return out;
+  }
+
+  /**
+   * Subject context for validation and load math: level binding, program
+   * type, and explicit session requirement (nulls = program default).
+   */
+  async subjectLevels(
+    orgId: string,
+    subjectIds: string[],
+  ): Promise<
+    Map<
+      string,
+      {
+        levelId: string | null;
+        name: string;
+        programType: string | null;
+        sessionsPerWeek: number | null;
+        sessionMinutes: number | null;
+      }
+    >
+  > {
+    const out = new Map<
+      string,
+      {
+        levelId: string | null;
+        name: string;
+        programType: string | null;
+        sessionsPerWeek: number | null;
+        sessionMinutes: number | null;
+      }
+    >();
+    if (subjectIds.length === 0) return out;
+    const rows = await this.db.subject.findMany({
+      where: { org_id: orgId, id: { in: subjectIds } },
+      select: {
+        id: true,
+        name: true,
+        level_id: true,
+        sessions_per_week: true,
+        session_minutes: true,
+        program: { select: { type: true } },
+      },
+    });
+    for (const r of rows)
+      out.set(r.id, {
+        levelId: r.level_id,
+        name: r.name,
+        programType: r.program?.type ?? null,
+        sessionsPerWeek: r.sessions_per_week,
+        sessionMinutes: r.session_minutes,
+      });
+    return out;
   }
 
   /**
