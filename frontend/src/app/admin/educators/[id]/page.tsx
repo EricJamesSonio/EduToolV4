@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Trash2, Mail, Hash, User, Pencil } from "lucide-react";
-import { useEducator, useDeleteEducator, useResetEducatorPassword } from "@/hooks/admin/useEducators";
+import { useEducator, useDeleteEducator, useResetEducatorPassword, useTeachableSubjects } from "@/hooks/admin/useEducators";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import { EducatorClassAssignmentManager } from "@/components/admin/educator/EducatorClassAssignmentManager";
+import { EducatorTeachableSubjectsCard } from "@/components/admin/educator/EducatorTeachableSubjectsCard";
+import { EducatorAvailabilityCard } from "@/components/admin/educator/EducatorAvailabilityCard";
 import { EditEducatorDialog } from "@/components/admin/educator/EditEducatorDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +18,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { AxiosError } from "axios";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { classApi } from "@/api/admin/class.api";
 
 function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -26,6 +35,18 @@ export default function EducatorDetailPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
 
+  // Teachable subjects are year-scoped (subjects are recreated per year), so
+  // the admin picks which school year they are editing.
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | undefined>();
+
+  const { data: schoolYearsRaw, isLoading: schoolYearsLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    () => schoolYearApi.getAll()
+  );
+  const schoolYears: SchoolYear[] = schoolYearsRaw ?? [];
+  const schoolYearId =
+    selectedSchoolYearId ?? schoolYears.find((y) => y.status === "active")?.id ?? schoolYears[0]?.id;
+
   const [editOpen, setEditOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -34,6 +55,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
   } | null>(null);
 
   const { data: educator, isLoading } = useEducator(id);
+    const [tab, setTab] = useState<"subjects" | "classes">("classes");
+  const { data: teachableSubjects } = useTeachableSubjects(id);
+  const { data: assignedClasses } = useAsyncQuery(
+    queryKeys.admin.classes.list({ educatorId: id }),
+    () => classApi.getAll({ educatorId: id }),
+  );
   const resetMutation  = useResetEducatorPassword();
   const deleteMutation = useDeleteEducator();
 
@@ -106,6 +133,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={schoolYearsLoading}
+              selectedId={schoolYearId ?? null}
+              onSelect={setSelectedSchoolYearId}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -147,9 +180,33 @@ export default function EducatorDetailPage(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Class assignment manager */}
+      {/* Assignments: subjects and classes */}
       <div className="rounded-lg border bg-card p-5">
-        <EducatorClassAssignmentManager educatorId={educator.id} />
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "subjects" | "classes")}>
+          <TabsList>
+            <TabsTrigger value="classes" className="px-3">
+              Classes ({assignedClasses?.length ?? 0})
+            </TabsTrigger>
+            <TabsTrigger value="subjects" className="px-3">
+              Subjects ({teachableSubjects?.length ?? 0})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="classes" className="pt-3">
+            <EducatorClassAssignmentManager educatorId={educator.id} />
+          </TabsContent>
+          <TabsContent value="subjects" className="pt-3">
+            <EducatorTeachableSubjectsCard
+              educatorId={educator.id}
+              schoolYearId={schoolYearId}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Generator input: when this educator can be scheduled. */}
+      <div className="rounded-lg border bg-card p-5">
+        <EducatorAvailabilityCard educatorId={educator.id} />
       </div>
 
       {/* Danger zone */}

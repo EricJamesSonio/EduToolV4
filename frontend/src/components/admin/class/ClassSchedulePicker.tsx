@@ -26,7 +26,7 @@ import { roomUsageToClasses } from "@/utils/roomSchedule.utils";
 import type { CreateClassForm } from "./CreateClassDialog.types";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
-import { orgScheduleConfigApi } from "@/api/admin/org-schedule-config.api";
+import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
 import { useRooms, useRoomUsage } from "@/hooks/admin/useRooms";
 
 export interface ScheduleConflictState {
@@ -76,17 +76,27 @@ export function ClassSchedulePicker({
   excludeClassId,
   onConflictsChange,
 }: ClassSchedulePickerProps) {
-  const { getValues, setValue } = useFormContext<CreateClassForm>();
+  const { getValues, setValue, watch } = useFormContext<CreateClassForm>();
 
-  const { data: scheduleCfg, isLoading: cfgLoading } = useAsyncQuery(
-    adminQueryKeys.orgScheduleConfig.detail(),
-    orgScheduleConfigApi.get,
-    { meta: { preset: "static", feature: "organization" } },
-  );
+  // The schedule is locked until both a subject and an educator are chosen.
+  const subjectId = watch("subjectId");
+  const educatorId = watch("educatorId");
+  const scheduleReady = !!subjectId && !!educatorId;
+  const missingLabel = [!subjectId && "a subject", !educatorId && "an educator"]
+    .filter(Boolean)
+    .join(" and ");
 
-  const windowStartMin = scheduleCfg ? timeToMinutes(scheduleCfg.startTime) : undefined;
-  const windowEndMin = scheduleCfg ? timeToMinutes(scheduleCfg.endTime) : undefined;
-  const stepMin = scheduleCfg?.slotDuration ?? 30;
+  // One source of truth for the school's operating window, active weekdays and
+  // breaks. Previously this component fetched the org schedule config itself,
+  // which meant the picker and every read-only timetable could drift apart.
+  const {
+    windowStartMin,
+    windowEndMin,
+    stepMin,
+    activeWeekdays,
+    blockedRanges,
+  } = useScheduleWindow();
+  const cfgLoading = false;
 
   const initialSchedules = getValues("schedules") ?? [];
 
@@ -216,6 +226,12 @@ export function ClassSchedulePicker({
     () => initialSchedules.length === 0,
   );
   const [draft, setDraft] = useState<DraftCell | null>(null);
+
+  // If the gate closes (subject or educator cleared) mid-selection, drop the
+  // half-finished start cell. Slots already placed are kept.
+  useEffect(() => {
+    if (!scheduleReady) setDraft(null);
+  }, [scheduleReady]);
 
   // The educator query stays disabled until an educator is picked, so
   // educatorClasses is undefined for most of this form's life. Gating the
@@ -409,22 +425,24 @@ export function ClassSchedulePicker({
   };
 
   const handleAddSlotClick = (): void => {
-    if (!canAddMore) return;
+    if (!scheduleReady || !canAddMore) return;
     setIsAddingSlot(true);
     setDraft(null);
   };
 
-  const hint = !hasContext
-    ? "Select a section first."
-    : !isAddingSlot
-      ? canAddMore
-        ? 'Click "+ Add slot" to schedule a time.'
-        : `Maximum of ${maxSlots} slot${maxSlots === 1 ? "" : "s"} reached.`
-      : draft
-        ? "Click a free end time to finish this slot."
-        : hasEducator
-          ? "Click a free day & time for the start."
-          : "Click a free time. Select an educator to also avoid their busy times.";
+  const hint = !scheduleReady
+    ? `Select ${missingLabel} first.`
+    : !hasContext
+      ? "Select a section first."
+      : !isAddingSlot
+        ? canAddMore
+          ? 'Click "+ Add slot" to schedule a time.'
+          : `Maximum of ${maxSlots} slot${maxSlots === 1 ? "" : "s"} reached.`
+        : draft
+          ? "Click a free end time to finish this slot."
+          : hasEducator
+            ? "Click a free day & time for the start."
+            : "Click a free time. Select an educator to also avoid their busy times.";
 
   return (
     <div className="space-y-2">
@@ -432,7 +450,7 @@ export function ClassSchedulePicker({
         <button
           type="button"
           onClick={handleAddSlotClick}
-          disabled={!hasContext || isAddingSlot || !canAddMore}
+          disabled={!scheduleReady || !hasContext || isAddingSlot || !canAddMore}
           className="text-xs text-primary hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
         >
           + Add slot
@@ -491,23 +509,32 @@ export function ClassSchedulePicker({
         </div>
       ) : (
         <>
-          <WeeklyScheduleGrid
-            classes={gridClasses}
-            classTags={classTags}
-            getSublabel={getBlockSublabel}
-            isLoading={isLoading || cfgLoading || !scheduleCfg}
-            interactive
-            showAllDays
-            pickedRanges={ranges}
-            conflictedPickIndexes={conflictedPickIndexes}
-            maxPicks={isAddingSlot ? ranges.length + 1 : ranges.length}
-            draftStart={draft}
-            windowStartMin={windowStartMin}
-            windowEndMin={windowEndMin}
-            stepMin={stepMin}
-            onDraftStart={setDraft}
-            onPickRange={handlePickRange}
-          />
+          <div
+            className={scheduleReady ? undefined : "opacity-60"}
+            aria-disabled={!scheduleReady}
+          >
+            <WeeklyScheduleGrid
+              classes={gridClasses}
+              classTags={classTags}
+              getSublabel={getBlockSublabel}
+              isLoading={isLoading || cfgLoading}
+              interactive
+              showAllDays
+              pickedRanges={ranges}
+              conflictedPickIndexes={conflictedPickIndexes}
+              maxPicks={
+                scheduleReady && isAddingSlot ? ranges.length + 1 : ranges.length
+              }
+              draftStart={draft}
+              windowStartMin={windowStartMin}
+              windowEndMin={windowEndMin}
+              stepMin={stepMin}
+              activeWeekdays={activeWeekdays}
+              blockedRanges={blockedRanges}
+              onDraftStart={setDraft}
+              onPickRange={handlePickRange}
+            />
+          </div>
           <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground not-interactive">
             {legendKeys.map((k) => (
               <span key={k} className="inline-flex items-center gap-1">

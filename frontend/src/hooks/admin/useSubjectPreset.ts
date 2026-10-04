@@ -5,6 +5,10 @@ export interface SubjectPresetData {
   courseId: string | null;
   strandId: string | null;
   levelId: string | null;
+  /** null / undefined = "Default" (follow the department standard). */
+  sessionsPerWeek?: number | null;
+  /** Total minutes per session. null / undefined = "Default". */
+  sessionMinutes?: number | null;
 }
 
 export interface SubjectPreset extends SubjectPresetData {
@@ -20,7 +24,12 @@ function readPreset(schoolYearId: string | null): SubjectPreset | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SubjectPreset;
     if (!parsed || typeof parsed !== "object" || !parsed.programId) return null;
-    return parsed;
+    // Presets saved before weekly sessions existed fall back to Default.
+    return {
+      ...parsed,
+      sessionsPerWeek: parsed.sessionsPerWeek ?? null,
+      sessionMinutes: parsed.sessionMinutes ?? null,
+    };
   } catch {
     return null;
   }
@@ -37,10 +46,11 @@ function writePreset(schoolYearId: string, data: SubjectPreset | null): void {
 }
 
 /**
- * Persists a "New Subject" form preset (department/course/strand/level) in
- * localStorage, namespaced per school year — programs/courses/strands/levels
- * are school-year-scoped entities, so a preset from another school year would
- * reference IDs that don't exist in the current one.
+ * Persists a "New Subject" form preset (department/course/strand/level and
+ * weekly sessions) in localStorage, namespaced per school year —
+ * programs/courses/strands/levels are school-year-scoped entities, so a preset
+ * from another school year would reference IDs that don't exist in the
+ * current one.
  */
 export function useSubjectPreset(schoolYearId: string | null) {
   const [preset, setPresetState] = useState<SubjectPreset | null>(() =>

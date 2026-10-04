@@ -64,7 +64,11 @@ describe('SubjectService.getHierarchy level scoping', () => {
         findMany: jest.fn().mockResolvedValue(linkRows),
       },
     };
-    const service = new SubjectService({} as never, db as never);
+    const service = new SubjectService(
+      {} as never,
+      db as never,
+      { getByOrg: jest.fn().mockResolvedValue({ slotDuration: 30 }) } as never,
+    );
     return { service, db };
   };
 

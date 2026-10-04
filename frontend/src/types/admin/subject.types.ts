@@ -42,6 +42,14 @@ export interface Subject {
   yearLevel: string | null;
   termLabel: string | null;
 
+  /** Explicit weekly requirement, or null to mean "use the program default". */
+  sessionsPerWeek: number | null;
+  sessionMinutes: number | null;
+  /** Effective values after default resolution. Always populated. */
+  effectiveSessionsPerWeek: number;
+  effectiveSessionMinutes: number;
+  sessionRequirementSource: "explicit" | "default";
+
   prerequisites: unknown[];
   prereqFor: unknown[];
 

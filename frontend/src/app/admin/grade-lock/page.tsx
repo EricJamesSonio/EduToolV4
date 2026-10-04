@@ -1,4 +1,3 @@
-// ===== File: frontend\src\app\admin\grade-lock\page.tsx =====
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -47,7 +46,7 @@ export default function GradeLockPage(): React.ReactElement {
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedCourseStrand, setSelectedCourseStrand] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
-    const [page, setPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
   const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears();
@@ -68,10 +67,29 @@ export default function GradeLockPage(): React.ReactElement {
     [templates],
   );
 
-  const handleSchoolYearSelect = useCallback((id: string | null) => {
-    setSelectedSchoolYearId(id);
+  const resetHierarchyFilters = useCallback(() => {
     setSelectedProgram("");
     setSelectedCourseStrand("");
+    setSelectedLevel("");
+  }, []);
+
+  const handleSchoolYearSelect = useCallback(
+    (id: string | null) => {
+      setSelectedSchoolYearId(id);
+      resetHierarchyFilters();
+    },
+    [resetHierarchyFilters],
+  );
+
+  const handleProgramChange = useCallback((value: string) => {
+    setSelectedProgram(value);
+    // A new department invalidates its old course/strand and level.
+    setSelectedCourseStrand("");
+    setSelectedLevel("");
+  }, []);
+
+  const handleCourseStrandChange = useCallback((value: string) => {
+    setSelectedCourseStrand(value);
     setSelectedLevel("");
   }, []);
 
@@ -122,7 +140,7 @@ export default function GradeLockPage(): React.ReactElement {
     return result;
   }, [locks, selectedSchoolYearId, selectedProgram, selectedCourseStrand, selectedLevel]);
 
-    useEffect(() => {
+  useEffect(() => {
     setPage(1);
   }, [selectedSchoolYearId, selectedProgram, selectedCourseStrand, selectedLevel]);
 
@@ -185,13 +203,10 @@ export default function GradeLockPage(): React.ReactElement {
         selectedCourseStrand={selectedCourseStrand}
         selectedLevel={selectedLevel}
         filteredCount={filteredLocks.length}
-        onProgramChange={setSelectedProgram}
-        onCourseStrandChange={(value) => {
-          setSelectedCourseStrand(value);
-          setSelectedLevel("");
-        }}
+        onProgramChange={handleProgramChange}
+        onCourseStrandChange={handleCourseStrandChange}
         onLevelChange={setSelectedLevel}
-        onReset={() => handleSchoolYearSelect(null)}
+        onReset={resetHierarchyFilters}
       />
 
       <GradeLockStats gradeLocks={filteredLocks} />
@@ -223,7 +238,6 @@ export default function GradeLockPage(): React.ReactElement {
         templates={templates}
         defaultTemplateId={activeTemplate?.id ?? templates[0]?.id ?? ""}
         onClose={() => setApplyTarget(null)}
-        
       />
 
       <GradeLockApplyAllDialog

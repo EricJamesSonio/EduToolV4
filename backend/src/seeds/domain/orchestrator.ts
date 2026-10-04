@@ -35,7 +35,7 @@ import {
 import { seedProgramCalendars } from './seeders/calendar.seeder';
 import { seedSemesterTemplates } from './seeders/semester.seeder';
 import { seedSubjects } from './seeders/subjects.seeder';
-import { seedEducators } from './seeders/educators.seeder';
+import { seedEducators, seedEducatorSubjects } from './seeders/educators.seeder';
 import { seedStudents } from './seeders/students.seeder';
 import { seedClasses } from './seeders/classes.seeder';
 
@@ -239,6 +239,15 @@ export async function run(): Promise<void> {
     // k) Educators
     const educatorIds = await seedEducators(org.id, emailExt, educatorCount);
     console.log(`  └ educators: ${educatorIds.length}`);
+
+    // k2) Teachable subjects. Seeded so a demo org can actually use the class
+    // generator instead of falling back to "assign to anyone".
+    const teachableLinks = await seedEducatorSubjects(
+      org.id,
+      schoolYearId,
+      educatorIds,
+    );
+    console.log(`  └ teachable subject links: ${teachableLinks}`);
 
     // l) Classes + per-class grading schemes (deterministic full coverage)
     await seedClasses(

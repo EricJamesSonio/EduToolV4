@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import type { Class } from "@/types/admin/class.types";
 
 import { minutesToDisplayLabel } from "@/utils/classes.utils";
@@ -113,6 +113,17 @@ interface WeeklyScheduleGridProps {
    * clash is visible on the grid itself rather than only in a message below it.
    */
   conflictedPickIndexes?: number[];
+
+  /**
+   * Weekdays the school holds classes (0 = Sunday .. 6 = Saturday). Inactive
+   * days render greyed and cannot be clicked. A day that still has existing
+   * blocks is still rendered (greyed) so nothing silently disappears.
+   * Omit to disable the rule.
+   */
+  activeWeekdays?: number[];
+
+  /** Org-wide breaks in minutes-of-day. Rendered muted and not clickable. */
+  blockedRanges?: { startMin: number; endMin: number; label?: string }[];
 }
 
 interface ScheduleBlock {
@@ -232,6 +243,8 @@ export function WeeklyScheduleGrid({
   onPickRange,
   classTags,
   conflictedPickIndexes,
+  activeWeekdays,
+  blockedRanges,
 }: WeeklyScheduleGridProps) {
   const [hover, setHover] = useState<DraftCell | null>(null);
 
@@ -341,6 +354,23 @@ export function WeeklyScheduleGrid({
   const winStart = windowStartMin ?? 0;
   const winEnd = windowEndMin ?? 0;
 
+  // A day the school is closed, or a minute inside a break, is treated exactly
+  // like an occupied cell: it cannot start or extend a picked range, so a
+  // picked range can never straddle a break or land on a non-school day.
+  const isDayActive = useCallback(
+    (weekday: number): boolean =>
+      !activeWeekdays || activeWeekdays.length === 0 || activeWeekdays.includes(weekday),
+    [activeWeekdays],
+  );
+
+  const isBreakMinute = useCallback(
+    (minute: number): boolean =>
+      (blockedRanges ?? []).some(
+        (b) => minute >= b.startMin && minute < b.endMin,
+      ),
+    [blockedRanges],
+  );
+
   const isOccupied = (weekday: number, minute: number): boolean =>
     blocks.some(
       (b) => b.weekday === weekday && minute >= b.startMin && minute < b.endMin,
@@ -350,6 +380,10 @@ export function WeeklyScheduleGrid({
     );
 
   const isFreeRange = (weekday: number, from: number, to: number): boolean => {
+    // A range may not START inside a break; ending exactly at a break start is
+    // legal, so only the start boundary is checked here. canEnd separately
+    // checks the minute before the end.
+    if (from === to || isBreakMinute(from)) return false;
     for (let m = from; m < to; m += interval) {
       if (isOccupied(weekday, m)) return false;
     }
@@ -357,13 +391,20 @@ export function WeeklyScheduleGrid({
   };
 
   const canStart = (d: number, m: number): boolean =>
-    m >= winStart && m < winEnd && !isOccupied(d, m);
+    isDayActive(d) &&
+    !isBreakMinute(m) &&
+    m >= winStart &&
+    m < winEnd &&
+    !isOccupied(d, m);
 
   const canEnd = (d: number, m: number): boolean =>
     !!draftStart &&
     draftStart.weekday === d &&
     m > draftStart.minute &&
     m <= winEnd &&
+    // The end cell is exclusive, so check the minute BEFORE it: ending exactly
+    // at a break start is legal, ending inside it is not.
+    !isBreakMinute(m - 1) &&
     isFreeRange(d, draftStart.minute, m);
 
   const isClickable = (d: number, m: number): boolean =>
@@ -433,7 +474,16 @@ export function WeeklyScheduleGrid({
           return (
             <div
               key={`head-${d}`}
-            className="sticky top-0 z-10 bg-primary text-primary-foreground border-b border-r border-primary-foreground/20 py-2 px-0.5 text-center text-xs font-bold not-interactive truncate"
+            className={`sticky top-0 z-10 border-b border-r border-primary-foreground/20 py-2 px-0.5 text-center text-xs font-bold not-interactive truncate ${
+              isDayActive(d)
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground"
+            }`}
+              title={
+                isDayActive(d)
+                  ? undefined
+                  : "The school does not hold classes on this day."
+              }
               style={{ gridColumn: `${startCol} / span ${colCount}` }}
             >
               {SCHEDULE_WEEKDAYS[d]}
@@ -462,6 +512,8 @@ export function WeeklyScheduleGrid({
                 const minute = gridStart + i * interval;
                 const clickable = isClickable(d, minute);
                 const outside = minute < winStart || minute > winEnd;
+                const onBreak = isBreakMinute(minute);
+                const dayOff = !isDayActive(d);
                 const isDraftCell =
                   draftStart?.weekday === d && draftStart.minute === minute;
                 return (
@@ -473,9 +525,24 @@ export function WeeklyScheduleGrid({
                     onMouseEnter={() => {
                       if (!pickingLocked) setHover({ weekday: d, minute });
                     }}
+                    title={
+                      dayOff
+                        ? "The school does not hold classes on this day."
+                        : onBreak
+                          ? blockedRanges?.find(
+                              (b) => minute >= b.startMin && minute < b.endMin,
+                            )?.label
+                          : undefined
+                    }
                     className={
                       !clickable
-                        ? `border-b border-r pointer-events-none cursor-not-allowed ${outside ? "bg-muted/60" : ""}`
+                        ? `border-b border-r pointer-events-none cursor-not-allowed ${
+                            outside || dayOff
+                              ? "bg-muted/60"
+                              : onBreak
+                                ? "bg-muted/40"
+                                : ""
+                          }`
                         : `border-b border-r cursor-pointer transition-colors ${
                             isDraftCell
                               ? "bg-primary/25 ring-1 ring-inset ring-primary"

@@ -14,7 +14,10 @@ import { GradingSchemeTemplateService } from '../grading-scheme-template/grading
 import { resolveProgramIdFromSubject } from '../program/program-type-resolver';
 import { DatabaseService } from '@/core/database/database.provider';
 import { OrgScheduleConfigService } from '../org-schedule-config/org-schedule-config.service';
-import { getScheduleViolation } from '../org-schedule-config/schedule-window.util';
+import {
+  getScheduleViolation,
+  toMinutes,
+ } from '../org-schedule-config/schedule-window.util';
 import {
   resolveSubjectAcademicStructures,
   isEligibleForClassStructure,
@@ -36,6 +39,11 @@ import {
   type MinuteSlot,
 } from './class-schedule.util';
 import { SubjectPrerequisiteService } from '../subject-prerequisite/subject-prerequisite.service';
+import {
+  findConflicts,
+  type CandidateSlot,
+} from './class-conflict.util';
+import { ClassOccupancyService } from './class-occupancy.service';
 
 /** A parsed schedule slot. `roomId` rides along so a single pass can both
  *  persist the assignment and run the room conflict check. */
@@ -52,12 +60,31 @@ export class ClassService {
     private readonly subjectPrerequisiteService: SubjectPrerequisiteService,
     private readonly db: DatabaseService,
     private readonly orgScheduleConfigService: OrgScheduleConfigService,
+    private readonly classOccupancyService: ClassOccupancyService,
   ) {}
 
   // ---------------------------------------------------------------------------
   // Resolve semester automatically from schoolYearId
   // ---------------------------------------------------------------------------
 
+  /**
+   * Resolve the semester a class belongs to.
+   *
+   * A `Semester` belongs to exactly one program (migration
+   * 20260925113449_add_semester_program_scope), so EVERY lookup here is scoped
+   * by `program_id`.
+   *
+   * This matters: a school year routinely has one semester named "1st
+   * Semester" per program. Matching on name alone returned whichever row the
+   * database happened to order first, so a BSCS class could be filed under the
+   * JHS program's semester. A fallback to "any semester in this school year"
+   * was worse — it could cross programs entirely.
+   *
+   * Order of preference:
+   *   1. the exact `template_semester_id` the program's template defines
+   *   2. same program + same name (a semester created without the template link)
+   *   3. any semester of THIS program (still never another program's)
+   */
   private async resolveSemesterId(
     schoolYearId: string,
     programId: string,
@@ -88,31 +115,37 @@ export class ClassService {
       );
     }
 
-    // Try matching by name first
-    const semester = await this.db.semester.findFirst({
-      where: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        name: firstTemplateSemester.name,
-      },
+    const base = {
+      org_id: orgId,
+      school_year_id: schoolYearId,
+      program_id: programId,
+    };
+
+    // 1. The precise link: this program fulfilling this template semester.
+    const byTemplate = await this.db.semester.findFirst({
+      where: { ...base, template_semester_id: firstTemplateSemester.id },
       orderBy: { start_date: 'asc' },
     });
+    if (byTemplate) return byTemplate.id;
 
-    if (semester) return semester.id;
-
-    // Fallback: any semester for this school year
-    const fallback = await this.db.semester.findFirst({
-      where: { org_id: orgId, school_year_id: schoolYearId },
+    // 2. Same program, same name — covers semesters created before the
+    //    template link was populated.
+    const byName = await this.db.semester.findFirst({
+      where: { ...base, name: firstTemplateSemester.name },
       orderBy: { start_date: 'asc' },
     });
+    if (byName) return byName.id;
 
-    if (!fallback) {
-      throw new BadRequestException(
-        'No semesters found for this school year. Please create semesters in Semester Settings first.',
-      );
-    }
+    // 3. Any semester belonging to THIS program.
+    const anyForProgram = await this.db.semester.findFirst({
+      where: base,
+      orderBy: { start_date: 'asc' },
+    });
+    if (anyForProgram) return anyForProgram.id;
 
-    return fallback.id;
+    throw new BadRequestException(
+      `No semesters found for this program in the selected school year. Please create its semesters in Semester Settings first.`,
+    );
   }
 
 
@@ -137,15 +170,120 @@ export class ClassService {
     const cfg = await this.orgScheduleConfigService.getByOrg(orgId);
     for (const slot of slots) {
       const violation = getScheduleViolation(
-        cfg,
+        {
+          startTime: cfg.startTime,
+          endTime: cfg.endTime,
+          slotDuration: cfg.slotDuration,
+          activeWeekdays: cfg.activeWeekdays,
+          breaks: cfg.breaks,
+        },
         this.dateToMinutes(slot.startTime),
         this.dateToMinutes(slot.endTime),
+        slot.weekday,
       );
       if (violation) {
         throw new BadRequestException(
           `Schedule weekday ${slot.weekday}: ${violation}`,
         );
       }
+    }
+  }
+
+  /**
+   * One preloaded occupancy index for the whole create, then every candidate
+   * slot is checked against it in memory.
+   *
+   * Previously each conflict check ran its own query, so creating a class with
+   * several slots meant several round-trips per resource. The rules themselves
+   * now live in class-conflict.util, shared with the generator, so the manual
+   * flow and automatic generation cannot disagree about what "conflict" means.
+   */
+  private async assertNoSlotConflicts(
+    orgId: string,
+    schoolYearId: string,
+    educatorId: string,
+    sectionId: string | null,
+    slots: TimeSlot[],
+    excludeClassId?: string,
+  ): Promise<void> {
+    const cfg = await this.orgScheduleConfigService.getByOrg(orgId);
+    const roomIds = slots.map((s) => s.roomId).filter((id): id is string => !!id);
+    if (roomIds.length > 0) {
+      await this.classOccupancyService.assertRoomsOwned(orgId, roomIds);
+    }
+
+    const occupied = await this.classOccupancyService.load({
+      orgId,
+      schoolYearId,
+      scope: 'school-year',
+      // Narrowed to exactly the resources this class competes for: its
+      // educator, its section, and any rooms it books. One query instead of
+      // one per resource per slot.
+      educatorId,
+      sectionId: sectionId ?? undefined,
+      roomIds,
+    });
+
+    const activeWeekdays = cfg.activeWeekdays ?? [];
+    const blockedRanges = (cfg.breaks ?? []).map((b) => ({
+      startMin: toMinutes(b.start),
+      endMin: toMinutes(b.end),
+      label: b.label,
+    }));
+
+    const errors: string[] = [];
+
+    // Two of THIS class's own slots must not collide with each other either.
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const a = slots[i];
+        const b = slots[j];
+        if (a.roomId !== b.roomId) continue;
+        const conflict = findConflicts(
+          {
+            weekday: a.weekday,
+            startMin: this.dateToMinutes(a.startTime),
+            endMin: this.dateToMinutes(a.endTime),
+            roomId: a.roomId,
+          },
+          { educatorId, sectionId, excludeClassId },
+          [
+            {
+              classId: '__self__',
+              weekday: b.weekday,
+              startMin: this.dateToMinutes(b.startTime),
+              endMin: this.dateToMinutes(b.endTime),
+              educatorId,
+              sectionId,
+              // TimeSlot allows undefined; the occupancy index uses null for
+              // "no room", so normalize rather than widen the shared type.
+              roomId: b.roomId ?? null,
+            },
+          ],
+        );
+        for (const c of conflict) errors.push(c.message);
+      }
+    }
+
+    for (const slot of slots) {
+      const conflicts = findConflicts(
+        {
+          weekday: slot.weekday,
+          startMin: this.dateToMinutes(slot.startTime),
+          endMin: this.dateToMinutes(slot.endTime),
+          roomId: slot.roomId,
+        },
+        { educatorId, sectionId, excludeClassId, activeWeekdays, blockedRanges },
+        occupied,
+      );
+      errors.push(...conflicts.map((c) => c.message));
+    }
+
+    if (errors.length > 0) {
+      throw new ConflictException(
+        [...new Set(errors)].join(' ') ||
+          'The schedule overlaps an existing booking.',
+      );
     }
   }
 
@@ -176,20 +314,15 @@ export class ClassService {
 
     const slots = this.parseSlots(dto.schedules);
     await this.assertScheduleConfig(orgId, slots);
-    await this.assertNoEducatorConflict(
-      dto.educatorId,
+    await this.assertNoSlotConflicts(
       orgId,
-      slots,
       dto.schoolYearId,
+      dto.educatorId,
+      dto.sectionId ?? null,
+      slots,
     );
 
     if (dto.sectionId) {
-      await this.assertNoSectionConflict(
-        dto.sectionId,
-        orgId,
-        slots,
-        dto.schoolYearId,
-      );
       await this.assertNoDuplicateSubjectInSection(
         orgId,
         dto.sectionId,
@@ -197,9 +330,6 @@ export class ClassService {
         semesterId,
       );
     }
-
-    // No-ops when no slot has a room — rooms are optional.
-    await this.assertRoomsFree(orgId, slots, dto.schoolYearId);
 
     // Class capacity is derived from its section. With no section it falls
     // back to 0, which the enrollment checks treat as "no cap".
@@ -340,31 +470,23 @@ export class ClassService {
     if (!cls) throw new NotFoundException('Class not found.');
 
     const newEducatorId = dto.educatorId ?? cls.educator_id;
-    const newSectionId = dto.sectionId ?? cls.section_id ?? undefined;
+    // Normalized to `string | null` up front: the conflict engine treats a
+    // missing section as "no section" rather than three-valued undefined.
+    const newSectionId: string | null = dto.sectionId ?? cls.section_id ?? null;
 
     // Determine which schedules to validate against
     if (dto.schedules) {
       const slots = this.parseSlots(dto.schedules);
       await this.assertScheduleConfig(orgId, slots);
-      await this.assertNoEducatorConflict(
-        newEducatorId,
+      // Excludes this class so its own current slots don't self-conflict.
+      await this.assertNoSlotConflicts(
         orgId,
-        slots,
         cls.school_year_id,
+        newEducatorId,
+        newSectionId ?? null,
+        slots,
         id,
       );
-
-      // Moving a section re-checks that section's week even if its slots did
-      // not change, since the class now competes for a different schedule.
-      if (newSectionId) {
-        await this.assertNoSectionConflict(
-          newSectionId,
-          orgId,
-          slots,
-          cls.school_year_id,
-          id,
-        );
-      }
 
       if (dto.sectionId && dto.sectionId !== cls.section_id) {
         await this.assertNoDuplicateSubjectInSection(
@@ -375,9 +497,6 @@ export class ClassService {
           id,
         );
       }
-
-      // Excludes this class so its own current slots don't self-conflict.
-      await this.assertRoomsFree(orgId, slots, cls.school_year_id, id);
 
       await this.classRepository.replaceSchedules(orgId, id, slots);
     } else if (dto.educatorId && dto.educatorId !== cls.educator_id) {
@@ -390,11 +509,12 @@ export class ClassService {
           endTime: new Date(s.end_time),
         }),
       );
-      await this.assertNoEducatorConflict(
-        newEducatorId,
+      await this.assertNoSlotConflicts(
         orgId,
-        slots,
         cls.school_year_id,
+        newEducatorId,
+        cls.section_id ?? null,
+        slots,
         id,
       );
     }
@@ -710,11 +830,12 @@ export class ClassService {
       }),
     );
 
-    await this.assertNoEducatorConflict(
-      dto.educatorId,
+    await this.assertNoSlotConflicts(
       orgId,
-      slots,
       cls.school_year_id,
+      dto.educatorId,
+      cls.section_id ?? null,
+      slots,
       id,
     );
     await this.classRepository.createOwnershipLog({
@@ -863,171 +984,6 @@ export class ClassService {
         roomId: s.roomId ?? null,
       };
     });
-  }
-
-  private async assertNoEducatorConflict(
-    educatorId: string,
-    orgId: string,
-    newSlots: TimeSlot[],
-    schoolYearId: string,
-    excludeClassId?: string,
-  ) {
-    const existing = await this.classRepository.findEducatorSchedules(
-      educatorId,
-      orgId,
-      schoolYearId,
-    );
-
-    const taken: MinuteSlot[] = existing
-      .filter((slot) => slot.class_id !== excludeClassId)
-      .map((slot) =>
-        toMinuteSlot(
-          slot.weekday,
-          new Date(slot.start_time),
-          new Date(slot.end_time),
-        ),
-      );
-
-    for (const newSlot of newSlots) {
-      const asMinutes = toMinuteSlot(
-        newSlot.weekday,
-        newSlot.startTime,
-        newSlot.endTime,
-      );
-      if (taken.some((e) => minuteSlotsOverlap(e, asMinutes))) {
-        throw new ConflictException(
-          `Educator already has a class on weekday ${newSlot.weekday} that overlaps with this time slot.`,
-        );
-      }
-    }
-  }
-
-  private async assertNoSectionConflict(
-    sectionId: string,
-    orgId: string,
-    newSlots: TimeSlot[],
-    schoolYearId: string,
-    excludeClassId?: string,
-  ) {
-    const existing = await this.classRepository.findSectionSchedules(
-      sectionId,
-      orgId,
-      schoolYearId,
-    );
-
-    const taken: MinuteSlot[] = existing
-      .filter((slot) => slot.class_id !== excludeClassId)
-      .map((slot) =>
-        toMinuteSlot(
-          slot.weekday,
-          new Date(slot.start_time),
-          new Date(slot.end_time),
-        ),
-      );
-
-    for (const newSlot of newSlots) {
-      const asMinutes = toMinuteSlot(
-        newSlot.weekday,
-        newSlot.startTime,
-        newSlot.endTime,
-      );
-      if (taken.some((e) => minuteSlotsOverlap(e, asMinutes))) {
-        throw new ConflictException(
-          `Section already has a class on weekday ${newSlot.weekday} that overlaps with this time slot.`,
-        );
-      }
-    }
-  }
-
-  /**
-   * Room availability check. Rooms are OPTIONAL, so a batch with no room on
-   * any slot is valid and returns immediately — nothing to check.
-   *
-   * Scoped by org_id (tenant isolation) and by the class's school year, since
-   * a room is only "booked" relative to the year the booking belongs to.
-   * Archived classes are excluded: they are read-only and hidden from active
-   * views, so they must never block a new assignment.
-   */
-  private async assertRoomsFree(
-    orgId: string,
-    newSlots: TimeSlot[],
-    schoolYearId: string,
-    excludeClassId?: string,
-  ): Promise<void> {
-    const withRoom = newSlots.filter((s) => !!s.roomId);
-    if (withRoom.length === 0) return;
-
-    const roomIds = [...new Set(withRoom.map((s) => s.roomId as string))];
-
-    // A class cannot book the same room twice at overlapping times. The client
-    // blocks this, but the endpoint is reachable directly, so enforce it here
-    // too rather than trusting the form.
-    for (let i = 0; i < withRoom.length; i++) {
-      for (let j = i + 1; j < withRoom.length; j++) {
-        const a = withRoom[i];
-        const b = withRoom[j];
-        if (a.roomId !== b.roomId) continue;
-        if (
-          minuteSlotsOverlap(
-            toMinuteSlot(a.weekday, a.startTime, a.endTime),
-            toMinuteSlot(b.weekday, b.startTime, b.endTime),
-          )
-        ) {
-          throw new ConflictException(
-            'Two of this class\'s slots use the same room at overlapping times.',
-          );
-        }
-      }
-    }
-
-    // Verify every id actually belongs to this org before trusting it. Without
-    // this, a crafted payload could probe another org's room ids.
-    const owned = await this.db.room.findMany({
-      where: { id: { in: roomIds }, org_id: orgId },
-      select: { id: true },
-    });
-    if (owned.length !== roomIds.length) {
-      throw new BadRequestException(
-        'One or more selected rooms do not exist.',
-      );
-    }
-
-    const existing = await this.db.classSchedule.findMany({
-      where: {
-        org_id: orgId,
-        room_id: { in: roomIds },
-        class: { school_year_id: schoolYearId, deleted_at: null },
-      },
-      include: { room: { select: { name: true } } },
-    });
-
-    for (const booked of existing) {
-      if (excludeClassId && booked.class_id === excludeClassId) continue;
-
-      const bookedMinutes = toMinuteSlot(
-        booked.weekday,
-        new Date(booked.start_time),
-        new Date(booked.end_time),
-      );
-
-      for (const incoming of withRoom) {
-        if (incoming.roomId !== booked.room_id) continue;
-        if (
-          minuteSlotsOverlap(
-            bookedMinutes,
-            toMinuteSlot(
-              incoming.weekday,
-              incoming.startTime,
-              incoming.endTime,
-            ),
-          )
-        ) {
-          throw new ConflictException(
-            `${booked.room?.name ?? 'That room'} is already booked on weekday ${booked.weekday} at an overlapping time.`,
-          );
-        }
-      }
-    }
   }
 
   private async assertNoDuplicateSubjectInSection(

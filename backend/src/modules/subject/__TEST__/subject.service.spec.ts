@@ -1,5 +1,6 @@
 import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { SubjectService } from '../subject.service';
+import type { DatabaseService } from '@/core/database/database.provider';
 
 describe('SubjectService', () => {
   let service: SubjectService;
@@ -25,7 +26,18 @@ describe('SubjectService', () => {
       findSharings: jest.fn(),
       clearSharings: jest.fn(),
     };
-    service = new SubjectService(repo);
+    // `db` backs the read-only tree/list queries (hierarchy, program groups),
+    // which these cases do not exercise — the doubles exist so the constructor
+    // arity matches the service, not to assert on them.
+    // `cfg` supplies the org slot length used to validate `sessionMinutes`.
+    const cfg = { getByOrg: jest.fn().mockResolvedValue({ slotDuration: 30 }) };
+
+    service = new SubjectService(repo, {
+      level: { findMany: jest.fn() },
+      program: { findMany: jest.fn() },
+      subject: { findMany: jest.fn() },
+      subjectPrerequisite: { findMany: jest.fn() },
+    } as unknown as DatabaseService, cfg);
     jest.clearAllMocks();
   });
 
@@ -127,6 +139,18 @@ describe('SubjectService', () => {
       expect(res.title).toBe('Updated');
       expect(repo.clearSharings).not.toHaveBeenCalled();
     });
+    it('persists a count-only session change (minutes left on default)', async () => {
+      // Regression: editing weekly sessions from Default to a count with no
+      // explicit length must save sessions_per_week and clear session_minutes.
+      repo.findById.mockResolvedValue({ id: subjectId, org_id: orgId, name: 'Math', program_id: programId, subject_type: 'major', level_id: 'lvl1', is_locked: false });
+      repo.findDuplicateByName.mockResolvedValue(null);
+      repo.update.mockResolvedValue({ id: subjectId, org_id: orgId, name: 'Math', subject_type: 'major', is_locked: false, sessions_per_week: 1, session_minutes: null });
+      await service.update(subjectId, orgId, { sessionsPerWeek: 1, sessionMinutes: null } as any);
+      expect(repo.update).toHaveBeenCalledWith(subjectId, expect.objectContaining({
+        sessionsPerWeek: 1,
+        sessionMinutes: null,
+      }));
+    });
   });
 
   describe('lock / unlock', () => {
@@ -206,6 +230,76 @@ describe('SubjectService', () => {
     it('findSharings throws NotFound when subject missing', async () => {
       repo.findById.mockResolvedValue(null);
       await expect(service.findSharings(subjectId, orgId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('session requirement validation', () => {
+    // The org slot is 30m, so 60m is valid and 45m is not.
+    const validCreate = {
+      name: 'Math',
+      programId,
+      subjectType: 'minor',
+      levelId: 'lvl-1',
+    } as any;
+
+    it('rejects sessionMinutes that is not a multiple of the org slot', async () => {
+      repo.findProgramById.mockResolvedValue(programElem);
+      await expect(
+        service.create(orgId, { ...validCreate, sessionMinutes: 45 }),
+      ).rejects.toThrow(/must be a multiple of the school's 30m slot length/);
+    });
+
+    it('accepts sessionMinutes that is a multiple of the org slot', async () => {
+      repo.findProgramById.mockResolvedValue(programElem);
+      repo.create.mockResolvedValue({
+        id: subjectId,
+        name: 'Math',
+        is_locked: false,
+        sessions_per_week: 3,
+        session_minutes: 60,
+        program: programElem,
+      });
+      const res = await service.create(orgId, {
+        ...validCreate,
+        sessionsPerWeek: 3,
+        sessionMinutes: 60,
+      });
+      expect(res.sessionsPerWeek).toBe(3);
+      expect(res.sessionMinutes).toBe(60);
+      expect(res.sessionRequirementSource).toBe('explicit');
+    });
+
+    it('accepts null/absent session values and reports the program default', async () => {
+      repo.findProgramById.mockResolvedValue(programElem);
+      repo.create.mockResolvedValue({
+        id: subjectId,
+        name: 'Math',
+        is_locked: false,
+        sessions_per_week: null,
+        session_minutes: null,
+        program: programElem,
+      });
+      const res = await service.create(orgId, validCreate);
+      expect(res.sessionsPerWeek).toBeNull();
+      expect(res.sessionMinutes).toBeNull();
+      // Elementary default: 5 x 60
+      expect(res.effectiveSessionsPerWeek).toBe(5);
+      expect(res.effectiveSessionMinutes).toBe(60);
+      expect(res.sessionRequirementSource).toBe('default');
+    });
+
+    it('rejects a misaligned sessionMinutes on update', async () => {
+      repo.findById.mockResolvedValue({ id: subjectId, is_locked: false });
+      await expect(
+        service.update(subjectId, orgId, { sessionMinutes: 45 }),
+      ).rejects.toThrow(/must be a multiple of the school's 30m slot length/);
+    });
+
+    it('locked subjects still cannot be edited, and the lock check wins', async () => {
+      repo.findById.mockResolvedValue({ id: subjectId, is_locked: true });
+      await expect(
+        service.update(subjectId, orgId, { sessionMinutes: 45 }),
+      ).rejects.toThrow(/locked and cannot be modified/);
     });
   });
 });

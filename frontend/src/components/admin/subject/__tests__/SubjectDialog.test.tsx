@@ -2,6 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import type { Subject, SubjectType } from '@/types/admin/subject.types';
+import { buildSubjectPayload } from '@/components/admin/subject/SubjectDialog';
 
 // Mock data for testing
 const mockSubjects: Subject[] = [
@@ -25,6 +26,11 @@ const mockSubjects: Subject[] = [
     lockStatus: 'unlocked',
     yearLevel: null,
     termLabel: null,
+    sessionsPerWeek: null,
+    sessionMinutes: null,
+    effectiveSessionsPerWeek: 2,
+    effectiveSessionMinutes: 90,
+    sessionRequirementSource: 'default',
     prerequisites: [],
     prereqFor: [],
     sharings: [],
@@ -51,6 +57,11 @@ const mockSubjects: Subject[] = [
     lockStatus: 'unlocked',
     yearLevel: null,
     termLabel: null,
+    sessionsPerWeek: null,
+    sessionMinutes: null,
+    effectiveSessionsPerWeek: 2,
+    effectiveSessionMinutes: 90,
+    sessionRequirementSource: 'default',
     prerequisites: [],
     prereqFor: [],
     sharings: [],
@@ -207,9 +218,55 @@ describe('SubjectDialog Duplicate Validation', () => {
       strandId: '',
     };
 
-    const duplicate = checkDuplicateSubject(formValues, mockSubjects, false, false, 'college');
+    const duplicate = checkDuplicateSubject(formValues, mockSubjects, false, true, 'college');
     
     expect(duplicate).toBeTruthy();
     expect(duplicate?.title).toBe('Mathematics');
+  });
+});
+
+describe('buildSubjectPayload name handling', () => {
+  const baseValues = {
+    name: 'CS Thesis / Capstone Project',
+    programId: 'prog1',
+    levelId: 'level1',
+    courseId: 'course1',
+    strandId: '',
+    subjectType: 'major' as SubjectType,
+    sessionsPerWeek: '1',
+    sessionHours: '',
+    sessionMins: '',
+  };
+  const legacySubject = {
+    ...mockSubjects[0],
+    title: 'CS Thesis / Capstone Project',
+  };
+
+  test('omits an unchanged legacy name so the name rule cannot 400 the save', () => {
+    const payload = buildSubjectPayload(baseValues, legacySubject);
+    expect(payload).not.toHaveProperty('name');
+    expect(payload.sessionsPerWeek).toBe(1);
+    expect(payload.sessionMinutes).toBeNull();
+  });
+
+  test('sends an actual rename for validation', () => {
+    const payload = buildSubjectPayload(
+      { ...baseValues, name: 'CS Thesis 2' },
+      legacySubject,
+    );
+    expect(payload).toHaveProperty('name', 'CS Thesis 2');
+  });
+
+  test('always sends the name on create', () => {
+    const payload = buildSubjectPayload(baseValues, undefined);
+    expect(payload).toHaveProperty('name', 'CS Thesis / Capstone Project');
+  });
+
+  test('collapses hours and minutes into one total', () => {
+    const payload = buildSubjectPayload(
+      { ...baseValues, sessionHours: '3', sessionMins: '0' },
+      legacySubject,
+    );
+    expect(payload.sessionMinutes).toBe(180);
   });
 });

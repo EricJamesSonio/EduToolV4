@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -44,6 +44,7 @@ export default function StudentHierarchyPage({
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [removeDependents, setRemoveDependents] = useState(false);
   const [markFilter, setMarkFilter] = useState<"all" | "enrolled" | "completed" | "notyet">("all");
+  const [headerOpen, setHeaderOpen] = useState(true);
 
   const { data: student } = useAsyncQuery(
     queryKeys.admin.students.detail(id),
@@ -223,6 +224,8 @@ export default function StudentHierarchyPage({
     { key: "notyet", label: `Not yet (${notYetCount})` },
   ] as const;
 
+  const activeFilterLabel = filterOptions.find((f) => f.key === markFilter)?.label;
+
   const headerContent = (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -235,36 +238,72 @@ export default function StudentHierarchyPage({
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h1
+          className={`font-bold tracking-tight text-slate-900 ${
+            headerOpen ? "text-2xl" : "text-lg"
+          }`}
+        >
           Subject Hierarchy — {student?.fullName ?? ""}
         </h1>
+
+        {scope && !headerOpen && markFilter !== "all" && (
+          <Badge variant="secondary" className="text-xs">
+            {activeFilterLabel}
+          </Badge>
+        )}
+
+        {scope && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={() => setHeaderOpen((o) => !o)}
+            aria-expanded={headerOpen}
+            aria-controls="hierarchy-header-details"
+          >
+            {headerOpen ? (
+              <>
+                <ChevronUp className="h-4 w-4" />
+                Hide details
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4" />
+                Show details
+              </>
+            )}
+          </Button>
+        )}
       </div>
+
       {scope ? (
-        <>
-          <p className="text-sm">
-            <span className="font-medium">Auto-filtered:</span> {scope.programName}
-            {scope.courseName ? ` · ${scope.courseName}` : ""}
-            {scope.strandName ? ` · ${scope.strandName}` : ""}
-            {scope.levelName ? ` · ${scope.levelName}` : ""}
-          </p>
-          {data && (
-            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-              <SubjectHierarchyLegend ranks={ranks} levelNameOf={levelNameOf} />
-              <div className="flex flex-wrap gap-1.5">
-                {filterOptions.map((f) => (
-                  <Button
-                    key={f.key}
-                    size="sm"
-                    variant={markFilter === f.key ? "default" : "outline"}
-                    onClick={() => setMarkFilter(f.key)}
-                  >
-                    {f.label}
-                  </Button>
-                ))}
+        headerOpen && (
+          <div id="hierarchy-header-details" className="space-y-2">
+            <p className="text-sm">
+              <span className="font-medium">Auto-filtered:</span> {scope.programName}
+              {scope.courseName ? ` · ${scope.courseName}` : ""}
+              {scope.strandName ? ` · ${scope.strandName}` : ""}
+              {scope.levelName ? ` · ${scope.levelName}` : ""}
+            </p>
+            {data && (
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                <SubjectHierarchyLegend ranks={ranks} levelNameOf={levelNameOf} />
+                <div className="flex flex-wrap gap-1.5">
+                  {filterOptions.map((f) => (
+                    <Button
+                      key={f.key}
+                      size="sm"
+                      variant={markFilter === f.key ? "default" : "outline"}
+                      onClick={() => setMarkFilter(f.key)}
+                    >
+                      {f.label}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </>
+            )}
+          </div>
+        )
       ) : (
         <p className="text-sm text-muted-foreground">
           {activeSchoolYearId ? "Student has no program enrollment to scope by." : "Loading enrollment…"}

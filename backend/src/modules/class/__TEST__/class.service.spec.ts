@@ -21,7 +21,13 @@ describe('ClassService', () => {
   function makeSlot(weekday: number, start: string, end: string) {
     return { weekday, startTime: start, endTime: end };
   }
-  function todayISO(hhmm: string) {
+  /** Minutes-of-day for a Date or ISO string, mirroring the occupancy index. */
+function minutesOf(v: Date | string): number {
+  const d = typeof v === 'string' ? new Date(v) : v;
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function todayISO(hhmm: string) {
     const [h, m] = hhmm.split(':').map(Number);
     const d = new Date();
     d.setHours(h, m, 0, 0);
@@ -83,7 +89,85 @@ describe('ClassService', () => {
     // 07:00-17:00 in 30m slots matches the seeded org defaults, so the
     // existing fixtures (08:00-09:00, 09:00-10:00, 10:30-11:30) all pass.
     const orgScheduleConfigService = {
-      getByOrg: jest.fn().mockResolvedValue({ startTime: '07:00', endTime: '17:00', slotDuration: 30 }),
+      getByOrg: jest.fn().mockResolvedValue({
+        startTime: '07:00',
+        endTime: '17:00',
+        slotDuration: 30,
+        activeWeekdays: [0, 1, 2, 3, 4, 5, 6],
+        breaks: [],
+      }),
+    };
+    // 9th ctor arg. The conflict checks moved to ClassOccupancyService, which
+    // loads ONE occupancy index instead of a query per resource per slot.
+    // This shim reproduces that index from the SAME repo mocks the existing
+    // conflict tests already drive, plus `db.classSchedule.findMany` for the
+    // room cases, so every pre-existing fixture keeps testing what it was
+    // written to test.
+    const occupancyService = {
+      load: jest.fn().mockImplementation(async (q: any) => {
+        const out: any[] = [];
+        const sectionId = q?.sectionId ?? null;
+        const slot = (s: any, e: string, sec: string | null, room: string | null) => ({
+          classId: s.class_id ?? s.class?.id,
+          weekday: s.weekday,
+          startMin: minutesOf(s.start_time),
+          endMin: minutesOf(s.end_time),
+          educatorId: e,
+          sectionId: sec,
+          roomId: room,
+        });
+
+        if (q?.educatorId) {
+          const rows =
+            (await repo.findEducatorSchedules(
+              q.educatorId,
+              orgId,
+              schoolYearId,
+            )) ?? [];
+          out.push(...rows.map((s: any) => slot(s, q.educatorId, sectionId, null)));
+        }
+        if (sectionId) {
+          const rows =
+            (await repo.findSectionSchedules(sectionId, orgId, schoolYearId)) ?? [];
+          // A section's other classes belong to other educators, so they must
+          // not also read as this educator's conflict.
+          out.push(
+            ...rows
+              .filter((s: any) => s.class_id !== classId)
+              .map((s: any) => slot(s, 'other-educator', sectionId, null)),
+          );
+        }
+        // Room bookings live on the schedule rows, like the real query. Only
+        // meaningful when the caller actually asked about rooms; the mock's
+        // residue from an earlier case is ignored otherwise.
+        if (q?.roomIds?.length) {
+          const roomRows = (await db.classSchedule.findMany(q)) ?? [];
+          out.push(
+            ...roomRows.map((s: any) =>
+              slot(
+                {
+                  // Fixtures use either the nested `class` shape the real query
+                  // returns or a flat `class_id`; accept both.
+                  class_id: s.class?.id ?? s.class_id,
+                  weekday: s.weekday,
+                  start_time: s.start_time,
+                  end_time: s.end_time,
+                },
+                s.class?.educator_id ?? s.educator_id ?? 'other-educator',
+                s.class?.section_id ?? s.section_id ?? sectionId,
+                s.room_id ?? null,
+              ),
+            ),
+          );
+        }
+        return out;
+      }),
+      assertRoomsOwned: jest.fn().mockImplementation(async (org: string, ids: string[]) => {
+        const owned = await db.room.findMany({ where: { id: { in: ids }, org_id: org } });
+        if (owned.length !== new Set(ids).size) {
+          throw new BadRequestException('One or more selected rooms do not exist.');
+        }
+      }),
     };
     db = {
       subject: { findFirst: jest.fn() },
@@ -99,7 +183,7 @@ describe('ClassService', () => {
       room: { findMany: jest.fn().mockResolvedValue([]) },
       orgScheduleConfig: { findUnique: jest.fn().mockResolvedValue(null) },
     };
-    service = new ClassService(repo, enrollmentService, attendanceService, auditLogService, gradingTemplateService, subjectPrerequisiteService as never, db, orgScheduleConfigService as never);
+    service = new ClassService(repo, enrollmentService, attendanceService, auditLogService, gradingTemplateService, subjectPrerequisiteService as never, db, orgScheduleConfigService as never, occupancyService as never);
     jest.clearAllMocks();
   });
 
@@ -109,10 +193,11 @@ describe('ClassService', () => {
   }
   function mockResolveSemesterSuccess(semesterId = 'sem-1') {
     db.programSemesterAssignment.findFirst.mockResolvedValue({
-      template: { semesters: [{ name: '1st Semester' }] },
+      template: { semesters: [{ id: 'tsi-1', name: '1st Semester' }] },
     });
+    // 1st lookup is by template_semester_id; if that misses, by name.
     db.semester.findFirst
-      .mockResolvedValueOnce({ id: semesterId, name: '1st Semester' }) // by name
+      .mockResolvedValueOnce({ id: semesterId, name: '1st Semester' })
       .mockResolvedValue({ id: semesterId });
   }
 
@@ -150,11 +235,28 @@ describe('ClassService', () => {
       expect(res.id).toBe(classId);
     });
 
-    it('resolves semester via template name match', async () => {
+    it('resolves semester via the template_semester_id link', async () => {
       mockResolveProgramIdSuccess();
       db.program.findFirst.mockResolvedValue({ type: 'college' });
-      db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ name: '1st Semester' }] } });
-      db.semester.findFirst.mockResolvedValueOnce({ id: 'sem-matched', name: '1st Semester' });
+      db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ id: 'tsi-1', name: '1st Semester' }] } });
+      db.semester.findFirst.mockResolvedValueOnce({ id: 'sem-linked', name: '1st Semester' });
+      repo.findEducatorSchedules.mockResolvedValue([]);
+      repo.create.mockResolvedValue({ id: classId });
+      repo.findById.mockResolvedValue({ id: classId });
+      await service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ semesterId: 'sem-linked' }));
+      expect(db.semester.findFirst.mock.calls[0][0].where).toEqual(
+        expect.objectContaining({ template_semester_id: 'tsi-1' }),
+      );
+    });
+
+    it('falls back to a name match WITHIN the same program', async () => {
+      mockResolveProgramIdSuccess();
+      db.program.findFirst.mockResolvedValue({ type: 'college' });
+      db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ id: 'tsi-1', name: '1st Semester' }] } });
+      db.semester.findFirst
+        .mockResolvedValueOnce(null) // template link missing
+        .mockResolvedValueOnce({ id: 'sem-matched' }); // same program + name
       repo.findEducatorSchedules.mockResolvedValue([]);
       repo.create.mockResolvedValue({ id: classId });
       repo.findById.mockResolvedValue({ id: classId });
@@ -162,26 +264,32 @@ describe('ClassService', () => {
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ semesterId: 'sem-matched' }));
     });
 
-    it('fallback to any semester when name not found', async () => {
+    it('SCOPES every semester lookup to the class program', async () => {
+      // Regression guard: matching on name alone let a class land under
+      // another program's "1st Semester". No lookup may omit program_id.
       mockResolveProgramIdSuccess();
       db.program.findFirst.mockResolvedValue({ type: 'college' });
-      db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ name: '1st Semester' }] } });
-      db.semester.findFirst
-        .mockResolvedValueOnce(null) // name lookup fails
-        .mockResolvedValueOnce({ id: 'sem-fallback' }); // fallback succeeds
-      repo.findEducatorSchedules.mockResolvedValue([]);
-      repo.create.mockResolvedValue({ id: classId });
-      repo.findById.mockResolvedValue({ id: classId });
-      await service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
-      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ semesterId: 'sem-fallback' }));
+      db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ id: 'tsi-1', name: '1st Semester' }] } });
+      db.semester.findFirst.mockResolvedValue(null);
+      await expect(
+        service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      for (const call of db.semester.findFirst.mock.calls) {
+        expect(call[0].where).toEqual(expect.objectContaining({ program_id: programId }));
+        expect(call[0].where).toEqual(expect.objectContaining({ org_id: orgId }));
+      }
+      expect(db.semester.findFirst).toHaveBeenCalledTimes(3);
     });
 
-    it('throws BadRequest when no semesters for school year', async () => {
+    it('throws BadRequest when no semesters for this PROGRAM (not the school year)', async () => {
       mockResolveProgramIdSuccess();
       db.program.findFirst.mockResolvedValue({ type: 'college' });
-      db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ name: '1st Semester' }] } });
-      db.semester.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
-      await expect(service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId)).rejects.toBeInstanceOf(BadRequestException);
+      db.programSemesterAssignment.findFirst.mockResolvedValue({ template: { semesters: [{ id: 'tsi-1', name: '1st Semester' }] } });
+      db.semester.findFirst.mockResolvedValue(null);
+      await expect(
+        service.create(orgId, { subjectId, educatorId, schoolYearId, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId),
+      ).rejects.toThrow(/No semesters found for this program/);
     });
 
     it('throws BadRequest when schedule start >= end', async () => {

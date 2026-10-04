@@ -26,13 +26,51 @@ import {
 } from './subject.types';
 import { mapSubjectToResponse } from './subject.mapper';
 import { validateSubjectScope } from './subject.validator';
+import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 
 @Injectable()
 export class SubjectService {
   constructor(
     private readonly subjectRepository: SubjectRepository,
     private readonly db: DatabaseService,
+    /**
+     * The org's slot duration, needed to validate `sessionMinutes`.
+     *
+     * Typed as the narrow `OrgScheduleConfigProvider` contract rather than the
+     * concrete service, so subject -> org-schedule-config stays
+     * one-directional and this service is trivial to unit-test. It is imported
+     * as a VALUE, not `import type`: `emitDecoratorMetadata` makes Nest read the
+     * runtime token off the constructor, and a type-only import erases it,
+     * leaving Nest unable to resolve the dependency at boot.
+     */
+    private readonly orgScheduleConfigService: OrgScheduleConfigProvider,
   ) {}
+
+  /** Slot length used for the alignment rule. Falls back to 30 if unavailable. */
+  private async slotMinutes(orgId: string): Promise<number> {
+    const cfg = await this.orgScheduleConfigService.getByOrg(orgId);
+    return cfg.slotDuration || 30;
+  }
+
+  /**
+   * An explicit `sessionMinutes` must be a whole number of slots, otherwise a
+   * class built from it could never sit on the grid.
+   *
+   * Only explicit values are checked. A default that is not a multiple is
+   * rounded up by the resolver, so this never rejects an untouched subject.
+   */
+  private async assertSessionMinutesAligned(
+    orgId: string,
+    sessionMinutes: number | undefined,
+  ): Promise<void> {
+    if (sessionMinutes == null) return;
+    const slot = await this.slotMinutes(orgId);
+    if (sessionMinutes % slot !== 0) {
+      throw new BadRequestException(
+        `Minutes per session must be a multiple of the school's ${slot}m slot length. ${sessionMinutes}m is not.`,
+      );
+    }
+  }
 
   async create(orgId: string, dto: CreateSubjectDto): Promise<SubjectResponse> {
     const program = (await this.subjectRepository.findProgramById(
@@ -42,6 +80,7 @@ export class SubjectService {
     if (!program) throw new NotFoundException('Program not found.');
 
     validateSubjectScope(dto, program.type);
+    await this.assertSessionMinutesAligned(orgId, dto.sessionMinutes);
 
     const existingSubject = await this.subjectRepository.findDuplicateByName(
       orgId,
@@ -66,8 +105,10 @@ export class SubjectService {
       strandId: dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
+      sessionsPerWeek: dto.sessionsPerWeek ?? null,
+      sessionMinutes: dto.sessionMinutes ?? null,
     })) as SubjectRecord;
-    return mapSubjectToResponse(subject);
+    return mapSubjectToResponse(subject, await this.slotMinutes(orgId));
   }
 
   async findAll(
@@ -95,8 +136,10 @@ export class SubjectService {
       limit,
     });
 
+    const slot = await this.slotMinutes(orgId);
+
     return {
-      data: data.map((s) => mapSubjectToResponse(s)),
+      data: data.map((s) => mapSubjectToResponse(s, slot)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -107,7 +150,7 @@ export class SubjectService {
       orgId,
     )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
-    return mapSubjectToResponse(subject);
+    return mapSubjectToResponse(subject, await this.slotMinutes(orgId));
   }
 
   async update(
@@ -125,6 +168,8 @@ export class SubjectService {
         'This subject is locked and cannot be modified. Unlock it first.',
       );
     }
+
+    await this.assertSessionMinutesAligned(orgId, dto.sessionMinutes);
 
     const programChanged =
       !!dto.programId && dto.programId !== subject.program_id;
@@ -191,8 +236,10 @@ export class SubjectService {
         scopeChanged && dto.strandId === undefined ? null : dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
+      sessionsPerWeek: dto.sessionsPerWeek,
+      sessionMinutes: dto.sessionMinutes,
     })) as SubjectRecord;
-    return mapSubjectToResponse(updated);
+    return mapSubjectToResponse(updated, await this.slotMinutes(orgId));
   }
 
   async lock(id: string, orgId: string): Promise<SubjectResponse> {
@@ -207,7 +254,7 @@ export class SubjectService {
       id,
       true,
     )) as SubjectRecord;
-    return mapSubjectToResponse(updated);
+    return mapSubjectToResponse(updated, await this.slotMinutes(orgId));
   }
 
   async unlock(id: string, orgId: string): Promise<SubjectResponse> {
@@ -222,7 +269,7 @@ export class SubjectService {
       id,
       false,
     )) as SubjectRecord;
-    return mapSubjectToResponse(updated);
+    return mapSubjectToResponse(updated, await this.slotMinutes(orgId));
   }
 
   async unlockAllForOrg(orgId: string) {

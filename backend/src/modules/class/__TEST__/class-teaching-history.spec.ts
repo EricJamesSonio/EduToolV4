@@ -50,6 +50,7 @@ describe('Phase 6 — Educator Teaching History', () => {
       { checkEligibility: jest.fn().mockResolvedValue({ eligible: true, missing: [] }) } as never,
       {} as never,
       {} as never,
+      {} as never,
     );
 
     const history = await service.getEducatorTeachingHistory('edu-1', 'org-1');

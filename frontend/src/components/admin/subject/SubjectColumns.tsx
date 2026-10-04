@@ -66,27 +66,7 @@ export function useSubjectColumns(
         );
       },
     },
-    {
-      header: "Lock Status",
-      accessorKey: "lockStatus",
-      cell: (info) => {
-        const status = info.getValue<string>();
-        const locked = status === "locked";
-        return (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-sm",
-              locked
-                ? "bg-muted text-muted-foreground"
-                : "badge-success"
-            )}
-          >
-            {locked ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
-            {locked ? "Locked" : "Unlocked"}
-          </span>
-        );
-      },
-    },
+
     {
       header: "Actions",
       cell: (info) => {

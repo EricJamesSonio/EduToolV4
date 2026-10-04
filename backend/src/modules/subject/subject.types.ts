@@ -21,6 +21,8 @@ export interface SubjectRecord {
   is_locked: boolean;
   year_level: number | string | null;
   term_label: string | null;
+  sessions_per_week: number | null;
+  session_minutes: number | null;
   prerequisites: unknown[];
   prereqFor: unknown[];
   sharings: unknown[];
@@ -66,6 +68,14 @@ export interface SubjectResponse {
   lockStatus: 'locked' | 'unlocked';
   yearLevel: number | string | null;
   termLabel: string | null;
+  /** Explicit weekly requirement, or null to mean "use the program default". */
+  sessionsPerWeek: number | null;
+  sessionMinutes: number | null;
+  /** Effective values after default resolution. Always populated. */
+  effectiveSessionsPerWeek: number;
+  effectiveSessionMinutes: number;
+  /** Whether the effective values came from the subject or the default. */
+  sessionRequirementSource: 'explicit' | 'default';
   prerequisites: unknown[];
   prereqFor: unknown[];
   sharings: unknown[];

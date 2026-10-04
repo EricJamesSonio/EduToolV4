@@ -26,6 +26,9 @@ export interface CreateSubjectRequest {
   strandId?: string;
   yearLevel?: string;
   termLabel?: string;
+  /** Optional. Omit or null to fall back to the program-type default. */
+  sessionsPerWeek?: number | null;
+  sessionMinutes?: number | null;
 }
 
 export interface UpdateSubjectRequest {
@@ -37,6 +40,9 @@ export interface UpdateSubjectRequest {
   strandId?: string | null;
   yearLevel?: string;
   termLabel?: string;
+  /** null clears back to the program-type default. */
+  sessionsPerWeek?: number | null;
+  sessionMinutes?: number | null;
 }
 
 export interface GetSubjectsQuery {
@@ -88,6 +94,12 @@ interface SubjectResponse {
   yearLevel?: string | null;
   termLabel?: string | null;
 
+  sessionsPerWeek?: number | null;
+  sessionMinutes?: number | null;
+  effectiveSessionsPerWeek?: number;
+  effectiveSessionMinutes?: number;
+  sessionRequirementSource?: "explicit" | "default";
+
   prerequisites?: unknown[];
   prereqFor?: unknown[];
 
@@ -134,6 +146,14 @@ function mapSubject(s: SubjectResponse): Subject {
 
     yearLevel: s.yearLevel ?? null,
     termLabel: s.termLabel ?? null,
+
+    sessionsPerWeek: s.sessionsPerWeek ?? null,
+    sessionMinutes: s.sessionMinutes ?? null,
+    // Always populated by the backend (resolved against the program default),
+    // so the table can render a value even when nothing is configured.
+    effectiveSessionsPerWeek: s.effectiveSessionsPerWeek ?? 5,
+    effectiveSessionMinutes: s.effectiveSessionMinutes ?? 60,
+    sessionRequirementSource: s.sessionRequirementSource ?? "default",
 
     prerequisites: s.prerequisites ?? [],
     prereqFor: s.prereqFor ?? [],

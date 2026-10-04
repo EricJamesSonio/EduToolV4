@@ -7,7 +7,7 @@ import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { DoorOpen, GraduationCap, Plus } from "lucide-react";
+import { DoorOpen, GraduationCap, Plus, Wand2 } from "lucide-react";
 import { useClassPreset } from "@/hooks/admin/useClassPreset";
 import { ClassPresetButton } from "@/components/admin/class/ClassPresetButton";
 
@@ -301,6 +301,20 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
           >
             <DoorOpen className="mr-1.5 h-4 w-4" />
             Rooms
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              ensureOrganization(() =>
+                router.push(
+                  `/admin/classes/generate?schoolYearId=${selectedSchoolYearId}`,
+                ),
+              )
+            }
+          >
+            <Wand2 className="mr-1.5 h-4 w-4" />
+            Auto-generate
           </Button>
           <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />

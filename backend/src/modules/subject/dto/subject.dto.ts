@@ -7,12 +7,37 @@ import {
   MinLength,
   MaxLength,
   Min,
+  Max,
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { IsEntityName } from '@/commons/validators/is-entity-name.validator';
 
-export class CreateSubjectDto {
+/**
+ * Shared by create and update: optional weekly session requirement.
+ *
+ * Declared before the subclasses because `extends` is evaluated at class
+ * definition time — a base class declared further down would be in the TDZ.
+ */
+export class SubjectSessionRequirementDto {
+  /** Times per week. 1-7. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  sessionsPerWeek?: number;
+
+  /** Length of each session in minutes. Must be a multiple of the org slot. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(5)
+  @Max(480)
+  sessionMinutes?: number;
+}
+
+export class CreateSubjectDto extends SubjectSessionRequirementDto {
   @IsEntityName()
   @MinLength(2)
   @MaxLength(150)
@@ -50,7 +75,7 @@ export class CreateSubjectDto {
   termLabel?: string;
 }
 
-export class UpdateSubjectDto {
+export class UpdateSubjectDto extends SubjectSessionRequirementDto {
   @IsEntityName()
   @IsOptional()
   @MinLength(2)
