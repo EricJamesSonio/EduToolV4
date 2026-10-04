@@ -1,6 +1,6 @@
 # TICK-CLASS-004 — Generator scope filters: department/course/strand/level + educator select + coverage
 
-Status: in-progress
+Status: blocked
 Priority: high
 Created: 2026-10-04
 Created by: agent
@@ -53,11 +53,12 @@ Auto-generate (`frontend/src/app/admin/classes/generate/page.tsx`) only filters 
 
 ## Blocker
 
-None.
+Blocked 2026-10-04: the files this ticket modifies do not exist on `origin/development` (feature worktree base `f30fd9c4` has no `class-generator` module, no `classes/generate/page.tsx`). They exist only as: (a) committed-but-unpushed work on local `development` (13 ahead: TICK-CLASS-003 commits `123dbfb1..28445124` — backend generator only), and (b) another agent's **uncommitted** WIP in the main checkout (`frontend/src/app/admin/classes/generate/page.tsx`, `ClassGeneratorPanels.tsx`, `generatorReadinessTargets.ts` untracked + modified backend generator files). Per AGENTS.md §3/§6 and current-state.md ("another agent's active work, do not touch"), building on (b) would violate worktree isolation. Awaiting owner decision (see question in chat).
 
 ## Activity Log
 
 2026-10-04 — Claimed (counter CLASS 3 -> 4). Worktree + branch per AGENTS.md.
+2026-10-04 — Base verification failed: origin/development lacks the generator; main-checkout WIP belongs to another agent. Ticket set to blocked, worktree kept but untouched (no code changes made).
 
 ## Commits
 
