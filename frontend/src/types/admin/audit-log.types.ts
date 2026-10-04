@@ -56,10 +56,15 @@ export interface AuditLog {
   id: string;
   orgId: string;
   actorId: string;
+  /** Resolved by the server from actorId. Null if the account no longer exists. */
+  actorName?: string | null;
+  actorRole?: string | null;
   logType?: string;
   action: AdminActionType | string;
   entityType: string;
   entityId: string;
+  /** Resolved by the server from entityId. Null if the item was deleted. */
+  entityName?: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
@@ -68,10 +73,13 @@ export interface ActivityLog {
   id: string;
   orgId: string;
   actorId: string;
+  actorName?: string | null;
+  actorRole?: string | null;
   logType?: string;
   action: EducatorActivityType | string;
   entityType: string;
   entityId: string;
+  entityName?: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
