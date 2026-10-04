@@ -16,7 +16,6 @@ export function DefaultGradeTableInner({
   termData,
   onManualCommit,
   saving,
-  refreshKey,
   isLocked,
   onRefresh,
 }: {
@@ -24,7 +23,6 @@ export function DefaultGradeTableInner({
   termData: TermGrades;
   onManualCommit: (studentId: string, category: string, value: number) => void;
   saving: Set<string>;
-  refreshKey: number;
   isLocked: boolean;
   onRefresh: () => void;
 }) {

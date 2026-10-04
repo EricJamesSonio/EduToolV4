@@ -9,9 +9,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useTermGrades, useComputeGrades } from "@/hooks/educator/useGrades";
+import { useTermGrades, useComputeGrades, useSetManualScore } from "@/hooks/educator/useGrades";
+import { useLockClassGrades } from "@/hooks/educator/useGradeLock";
 import { cn } from "@/lib/utils";
-import apiClient from "@/api/client";
 
 // Re-use the same sub-components from the parent page.
 // In a real codebase these would live in a shared grades/ components folder.
@@ -84,24 +84,23 @@ export default function TermGradesPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("default");
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
-  const [locking, setLocking] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
+
+  const manualScoreMutation = useSetManualScore(classId, termId);
+  const lockMutation = useLockClassGrades(classId);
 
   const handleManualCommit = useCallback(async (studentId: string, category: string, value: number) => {
     const key = `${studentId}-${category}`;
     setSaving((prev) => new Set(prev).add(key));
     try {
-      await apiClient.patch(
-        `/classes/${classId}/grades/${termId}/students/${studentId}/manual`,
-        { category, score: value }
-      );
+      await manualScoreMutation.mutateAsync({ studentId, category, score: value });
       toast.success(`${category} score updated.`);
     } catch {
       toast.error("Failed to save score.");
     } finally {
       setSaving((prev) => { const n = new Set(prev); n.delete(key); return n; });
     }
-  }, [classId, termId]);
+  }, [manualScoreMutation]);
 
   const handleCompute = async () => {
     try {
@@ -113,15 +112,12 @@ export default function TermGradesPage() {
   };
 
   const handleLock = async () => {
-    setLocking(true);
     try {
-      await apiClient.post(`/grade-lock/${classId}/lock`);
+      await lockMutation.mutateAsync();
       toast.success("Grades locked successfully.");
       setLockDialogOpen(false);
     } catch {
       toast.error("Failed to lock grades.");
-    } finally {
-      setLocking(false);
     }
   };
 
@@ -325,9 +321,9 @@ export default function TermGradesPage() {
         title="Lock Grades"
         destructive
         message="Locking grades will publish final scores to all students and prevent further edits. Admin override is required to undo."
-        confirmLabel={locking ? "Locking..." : "Lock Grades"}
+        confirmLabel={lockMutation.isPending ? "Locking..." : "Lock Grades"}
         onConfirm={handleLock}
-        isLoading={locking}
+        isLoading={lockMutation.isPending}
       />
     </div>
   );
