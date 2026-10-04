@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Trash2, Mail, Hash, User, Pencil } from "lucide-react";
-import { useEducator, useDeleteEducator, useResetEducatorPassword } from "@/hooks/admin/useEducators";
+import { useEducator, useDeleteEducator, useResetEducatorPassword, useTeachableSubjects } from "@/hooks/admin/useEducators";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
@@ -24,6 +24,8 @@ import { schoolYearApi } from "@/api/admin/school-year.api";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { AxiosError } from "axios";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { classApi } from "@/api/admin/class.api";
 
 function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -53,6 +55,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
   } | null>(null);
 
   const { data: educator, isLoading } = useEducator(id);
+    const [tab, setTab] = useState<"subjects" | "classes">("classes");
+  const { data: teachableSubjects } = useTeachableSubjects(id);
+  const { data: assignedClasses } = useAsyncQuery(
+    queryKeys.admin.classes.list({ educatorId: id }),
+    () => classApi.getAll({ educatorId: id }),
+  );
   const resetMutation  = useResetEducatorPassword();
   const deleteMutation = useDeleteEducator();
 
@@ -172,19 +180,33 @@ export default function EducatorDetailPage(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Generator inputs: what this educator can teach, and when. */}
-      <div className="rounded-lg border bg-card p-5 space-y-6">
-        <EducatorTeachableSubjectsCard
-          educatorId={educator.id}
-          schoolYearId={schoolYearId}
-        />
-        <Separator />
-        <EducatorAvailabilityCard educatorId={educator.id} />
+      {/* Assignments: subjects and classes */}
+      <div className="rounded-lg border bg-card p-5">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "subjects" | "classes")}>
+          <TabsList>
+            <TabsTrigger value="classes" className="px-3">
+              Classes ({assignedClasses?.length ?? 0})
+            </TabsTrigger>
+            <TabsTrigger value="subjects" className="px-3">
+              Subjects ({teachableSubjects?.length ?? 0})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="classes" className="pt-3">
+            <EducatorClassAssignmentManager educatorId={educator.id} />
+          </TabsContent>
+          <TabsContent value="subjects" className="pt-3">
+            <EducatorTeachableSubjectsCard
+              educatorId={educator.id}
+              schoolYearId={schoolYearId}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
-      {/* Class assignment manager */}
+      {/* Generator input: when this educator can be scheduled. */}
       <div className="rounded-lg border bg-card p-5">
-        <EducatorClassAssignmentManager educatorId={educator.id} />
+        <EducatorAvailabilityCard educatorId={educator.id} />
       </div>
 
       {/* Danger zone */}

@@ -3,6 +3,7 @@ import type {
   GeneratePreview,
   GenerateReadiness,
   GenerateRequest,
+  GeneratorRoster,
   CommitGenerateRequest,
   CommitGenerateResponse,
 } from "@/types/admin/class-generator.types";
@@ -25,6 +26,15 @@ export const classGeneratorApi = {
     const res = await client.get<ApiResponse<GenerateReadiness>>(
       "/class-generator/readiness",
       { params },
+    );
+    return res.data.data;
+  },
+
+  /** Who can teach what this school year. Read-only. */
+  roster: async (schoolYearId: string): Promise<GeneratorRoster> => {
+    const res = await client.get<ApiResponse<GeneratorRoster>>(
+      "/class-generator/roster",
+      { params: { schoolYearId } },
     );
     return res.data.data;
   },

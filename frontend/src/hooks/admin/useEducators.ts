@@ -20,8 +20,11 @@ import type {
   CarryOverEducatorSubjectsResponse,
   SetEducatorScheduleProfileRequest,
   EducatorScheduleProfile,
+  EducatorCapacity,
   TeachableSubject,
   SubjectEducator,
+  SubjectSlotAssignment,
+  SetSubjectSlotsResponse,
 } from "@/api/admin/educator.api";
 
 import type { Educator } from "@/types/admin/educator.types";
@@ -342,7 +345,10 @@ export const useCarryOverTeachableSubjects = () => {
       invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
       onSuccess: (result) => {
         toast.success(
-          `Copied ${result.created} subject link${result.created === 1 ? "" : "s"}.` +
+          `Copied ${result.created} subject link${result.created === 1 ? "" : "s"}` +
+            (result.sectionsCarried > 0
+              ? ` with ${result.sectionsCarried} section assignment${result.sectionsCarried === 1 ? "" : "s"}.`
+              : ".") +
             (result.unmatched.length > 0
               ? ` ${result.unmatched.length} could not be matched.`
               : ""),
@@ -351,6 +357,44 @@ export const useCarryOverTeachableSubjects = () => {
       onError: (error: any) => {
         toast.error(
           error?.response?.data?.message || "Failed to copy subjects.",
+        );
+      },
+    },
+  );
+};
+
+export const useEducatorCapacity = (
+  educatorId: string | undefined,
+  schoolYearId: string | undefined,
+) =>
+  useAsyncQuery<EducatorCapacity>(
+    [...queryKeys.admin.educators.all, "capacity", educatorId ?? "", schoolYearId ?? ""] as const,
+    () => educatorApi.getCapacity(educatorId!, schoolYearId!),
+    { enabled: !!educatorId && !!schoolYearId, staleTime: 30_000 },
+  );
+
+export const useSetSubjectSlots = () => {
+  return useMutationWithInvalidation<
+    SetSubjectSlotsResponse,
+    Error,
+    {
+      educatorId: string;
+      schoolYearId: string;
+      assignments: SubjectSlotAssignment[];
+    }
+  >(
+    ({ educatorId, schoolYearId, assignments }) =>
+      educatorApi.setSubjectSlots(educatorId, schoolYearId, assignments),
+    {
+      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
+      onSuccess: (result) => {
+        toast.success(
+          `Saved slots for ${result.updated} subject${result.updated === 1 ? "" : "s"}.`,
+        );
+      },
+      onError: (error: any) => {
+        toast.error(
+          error?.response?.data?.message || "Failed to save slots.",
         );
       },
     },

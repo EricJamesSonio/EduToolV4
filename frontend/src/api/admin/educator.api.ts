@@ -54,6 +54,36 @@ export interface TeachableSubject {
   courseName: string | null;
   strandId: string | null;
   strandName: string | null;
+  /** Sections this educator handles for the subject. */
+  sectionIds: string[];
+  /** Weekly slot positions picked per section. */
+  sectionSlots: Array<{ sectionId: string; slots: number[] }>;
+}
+
+export interface SubjectSlotPick {
+  sectionId: string;
+  /** 1-based weekly positions, e.g. [1, 2] of a 2x/week subject. */
+  slots: number[];
+}
+
+export interface SubjectSlotAssignment {
+  subjectId: string;
+  sections: SubjectSlotPick[];
+}
+
+export interface SetSubjectSlotsResponse {
+  updated: number;
+}
+
+export interface EducatorCapacity {
+  capacityMin: number;
+  existingMin: number;
+  pickedMin: number;
+  remainingMin: number;
+  effectiveWeekdays: number[];
+  windowStart: string;
+  windowEnd: string;
+  slotDuration: number;
 }
 
 export interface SetEducatorSubjectsRequest {
@@ -74,6 +104,7 @@ export interface CarryOverUnmatched {
 
 export interface CarryOverEducatorSubjectsResponse {
   created: number;
+  sectionsCarried: number;
   educatorsProcessed: number;
   unmatched: CarryOverUnmatched[];
 }
@@ -105,8 +136,6 @@ export interface EducatorScheduleProfile {
 export interface SetEducatorScheduleProfileRequest {
   useCustomAvailability: boolean;
   availableWeekdays: number[];
-  maxMinutesPerDay?: number | null;
-  maxMinutesPerWeek?: number | null;
 }
 
 export interface GetEducatorsQuery {
@@ -189,6 +218,31 @@ export const educatorApi = {
     const res = await client.put<ApiResponse<{ count: number }>>(
       `/educators/${educatorId}/subjects`,
       { subjectIds }
+    );
+    return res.data.data;
+  },
+
+  /** Weekly capacity breakdown for the assignment UI. */
+  getCapacity: async (
+    educatorId: string,
+    schoolYearId: string,
+  ): Promise<EducatorCapacity> => {
+    const res = await client.get<ApiResponse<EducatorCapacity>>(
+      `/educators/${educatorId}/capacity`,
+      { params: { schoolYearId } },
+    );
+    return res.data.data;
+  },
+
+  /** Replaces which weekly slot positions the educator handles per subject. */
+  setSubjectSlots: async (
+    educatorId: string,
+    schoolYearId: string,
+    assignments: SubjectSlotAssignment[],
+  ): Promise<SetSubjectSlotsResponse> => {
+    const res = await client.put<ApiResponse<SetSubjectSlotsResponse>>(
+      `/educators/${educatorId}/subject-slots`,
+      { schoolYearId, assignments },
     );
     return res.data.data;
   },

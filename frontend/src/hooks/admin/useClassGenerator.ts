@@ -6,6 +6,7 @@ import type {
   GenerateRequest,
   GeneratePreview,
   GenerateReadiness,
+  GeneratorRoster,
   CommitGenerateResponse,
 } from "@/types/admin/class-generator.types";
 import type { AxiosError } from "axios";
@@ -36,6 +37,18 @@ export const useGeneratorReadiness = (
     staleTime: 30_000,
   });
 };
+
+/**
+ * Who can teach what this school year, for the generate page's roster panel.
+ * Read-only and year-scoped.
+ */
+export const useGeneratorRoster = (schoolYearId: string | undefined) =>
+  useQuery<GeneratorRoster>({
+    queryKey: queryKeys.admin.classGenerator.roster(schoolYearId ?? ""),
+    queryFn: () => classGeneratorApi.roster(schoolYearId!),
+    enabled: !!schoolYearId,
+    staleTime: 30_000,
+  });
 
 /** Builds a plan. Writes nothing, so it is safe to call repeatedly. */
 export const useGeneratePreview = () =>

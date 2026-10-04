@@ -52,6 +52,9 @@ export function SchedulePanel({
     windowEndMin,
     stepMin,
     showAllDays,
+    isConfigured,
+    isLoading: windowLoading,
+    isError: windowError,
     activeWeekdays,
     blockedRanges,
   } = useScheduleWindow();
@@ -100,6 +103,16 @@ export function SchedulePanel({
         blockedRanges={blockedRanges}
         showAllDays={showAllDays}
       />
+      {/* The grid silently fits the class span when the school window is
+          missing. Say so, so a misconfigured Organization → Schedule tab is
+          diagnosable instead of looking like a rendering bug. */}
+      {!isConfigured && !windowLoading ? (
+        <p className="text-[11px] text-muted-foreground">
+          {windowError
+            ? "School hours could not be loaded — showing the class span only. Check Organization → Schedule."
+            : "School hours are not set — showing the class span only. Set them in Organization → Schedule."}
+        </p>
+      ) : null}
       {footer}
     </div>
   );

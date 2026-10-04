@@ -42,7 +42,6 @@ import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ClassesFilterBar } from "@/components/admin/class/ClassesFilterBar";
 import { ClassesTable } from "@/components/admin/class/ClassesTable";
 import { CreateClassDialog } from "@/components/admin/class/CreateClassDialog";
-import { ClassGeneratorDialog } from "@/components/admin/class/ClassGeneratorDialog";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 function ClassesPageInner(): React.JSX.Element {
@@ -57,7 +56,6 @@ function ClassesPageInner(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(
     defaultSubjectId !== undefined
   );
-  const [generatorOpen, setGeneratorOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<Class | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
@@ -308,7 +306,11 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
             variant="outline"
             size="sm"
             onClick={() =>
-              ensureOrganization(() => setGeneratorOpen(true))
+              ensureOrganization(() =>
+                router.push(
+                  `/admin/classes/generate?schoolYearId=${selectedSchoolYearId}`,
+                ),
+              )
             }
           >
             <Wand2 className="mr-1.5 h-4 w-4" />
@@ -386,16 +388,6 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
      defaultSectionId={presetActive ? preset!.sectionId : undefined}
    />
       )}
-
-      {generatorOpen && (
-        <ClassGeneratorDialog
-          open={generatorOpen}
-          onClose={() => setGeneratorOpen(false)}
-          schoolYearId={selectedSchoolYearId ?? undefined}
-          onGenerated={() => setGeneratorOpen(false)}
-        />
-      )}
-
 
       {archiveTarget && (
         <ConfirmDialog

@@ -10,7 +10,6 @@ import {
 } from "@/hooks/admin/useEducators";
 import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,16 +39,12 @@ export function EducatorAvailabilityCard({
 
   const [useCustom, setUseCustom] = useState(false);
   const [days, setDays] = useState<number[]>([]);
-  const [perDay, setPerDay] = useState("");
-  const [perWeek, setPerWeek] = useState("");
 
   // Seed the form once the profile arrives.
   useEffect(() => {
     if (!profile) return;
     setUseCustom(profile.useCustomAvailability);
     setDays(profile.availableWeekdays ?? []);
-    setPerDay(profile.maxMinutesPerDay ? String(profile.maxMinutesPerDay) : "");
-    setPerWeek(profile.maxMinutesPerWeek ? String(profile.maxMinutesPerWeek) : "");
   }, [profile]);
 
   // A day the school is closed can never be used, so it renders disabled
@@ -72,8 +67,6 @@ export function EducatorAvailabilityCard({
   const resetToDefault = () => {
     setUseCustom(false);
     setDays([]);
-    setPerDay("");
-    setPerWeek("");
   };
 
   const save = () => {
@@ -82,8 +75,6 @@ export function EducatorAvailabilityCard({
         educatorId,
         useCustomAvailability: useCustom,
         availableWeekdays: useCustom ? days : [],
-        maxMinutesPerDay: perDay ? Number(perDay) : null,
-        maxMinutesPerWeek: perWeek ? Number(perWeek) : null,
       },
       {
         onError: (err: unknown) => {
@@ -104,9 +95,7 @@ export function EducatorAvailabilityCard({
   const dirty =
     !!profile &&
     (useCustom !== profile.useCustomAvailability ||
-      !sameDays(days, profile.availableWeekdays ?? []) ||
-      perDay !== (profile.maxMinutesPerDay ? String(profile.maxMinutesPerDay) : "") ||
-      perWeek !== (profile.maxMinutesPerWeek ? String(profile.maxMinutesPerWeek) : ""));
+      !sameDays(days, profile.availableWeekdays ?? []));
 
   return (
     <div className="space-y-4">
@@ -159,7 +148,8 @@ export function EducatorAvailabilityCard({
 
       {!useCustom ? (
         <p className="text-xs text-muted-foreground">
-          This educator can be scheduled on any day the school holds classes.
+          This educator can be scheduled on any day the school holds classes,
+          for the full daily window set in Organization → Schedule.
         </p>
       ) : (
         <div className="space-y-2">
@@ -201,35 +191,6 @@ export function EducatorAvailabilityCard({
           ) : null}
         </div>
       )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Max minutes per day</Label>
-          <Input
-            type="number"
-            min={1}
-            step={15}
-            value={perDay}
-            onChange={(e) => setPerDay(e.target.value)}
-            placeholder="No limit"
-            disabled={isLoading}
-            className="h-9"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Max minutes per week</Label>
-          <Input
-            type="number"
-            min={1}
-            step={30}
-            value={perWeek}
-            onChange={(e) => setPerWeek(e.target.value)}
-            placeholder="No limit"
-            disabled={isLoading}
-            className="h-9"
-          />
-        </div>
-      </div>
 
       <p className="text-[11px] text-muted-foreground">
         Narrowing availability never moves an existing class. Classes already

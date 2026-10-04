@@ -409,6 +409,13 @@ export const adminQueryKeys = {
         schoolYearId,
         programIds,
       ] as const,
+    roster: (schoolYearId: string) =>
+      [
+        ...adminKeys.all,
+        'class-generator',
+        'roster',
+        schoolYearId,
+      ] as const,
   },
 
   concerns: {

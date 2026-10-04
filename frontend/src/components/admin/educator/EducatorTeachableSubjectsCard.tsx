@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   BookOpen,
-  Check,
   CopyCheck,
   Loader2,
-  Save,
-  Search,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -18,31 +16,22 @@ import {
   useSetTeachableSubjects,
   useCarryOverTeachableSubjects,
 } from "@/hooks/admin/useEducators";
-import { useSubjects } from "@/hooks/admin/useSubject";
+import { useGeneratorRoster } from "@/hooks/admin/useClassGenerator";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { sectionApi } from "@/api/admin/section.api";
+import type { TeachableSubject } from "@/api/admin/educator.api";
+import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { TeachableSubjectsModal } from "@/components/admin/educator/TeachableSubjectsModal";
 import type { AxiosError } from "axios";
 
 interface EducatorTeachableSubjectsCardProps {
   educatorId: string;
   schoolYearId?: string;
-}
-
-/** Groups subjects by department, then level, for a scannable picker. */
-function groupKey(s: {
-  programName: string | null;
-  levelName: string | null;
-}): string {
-  return `${s.programName ?? "Unassigned"} › ${s.levelName ?? "—"}`;
 }
 
 interface UnmatchedLink {
@@ -51,68 +40,66 @@ interface UnmatchedLink {
   reason: string;
 }
 
+const MAX_SECTION_BADGES = 3;
+
 export function EducatorTeachableSubjectsCard({
   educatorId,
   schoolYearId,
 }: EducatorTeachableSubjectsCardProps): React.JSX.Element {
   const { data: assigned, isLoading } = useTeachableSubjects(educatorId);
-  const { data: allSubjects = [] } = useSubjects(
-    schoolYearId ? { schoolYearId } : undefined,
-  );
   const { data: schoolYears = [] } = useSchoolYears();
   const saveMutation = useSetTeachableSubjects();
   const carryMutation = useCarryOverTeachableSubjects();
 
-  const [selected, setSelected] = useState<string[]>([]);
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
   const [unmatched, setUnmatched] = useState<UnmatchedLink[]>([]);
   const [showUnmatched, setShowUnmatched] = useState(false);
 
-  useEffect(() => {
-    setSelected((assigned ?? []).map((s) => s.id));
-  }, [assigned]);
-
-  const grouped = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const filtered = q
-      ? allSubjects.filter((s) => s.title.toLowerCase().includes(q))
-      : allSubjects;
-    const map = new Map<string, typeof filtered>();
-    for (const s of filtered) {
-      const key = groupKey(s);
-      const list = map.get(key);
-      if (list) list.push(s);
-      else map.set(key, [s]);
+  // Section names for the badges. One query for the year, mapped by id.
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId }),
+    () => sectionApi.getAll(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
+  // Every educator's holds (including this one, from saved state) for the
+  // slot picker: subject -> section -> holder + slot positions. The modal
+  // tells its own live picks apart from these saved claims itself.
+  const { data: roster } = useGeneratorRoster(schoolYearId);
+  const claims = useMemo(() => {
+    const map: Record<
+      string,
+      Record<
+        string,
+        { educatorId: string; educatorName: string; slots: number[] }
+      >
+    > = {};
+    for (const e of roster?.educators ?? []) {
+      for (const [subjectId, perSection] of Object.entries(
+        e.slotsBySubject ?? {},
+      )) {
+        const target = (map[subjectId] ??= {});
+        for (const [secId, slots] of Object.entries(perSection)) {
+          target[secId] ??= {
+            educatorId: e.educatorId,
+            educatorName: e.name ?? "Another educator",
+            slots,
+          };
+        }
+      }
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [allSubjects, search]);
-
-  const toggle = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const dirty =
-    JSON.stringify([...selected].sort()) !==
-    JSON.stringify((assigned ?? []).map((s) => s.id).sort());
+    return map;
+  }, [roster]);
+  const sectionNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of sectionsRaw ?? []) map.set(s.id, s.name);
+    return map;
+  }, [sectionsRaw]);
 
   const errMessage = (err: unknown, fallback: string) => {
     const ax = err as AxiosError<{ message?: string }>;
     return ax.response?.data?.message ?? fallback;
   };
 
-  const save = () => {
-    saveMutation.mutate(
-      { educatorId, subjectIds: selected },
-      {
-        onError: (err: unknown) =>
-          toast.error(errMessage(err, "Failed to save teachable subjects.")),
-      },
-    );
-    setOpen(false);
-  };
   const runCarryOver = () => {
     // Copy from the year immediately AFTER the one being viewed: schoolYears
     // is newest-first, so the previous year is the next entry.
@@ -135,23 +122,112 @@ export function EducatorTeachableSubjectsCard({
     );
   };
 
+  const removeSubject = (subjectId: string, subjectName: string) => {
+    // Dropping the link deletes the row, so its section picks go with it.
+    const next = (assigned ?? []).map((s) => s.id).filter((x) => x !== subjectId);
+    saveMutation.mutate(
+      { educatorId, subjectIds: next },
+      {
+        onError: (err: unknown) =>
+          toast.error(errMessage(err, `Failed to remove ${subjectName}.`)),
+      },
+    );
+  };
+
+  const columns: ColumnDef<TeachableSubject>[] = [
+    {
+      id: "subject",
+      header: "Subject",
+      cell: ({ row }) => (
+        <span className="font-medium not-interactive">{row.original.name}</span>
+      ),
+    },
+    {
+      id: "department",
+      header: "Department",
+      cell: ({ row }) => {
+        const { programName, courseName, strandName } = row.original;
+        const sub = courseName ?? strandName;
+        return (
+          <div className="not-interactive">
+            <p className="text-sm">{programName ?? "—"}</p>
+            {sub ? (
+              <p className="text-xs text-muted-foreground">{sub}</p>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
+      id: "level",
+      header: "Level",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground not-interactive">
+          {row.original.levelName ?? "—"}
+        </span>
+      ),
+    },
+    {
+      id: "sections",
+      header: "Sections",
+      cell: ({ row }) => {
+        const names = row.original.sectionIds.map(
+          (id) => sectionNameById.get(id) ?? id.slice(0, 8),
+        );
+        if (names.length === 0) {
+          return (
+            <span className="text-xs text-muted-foreground not-interactive">
+              No sections
+            </span>
+          );
+        }
+        const extra = names.length - MAX_SECTION_BADGES;
+        return (
+          <div className="flex flex-wrap gap-1" title={names.join(", ")}>
+            {names.slice(0, MAX_SECTION_BADGES).map((n) => (
+              <Badge key={n} variant="secondary" className="text-[11px] font-normal">
+                {n}
+              </Badge>
+            ))}
+            {extra > 0 ? (
+              <Badge variant="outline" className="text-[11px] font-normal">
+                +{extra} more
+              </Badge>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          disabled={saveMutation.isPending}
+          aria-label={`Remove ${row.original.name}`}
+          onClick={() => removeSubject(row.original.id, row.original.name)}
+        >
+          <X className="h-3.5 w-3.5" />
+          Remove
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold not-interactive">
-            <BookOpen className="h-4 w-4" />
-            Teachable subjects
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Subjects this educator is able to teach. The class generator assigns
-            only from this list.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-xl text-xs text-muted-foreground">
+          Subjects this educator is able to teach, and which sections they
+          handle. The class generator places only assigned pairs.
+        </p>
         {isLoading ? (
           <Skeleton className="h-9 w-40" />
         ) : (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -168,118 +244,23 @@ export function EducatorTeachableSubjectsCard({
               )}
               Copy from previous year
             </Button>
-            <Button size="sm" onClick={save} disabled={saveMutation.isPending || !dirty}>
-              {saveMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <Save className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              Save
+            <Button size="sm" onClick={() => setModalOpen(true)}>
+              <BookOpen className="h-3.5 w-3.5 mr-1.5" />
+              {(assigned ?? []).length === 0 ? "Select subjects" : "Edit subjects"}
             </Button>
           </div>
         )}
       </div>
 
-      <Popover open={open} onOpenChange={setOpen}>
-        {/* Base UI's PopoverTrigger renders its own <button> and does not take
-            button props or children — it is a controlled peer of the
-            Popover root, so the label lives beside it. */}
-        <div className="flex items-center gap-2">
-          <PopoverTrigger className="border rounded-md px-3 py-1.5 text-xs font-medium bg-background">
-            <Search className="h-3.5 w-3.5" />
-          </PopoverTrigger>
-          <span className="text-xs text-muted-foreground">
-            {selected.length === 0
-              ? "No subjects selected"
-              : `${selected.length} subject${selected.length === 1 ? "" : "s"} selected`}
-          </span>
-        </div>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-          <div className="border-b p-2">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search subjects..."
-              className="h-8"
-            />
-          </div>
-          <ScrollArea className="h-64">
-            {grouped.length === 0 ? (
-              <p className="p-3 text-xs text-muted-foreground">
-                No subjects found for this school year.
-              </p>
-            ) : (
-              grouped.map(([group, subjects]) => (
-                <div key={group} className="p-1">
-                  <p className="px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                    {group}
-                  </p>
-                  {subjects.map((s) => {
-                    const on = selected.includes(s.id);
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => toggle(s.id)}
-                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
-                      >
-                        <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                            on
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border"
-                          }`}
-                        >
-                          {on ? <Check className="h-3 w-3" /> : null}
-                        </span>
-                        <span className="truncate">{s.title}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))
-            )}
-          </ScrollArea>
-          <div className="flex items-center justify-between border-t p-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelected([])}>
-              Clear all
-            </Button>
-            <Button size="sm" onClick={save} disabled={!dirty}>
-              Save
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-
-      {assigned && assigned.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {assigned.map((s) => (
-            <Badge key={s.id} variant="outline" className="text-xs font-normal">
-              {s.name}
-              {s.levelName ? (
-                <span className="text-muted-foreground"> � {s.levelName}</span>
-              ) : null}
-              <button
-                type="button"
-                aria-label={`Remove ${s.name}`}
-                onClick={() => {
-                  const next = selected.filter((x) => x !== s.id);
-                  setSelected(next);
-                  saveMutation.mutate({ educatorId, subjectIds: next });
-                }}
-                className="ml-1 hover:text-destructive"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          No subjects set. This educator will not be eligible for automatic
-          class generation.
-        </p>
-      )}
+      <div className="overflow-x-auto">
+        <DataTable
+          columns={columns}
+          data={assigned ?? []}
+          isLoading={isLoading}
+          emptyTitle="No subjects set"
+          emptyDescription="This educator will not be eligible for automatic class generation."
+        />
+      </div>
 
       {unmatched.length > 0 && (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
@@ -301,13 +282,24 @@ export function EducatorTeachableSubjectsCard({
               {unmatched.map((u, i) => (
                 <li key={i} className="text-[11px] text-muted-foreground">
                   <span className="font-medium text-foreground">{u.subjectName}</span>
-                  {" "}� {u.reason}
+                  {" "}— {u.reason}
                 </li>
               ))}
             </ul>
           ) : null}
         </div>
       )}
+
+      {modalOpen ? (
+        <TeachableSubjectsModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          educatorId={educatorId}
+          schoolYearId={schoolYearId}
+          assigned={assigned ?? []}
+          claims={claims}
+        />
+      ) : null}
     </div>
   );
-};
+}

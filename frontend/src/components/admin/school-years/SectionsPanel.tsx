@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ export function SectionsPanel({
   strandId,
 }: SectionsPanelProps): React.JSX.Element {
   const router  = useRouter();
+  const queryClient = useQueryClient();
   const [dialogOpen,    setDialogOpen]    = useState(false);
   const [editTarget,    setEditTarget]    = useState<Section | null>(null);
   const [deleteTarget,  setDeleteTarget]  = useState<Section | null>(null);
@@ -40,13 +42,15 @@ export function SectionsPanel({
   const effectiveCourseId = courseId ?? level.course_id ?? undefined;
   const effectiveStrandId = strandId ?? level.strand_id ?? undefined;
 
+  const sectionsKey = queryKeys.admin.sections.list({
+    schoolYearId,
+    levelId: level.id,
+    ...(effectiveCourseId ? { courseId: effectiveCourseId } : {}),
+    ...(effectiveStrandId ? { strandId: effectiveStrandId } : {}),
+  });
+
   const { data: sections = [], isLoading } = useAsyncQuery(
-    queryKeys.admin.sections.list({
-      schoolYearId,
-      levelId: level.id,
-      ...(effectiveCourseId ? { courseId: effectiveCourseId } : {}),
-      ...(effectiveStrandId ? { strandId: effectiveStrandId } : {}),
-    }),
+    sectionsKey,
     () => sectionApi.getAll(schoolYearId, level.id),
   );
 
@@ -83,7 +87,11 @@ export function SectionsPanel({
       }),
     {
       invalidateKeys: sectionCacheKeys,
-      onSuccess: () => {
+      onSuccess: (created) => {
+        const section = created as unknown as Section;
+        queryClient.setQueryData<Section[]>(sectionsKey, (old) =>
+          old ? [...old, section] : [section],
+        );
         toast.success("Section created.");
         setDialogOpen(false);
         setFormError(null);
@@ -101,7 +109,15 @@ export function SectionsPanel({
       }),
     {
       invalidateKeys: sectionCacheKeys,
-      onSuccess: () => {
+      onSuccess: (_data, vals) => {
+        const targetId = editTarget?.id;
+        queryClient.setQueryData<Section[]>(sectionsKey, (old) =>
+          old?.map((s) =>
+            s.id === targetId
+              ? { ...s, name: vals.name, capacity: Number(vals.capacity) }
+              : s,
+          ),
+        );
         toast.success("Section updated.");
         setEditTarget(null);
         setFormError(null);
@@ -115,7 +131,10 @@ export function SectionsPanel({
     (id: string) => sectionApi.delete(id),
     {
       invalidateKeys: sectionCacheKeys,
-      onSuccess: () => {
+      onSuccess: (_data, id) => {
+        queryClient.setQueryData<Section[]>(sectionsKey, (old) =>
+          old?.filter((s) => s.id !== id),
+        );
         toast.success("Section deleted.");
         setDeleteTarget(null);
       },
@@ -165,7 +184,6 @@ export function SectionsPanel({
                 key={sec.id}
                 className="flex items-center justify-between gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
               >
-                {/* Clickable left side → opens dedicated section detail page */}
                 <button
                   onClick={() =>
                     router.push(`/admin/programs/${level.program_id}/sections/${sec.id}`)
@@ -188,7 +206,6 @@ export function SectionsPanel({
                   <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </button>
 
-                {/* Edit / delete — only on hover, non-ended */}
                 {!isEnded && (
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button
@@ -217,7 +234,6 @@ export function SectionsPanel({
         )}
       </div>
 
-      {/* Create / edit dialogs */}
       {dialogOpen && (
         <SectionFormDialog
           mode="create"

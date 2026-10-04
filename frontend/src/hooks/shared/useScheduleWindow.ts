@@ -30,6 +30,10 @@ export function useScheduleWindow(): {
   stepMin: number;
   showAllDays: boolean;
   isConfigured: boolean;
+  /** True while the org config is still loading. */
+  isLoading: boolean;
+  /** True when the org config request failed — the grid is on fallback. */
+  isError: boolean;
   /** Weekdays the school holds classes. Empty/undefined = rule not configured. */
   activeWeekdays?: number[];
   /** Break ranges in minutes-of-day, for rendering and click-blocking. */
@@ -37,7 +41,7 @@ export function useScheduleWindow(): {
   isDayActive: (weekday: number) => boolean;
   isBreakMinute: (minute: number) => boolean;
 } {
-  const { data: scheduleCfg } = useOrgScheduleConfig();
+  const { data: scheduleCfg, isLoading, isError } = useOrgScheduleConfig();
 
   return useMemo(() => {
     const startMin = scheduleCfg?.startTime
@@ -82,6 +86,8 @@ export function useScheduleWindow(): {
         stepMin: scheduleCfg?.slotDuration ?? 30,
         showAllDays: true,
         isConfigured: false,
+        isLoading,
+        isError,
         activeWeekdays,
         blockedRanges,
         isDayActive,
@@ -96,10 +102,12 @@ export function useScheduleWindow(): {
       // Always show the full week so a day with no classes still appears.
       showAllDays: true,
       isConfigured: true,
+      isLoading,
+      isError,
       activeWeekdays,
       blockedRanges,
       isDayActive,
       isBreakMinute,
     };
-  }, [scheduleCfg]);
+  }, [scheduleCfg, isLoading, isError]);
 }

@@ -11,9 +11,14 @@ import type { Subject, SubjectType } from "@/types/admin/subject.types";
 import type { Level } from "@/types/admin/level.types";
 import { programApi } from "@/api/admin/program.api";
 
-/** Valid session lengths. Must stay in step with the backend's allowed values. */
-const SESSION_MINUTE_OPTIONS = [15, 20, 25, 30, 45, 60, 90, 120];
 import { levelApi } from "@/api/admin/level.api";
+import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
+
+/**
+ * Sentinel for the "use the program default" option in the count select.
+ * Base UI items need a non-empty value, so Default is never "".
+ */
+const DEFAULT_OPTION = "default";
 import { DialogForm } from "@/components/shared/DialogForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +43,64 @@ interface SubjectFormValues {
   subjectType: SubjectType;
   /** Empty string = "use the program default". */
   sessionsPerWeek: string;
-  sessionMinutes: string;
+  /**
+   * Session length as hours + minutes, e.g. 3h 0m = 180. Both empty means
+   * "use the program default", which the API stores as null.
+   */
+  sessionHours: string;
+  sessionMins: string;
+}
+
+/**
+ * Converts stored session numbers (null = Default) into the form's string
+ * fields. Used for edit mode and for the New Subject preset.
+ */
+function toSessionFields(
+  perWeek: number | null | undefined,
+  minutes: number | null | undefined,
+): Pick<SubjectFormValues, "sessionsPerWeek" | "sessionHours" | "sessionMins"> {
+  return {
+    sessionsPerWeek: perWeek != null ? String(perWeek) : "",
+    sessionHours: minutes != null ? String(Math.floor(minutes / 60)) : "",
+    sessionMins: minutes != null ? String(minutes % 60) : "",
+  };
+}
+
+/**
+ * Builds the create/update payload from form values.
+ *
+ * In edit mode an unchanged name is omitted: legacy/seeded names may contain
+ * characters the current name rule rejects (e.g. "/" in
+ * "CS Thesis / Capstone Project"), and resending them would 400 a save that
+ * never touched the name. An actual rename is still sent and validated.
+ */
+export function buildSubjectPayload(
+  values: SubjectFormValues,
+  subject?: Subject,
+): CreateSubjectRequest | UpdateSubjectRequest {
+  const isEdit = !!subject;
+  const nameChanged =
+    !isEdit || values.name.trim() !== (subject?.title ?? "").trim();
+  return {
+    ...(nameChanged ? { name: values.name } : {}),
+    subjectType: values.subjectType,
+    programId: values.programId || undefined,
+    // When editing, empty selections clear the previous department-scoped
+    // course/strand/level so a subject can be moved cleanly across programs.
+    levelId: values.levelId || (isEdit ? null : undefined),
+    courseId: values.courseId || (isEdit ? null : undefined),
+    strandId: values.strandId || (isEdit ? null : undefined),
+    // Empty means "use the program default", which the API stores as null.
+    sessionsPerWeek: values.sessionsPerWeek
+      ? Number(values.sessionsPerWeek)
+      : null,
+    // Hours + minutes collapse to one total; both empty stays Default.
+    sessionMinutes:
+      values.sessionHours === "" && values.sessionMins === ""
+        ? null
+        : (Number(values.sessionHours) || 0) * 60 +
+          (Number(values.sessionMins) || 0),
+  };
 }
 
 interface SubjectDialogProps {
@@ -50,6 +112,10 @@ interface SubjectDialogProps {
   defaultCourseId?: string;
   defaultStrandId?: string;
   defaultLevelId?: string;
+  /** Create mode only (from the preset). null/undefined = Default. */
+  defaultSessionsPerWeek?: number | null;
+  /** Create mode only (from the preset). Total minutes; null/undefined = Default. */
+  defaultSessionMinutes?: number | null;
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -64,6 +130,8 @@ export function SubjectDialog({
   defaultCourseId,
   defaultStrandId,
   defaultLevelId,
+  defaultSessionsPerWeek,
+  defaultSessionMinutes,
   open,
   onClose,
   onSaved,
@@ -85,12 +153,25 @@ export function SubjectDialog({
       courseId: subject?.courseId ?? defaultCourseId ?? "",
       strandId: subject?.strandId ?? defaultStrandId ?? "",
       subjectType: (subject?.subjectType ?? defaultSubjectType) as SubjectType,
-      sessionsPerWeek:
-        subject?.sessionsPerWeek != null ? String(subject.sessionsPerWeek) : "",
-      sessionMinutes:
-        subject?.sessionMinutes != null ? String(subject.sessionMinutes) : "",
+      ...(subject
+        ? toSessionFields(subject.sessionsPerWeek, subject.sessionMinutes)
+        : toSessionFields(defaultSessionsPerWeek, defaultSessionMinutes)),
     },
   });
+
+  const { stepMin: slotMinutes } = useScheduleWindow();
+  const sessionHoursRaw = watch("sessionHours");
+  const sessionMinsRaw = watch("sessionMins");
+  /** Total explicit length in minutes, or null when both fields are empty. */
+  const sessionTotalMinutes =
+    sessionHoursRaw === "" && sessionMinsRaw === ""
+      ? null
+      : (Number(sessionHoursRaw) || 0) * 60 + (Number(sessionMinsRaw) || 0);
+  const sessionMisaligned =
+    sessionTotalMinutes != null &&
+    sessionTotalMinutes > 0 &&
+    sessionTotalMinutes % slotMinutes !== 0;
+  const isLocked = subject?.lockStatus === "locked";
 
   const selectedProgramId = watch("programId");
   const selectedLevelId = watch("levelId");
@@ -159,23 +240,7 @@ export function SubjectDialog({
 
   const mutation = useMutationWithInvalidation(
     (values: SubjectFormValues) => {
-      const payload: CreateSubjectRequest | UpdateSubjectRequest = {
-        name: values.name,
-        subjectType: values.subjectType,
-        programId: values.programId || undefined,
-        // When editing, empty selections clear the previous department-scoped
-        // course/strand/level so a subject can be moved cleanly across programs.
-        levelId: values.levelId || (isEdit ? null : undefined),
-        courseId: values.courseId || (isEdit ? null : undefined),
-        strandId: values.strandId || (isEdit ? null : undefined),
-        // Empty means "use the program default", which the API stores as null.
-        sessionsPerWeek: values.sessionsPerWeek
-          ? Number(values.sessionsPerWeek)
-          : null,
-        sessionMinutes: values.sessionMinutes
-          ? Number(values.sessionMinutes)
-          : null,
-      };
+      const payload = buildSubjectPayload(values, subject);
       return isEdit
         ? subjectApi.update(subject!.id, payload as UpdateSubjectRequest)
         : subjectApi.create(payload as CreateSubjectRequest);
@@ -202,6 +267,7 @@ export function SubjectDialog({
       courseId: defaultCourseId ?? "",
       strandId: defaultStrandId ?? "",
       subjectType: defaultSubjectType,
+      ...toSessionFields(defaultSessionsPerWeek, defaultSessionMinutes),
     });
     onClose();
   };
@@ -211,6 +277,26 @@ export function SubjectDialog({
     if (duplicate) {
       setError('name', { message: 'Subject already exists for this program and level.' });
       return;
+    }
+    // Validate the hours + minutes total up front so a doomed request never
+    // leaves the dialog: the server caps at 480m and requires a multiple of
+    // the school's slot length for anything explicit.
+    if (values.sessionHours !== "" || values.sessionMins !== "") {
+      const total =
+        (Number(values.sessionHours) || 0) * 60 +
+        (Number(values.sessionMins) || 0);
+      if (total < 5) {
+        setError('sessionMins', { message: 'Enter at least 5 minutes, or leave both empty for Default.' });
+        return;
+      }
+      if (total > 480) {
+        setError('sessionMins', { message: 'Session length cannot exceed 480 minutes (8h).' });
+        return;
+      }
+      if (total % slotMinutes !== 0) {
+        setError('sessionMins', { message: `${total}m is not a multiple of the school's ${slotMinutes}m slot length.` });
+        return;
+      }
     }
     mutation.mutate(values);
   };
@@ -290,18 +376,23 @@ export function SubjectDialog({
       {/* Weekly sessions — optional, falls back to the department default */}
       <div className="space-y-1.5">
         <Label>Weekly sessions</Label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Select
-            value={watch("sessionsPerWeek") || undefined}
+            value={watch("sessionsPerWeek") || DEFAULT_OPTION}
             onValueChange={(v) =>
-              setValue("sessionsPerWeek", v ?? "", { shouldDirty: true })
+              setValue(
+                "sessionsPerWeek",
+                v === DEFAULT_OPTION ? "" : (v ?? ""),
+                { shouldDirty: true },
+              )
             }
+            disabled={isLocked}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Sessions per week">
               <SelectValue placeholder="Default" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Default</SelectItem>
+              <SelectItem value={DEFAULT_OPTION}>Default</SelectItem>
               {[1, 2, 3, 4, 5, 6, 7].map((n) => (
                 <SelectItem key={n} value={String(n)}>
                   {n} per week
@@ -309,32 +400,66 @@ export function SubjectDialog({
               ))}
             </SelectContent>
           </Select>
-          <Select
-            value={watch("sessionMinutes") || undefined}
-            onValueChange={(v) =>
-              setValue("sessionMinutes", v ?? "", { shouldDirty: true })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Default" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Default</SelectItem>
-              {SESSION_MINUTE_OPTIONS.map((m) => (
-                <SelectItem key={m} value={String(m)}>
-                  {m} min
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            type="number"
+            min={0}
+            max={8}
+            step={1}
+            placeholder="Hours"
+            aria-label="Session hours"
+            disabled={isLocked}
+            {...register("sessionHours", {
+              validate: (v) =>
+                v === "" || (/^\d+$/.test(v) && Number(v) >= 0 && Number(v) <= 8)
+                  ? true
+                  : "0–8",
+            })}
+          />
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            step={1}
+            placeholder="Minutes"
+            aria-label="Session minutes"
+            disabled={isLocked}
+            {...register("sessionMins", {
+              validate: (v) =>
+                v === "" || (/^\d+$/.test(v) && Number(v) >= 0 && Number(v) <= 59)
+                  ? true
+                  : "0–59",
+            })}
+          />
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Leave on Default to follow the department standard
-          {subject?.effectiveSessionsPerWeek
-            ? ` (currently ${subject.effectiveSessionsPerWeek} × ${subject.effectiveSessionMinutes}m)`
-            : ""}
-          . Session length must be a multiple of the school&apos;s slot length.
-        </p>
+        {isLocked ? (
+          <p className="text-[11px] text-muted-foreground">
+            This subject is locked — unlock it to change its weekly sessions.
+          </p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground">
+            Leave everything on Default to follow the department standard
+            {subject?.effectiveSessionsPerWeek
+              ? ` (currently ${subject.effectiveSessionsPerWeek} × ${subject.effectiveSessionMinutes}m)`
+              : ""}
+            . E.g. 3 hrs 0 min = 180 min. Length must be a multiple of the
+            school&apos;s {slotMinutes}m slot.
+            {sessionTotalMinutes != null && sessionTotalMinutes > 0
+              ? ` Current: ${sessionTotalMinutes}m.`
+              : ""}
+          </p>
+        )}
+        {sessionMisaligned ? (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            {sessionTotalMinutes}m is not a multiple of the {slotMinutes}m slot
+            and will be rejected on save.
+          </p>
+        ) : null}
+        {errors.sessionHours ? (
+          <p className="text-xs text-destructive">{errors.sessionHours.message}</p>
+        ) : null}
+        {errors.sessionMins ? (
+          <p className="text-xs text-destructive">{errors.sessionMins.message}</p>
+        ) : null}
       </div>
 
       {/* Department — always shown (create + edit) */}

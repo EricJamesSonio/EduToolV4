@@ -88,14 +88,14 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
   const prereqsOfSelected = useMemo(() => {
     if (!selected || !data) return [];
     const fromIds = new Set(
-      data.edges.filter((e) => e.to === selected.id).map((e) => e.from),
+            data.edges.filter((e) => e.to === selected.id && e.from !== e.to).map((e) => e.from),
     );
     return data.nodes.filter((n) => fromIds.has(n.id));
   }, [data, selected]);
   const dependentsOfSelected = useMemo(() => {
     if (!selected || !data) return [];
     const toIds = new Set(
-      data.edges.filter((e) => e.from === selected.id).map((e) => e.to),
+           data.edges.filter((e) => e.from === selected.id && e.from !== e.to).map((e) => e.to),
     );
     return data.nodes.filter((n) => toIds.has(n.id));
   }, [data, selected]);

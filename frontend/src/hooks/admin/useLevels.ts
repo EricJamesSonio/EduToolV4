@@ -84,7 +84,9 @@ export const useLevelsByProgram = (
   schoolYearId: string,
 ) => {
   return useAsyncQuery<Level[]>(
-    queryKeys.admin.levels.list({ schoolYearId }),
+    // programId must be in the key, otherwise this shares a cache entry with
+    // useLevelsByYear and the two overwrite each other.
+    queryKeys.admin.levels.list({ schoolYearId, programId }),
     () => levelApi.getBySchoolYear(schoolYearId, programId),
     { enabled: !!schoolYearId && !!programId },
   );
