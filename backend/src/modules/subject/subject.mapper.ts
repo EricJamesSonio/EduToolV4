@@ -15,6 +15,7 @@ export function mapSubjectToResponse(
     {
       sessionsPerWeek: subject.sessions_per_week ?? null,
       sessionMinutes: subject.session_minutes ?? null,
+      sessionDurations: subject.session_durations ?? [],
     },
     subject.program?.type ?? null,
     slotMinutes,
@@ -40,8 +41,10 @@ export function mapSubjectToResponse(
     termLabel: subject.term_label ?? null,
     sessionsPerWeek: subject.sessions_per_week ?? null,
     sessionMinutes: subject.session_minutes ?? null,
+    sessionDurations: subject.session_durations ?? [],
     effectiveSessionsPerWeek: effective.sessionsPerWeek,
     effectiveSessionMinutes: effective.sessionMinutes,
+    effectiveSessionDurations: effective.durations,
     sessionRequirementSource: effective.source,
     prerequisites: subject.prerequisites ?? [],
     prereqFor: subject.prereqFor ?? [],
