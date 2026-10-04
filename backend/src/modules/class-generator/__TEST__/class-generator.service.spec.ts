@@ -26,6 +26,8 @@ const claim = (
 
 const makeHarness = (opts: {
   activeWeekdays?: number[];
+  startTime?: string;
+  endTime?: string;
   breaks?: { label: string; start: string; end: string }[];
   sections?: any[];
   subjects?: any[];
@@ -49,8 +51,8 @@ const makeHarness = (opts: {
   };
   const cfg = {
     getByOrg: jest.fn().mockResolvedValue({
-      startTime: '07:00',
-      endTime: '17:00',
+      startTime: opts.startTime ?? '07:00',
+      endTime: opts.endTime ?? '17:00',
       slotDuration: 30,
       activeWeekdays: opts.activeWeekdays ?? [1, 2, 3, 4, 5],
       breaks: opts.breaks ?? [],
@@ -71,6 +73,7 @@ const makeHarness = (opts: {
         programType: s.program?.type ?? null,
         sessionsPerWeek: s.sessions_per_week,
         sessionMinutes: s.session_minutes,
+        sessionDurations: s.session_durations ?? [],
       },
     ]),
   );
@@ -113,12 +116,14 @@ const subject = (
   levelId = 'lvl-1',
   sessionsPerWeek: number | null = null,
   sessionMinutes: number | null = null,
+  sessionDurations: number[] | null = null,
 ) => ({
   id,
   name: `Subject ${id}`,
   level_id: levelId,
   sessions_per_week: sessionsPerWeek,
   session_minutes: sessionMinutes,
+  session_durations: sessionDurations ?? [],
   program: { type: 'jhs' },
 });
 
@@ -564,6 +569,138 @@ describe('ClassGeneratorService', () => {
       });
       await service.preview(req);
       expect(classService.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('per-session durations (TICK-SUBJECT-003)', () => {
+    /** Slot lengths in slot order — the shape `placeSlots` consumes. */
+    const lengths = (item: { slots: { endMin: number; startMin: number }[] }) =>
+      item.slots.map((s) => s.endMin - s.startMin);
+
+    it('places UNIFORM subjects exactly as before (regression guard)', async () => {
+      // The empty-array shape every pre-existing subject stores must behave
+      // identically to a subject that predates the column entirely.
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 3, 60)],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      const uniform = await service.preview(req);
+      const uniformSlots = uniform.items[0].slots;
+
+      // Same subject, but explicitly restating the uniform length per position.
+      const { service: restated } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 3, 60, [60, 60, 60])],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      const restatedOut = await restated.preview(req);
+
+      expect(lengths(restatedOut.items[0])).toEqual([60, 60, 60]);
+      expect(restatedOut.items[0].slots).toEqual(uniformSlots);
+      expect(uniform.items[0].sessionDurations).toEqual([60, 60, 60]);
+    });
+
+    it('places each position at its OWN length', async () => {
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 3, 60, [60, 60, 120])],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      const out = await service.preview(req);
+      expect(out.placedCount).toBe(1);
+      const item = out.items[0];
+      expect(item.slots).toHaveLength(3);
+      // Longest first would also be "correct" for a human; what matters is
+      // that each slot got the length configured for its position.
+      expect(lengths(item).sort((a, b) => a - b)).toEqual([60, 60, 120]);
+      expect(item.sessionDurations).toEqual([60, 60, 120]);
+      // Still one per distinct school day.
+      expect(new Set(item.slots.map((s) => s.weekday)).size).toBe(3);
+    });
+
+    it('still spreads a mixed-duration subject across distinct days', async () => {
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 2, 60, [30, 90])],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      const item = (await service.preview(req)).items[0];
+      expect(new Set(item.slots.map((s) => s.weekday)).size).toBe(2);
+    });
+
+    it('applies the MAX_SESSION_MINUTES guard to the LONGEST session', async () => {
+      // 180 is the limit, so a 240m session must be refused even though the
+      // stored base (60m) is comfortably under it.
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 2, 60, [60, 240])],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      const out = await service.preview(req);
+      expect(out.placedCount).toBe(0);
+      expect(out.items[0].unplacedReason).toMatch(/240m per session/);
+    });
+
+    it('falls back to uniform for a stored list that does not match the count', async () => {
+      // A corrupt row must not reshape the week (the service blocks it on save).
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 3, 60, [30, 30])],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      const out = await service.preview(req);
+      expect(out.placedCount).toBe(1);
+      expect(lengths(out.items[0])).toEqual([60, 60, 60]);
+    });
+
+    it('ignores stored durations while the subject is on the default', async () => {
+      // No explicit count or minutes: the jhs standard (5 x 120) wins.
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', null, null, [])],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      const item = (await service.preview(req)).items[0];
+      expect(item.sessionMinutes).toBe(120);
+      expect(new Set(lengths(item))).toEqual(new Set([120]));
+    });
+
+    it('counts weekly load as the SUM of the picked positions, not count x base', async () => {
+      // Capacity is a single 200m day (07:00-10:20). Both subjects claim all
+      // three of their positions:
+      //   s1 uniform 3 x 60  = 180m  -> fits
+      //   s2 mixed [60,60,120] = 240m -> does NOT fit
+      // Only the SUM distinguishes them: `3 * 60 = 180` would wrongly let the
+      // mixed subject through, so this fails if the math regresses to the base.
+      const { service } = makeHarness({
+        // One school day of 07:00-10:20 = 200m of weekly capacity per educator.
+        activeWeekdays: [1],
+        startTime: '07:00',
+        endTime: '10:20',
+        sections: [section('sec-1')],
+        subjects: [
+          subject('s1', 'lvl-1', 3, 60),
+          subject('s2', 'lvl-1', 3, 60, [60, 60, 120]),
+        ],
+        educators: [educator('e1', 'Alice'), educator('e2', 'Bob')],
+        claims: [claim('s1', 'sec-1', 'e1'), claim('s2', 'sec-1', 'e2')],
+      });
+      const out = await service.preview(req);
+      const flagged = (
+        out.readiness.issues.find((i) => i.code === 'educator_over_capacity')
+          ?.entities ?? []
+      ).map((e) => e.id);
+
+      expect(flagged).not.toContain('e1'); // 180m fits in 200m
+      expect(flagged).toContain('e2'); // 240m does not
     });
   });
 

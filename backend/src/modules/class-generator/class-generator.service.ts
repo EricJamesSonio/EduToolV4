@@ -68,7 +68,10 @@ export interface DemandItem {
   educatorId: string | null;
   educatorName: string | null;
   sessionsPerWeek: number;
+  /** Resolved base session length. See SubjectResponse.sessionMinutes. */
   sessionMinutes: number;
+  /** Resolved length of each weekly position, in order. */
+  sessionDurations: number[];
   slots: { weekday: number; startMin: number; endMin: number }[];
   warnings: string[];
   /** Set when the item could not be placed at all. */
@@ -206,11 +209,16 @@ export class ClassGeneratorService {
         // (e.g. a crafted program scope); identical inputs, identical result.
         const cached = scope.yearRequirements.get(subject.id);
         const requirement = cached
-          ? { sessionsPerWeek: cached.positions, sessionMinutes: cached.minutes }
+          ? {
+              sessionsPerWeek: cached.positions,
+              sessionMinutes: cached.minutes,
+              durations: cached.durations,
+            }
           : resolveSessionRequirement(
               {
                 sessionsPerWeek: subject.sessions_per_week,
                 sessionMinutes: subject.session_minutes,
+                sessionDurations: subject.session_durations,
               },
               subject.program?.type ?? null,
               slot,
@@ -221,13 +229,17 @@ export class ClassGeneratorService {
           subject,
           requirement.sessionsPerWeek,
           requirement.sessionMinutes,
+          requirement.durations,
           activeWeekdays,
         );
 
         // Report, don't silently drop: with free-write lengths an admin can
         // set 4h on a subject and would otherwise wonder why it never appears.
-        if (requirement.sessionMinutes > MAX_SESSION_MINUTES) {
-          item.unplacedReason = `Needs ${requirement.sessionMinutes}m per session, over the ${MAX_SESSION_MINUTES}m placement limit. Shorten it in the subject's weekly sessions.`;
+        // Per-position lengths mean the LONGEST session is the binding
+        // constraint, not the base.
+        const longestSession = Math.max(...requirement.durations);
+        if (longestSession > MAX_SESSION_MINUTES) {
+          item.unplacedReason = `Needs ${longestSession}m per session, over the ${MAX_SESSION_MINUTES}m placement limit. Shorten it in the subject's weekly sessions.`;
           items.push(item);
           continue;
         }
@@ -330,7 +342,7 @@ export class ClassGeneratorService {
           educatorId,
           sectionId: section.id,
           required: requirement.sessionsPerWeek,
-          duration: requirement.sessionMinutes,
+          durations: requirement.durations,
           days,
           freeRanges,
           working,
@@ -379,7 +391,15 @@ export class ClassGeneratorService {
   }
 
   /**
-   * Greedily places `required` slots of `duration` minutes.
+   * Greedily places one slot per weekly position, each at ITS OWN length.
+   *
+   * `durations[i]` is the length of position i, so a 3x/week subject with
+   * [60, 60, 120] gets two 60m meetings and one 2h meeting. The list is
+   * consumed in order as slots are picked, which is what ties a length to a
+   * position rather than to the order a day happened to be tried.
+   *
+   * For a uniform subject every entry is identical, so this is exactly the
+   * old fixed-duration behaviour.
    *
    * Prefers spreading across DISTINCT days first: a class meeting five times a
    * week should not meet twice on a Tuesday. That is both realistic and leaves
@@ -390,7 +410,8 @@ export class ClassGeneratorService {
     educatorId: string;
     sectionId: string;
     required: number;
-    duration: number;
+    /** Length per weekly position. Must be at least `required` long. */
+    durations: number[];
     days: number[];
     freeRanges: { startMin: number; endMin: number }[];
     working: OccupiedSlot[];
@@ -400,18 +421,24 @@ export class ClassGeneratorService {
     const picked: { weekday: number; startMin: number; endMin: number }[] = [];
     const usedDays = new Set<number>();
 
+    // Defensive: a short list would place `undefined`-length sessions. Falling
+    // back to the LAST entry keeps placement total rather than throwing.
+    const durationFor = (position: number): number =>
+      args.durations[position] ?? args.durations[args.durations.length - 1];
+
     const tryDay = (weekday: number, allowRepeat: boolean): boolean => {
       if (usedDays.has(weekday) && !allowRepeat) return false;
+      const duration = durationFor(picked.length);
       for (const range of args.freeRanges) {
         for (
           let start = range.startMin;
-          start + args.duration <= range.endMin;
+          start + duration <= range.endMin;
           start += 30
         ) {
           const candidate = {
             weekday,
             startMin: start,
-            endMin: start + args.duration,
+            endMin: start + duration,
             roomId: null,
           };
           const conflicts = findConflicts(
@@ -426,7 +453,7 @@ export class ClassGeneratorService {
           );
           if (conflicts.length > 0) continue;
 
-          picked.push({ weekday, startMin: start, endMin: start + args.duration });
+          picked.push({ weekday, startMin: start, endMin: start + duration });
           usedDays.add(weekday);
           return true;
         }
@@ -510,6 +537,7 @@ export class ClassGeneratorService {
           level_id: true,
           sessions_per_week: true,
           session_minutes: true,
+          session_durations: true,
           program: { select: { type: true } },
         },
       }),
@@ -552,12 +580,16 @@ export class ClassGeneratorService {
         : [new Map(), new Map(), new Map()];
     // One resolved truth for weekly positions + minutes, shared by preview
     // placement, coverage math, and readiness.
-    const yearRequirements = new Map<string, { positions: number; minutes: number }>();
+    const yearRequirements = new Map<
+      string,
+      { positions: number; minutes: number; durations: number[] }
+    >();
     for (const [id, info] of sessionFields) {
       const resolved = resolveSessionRequirement(
         {
           sessionsPerWeek: info.sessionsPerWeek,
           sessionMinutes: info.sessionMinutes,
+          sessionDurations: info.sessionDurations,
         },
         info.programType,
         slot,
@@ -565,6 +597,7 @@ export class ClassGeneratorService {
       yearRequirements.set(id, {
         positions: resolved.sessionsPerWeek,
         minutes: resolved.sessionMinutes,
+        durations: resolved.durations,
       });
     }
 
@@ -969,12 +1002,17 @@ export class ClassGeneratorService {
       const req = scope.yearRequirements.get(subjectId);
       if (!req) continue;
       for (const c of claims) {
-        const positions = c.wholePair
-          ? req.positions
-          : new Set(c.slots.filter((n) => n >= 1 && n <= req.positions)).size;
+        // Weekly load is the SUM of the picked positions' own lengths, not
+        // `positions * base` — with mixed durations those differ, and using the
+        // base would under-report (or over-report) an educator's real load.
+        const pickedSlots = c.wholePair
+          ? req.durations.slice(0, req.positions)
+          : c.slots
+              .filter((n) => n >= 1 && n <= req.positions)
+              .map((n) => req.durations[n - 1] ?? req.minutes);
         pickedByEducator.set(
           c.educatorId,
-          (pickedByEducator.get(c.educatorId) ?? 0) + positions * req.minutes,
+          (pickedByEducator.get(c.educatorId) ?? 0) + pickedSlots.reduce((a, b) => a + b, 0),
         );
       }
     }
@@ -1091,6 +1129,7 @@ export class ClassGeneratorService {
           {
             sessionsPerWeek: info.sessionsPerWeek,
             sessionMinutes: info.sessionMinutes,
+            sessionDurations: info.sessionDurations,
           },
           info.programType,
           slot,
@@ -1174,6 +1213,7 @@ export class ClassGeneratorService {
     subject: { id: string; name: string },
     sessionsPerWeek: number,
     sessionMinutes: number,
+    sessionDurations: number[],
     activeWeekdays: number[],
   ): DemandItem {
     const warnings: string[] = [];
@@ -1196,6 +1236,7 @@ export class ClassGeneratorService {
       educatorName: null,
       sessionsPerWeek,
       sessionMinutes,
+      sessionDurations,
       slots: [],
       warnings,
     };

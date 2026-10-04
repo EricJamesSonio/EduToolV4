@@ -409,6 +409,7 @@ export class EducatorSubjectRepository {
         programType: string | null;
         sessionsPerWeek: number | null;
         sessionMinutes: number | null;
+        sessionDurations: number[];
       }
     >
   > {
@@ -420,6 +421,7 @@ export class EducatorSubjectRepository {
         programType: string | null;
         sessionsPerWeek: number | null;
         sessionMinutes: number | null;
+        sessionDurations: number[];
       }
     >();
     if (subjectIds.length === 0) return out;
@@ -431,6 +433,7 @@ export class EducatorSubjectRepository {
         level_id: true,
         sessions_per_week: true,
         session_minutes: true,
+        session_durations: true,
         program: { select: { type: true } },
       },
     });
@@ -441,6 +444,7 @@ export class EducatorSubjectRepository {
         programType: r.program?.type ?? null,
         sessionsPerWeek: r.sessions_per_week,
         sessionMinutes: r.session_minutes,
+        sessionDurations: r.session_durations ?? [],
       });
     return out;
   }
