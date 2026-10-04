@@ -45,9 +45,16 @@ export interface Subject {
   /** Explicit weekly requirement, or null to mean "use the program default". */
   sessionsPerWeek: number | null;
   sessionMinutes: number | null;
+  /** Stored per-position lengths. Empty means uniform. */
+  sessionDurations: number[];
   /** Effective values after default resolution. Always populated. */
   effectiveSessionsPerWeek: number;
   effectiveSessionMinutes: number;
+  /**
+   * Resolved length of each session. Always `effectiveSessionsPerWeek` long,
+   * so the UI can render one row per meeting without re-deriving anything.
+   */
+  effectiveSessionDurations: number[];
   sessionRequirementSource: "explicit" | "default";
 
   prerequisites: unknown[];

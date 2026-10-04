@@ -29,6 +29,12 @@ export interface CreateSubjectRequest {
   /** Optional. Omit or null to fall back to the program-type default. */
   sessionsPerWeek?: number | null;
   sessionMinutes?: number | null;
+  /**
+   * Per-session lengths. Omit, null, or an empty array to stay uniform
+   * (every session uses `sessionMinutes`). Non-empty must have exactly one
+   * entry per weekly session.
+   */
+  sessionDurations?: number[] | null;
 }
 
 export interface UpdateSubjectRequest {
@@ -43,6 +49,8 @@ export interface UpdateSubjectRequest {
   /** null clears back to the program-type default. */
   sessionsPerWeek?: number | null;
   sessionMinutes?: number | null;
+  /** null / [] clears back to uniform. */
+  sessionDurations?: number[] | null;
 }
 
 export interface GetSubjectsQuery {
@@ -96,8 +104,10 @@ interface SubjectResponse {
 
   sessionsPerWeek?: number | null;
   sessionMinutes?: number | null;
+  sessionDurations?: number[] | null;
   effectiveSessionsPerWeek?: number;
   effectiveSessionMinutes?: number;
+  effectiveSessionDurations?: number[];
   sessionRequirementSource?: "explicit" | "default";
 
   prerequisites?: unknown[];
@@ -117,6 +127,21 @@ interface ApiResponse<T> {
 // ==============================
 // MAPPER
 // ==============================
+
+/**
+ * Guarantees exactly one length per weekly session.
+ *
+ * The backend already sends a correctly-sized list; this only covers an older
+ * or partial response, where a short array would make a per-position consumer
+ * read `undefined` as a session length.
+ */
+function resolveEffectiveDurations(s: SubjectResponse): number[] {
+  const count = s.effectiveSessionsPerWeek ?? 5;
+  const base = s.effectiveSessionMinutes ?? 60;
+  const list = s.effectiveSessionDurations;
+  if (list && list.length === count) return [...list];
+  return Array.from({ length: count }, () => base);
+}
 
 function mapSubject(s: SubjectResponse): Subject {
   return {
@@ -149,10 +174,15 @@ function mapSubject(s: SubjectResponse): Subject {
 
     sessionsPerWeek: s.sessionsPerWeek ?? null,
     sessionMinutes: s.sessionMinutes ?? null,
+    sessionDurations: s.sessionDurations ?? [],
     // Always populated by the backend (resolved against the program default),
     // so the table can render a value even when nothing is configured.
     effectiveSessionsPerWeek: s.effectiveSessionsPerWeek ?? 5,
     effectiveSessionMinutes: s.effectiveSessionMinutes ?? 60,
+    // The backend always sends one entry per session. Fall back to a uniform
+    // list from the resolved base so a consumer that indexes per position is
+    // never handed a short array (e.g. an older response mid-rollout).
+    effectiveSessionDurations: resolveEffectiveDurations(s),
     sessionRequirementSource: s.sessionRequirementSource ?? "default",
 
     prerequisites: s.prerequisites ?? [],
