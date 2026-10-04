@@ -1,6 +1,6 @@
 ﻿# TICK-GRADE-001 — Fix educator grades/lock ad-hoc keys and direct apiClient (realtime)
 
-Status: ready-for-review
+Status: merged
 Priority: high
 Created: 2026-08-26
 Created by: agent
@@ -8,6 +8,8 @@ Assigned to: agent
 Started: 2026-08-26
 Worktree: ../EduToolV4-worktrees/TICK-GRADE-001-educator-grades-realtime
 Branch: agent/TICK-GRADE-001-educator-grades-realtime
+Merged: cf6b83c7 is already an ancestor of origin/development
+  (verified: git merge-base --is-ancestor cf6b83c7 origin/development -> exit 0)
 
 ## Problem
 
