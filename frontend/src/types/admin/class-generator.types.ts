@@ -60,6 +60,11 @@ export interface GenerateRequest {
   semesterId: string;
   /** Narrow to these sections. Omit/empty = every section in scope. */
   sectionIds?: string[];
+  /** Narrow to courses/strands inside the departments. Omit/empty = all. */
+  courseIds?: string[];
+  strandIds?: string[];
+  /** Educator allowlist. Omit/empty = every active educator. */
+  educatorIds?: string[];
   windowStart?: string;
   windowEnd?: string;
   maxItems?: number;

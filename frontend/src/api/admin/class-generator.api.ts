@@ -22,6 +22,9 @@ export const classGeneratorApi = {
   readiness: async (params: {
     schoolYearId: string;
     programIds: string;
+    courseIds?: string;
+    strandIds?: string;
+    educatorIds?: string;
   }): Promise<GenerateReadiness> => {
     const res = await client.get<ApiResponse<GenerateReadiness>>(
       "/class-generator/readiness",

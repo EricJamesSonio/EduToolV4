@@ -21,15 +21,31 @@ const errMessage = (err: unknown, fallback: string) =>
 export const useGeneratorReadiness = (
   schoolYearId: string | undefined,
   programIds: string[],
+  scope?: {
+    courseIds?: string[];
+    strandIds?: string[];
+    educatorIds?: string[];
+  },
   enabled = true,
 ) => {
   const key = programIds.join(",");
+  const courseKey = (scope?.courseIds ?? []).join(",");
+  const strandKey = (scope?.strandIds ?? []).join(",");
+  const educatorKey = (scope?.educatorIds ?? []).join(",");
   return useQuery<GenerateReadiness>({
-    queryKey: queryKeys.admin.classGenerator.readiness(schoolYearId ?? "", key),
+    queryKey: [
+      ...queryKeys.admin.classGenerator.readiness(schoolYearId ?? "", key),
+      courseKey,
+      strandKey,
+      educatorKey,
+    ],
     queryFn: () =>
       classGeneratorApi.readiness({
         schoolYearId: schoolYearId!,
         programIds: key,
+        ...(courseKey ? { courseIds: courseKey } : {}),
+        ...(strandKey ? { strandIds: strandKey } : {}),
+        ...(educatorKey ? { educatorIds: educatorKey } : {}),
       }),
     enabled: enabled && !!schoolYearId && programIds.length > 0,
     // Readiness is cheap but not free; a short window keeps the panel fresh
