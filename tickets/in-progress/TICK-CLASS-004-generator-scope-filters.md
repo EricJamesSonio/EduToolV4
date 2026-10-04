@@ -1,13 +1,13 @@
 # TICK-CLASS-004 — Generator scope filters: department/course/strand/level + educator select + coverage
 
-Status: blocked
+Status: in-progress
 Priority: high
 Created: 2026-10-04
 Created by: agent
 Assigned to: agent
 Started: 2026-10-04
-Worktree: ../EduToolV4-worktrees/TICK-CLASS-004-generator-scope-filters
-Branch: agent/TICK-CLASS-004-generator-scope-filters
+Worktree: main checkout in place (owner-directed, no isolated worktree)
+Branch: agent/TICK-CLASS-004-class-generator
 
 ## Problem
 
@@ -53,12 +53,13 @@ Auto-generate (`frontend/src/app/admin/classes/generate/page.tsx`) only filters 
 
 ## Blocker
 
-Blocked 2026-10-04: the files this ticket modifies do not exist on `origin/development` (feature worktree base `f30fd9c4` has no `class-generator` module, no `classes/generate/page.tsx`). They exist only as: (a) committed-but-unpushed work on local `development` (13 ahead: TICK-CLASS-003 commits `123dbfb1..28445124` — backend generator only), and (b) another agent's **uncommitted** WIP in the main checkout (`frontend/src/app/admin/classes/generate/page.tsx`, `ClassGeneratorPanels.tsx`, `generatorReadinessTargets.ts` untracked + modified backend generator files). Per AGENTS.md §3/§6 and current-state.md ("another agent's active work, do not touch"), building on (b) would violate worktree isolation. Awaiting owner decision (see question in chat).
+Resolved 2026-10-04 (see Activity Log). Was: base files existed only as another agent's uncommitted WIP; owner directed in-place branch + rebase flow.
 
 ## Activity Log
 
 2026-10-04 — Claimed (counter CLASS 3 -> 4). Worktree + branch per AGENTS.md.
 2026-10-04 — Base verification failed: origin/development lacks the generator; main-checkout WIP belongs to another agent. Ticket set to blocked, worktree kept but untouched (no code changes made).
+2026-10-04 — Owner overrode: TICK-GRADE-006 merge never included generator work; directed in-place branch `agent/TICK-CLASS-004-class-generator`, commit WIP sensibly, rebase onto origin/development, push branch only. Base verified: `merge-base --is-ancestor 2ae49877 origin/development` = 0. Isolated worktree removed. Ticket back to in-progress.
 
 ## Commits
 
