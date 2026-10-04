@@ -8,9 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { useClassGrades, usePublishStudent, useUnlockStudent } from "@/hooks/educator/useGrades"
 import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api"
-import { educatorGradeLockApi } from "@/api/educator/grade-lock.api"
-import { gradeApi } from "@/api/educator/grade.api"
-import { useQueryClient } from "@tanstack/react-query"
+import { useLockClassGrades } from "@/hooks/educator/useGradeLock"
 import { useAsyncQuery } from "@/hooks/hook-factory.utils"
 import { queryKeys } from "@/hooks/queryKeys.factory"
 import type { GradingScale } from "@/types/admin/grading-scale.types"
@@ -19,7 +17,6 @@ import { StudentGradeCard } from "./StudentGradeCard"
 
 export function PublishedGradesPage({ classId }: { classId: string }) {
   const { data: allTerms, isLoading: termsLoading } = useClassGrades(classId)
-  const qc = useQueryClient()
 
   const { data: gradingScale } = useAsyncQuery<GradingScale | null>(
     queryKeys.educator.gradingScale.detail(classId),
@@ -29,7 +26,6 @@ export function PublishedGradesPage({ classId }: { classId: string }) {
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [publishAllOpen, setPublishAllOpen] = useState(false)
-  const [publishingAll, setPublishingAll] = useState(false)
 
   const activeTerms = allTerms ?? []
 
@@ -65,6 +61,7 @@ export function PublishedGradesPage({ classId }: { classId: string }) {
 
   const publishStudentMutation = usePublishStudent(classId)
   const unlockStudentMutation = useUnlockStudent(classId)
+  const lockMutation = useLockClassGrades(classId)
 
   const handlePublishTerm = async (termId: string, studentId: string) => {
     try {
@@ -87,29 +84,22 @@ export function PublishedGradesPage({ classId }: { classId: string }) {
   const handlePublishAllTermsForStudent = async (studentId: string) => {
     try {
       for (const term of activeTerms) {
-        await gradeApi.publishStudent(classId, term.termId, studentId)
+        await publishStudentMutation.mutateAsync({ termId: term.termId, studentId })
       }
       toast.success("All terms published.")
-      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all })
-      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) })
     } catch {
       toast.error("Failed to publish all terms.")
     }
   }
 
   const handlePublishAll = async () => {
-    setPublishingAll(true)
     try {
-      await educatorGradeLockApi.lockClass(classId)
+      await lockMutation.mutateAsync()
       toast.success("All grades published.")
       setPublishAllOpen(false)
-      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all })
-      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) })
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       toast.error(msg ?? "Failed to publish all grades.")
-    } finally {
-      setPublishingAll(false)
     }
   }
 
@@ -202,9 +192,9 @@ export function PublishedGradesPage({ classId }: { classId: string }) {
         title="Publish All Grades"
         destructive
         message="Publishing will make final scores visible to all students and prevent further edits. This action requires admin override to undo. Are you sure?"
-        confirmLabel={publishingAll ? "Publishing..." : "Publish All"}
+        confirmLabel={lockMutation.isPending ? "Publishing..." : "Publish All"}
         onConfirm={handlePublishAll}
-        isLoading={publishingAll}
+        isLoading={lockMutation.isPending}
       />
     </div>
   )
