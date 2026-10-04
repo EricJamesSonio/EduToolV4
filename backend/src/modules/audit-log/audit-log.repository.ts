@@ -9,7 +9,7 @@ interface EnrichableLog {
   entity_id: string;
 }
 
-interface EnrichedFields {
+export interface EnrichedFields {
   actor_name: string | null;
   actor_role: string | null;
   entity_name: string | null;

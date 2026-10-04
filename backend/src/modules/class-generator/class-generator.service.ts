@@ -27,6 +27,11 @@ export interface GenerateRequest {
   semesterId: string;
   /** Optional subset of section ids. Omit/empty = every section in scope. */
   sectionIds?: string[];
+  /** Optional narrowing to courses/strands inside the departments. */
+  courseIds?: string[];
+  strandIds?: string[];
+  /** Optional educator allowlist. Omit/empty = every active educator. */
+  educatorIds?: string[];
   /** Optional narrowing of the daily window, e.g. '08:00' to '15:00'. */
   windowStart?: string;
   windowEnd?: string;
@@ -235,7 +240,12 @@ export class ClassGeneratorService {
           .filter((c) => c.sectionId === section.id);
 
         if (pairClaims.length === 0) {
-          item.unplacedReason = `No educator is assigned to ${subject.name} for ${section.name}. Assign slots on the educator's page.`;
+          const deselectedHold = (
+            scope.assignmentsBySubjectAll?.get(subject.id) ?? []
+          ).some((c) => c.sectionId === section.id);
+          item.unplacedReason = deselectedHold
+            ? `Every educator assigned to ${subject.name} for ${section.name} is deselected. Re-select them or assign slots to a selected educator.`
+            : `No educator is assigned to ${subject.name} for ${section.name}. Assign slots on the educator's page.`;
           items.push(item);
           continue;
         }
@@ -458,6 +468,12 @@ export class ClassGeneratorService {
       ...(req.sectionIds && req.sectionIds.length > 0
         ? { id: { in: req.sectionIds } }
         : {}),
+      ...(req.courseIds && req.courseIds.length > 0
+        ? { course_id: { in: req.courseIds } }
+        : {}),
+      ...(req.strandIds && req.strandIds.length > 0
+        ? { strand_id: { in: req.strandIds } }
+        : {}),
     };
     const educatorWhere = {
       org_id: req.orgId,
@@ -478,7 +494,16 @@ export class ClassGeneratorService {
         },
       }),
       this.db.subject.findMany({
-        where: { org_id: req.orgId, level: { program_id: { in: req.programIds } } },
+        where: {
+          org_id: req.orgId,
+          level: { program_id: { in: req.programIds } },
+          ...(req.courseIds && req.courseIds.length > 0
+            ? { course_id: { in: req.courseIds } }
+            : {}),
+          ...(req.strandIds && req.strandIds.length > 0
+            ? { strand_id: { in: req.strandIds } }
+            : {}),
+        },
         select: {
           id: true,
           name: true,
@@ -555,16 +580,62 @@ export class ClassGeneratorService {
       educatorName.set(e.id, e.profile?.full_name ?? null);
     }
 
+    // Educator allowlist: deselected educators are excluded from placement
+    // entirely. Snapshots of the unfiltered maps are kept so readiness and
+    // preview can tell "no educator at all" apart from "educators exist but
+    // are all deselected". Omit/empty = everyone stays selected.
+    const selectedEducatorIds =
+      req.educatorIds && req.educatorIds.length > 0
+        ? [...new Set(req.educatorIds)]
+        : null;
+    const selectedSet = selectedEducatorIds
+      ? new Set(selectedEducatorIds)
+      : null;
+    const eligibleBySubjectAll = selectedSet
+      ? new Map(
+          [...eligibleBySubject].map(([k, v]) => [k, [...v]] as [string, string[]]),
+        )
+      : null;
+    const assignmentsBySubjectAll = selectedSet
+      ? new Map(
+          [...assignmentsBySubject].map(
+            ([k, v]) => [k, [...v]] as [string, typeof v],
+          ),
+        )
+      : null;
+    if (selectedSet) {
+      for (const [subjectId, educatorIds] of eligibleBySubject) {
+        eligibleBySubject.set(
+          subjectId,
+          educatorIds.filter((id) => selectedSet.has(id)),
+        );
+      }
+      for (const [subjectId, claims] of assignmentsBySubject) {
+        assignmentsBySubject.set(
+          subjectId,
+          claims.filter((c) => selectedSet.has(c.educatorId)),
+        );
+      }
+    }
+    const allEducatorIds = educators.map((e) => e.id);
+    const deselectedEducatorIds = selectedSet
+      ? allEducatorIds.filter((id) => !selectedSet.has(id))
+      : [];
+
     return {
       sections,
       subjects,
       eligibleBySubject,
       assignmentsBySubject,
+      eligibleBySubjectAll,
+      assignmentsBySubjectAll,
+      selectedEducatorIds,
+      deselectedEducatorIds,
       yearRequirements,
       availability,
       customAvailability,
       educatorName,
-      allEducatorIds: educators.map((e) => e.id),
+      allEducatorIds,
     };
   }
 
@@ -622,6 +693,16 @@ export class ClassGeneratorService {
         `Limited to ${scope.sections.length} selected section(s).`,
       );
     }
+    if (req.courseIds && req.courseIds.length > 0) {
+      warnings.push(
+        `Scoped to ${req.courseIds.length} selected course(s).`,
+      );
+    }
+    if (req.strandIds && req.strandIds.length > 0) {
+      warnings.push(
+        `Scoped to ${req.strandIds.length} selected strand(s).`,
+      );
+    }
     if (scope.subjects.length === 0) {
       issues.push({
         code: 'no_subjects',
@@ -672,7 +753,12 @@ export class ClassGeneratorService {
       }
     }
 
-    const educatorsNoSubjects = scope.allEducatorIds.filter(
+    // Educator checks run against the SELECTED set when an allowlist is
+    // present: a deselected educator is "excluded", not "subject-less".
+    // Deselection itself is reported separately below.
+    const consideredEducators = scope.selectedEducatorIds ?? scope.allEducatorIds;
+
+    const educatorsNoSubjects = consideredEducators.filter(
       (id) => !(teachableByEducator.get(id)?.size ?? 0),
     );
     if (educatorsNoSubjects.length > 0) {
@@ -691,7 +777,7 @@ export class ClassGeneratorService {
       });
     }
 
-    const educatorsNoDays = scope.allEducatorIds.filter((id) => {
+    const educatorsNoDays = consideredEducators.filter((id) => {
       const days = scope.customAvailability.has(id)
         ? intersectWeekdays(scope.availability.get(id) ?? [], activeWeekdays)
         : [...activeWeekdays];
@@ -713,8 +799,14 @@ export class ClassGeneratorService {
       });
     }
 
+    // With an educator allowlist, subjects whose educators are all
+    // deselected are reported as scope_no_coverage below instead — telling
+    // the admin "nobody teaches this" would send them to the wrong fix.
     const subjectsNoEducator = scope.subjects.filter(
-      (s) => !(scope.eligibleBySubject.get(s.id)?.length ?? 0),
+      (s) =>
+        (scope.eligibleBySubject.get(s.id)?.length ?? 0) === 0 &&
+        (scope.eligibleBySubjectAll == null ||
+          (scope.eligibleBySubjectAll.get(s.id)?.length ?? 0) === 0),
     );
     if (subjectsNoEducator.length > 0) {
       issues.push({
@@ -724,6 +816,51 @@ export class ClassGeneratorService {
         count: subjectsNoEducator.length,
         entities: cappedEntities(
           subjectsNoEducator.map((s) => ({
+            id: s.id,
+            name: s.name,
+            type: 'subject' as const,
+          })),
+        ),
+      });
+    }
+
+    // Deselected educators: named so the admin knows the exclusion is
+    // deliberate, not a missing assignment.
+    if (scope.deselectedEducatorIds.length > 0) {
+      issues.push({
+        code: 'educator_excluded',
+        severity: 'warning',
+        message: `${scope.deselectedEducatorIds.length} educator(s) deselected and excluded from generation.`,
+        count: scope.deselectedEducatorIds.length,
+        entities: cappedEntities(
+          scope.deselectedEducatorIds.map((id) => ({
+            id,
+            name: educatorName(id),
+            type: 'educator' as const,
+          })),
+        ),
+      });
+    }
+
+    // Coverage gap caused by the selection itself: educators exist for these
+    // subjects org-wide, but none of them is selected. Distinct from
+    // subject_no_educator (nobody at all), so the fix is obvious: re-select.
+    const noCoverageSubjects =
+      scope.eligibleBySubjectAll != null
+        ? scope.subjects.filter(
+            (s) =>
+              (scope.eligibleBySubject.get(s.id)?.length ?? 0) === 0 &&
+              (scope.eligibleBySubjectAll?.get(s.id)?.length ?? 0) > 0,
+          )
+        : [];
+    if (noCoverageSubjects.length > 0) {
+      issues.push({
+        code: 'scope_no_coverage',
+        severity: 'warning',
+        message: `${noCoverageSubjects.length} subject(s) have educators, but all of them are deselected, so they will stay unplaced.`,
+        count: noCoverageSubjects.length,
+        entities: cappedEntities(
+          noCoverageSubjects.map((s) => ({
             id: s.id,
             name: s.name,
             type: 'subject' as const,
@@ -842,7 +979,7 @@ export class ClassGeneratorService {
       }
     }
     const effectiveDays = new Map<string, number[]>();
-    for (const id of scope.allEducatorIds) {
+    for (const id of consideredEducators) {
       effectiveDays.set(
         id,
         scope.customAvailability.has(id)
@@ -850,7 +987,7 @@ export class ClassGeneratorService {
           : [...activeWeekdays],
       );
     }
-    const overCapacity = scope.allEducatorIds.filter((id) => {
+    const overCapacity = consideredEducators.filter((id) => {
       const capacity = (effectiveDays.get(id)?.length ?? 0) * perDayMin;
       const used =
         (pickedByEducator.get(id) ?? 0) + (existingByEducator.get(id) ?? 0);

@@ -40,6 +40,34 @@ export class GenerateClassesDto {
   @IsUUID(undefined, { each: true })
   sectionIds?: string[];
 
+  /**
+   * Optional narrowing to courses (college) / strands (SHS) inside the
+   * selected departments. Omit or empty = every course/strand. Subjects and
+   * sections match on their direct course_id/strand_id.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID(undefined, { each: true })
+  courseIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID(undefined, { each: true })
+  strandIds?: string[];
+
+  /**
+   * Optional allowlist of educators. Omit or empty = every active educator.
+   * Deselected educators are excluded from placement entirely: their pairs
+   * become unplaced with a reason naming the deselection.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID(undefined, { each: true })
+  educatorIds?: string[];
+
   /** Optional narrowing of the daily window; defaults to the org window. */
   @IsOptional()
   @IsString()
@@ -78,6 +106,24 @@ export class GenerateReadinessDto {
   // Any UUID version (see GenerateClassesDto).
   @IsUUID(undefined, { each: true })
   programIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID(undefined, { each: true })
+  courseIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID(undefined, { each: true })
+  strandIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID(undefined, { each: true })
+  educatorIds?: string[];
 }
 
 export class GeneratorRosterQueryDto {

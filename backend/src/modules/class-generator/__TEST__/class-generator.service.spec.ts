@@ -678,4 +678,99 @@ describe('ClassGeneratorService', () => {
       expect(out.educators[0].teachableSubjectIds).toEqual([]);
     });
   });
+
+  describe('scope filters (TICK-CLASS-004)', () => {
+    it('narrows sections and subjects to the selected courses', async () => {
+      const { service, db } = makeHarness({
+        sections: [
+          { ...section('sec-bscs', 'lvl-1'), course_id: 'c-bscs' },
+          { ...section('sec-bsit', 'lvl-2'), course_id: 'c-bsit' },
+        ],
+        subjects: [
+          { ...subject('s1', 'lvl-1', 1, 60), course_id: 'c-bscs' },
+          { ...subject('s2', 'lvl-2', 1, 60), course_id: 'c-bsit' },
+        ],
+        educators: [educator('e1', 'Alice')],
+      });
+      await service.readiness({ ...req, courseIds: ['c-bscs'] });
+      expect(db.section.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ course_id: { in: ['c-bscs'] } }),
+        }),
+      );
+      expect(db.subject.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ course_id: { in: ['c-bscs'] } }),
+        }),
+      );
+    });
+
+    it('narrows sections and subjects to the selected strands', async () => {
+      const { service, db } = makeHarness({
+        sections: [{ ...section('sec-1'), strand_id: 'st-stem' }],
+        subjects: [{ ...subject('s1'), strand_id: 'st-stem' }],
+        educators: [educator('e1', 'Alice')],
+      });
+      await service.readiness({ ...req, strandIds: ['st-stem'] });
+      expect(db.section.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ strand_id: { in: ['st-stem'] } }),
+        }),
+      );
+      expect(db.subject.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ strand_id: { in: ['st-stem'] } }),
+        }),
+      );
+    });
+
+    it('marks pairs held only by deselected educators as unplaced', async () => {
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 1, 60)],
+        educators: [educator('e1', 'Alice'), educator('e2', 'Bob')],
+        eligible: new Map([['s1', ['e1']]]),
+        claims: [claim('s1', 'sec-1', 'e1', 0, 'Alice', null)],
+      });
+      const out = await service.preview({ ...req, educatorIds: ['e2'] });
+      expect(out.items).toHaveLength(1);
+      expect(out.items[0].unplacedReason).toMatch(/deselected/);
+      expect(out.placedCount).toBe(0);
+      expect(out.unplacedCount).toBe(1);
+    });
+
+    it('reports deselection coverage gaps instead of missing assignments', async () => {
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 1, 60)],
+        educators: [educator('e1', 'Alice'), educator('e2', 'Bob')],
+        eligible: new Map([['s1', ['e1']]]),
+        claims: [claim('s1', 'sec-1', 'e1', 0, 'Alice', null)],
+      });
+      const r = await service.readiness({ ...req, educatorIds: ['e2'] });
+      const codes = r.issues.map((i) => i.code);
+      expect(codes).toContain('educator_excluded');
+      expect(codes).toContain('scope_no_coverage');
+      // The subject HAS an educator org-wide — the deselected one — so the
+      // generic "no educator" issue must not fire for it.
+      expect(codes).not.toContain('subject_no_educator');
+      const coverage = r.issues.find((i) => i.code === 'scope_no_coverage')!;
+      expect(coverage.entities?.map((e) => e.id)).toEqual(['s1']);
+      const excluded = r.issues.find((i) => i.code === 'educator_excluded')!;
+      expect(excluded.entities?.map((e) => e.id)).toEqual(['e1']);
+    });
+
+    it('treats an omitted educator allowlist as everyone selected', async () => {
+      const { service } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 1, 60)],
+        educators: [educator('e1', 'Alice')],
+        eligible: new Map([['s1', ['e1']]]),
+        claims: [claim('s1', 'sec-1', 'e1', 0, 'Alice', null)],
+      });
+      const r = await service.readiness(req);
+      expect(r.issues.map((i) => i.code)).not.toContain('educator_excluded');
+      expect(r.issues.map((i) => i.code)).not.toContain('scope_no_coverage');
+    });
+  });
 });

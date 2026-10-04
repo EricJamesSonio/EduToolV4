@@ -38,4 +38,24 @@ describe('class-generator DTO id versions', () => {
     });
     expect(await validate(dto)).toHaveLength(0);
   });
+
+  it('accepts course/strand/educator allowlists and rejects non-UUID entries', async () => {
+    const ok = plainToInstance(GenerateClassesDto, {
+      schoolYearId: V4,
+      programIds: [V5],
+      semesterId: V4,
+      courseIds: [V5],
+      strandIds: [V4],
+      educatorIds: [V5, V4],
+    });
+    expect(await validate(ok)).toHaveLength(0);
+
+    const bad = plainToInstance(GenerateClassesDto, {
+      schoolYearId: V4,
+      programIds: [V5],
+      semesterId: V4,
+      educatorIds: ['not-a-uuid'],
+    });
+    expect((await validate(bad)).length).toBeGreaterThan(0);
+  });
 });

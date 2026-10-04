@@ -34,12 +34,15 @@ export class ClassGeneratorController {
   @Get('readiness')
   async readiness(
     @CurrentUser('org_id') orgId: string,
-    @Query() query: GenerateReadinessDto & { programIds?: string },
+    @Query()
+    query: GenerateReadinessDto & {
+      programIds?: string;
+      courseIds?: string;
+      strandIds?: string;
+      educatorIds?: string;
+    },
   ) {
-    const programIds = (query.programIds ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const programIds = splitCsv(query.programIds);
     if (programIds.length === 0) {
       throw new ForbiddenException('Select at least one department.');
     }
@@ -48,6 +51,9 @@ export class ClassGeneratorController {
       schoolYearId: query.schoolYearId,
       programIds,
       semesterId: '',
+      courseIds: splitCsv(query.courseIds),
+      strandIds: splitCsv(query.strandIds),
+      educatorIds: splitCsv(query.educatorIds),
     });
   }
 
@@ -77,6 +83,9 @@ export class ClassGeneratorController {
       programIds: dto.programIds,
       semesterId: dto.semesterId,
       sectionIds: dto.sectionIds,
+      courseIds: dto.courseIds,
+      strandIds: dto.strandIds,
+      educatorIds: dto.educatorIds,
       windowStart: dto.windowStart,
       windowEnd: dto.windowEnd,
       maxItems: dto.maxItems,
@@ -106,6 +115,9 @@ export class ClassGeneratorController {
         programIds: dto.programIds,
         semesterId: dto.semesterId,
         sectionIds: dto.sectionIds,
+        courseIds: dto.courseIds,
+        strandIds: dto.strandIds,
+        educatorIds: dto.educatorIds,
         windowStart: dto.windowStart,
         windowEnd: dto.windowEnd,
         maxItems: dto.maxItems,
@@ -119,27 +131,56 @@ export class ClassGeneratorController {
     dto: GenerateClassesDto,
   ): Promise<void> {
     const sectionIds = [...new Set(dto.sectionIds ?? [])];
-    const [semesters, programs, sections] = await Promise.all([
-      this.db.semester.count({
-        where: { id: dto.semesterId, org_id: orgId },
-      }),
-      this.db.program.count({
-        where: { id: { in: dto.programIds }, org_id: orgId },
-      }),
-      sectionIds.length > 0
-        ? this.db.section.count({
-            where: { id: { in: sectionIds }, org_id: orgId },
-          })
-        : 0,
-    ]);
+    const courseIds = [...new Set(dto.courseIds ?? [])];
+    const strandIds = [...new Set(dto.strandIds ?? [])];
+    const educatorIds = [...new Set(dto.educatorIds ?? [])];
+    const [semesters, programs, sections, courses, strands, educators] =
+      await Promise.all([
+        this.db.semester.count({
+          where: { id: dto.semesterId, org_id: orgId },
+        }),
+        this.db.program.count({
+          where: { id: { in: dto.programIds }, org_id: orgId },
+        }),
+        sectionIds.length > 0
+          ? this.db.section.count({
+              where: { id: { in: sectionIds }, org_id: orgId },
+            })
+          : 0,
+        courseIds.length > 0
+          ? this.db.course.count({
+              where: { id: { in: courseIds }, org_id: orgId },
+            })
+          : 0,
+        strandIds.length > 0
+          ? this.db.strand.count({
+              where: { id: { in: strandIds }, org_id: orgId },
+            })
+          : 0,
+        educatorIds.length > 0
+          ? this.db.account.count({
+              where: { id: { in: educatorIds }, org_id: orgId },
+            })
+          : 0,
+      ]);
     if (
       semesters !== 1 ||
       programs !== new Set(dto.programIds).size ||
-      sections !== sectionIds.length
+      sections !== sectionIds.length ||
+      courses !== courseIds.length ||
+      strands !== strandIds.length ||
+      educators !== educatorIds.length
     ) {
       throw new ForbiddenException(
-        'The selected semester, department, or section does not belong to this organization.',
+        'The selected semester, department, course, strand, section, or educator does not belong to this organization.',
       );
     }
   }
+}
+
+function splitCsv(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
