@@ -15,6 +15,9 @@
 
 export type SlotPicks = Record<string, Record<string, number[]>>;
 
+/** Backwards-compatible alias used by the teachable modal. */
+export type Picks = SlotPicks;
+
 export interface SlotRequirement {
   positions: number;
   minutes: number;

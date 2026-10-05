@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 
 import { useSetTeachableBundle, useEducatorCapacity } from "@/hooks/admin/useEducators";
+import { useTeachableSeed } from "@/hooks/admin/useTeachableSeed";
 import { useSubjects } from "@/hooks/admin/useSubject";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -21,6 +22,7 @@ import {
   capacityUsage,
   pickedMinutes,
   type CapacityUsage,
+  type Picks,
 } from "@/utils/educatorSlotPicks";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
@@ -37,7 +39,6 @@ import {
 
 const ALL = "all";
 
-type Picks = Record<string, Record<string, number[]>>;
 type Claim = { educatorId: string; educatorName: string; slots: number[] };
 
 interface TeachableSubjectsModalProps {
@@ -77,18 +78,7 @@ export function TeachableSubjectsModal({
   const [programId, setProgramId] = useState(ALL);
   const [levelId, setLevelId] = useState(ALL);
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<string[]>([]);
-  /** Live picks: subject -> section -> 1-based weekly positions. */
-  const [picksBySubject, setPicksBySubject] = useState<Picks>({});
-  /** Seed snapshot for dirty-checking. */
-  const [seedPicks, setSeedPicks] = useState<Picks>({});
   const [expanded, setExpanded] = useState<string | null>(null);
-  /**
-   * Seed-once guard: the form seeds exactly once per open session
-   * (educator + school year). Late query arrivals and background refetches
-   * must never wipe in-progress picks — the H3 data-loss path.
-   */
-  const seededForRef = useRef<string | null>(null);
 
   const saveBundle = useSetTeachableBundle();
   const saving = saveBundle.isPending;
@@ -140,27 +130,25 @@ export function TeachableSubjectsModal({
     return map;
   }, [allYearSubjects]);
 
-  // Seed from the current links once per open session. Legacy rows
-  // (section ids with no slot picks) expand to the full weekly count — but
-  // only after the year-subject requirements have loaded, otherwise legacy
-  // rows seed as empty and their saved slots would be lost on the next save.
-  // Reset on close (and on educator/year change via the key) so a reopen
-  // always shows fresh server state.
+  const {
+    seedKey,
+    selected,
+    setSelected,
+    picksBySubject,
+    setPicksBySubject,
+    seedPicks,
+  } = useTeachableSeed({
+    open,
+    educatorId,
+    schoolYearId,
+    assigned,
+    subjectInfoById,
+    infoLoading,
+  });
+  // A reopened session starts with no section expanded.
   useEffect(() => {
-    if (!open) {
-      seededForRef.current = null;
-      return;
-    }
-    const key = `${educatorId}::${schoolYearId ?? ""}`;
-    if (seededForRef.current === key) return;
-    if (infoLoading) return;
-    setSelected(assigned.map((s) => s.id));
-    const picks = buildSeedPicks(assigned, subjectInfoById);
-    setPicksBySubject(picks);
-    setSeedPicks(JSON.parse(JSON.stringify(picks)) as Picks);
     setExpanded(null);
-    seededForRef.current = key;
-  }, [open, educatorId, schoolYearId, assigned, subjectInfoById, infoLoading]);
+  }, [seedKey]);
 
   const expandedSubject = useMemo(
     () => subjects.find((s) => s.id === expanded) ?? null,

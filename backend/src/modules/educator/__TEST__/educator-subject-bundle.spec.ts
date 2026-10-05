@@ -155,7 +155,7 @@ const run = (
 
 describe('setBundle', () => {
   it('writes links and slots atomically and audits once', async () => {
-    const { service, repo, audit, db, tx } = makeBundleService();
+    const { service, repo, audit, db } = makeBundleService();
     const out = await run(service);
     expect(out).toEqual({ count: 1, updated: 1, pickedMin: 120 });
     expect(db.$transaction).toHaveBeenCalledTimes(1);
