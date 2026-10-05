@@ -27,17 +27,19 @@ export function FontSelector({ value, hasSlides, onChange, onApplyAll }: FontSel
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 justify-between gap-2 min-w-[9.5rem]">
-          <span className="flex items-center gap-1.5 truncate">
-            <PaintBucket className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span style={{ fontFamily: active.stack }} className="truncate">
-              {active.label}
+      <PopoverTrigger
+        render={
+          <Button variant="outline" size="sm" className="h-9 justify-between gap-2 min-w-[9.5rem]">
+            <span className="flex items-center gap-1.5 truncate">
+              <PaintBucket className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span style={{ fontFamily: active.stack }} className="truncate">
+                {active.label}
+              </span>
             </span>
-          </span>
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        </Button>
-      </PopoverTrigger>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          </Button>
+        }
+      />
       <PopoverContent align="start" className="w-72 p-2">
         <p className="px-1 pb-1.5 text-[11px] text-muted-foreground">
           {hasSlides

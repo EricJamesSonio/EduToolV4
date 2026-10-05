@@ -76,8 +76,11 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
   const namePreview = previewName(startDate, endDate);
 
   const mutation = useMutation({
-    mutationFn: (payload: CreateForm & { confirm_short_duration?: boolean }) =>
+    mutationFn: (
+      payload: CreateForm & { name: string; confirm_short_duration?: boolean },
+    ) =>
       schoolYearApi.create({
+        name: payload.name,
         start_date: payload.start_date || undefined,
         end_date: payload.end_date || undefined,
         confirm_short_duration: payload.confirm_short_duration,
@@ -191,7 +194,13 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
     onClose();
   }
 
-  const onSubmit = (values: CreateForm) => mutation.mutate(values);
+  const onSubmit = (values: CreateForm) => {
+    // The name is derived from the dates (shown as a preview) — the submit
+    // button stays disabled until both dates yield one.
+    const name = previewName(values.start_date, values.end_date);
+    if (!name) return;
+    mutation.mutate({ ...values, name });
+  };
 
   const handleClose = () => {
     reset();
@@ -201,8 +210,14 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
 
   const handleConfirmShortDuration = () => {
     if (!shortDurationWarning) return;
+    const name = previewName(
+      shortDurationWarning.pendingValues.start_date,
+      shortDurationWarning.pendingValues.end_date,
+    );
+    if (!name) return;
     mutation.mutate({
       ...shortDurationWarning.pendingValues,
+      name,
       confirm_short_duration: true,
     });
   };

@@ -55,8 +55,7 @@ export function LevelWithSectionsList({
   const strands: StrandSnapshot[] = program?.strands ?? [];
 
   const createMutation = useMutationWithInvalidation(
-    (name: string) =>
-      levelApi.create({ programId, name, schoolYearId }),
+    () => levelApi.addNext({ programId, schoolYearId }),
     {
       invalidateKeys: [queryKeys.admin.levels.list({ schoolYearId })],
       onSuccess: () => {
@@ -91,11 +90,11 @@ export function LevelWithSectionsList({
     isEnded,
     programType: program.type,
     onViewSubjects,
-    onRename: (id: string, name: string) =>
-      levelApi.updateOne(id, name),
+    onRename: (id: string, count: number) =>
+      levelApi.updateOne(id, count),
     onDelete: (level: Level) => setDeleteTarget(level),
     onAdd: () =>
-      createMutation.mutate(`Level ${levels.length + 1}`),
+      createMutation.mutate(),
     onGenerate: (count: number) =>
       generateMutation.mutate(count),
     isUpdating: false,

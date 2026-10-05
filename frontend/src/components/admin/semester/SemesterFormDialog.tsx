@@ -135,7 +135,6 @@ export function SemesterFormDialog({
       setProgramId("");
       setDraft((d) => ({ ...d, templateSemesterId: undefined, name: "" }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolYearId]);
 
   // The program's template-defined slots (e.g. 1st/2nd Semester, or 3 for
@@ -150,12 +149,12 @@ export function SemesterFormDialog({
   const noTemplateAssigned = !slotsLoading && !!programId && slots.length === 0;
   const allSlotsFilled = !slotsLoading && slots.length > 0 && availableSlots.length === 0;
 
-  const handleSelectProgram = (v: string) => {
+  const handleSelectProgram = (v: string | null) => {
     setProgramId(v ?? "");
     setDraft((d) => ({ ...d, templateSemesterId: undefined, name: "" }));
   };
 
-  const handleSelectSlot = (templateSemesterId: string) => {
+  const handleSelectSlot = (templateSemesterId: string | null) => {
     const slot = availableSlots.find((s) => s.templateSemesterId === templateSemesterId);
     if (!slot) return;
     patch("templateSemesterId", slot.templateSemesterId);
