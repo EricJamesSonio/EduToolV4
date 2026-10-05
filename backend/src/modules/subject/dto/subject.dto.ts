@@ -4,6 +4,8 @@ import {
   IsUUID,
   IsIn,
   IsInt,
+  IsArray,
+  ArrayMaxSize,
   MinLength,
   MaxLength,
   Min,
@@ -35,6 +37,20 @@ export class SubjectSessionRequirementDto {
   @Min(5)
   @Max(480)
   sessionMinutes?: number;
+
+  /**
+   * Length of EACH weekly session, position by position. Must be either empty
+   * (meaning "uniform": every session uses `sessionMinutes`) or exactly one
+   * entry per weekly session. Each entry must be a multiple of the org slot,
+   * checked in the service.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(5, { each: true })
+  @Max(480, { each: true })
+  sessionDurations?: number[];
 }
 
 export class CreateSubjectDto extends SubjectSessionRequirementDto {

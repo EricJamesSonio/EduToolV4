@@ -11,6 +11,7 @@ describe('resolveSessionRequirement', () => {
     expect(r).toEqual({
       sessionsPerWeek: 5,
       sessionMinutes: 60,
+      durations: [60, 60, 60, 60, 60],
       source: 'default',
     });
   });
@@ -36,6 +37,7 @@ describe('resolveSessionRequirement', () => {
     expect(r).toEqual({
       sessionsPerWeek: 3,
       sessionMinutes: 90,
+      durations: [90, 90, 90],
       source: 'explicit',
     });
   });
@@ -86,6 +88,109 @@ describe('resolveSessionRequirement', () => {
     );
     expect(r.source).toBe('default');
     expect(r.sessionsPerWeek).toBe(SUBJECT_SESSION_DEFAULTS.shs.sessionsPerWeek);
+  });
+
+  it('expands an EMPTY durations list to a uniform one', () => {
+    // The shape every pre-existing subject stores. This is the regression
+    // guard: it must be indistinguishable from never having had the column.
+    for (const stored of [undefined, null, []]) {
+      const r = resolveSessionRequirement(
+        { sessionsPerWeek: 3, sessionMinutes: 60, sessionDurations: stored },
+        'elementary',
+        30,
+      );
+      expect(r.durations).toEqual([60, 60, 60]);
+      expect(r.sessionMinutes).toBe(60);
+    }
+  });
+
+  it('honours per-position durations that match the count', () => {
+    const r = resolveSessionRequirement(
+      { sessionsPerWeek: 3, sessionMinutes: 60, sessionDurations: [60, 90, 120] },
+      'elementary',
+      30,
+    );
+    expect(r.durations).toEqual([60, 90, 120]);
+    // sessionMinutes stays the resolved BASE, not a summary of the list.
+    expect(r.sessionMinutes).toBe(60);
+    expect(r.source).toBe('explicit');
+  });
+
+  it('treats non-empty durations as explicit even with no other field set', () => {
+    const r = resolveSessionRequirement(
+      { sessionsPerWeek: 2, sessionDurations: [45, 60] },
+      'elementary',
+      30,
+    );
+    expect(r.source).toBe('explicit');
+    expect(r.durations).toEqual([45, 60]);
+  });
+
+  it('falls back to uniform when the stored length does not match the count', () => {
+    // A corrupt row. Reshape it to uniform rather than truncate/pad, so a
+    // class is never placed at a time nobody configured. The service rejects
+    // such a row on save; this only decides what READERS see meanwhile.
+    const short = resolveSessionRequirement(
+      { sessionsPerWeek: 4, sessionMinutes: 60, sessionDurations: [60, 90] },
+      'elementary',
+      30,
+    );
+    expect(short.durations).toEqual([60, 60, 60, 60]);
+
+    const long = resolveSessionRequirement(
+      { sessionsPerWeek: 2, sessionMinutes: 60, sessionDurations: [60, 60, 60] },
+      'elementary',
+      30,
+    );
+    expect(long.durations).toEqual([60, 60]);
+  });
+
+  it('lets the department standard win over a stale, mismatched array', () => {
+    // Neither the count nor the length is set, and the leftover array does not
+    // match the standard's weekly count. The standard supplies the count AND
+    // the lengths — a stale array must never reshape the week.
+    const r = resolveSessionRequirement(
+      { sessionDurations: [60, 90, 120] },
+      'elementary',
+      30,
+    );
+    expect(r.durations).toEqual([60, 60, 60, 60, 60]);
+    expect(r.sessionsPerWeek).toBe(5);
+    expect(r.sessionMinutes).toBe(60);
+  });
+
+  it('ignores stored durations for a subject on the default', () => {
+    // The plain default case: no stored fields at all, so the department
+    // standard is the only source and the resolved lengths are uniform.
+    const r = resolveSessionRequirement({}, 'jhs', 30);
+    expect(r.source).toBe('default');
+    expect(r.durations).toEqual([120, 120, 120, 120, 120]);
+  });
+
+  it('always returns exactly sessionsPerWeek durations', () => {
+    const cases = [
+      {},
+      { sessionsPerWeek: 1, sessionMinutes: 180 },
+      { sessionsPerWeek: 7, sessionDurations: [30, 30, 60, 60, 90, 90, 120] },
+      { sessionsPerWeek: 3, sessionMinutes: 45, sessionDurations: [45] },
+    ];
+    for (const c of cases) {
+      const r = resolveSessionRequirement(c, 'elementary', 30);
+      expect(r.durations).toHaveLength(r.sessionsPerWeek);
+    }
+  });
+
+  it('does not alias the caller\'s array', () => {
+    // The resolver's result is cached and read repeatedly; a shared reference
+    // would let one caller mutate another's placement plan.
+    const stored = [60, 90];
+    const r = resolveSessionRequirement(
+      { sessionsPerWeek: 2, sessionDurations: stored },
+      'elementary',
+      30,
+    );
+    stored[0] = 999;
+    expect(r.durations[0]).toBe(60);
   });
 });
 

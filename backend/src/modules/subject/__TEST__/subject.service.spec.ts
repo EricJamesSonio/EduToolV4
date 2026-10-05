@@ -295,6 +295,158 @@ describe('SubjectService', () => {
       ).rejects.toThrow(/must be a multiple of the school's 30m slot length/);
     });
 
+    // ── Per-session durations ────────────────────────────────────────────
+    // The org slot is 30m throughout, so 60/90/120 are valid and 45 is not.
+
+    it('rejects a duration list whose length does not match the weekly count', async () => {
+      repo.findProgramById.mockResolvedValue(programElem);
+      await expect(
+        service.create(orgId, {
+          ...validCreate,
+          sessionsPerWeek: 3,
+          sessionMinutes: 60,
+          sessionDurations: [60, 90],
+        } as any),
+      ).rejects.toThrow(/exactly one entry per weekly session[\s\S]*3x per week but 2/);
+    });
+
+    it('accepts a duration list matching the weekly count', async () => {
+      repo.findProgramById.mockResolvedValue(programElem);
+      repo.create.mockResolvedValue({
+        id: subjectId,
+        name: 'Math',
+        is_locked: false,
+        sessions_per_week: 3,
+        session_minutes: 60,
+        session_durations: [60, 90, 120],
+        program: programElem,
+      });
+      const res = await service.create(orgId, {
+        ...validCreate,
+        sessionsPerWeek: 3,
+        sessionMinutes: 60,
+        sessionDurations: [60, 90, 120],
+      } as any);
+      expect(res.sessionDurations).toEqual([60, 90, 120]);
+      expect(res.effectiveSessionDurations).toEqual([60, 90, 120]);
+      // sessionMinutes stays the base so existing consumers keep working.
+      expect(res.effectiveSessionMinutes).toBe(60);
+    });
+
+    it('rejects a single misaligned duration and names its position', async () => {
+      repo.findProgramById.mockResolvedValue(programElem);
+      await expect(
+        service.create(orgId, {
+          ...validCreate,
+          sessionsPerWeek: 3,
+          sessionMinutes: 60,
+          sessionDurations: [60, 45, 60],
+        } as any),
+      ).rejects.toThrow(/Session 2 \(45m\) must be a multiple of the school's 30m slot length/);
+    });
+
+    it('clears durations when the weekly count changes without restating them', async () => {
+      // Data rule: a count change must never leave a stale length array
+      // describing the old number of meetings.
+      repo.findById.mockResolvedValue({
+        id: subjectId,
+        org_id: orgId,
+        name: 'Math',
+        program_id: programId,
+        subject_type: 'major',
+        level_id: 'lvl1',
+        is_locked: false,
+        sessions_per_week: 3,
+        session_minutes: 60,
+        session_durations: [60, 90, 120],
+      });
+      repo.findDuplicateByName.mockResolvedValue(null);
+      repo.update.mockResolvedValue({
+        id: subjectId,
+        name: 'Math',
+        subject_type: 'major',
+        is_locked: false,
+        sessions_per_week: 4,
+        session_minutes: 60,
+        session_durations: [],
+      });
+      await service.update(subjectId, orgId, { sessionsPerWeek: 4 } as any);
+      expect(repo.update).toHaveBeenCalledWith(
+        subjectId,
+        expect.objectContaining({ sessionsPerWeek: 4, sessionDurations: null }),
+      );
+    });
+
+    it('keeps durations when the count is unchanged', async () => {
+      repo.findById.mockResolvedValue({
+        id: subjectId,
+        org_id: orgId,
+        name: 'Math',
+        program_id: programId,
+        subject_type: 'major',
+        level_id: 'lvl1',
+        is_locked: false,
+        sessions_per_week: 3,
+        session_minutes: 60,
+        session_durations: [60, 90, 120],
+      });
+      repo.findDuplicateByName.mockResolvedValue(null);
+      repo.update.mockResolvedValue({
+        id: subjectId,
+        name: 'Math',
+        subject_type: 'major',
+        is_locked: false,
+        sessions_per_week: 3,
+        session_minutes: 60,
+        session_durations: [60, 90, 120],
+      });
+      await service.update(subjectId, orgId, { sessionMinutes: 60 } as any);
+      expect(repo.update).toHaveBeenCalledWith(
+        subjectId,
+        expect.not.objectContaining({ sessionDurations: expect.anything() }),
+      );
+    });
+
+    it('validates durations against the count even when only the count is sent', async () => {
+      // Stale array of 3 + a new count of 5 must be rejected, not reshaped.
+      repo.findById.mockResolvedValue({
+        id: subjectId,
+        org_id: orgId,
+        name: 'Math',
+        program_id: programId,
+        subject_type: 'major',
+        level_id: 'lvl1',
+        is_locked: false,
+        sessions_per_week: 3,
+        session_minutes: 60,
+        session_durations: [60, 90, 120],
+      });
+      repo.findDuplicateByName.mockResolvedValue(null);
+      repo.update.mockResolvedValue({ id: subjectId, name: 'Math', is_locked: false });
+      // Restating a 3-long list alongside a 5x count is a mismatch.
+      await expect(
+        service.update(subjectId, orgId, {
+          sessionsPerWeek: 5,
+          sessionDurations: [60, 90, 120],
+        } as any),
+      ).rejects.toThrow(/exactly one entry per weekly session/);
+    });
+
+    it('reports the department standard when a default subject is read', async () => {
+      repo.findById.mockResolvedValue({
+        id: subjectId,
+        name: 'Math',
+        is_locked: false,
+        sessions_per_week: null,
+        session_minutes: null,
+        session_durations: [],
+        program: programElem,
+      });
+      const res = await service.findById(subjectId, orgId);
+      expect(res.sessionRequirementSource).toBe('default');
+      expect(res.effectiveSessionDurations).toEqual([60, 60, 60, 60, 60]);
+    });
+
     it('locked subjects still cannot be edited, and the lock check wins', async () => {
       repo.findById.mockResolvedValue({ id: subjectId, is_locked: true });
       await expect(

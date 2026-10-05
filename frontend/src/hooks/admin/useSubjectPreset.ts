@@ -5,10 +5,18 @@ export interface SubjectPresetData {
   courseId: string | null;
   strandId: string | null;
   levelId: string | null;
-  /** null / undefined = "Default" (follow the department standard). */
+  /** null / undefined = follow the department standard. */
   sessionsPerWeek?: number | null;
-  /** Total minutes per session. null / undefined = "Default". */
+  /** Uniform length, kept for presets saved before per-session times existed. */
   sessionMinutes?: number | null;
+  /**
+   * Per-session lengths. Empty / undefined = uniform.
+   *
+   * Carried so a preset with mixed lengths does not silently collapse to one
+   * length on the next "Set Preset" — every subject created from it would
+   * otherwise get a different shape than the admin configured.
+   */
+  sessionDurations?: number[] | null;
 }
 
 export interface SubjectPreset extends SubjectPresetData {
@@ -24,11 +32,15 @@ function readPreset(schoolYearId: string | null): SubjectPreset | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SubjectPreset;
     if (!parsed || typeof parsed !== "object" || !parsed.programId) return null;
-    // Presets saved before weekly sessions existed fall back to Default.
+    // Presets saved before weekly sessions existed fall back to the standard.
     return {
       ...parsed,
       sessionsPerWeek: parsed.sessionsPerWeek ?? null,
       sessionMinutes: parsed.sessionMinutes ?? null,
+      // Presets saved before per-session times are uniform by definition.
+      sessionDurations: Array.isArray(parsed.sessionDurations)
+        ? parsed.sessionDurations
+        : [],
     };
   } catch {
     return null;

@@ -210,6 +210,15 @@ export default function SubjectDetailPage({
     const weeklyCount   = subject.effectiveSessionsPerWeek ?? 5;
   const weeklyMinutes = subject.effectiveSessionMinutes ?? 60;
   const weeklyIsDefault = subject.sessionRequirementSource !== "explicit";
+  // A subject may give each weekly session its own length; collapse to a plain
+  // "5 × 60m" only when they really are all the same.
+  const weeklyDurations = subject.effectiveSessionDurations ?? [];
+  const weeklyDurationsAreUniform =
+    weeklyDurations.length === 0 ||
+    weeklyDurations.every((d) => d === weeklyMinutes);
+  const weeklyDurationSummary = weeklyDurationsAreUniform
+    ? `${weeklyMinutes}m`
+    : weeklyDurations.map((d) => `${d}m`).join(" / ");
 
   return (
     <div className="space-y-6">
@@ -271,9 +280,15 @@ export default function SubjectDetailPage({
                 <div className="flex items-center gap-4 px-4 py-3">
           <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Weekly Sessions</span>
           <span className="text-sm">
-            <span className="font-medium whitespace-nowrap">
-              {weeklyCount} × {weeklyMinutes}m
-            </span>
+            {weeklyDurationsAreUniform ? (
+              <span className="font-medium whitespace-nowrap">
+                {weeklyCount} × {weeklyMinutes}m
+              </span>
+            ) : (
+              <span className="font-medium whitespace-nowrap">
+                {weeklyCount} × {weeklyDurationSummary}
+              </span>
+            )}
             {weeklyIsDefault && (
               <span className="ml-2 text-xs text-muted-foreground">
                 (department default)

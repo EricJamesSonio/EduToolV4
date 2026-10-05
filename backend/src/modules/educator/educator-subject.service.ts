@@ -314,25 +314,33 @@ export class EducatorSubjectService {
   /**
    * Minutes for one set of slot picks. Positions outside 1..S never count —
    * stale picks from before a subject's count changed cannot inflate load.
+   *
+   * Sums each picked position's OWN length, not `count * base`: with mixed
+   * per-session durations those differ, and under-counting here would let an
+   * educator silently pass the capacity guard they are being protected from.
    */
   private pickedMinutes(
     assignments: Array<{
       subjectId: string;
       sections: Array<{ sectionId: string; slots: number[] }>;
     }>,
-    required: Map<string, { positions: number; minutes: number }>,
+    required: Map<string, { positions: number; minutes: number; durations: number[] }>,
   ): number {
     let total = 0;
     for (const a of assignments) {
       const req = required.get(a.subjectId);
       if (!req) continue;
-      const positions = new Set<string>();
+      // Keyed by section so the same slot on two sections counts twice, while
+      // a repeated slot within one section still counts once.
+      const positions = new Map<string, number>();
       for (const sec of a.sections) {
         for (const n of sec.slots) {
-          if (n >= 1 && n <= req.positions) positions.add(`${sec.sectionId}:${n}`);
+          if (n >= 1 && n <= req.positions) positions.set(`${sec.sectionId}:${n}`, n);
         }
       }
-      total += positions.size * req.minutes;
+      for (const slotPosition of positions.values()) {
+        total += req.durations[slotPosition - 1] ?? req.minutes;
+      }
     }
     return total;
   }
@@ -345,16 +353,21 @@ export class EducatorSubjectService {
         programType: string | null;
         sessionsPerWeek: number | null;
         sessionMinutes: number | null;
+        sessionDurations: number[];
       }
     >,
     slot: number,
-  ): Map<string, { positions: number; minutes: number }> {
-    const out = new Map<string, { positions: number; minutes: number }>();
+  ): Map<string, { positions: number; minutes: number; durations: number[] }> {
+    const out = new Map<
+      string,
+      { positions: number; minutes: number; durations: number[] }
+    >();
     for (const [id, info] of levels) {
       const resolved = resolveSessionRequirement(
         {
           sessionsPerWeek: info.sessionsPerWeek,
           sessionMinutes: info.sessionMinutes,
+          sessionDurations: info.sessionDurations,
         },
         info.programType,
         slot,
@@ -362,6 +375,7 @@ export class EducatorSubjectService {
       out.set(id, {
         positions: resolved.sessionsPerWeek,
         minutes: resolved.sessionMinutes,
+        durations: resolved.durations,
       });
     }
     return out;
@@ -393,7 +407,7 @@ export class EducatorSubjectService {
   private async requirementsFor(
     orgId: string,
     subjectIds: string[],
-  ): Promise<Map<string, { positions: number; minutes: number }>> {
+  ): Promise<Map<string, { positions: number; minutes: number; durations: number[] }>> {
     const cfg = await this.orgScheduleConfig.getByOrg(orgId);
     const slot = cfg.slotDuration || 30;
     const levels = await this.repo.subjectLevels(orgId, [...new Set(subjectIds)]);
@@ -554,6 +568,7 @@ export class EducatorSubjectService {
         {
           sessionsPerWeek: info.sessionsPerWeek,
           sessionMinutes: info.sessionMinutes,
+          sessionDurations: info.sessionDurations,
         },
         info.programType,
         slot,
@@ -674,6 +689,7 @@ export class EducatorSubjectService {
         {
           sessionsPerWeek: info.sessionsPerWeek,
           sessionMinutes: info.sessionMinutes,
+          sessionDurations: info.sessionDurations,
         },
         info.programType,
         slot,

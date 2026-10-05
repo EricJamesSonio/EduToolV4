@@ -657,6 +657,15 @@ model Subject {
   // can always be placed on the slot grid.
   sessions_per_week Int?
   session_minutes   Int?
+  // Length of EACH weekly session, position by position (e.g. [60, 60, 120]
+  // = Mon/Wed 60m, Fri 2h). Empty means "uniform": every session uses
+  // `session_minutes`, which is how every pre-existing subject is stored and
+  // therefore why this column needs no backfill.
+  //
+  // When non-empty the length MUST equal `sessions_per_week`; the service
+  // rejects a mismatch rather than guessing. Also ignored entirely while the
+  // subject is on the program-type default.
+  session_durations Int[] @default([])
 
   program Program? @relation(fields: [program_id], references: [id])
   course  Course?  @relation(fields: [course_id], references: [id])
