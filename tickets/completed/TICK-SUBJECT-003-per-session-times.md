@@ -1,13 +1,14 @@
 # TICK-SUBJECT-003 — Per-session weekly session times (Edit Subject modal)
 
-Status: ready-for-review
+Status: completed
 Priority: medium
 Created: 2026-10-04
 Created by: agent
 Assigned to: agent
 Started: 2026-10-04
-Worktree: ../EduToolV4-worktrees/TICK-SUBJECT-003-per-session-times
-Branch: agent/TICK-SUBJECT-003-per-session-times (pushed)
+Worktree: removed after merge
+Branch: agent/TICK-SUBJECT-003-per-session-times (merged, then deleted)
+Merge commit: f26b6024 (origin/development, e4f0c6f4 -> f26b6024)
 
 ## Problem
 
@@ -85,6 +86,11 @@ Branch: agent/TICK-SUBJECT-003-per-session-times (pushed)
 - Gaps: no live generator run against a seeded org (no app instance here), and
   the migration was proven on a scratch DB, not on `edutool`/`edutool_shadow`.
   Both are covered by the manual QA checklist.
+- Post-merge (rule 9, full suite re-run ON the merged result f26b6024):
+  backend unit 1153 passed / 9 failing suites (identical to baseline),
+  frontend 299/299 across 29 suites, frontend tsc 20 (pre-existing, 0 in
+  subject files). Merge was conflict-free — origin/development had not moved
+  off e4f0c6f4, so no rebase was needed.
 
 ## Tests
 
@@ -130,6 +136,17 @@ share deps with a throwaway verification worktree caused
 of THIS worktree. Recovered with `npm ci` + `prisma generate` (npm blocked the
 prisma postinstall). All source was already committed and unaffected; full
 suites were re-run after recovery and match the numbers above.
+
+2026-10-04 — Merged into origin/development as f26b6024 (owner-directed; the
+nominal reviewer step was performed by the implementer at owner request).
+Merged from a branch based on the live origin/development, so local
+`development` and stash@{0} were never touched. Full suite re-run on the merged
+result before pushing. Ticket: ready-for-review -> merged -> completed, branch
+and worktree removed per rule 11.
+
+2026-10-04 — Cleanup note: the worktree directory itself lingered as an empty
+(0-file) shell because a shell process still held it as its CWD; it is
+unregistered from git and holds no files.
 
 ## Commits
 
