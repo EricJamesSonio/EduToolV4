@@ -25,6 +25,8 @@ import type {
   SubjectEducator,
   SubjectSlotAssignment,
   SetSubjectSlotsResponse,
+  SetTeachableBundleRequest,
+  SetTeachableBundleResponse,
 } from "@/api/admin/educator.api";
 
 import type { Educator } from "@/types/admin/educator.types";
@@ -368,7 +370,7 @@ export const useEducatorCapacity = (
   schoolYearId: string | undefined,
 ) =>
   useAsyncQuery<EducatorCapacity>(
-    [...queryKeys.admin.educators.all, "capacity", educatorId ?? "", schoolYearId ?? ""] as const,
+    queryKeys.admin.educators.capacity(educatorId ?? "", schoolYearId ?? ""),
     () => educatorApi.getCapacity(educatorId!, schoolYearId!),
     { enabled: !!educatorId && !!schoolYearId, staleTime: 30_000 },
   );
@@ -395,6 +397,48 @@ export const useSetSubjectSlots = () => {
       onError: (error: any) => {
         toast.error(
           error?.response?.data?.message || "Failed to save slots.",
+        );
+      },
+    },
+  );
+};
+
+/**
+ * One atomic teachable save for the slot-picker modal: replaces the link
+ * set AND the slot picks in a single transaction. Any failure leaves the
+ * existing links untouched, so there is no half-saved state to reconcile.
+ */
+export const useSetTeachableBundle = () => {
+  const qc = useQueryClient();
+  return useMutationWithInvalidation<
+    SetTeachableBundleResponse,
+    Error,
+    { educatorId: string } & SetTeachableBundleRequest
+  >(
+    ({ educatorId, ...body }) =>
+      educatorApi.setTeachableBundle(educatorId, body),
+    {
+      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
+      onSuccess: (result, variables) => {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.educators.slots(variables.educatorId),
+        });
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.educators.capacity(
+            variables.educatorId,
+            variables.schoolYearId,
+          ),
+        });
+        void qc.invalidateQueries({ queryKey: queryKeys.admin.educators.all });
+        toast.success(
+          variables.subjectIds.length === 0
+            ? "Cleared teachable subjects."
+            : `Saved ${result.count} teachable subject${result.count === 1 ? "" : "s"}.`,
+        );
+      },
+      onError: (error: any) => {
+        toast.error(
+          error?.response?.data?.message || "Failed to save teachable subjects.",
         );
       },
     },

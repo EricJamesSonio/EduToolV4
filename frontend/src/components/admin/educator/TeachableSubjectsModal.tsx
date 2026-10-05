@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 
-import {
-  useSetSubjectSlots,
-  useSetTeachableSubjects,
-  useEducatorCapacity,
-} from "@/hooks/admin/useEducators";
+import { useSetTeachableBundle, useEducatorCapacity } from "@/hooks/admin/useEducators";
 import { useSubjects } from "@/hooks/admin/useSubject";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -19,6 +15,9 @@ import type {
   TeachableSubject,
   SubjectSlotAssignment,
 } from "@/api/admin/educator.api";
+import {
+  buildSeedPicks,
+} from "@/utils/educatorSlotPicks";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,15 +62,6 @@ function normalize(p: Picks): Picks {
   return out;
 }
 
-function countSlots(p: Picks, info: Map<string, { minutes: number }>): number {
-  let total = 0;
-  for (const [subjectId, secs] of Object.entries(p)) {
-    const minutes = info.get(subjectId)?.minutes ?? 0;
-    for (const slots of Object.values(secs)) total += slots.length * minutes;
-  }
-  return total;
-}
-
 export function TeachableSubjectsModal({
   open,
   onClose,
@@ -89,10 +79,15 @@ export function TeachableSubjectsModal({
   /** Seed snapshot for dirty-checking. */
   const [seedPicks, setSeedPicks] = useState<Picks>({});
   const [expanded, setExpanded] = useState<string | null>(null);
+  /**
+   * Seed-once guard: the form seeds exactly once per open session
+   * (educator + school year). Late query arrivals and background refetches
+   * must never wipe in-progress picks — the H3 data-loss path.
+   */
+  const seededForRef = useRef<string | null>(null);
 
-  const saveSubjects = useSetTeachableSubjects();
-  const saveSlots = useSetSubjectSlots();
-  const saving = saveSubjects.isPending || saveSlots.isPending;
+  const saveBundle = useSetTeachableBundle();
+  const saving = saveBundle.isPending;
   const capacityQuery = useEducatorCapacity(
     educatorId,
     open ? schoolYearId : undefined,
@@ -123,7 +118,7 @@ export function TeachableSubjectsModal({
       : undefined,
   );
   // Unfiltered year subjects: weekly count + minutes per subject.
-  const { data: allYearSubjects = [] } = useSubjects(
+  const { data: allYearSubjects = [], isLoading: infoLoading } = useSubjects(
     open && schoolYearId ? { schoolYearId } : undefined,
   );
   const subjectInfoById = useMemo(() => {
@@ -141,40 +136,27 @@ export function TeachableSubjectsModal({
     return map;
   }, [allYearSubjects]);
 
-  // Seed from the current links every time the modal opens. Legacy rows
-  // (section ids with no slot picks) expand to the full weekly count.
+  // Seed from the current links once per open session. Legacy rows
+  // (section ids with no slot picks) expand to the full weekly count — but
+  // only after the year-subject requirements have loaded, otherwise legacy
+  // rows seed as empty and their saved slots would be lost on the next save.
+  // Reset on close (and on educator/year change via the key) so a reopen
+  // always shows fresh server state.
   useEffect(() => {
-    if (!open) return;
-    setSelected(assigned.map((s) => s.id));
-    const picks: Picks = {};
-    for (const s of assigned) {
-      const perSection: Record<string, number[]> = {};
-      const explicit = new Map(
-        (s.sectionSlots ?? []).map((p) => [p.sectionId, [...p.slots]]),
-      );
-      const positions = subjectInfoById.get(s.id)?.positions ?? 0;
-      for (const sectionId of s.sectionIds) {
-        const slots = explicit.get(sectionId);
-        if (slots && slots.length > 0) {
-          perSection[sectionId] = [...slots].sort((a, b) => a - b);
-        } else if (positions > 0) {
-          perSection[sectionId] = Array.from(
-            { length: positions },
-            (_, i) => i + 1,
-          );
-        }
-      }
-      for (const p of s.sectionSlots ?? []) {
-        if (!(p.sectionId in perSection) && p.slots.length > 0) {
-          perSection[p.sectionId] = [...p.slots].sort((a, b) => a - b);
-        }
-      }
-      if (Object.keys(perSection).length > 0) picks[s.id] = perSection;
+    if (!open) {
+      seededForRef.current = null;
+      return;
     }
+    const key = `${educatorId}::${schoolYearId ?? ""}`;
+    if (seededForRef.current === key) return;
+    if (infoLoading) return;
+    setSelected(assigned.map((s) => s.id));
+    const picks = buildSeedPicks(assigned, subjectInfoById);
     setPicksBySubject(picks);
     setSeedPicks(JSON.parse(JSON.stringify(picks)) as Picks);
     setExpanded(null);
-  }, [open, assigned, subjectInfoById]);
+    seededForRef.current = key;
+  }, [open, educatorId, schoolYearId, assigned, subjectInfoById, infoLoading]);
 
   const expandedSubject = useMemo(
     () => subjects.find((s) => s.id === expanded) ?? null,
@@ -311,49 +293,42 @@ export function TeachableSubjectsModal({
     JSON.stringify(normalize(picksBySubject)) !==
       JSON.stringify(normalize(seedPicks));
 
-  // Live capacity: server remaining, adjusted by unsaved pick changes.
-  const remainingMin = capacityQuery.data
-    ? capacityQuery.data.remainingMin -
-      (countSlots(picksBySubject, subjectInfoById) -
-        countSlots(seedPicks, subjectInfoById))
-    : null;
+  const subjectTitle = (id: string): string =>
+    subjectInfoById.get(id) !== undefined
+      ? (allYearSubjects.find((s) => s.id === id)?.title ?? id.slice(0, 8))
+      : id.slice(0, 8);
+
+  // Ticked subjects with zero section slots cannot generate classes — Save
+  // stays disabled with the reason until each has at least one slot.
+  const emptySectionSubjects = useMemo(
+    () =>
+      selected.filter((id) => {
+        const secs = picksBySubject[id] ?? {};
+        return Object.values(secs).every((slots) => slots.length === 0);
+      }),
+    [selected, picksBySubject],
+  );
+
+  const saveBlockReason: string | null = !dirty
+    ? null
+    : emptySectionSubjects.length > 0
+      ? `${subjectTitle(emptySectionSubjects[0])} has no sections — expand it and pick at least one slot.`
+      : null;
 
   const save = () => {
-    saveSubjects.mutate(
-      { educatorId, subjectIds: selected },
-      {
-        onSuccess: () => {
-          if (!schoolYearId) {
-            onClose();
-            return;
-          }
-          // Include subjects whose picks were all cleared so the server
-          // drops their old slots instead of keeping them.
-          const assignments: SubjectSlotAssignment[] = selected
-            .filter(
-              (id) =>
-                Object.keys(picksBySubject[id] ?? {}).length > 0 ||
-                Object.keys(seedPicks[id] ?? {}).length > 0,
-            )
-            .map((subjectId) => ({
-              subjectId,
-              sections: Object.entries(picksBySubject[subjectId] ?? {}).map(
-                ([sectionId, slots]) => ({
-                  sectionId,
-                  slots: [...slots].sort((a, b) => a - b),
-                }),
-              ),
-            }));
-          if (assignments.length === 0) {
-            onClose();
-            return;
-          }
-          saveSlots.mutate(
-            { educatorId, schoolYearId, assignments },
-            { onSuccess: () => onClose() },
-          );
-        },
-      },
+    if (!schoolYearId || saveBlockReason) return;
+    const assignments: SubjectSlotAssignment[] = selected.map((subjectId) => ({
+      subjectId,
+      sections: Object.entries(picksBySubject[subjectId] ?? {})
+        .filter(([, slots]) => slots.length > 0)
+        .map(([sectionId, slots]) => ({
+          sectionId,
+          slots: [...slots].sort((a, b) => a - b),
+        })),
+    }));
+    saveBundle.mutate(
+      { educatorId, schoolYearId, subjectIds: selected, assignments },
+      { onSuccess: () => onClose() },
     );
   };
 
@@ -454,17 +429,20 @@ export function TeachableSubjectsModal({
         <ModalFooter>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {remainingMin !== null
-                ? `Weekly capacity remaining: ${remainingMin} min${
-                    remainingMin < 0 ? " (over capacity)" : ""
-                  }`
-                : "Classes this educator is assigned to teach."}
+              {saveBlockReason ??
+                (capacityQuery.data
+                  ? `${capacityQuery.data.remainingMin} min left this week (server count).`
+                  : "Classes this educator is assigned to teach.")}
             </p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose} disabled={saving}>
                 Cancel
               </Button>
-              <Button onClick={save} disabled={!dirty || saving}>
+              <Button
+                onClick={save}
+                disabled={!dirty || saving || !!saveBlockReason}
+                title={saveBlockReason ?? undefined}
+              >
                 {saving ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : null}
