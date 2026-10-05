@@ -14,9 +14,13 @@ import { sectionApi } from "@/api/admin/section.api";
 import type {
   TeachableSubject,
   SubjectSlotAssignment,
+  EducatorCapacity,
 } from "@/api/admin/educator.api";
 import {
   buildSeedPicks,
+  capacityUsage,
+  pickedMinutes,
+  type CapacityUsage,
 } from "@/utils/educatorSlotPicks";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
@@ -275,13 +279,28 @@ export function TeachableSubjectsModal({
 
   const toggleSlot = (subjectId: string, sectionId: string, slot: number) => {
     const current = picksBySubject[subjectId]?.[sectionId] ?? [];
+    const adding = !current.includes(slot);
+    if (adding && !canAffordSlot(subjectId, 1)) return;
     setSectionSlots(
       subjectId,
       sectionId,
-      current.includes(slot)
-        ? current.filter((x) => x !== slot)
-        : [...current, slot],
+      adding
+        ? [...current, slot]
+        : current.filter((x) => x !== slot),
     );
+  };
+
+  /** "All" for one section row, with the same capacity guard as one click. */
+  const setAllSectionSlots = (
+    subjectId: string,
+    sectionId: string,
+    slots: number[],
+    allOn: boolean,
+  ) => {
+    if (!allOn && slots.length > 0 && !canAffordSlot(subjectId, slots.length)) {
+      return;
+    }
+    setSectionSlots(subjectId, sectionId, allOn ? [] : slots);
   };
 
   const assignedIds = useMemo(
@@ -292,6 +311,47 @@ export function TeachableSubjectsModal({
     JSON.stringify([...selected].sort()) !== JSON.stringify(assignedIds) ||
     JSON.stringify(normalize(picksBySubject)) !==
       JSON.stringify(normalize(seedPicks));
+
+  // Live capacity, mirroring the server formula (see educatorSlotPicks):
+  // picked minutes from live picks + existing classes vs weekly capacity.
+  const requirements = useMemo(() => {
+    const map = new Map<string, { positions: number; minutes: number }>();
+    for (const [id, info] of subjectInfoById) {
+      map.set(id, { positions: info.positions, minutes: info.minutes });
+    }
+    return map;
+  }, [subjectInfoById]);
+  const livePickedMin = useMemo(
+    () => pickedMinutes(picksBySubject, requirements),
+    [picksBySubject, requirements],
+  );
+  const usage = useMemo(() => {
+    if (!capacityQuery.data) return null;
+    return capacityUsage({
+      capacityMin: capacityQuery.data.capacityMin,
+      existingMin: capacityQuery.data.existingMin,
+      pickedMin: livePickedMin,
+    });
+  }, [capacityQuery.data, livePickedMin]);
+
+  /**
+   * Whether one more action fits. Unknown capacity (still loading) allows
+   * the click — the server stays the authority and rejects over-capacity
+   * saves with numbers.
+   */
+  const canAffordSlot = (subjectId: string, newSlots: number): boolean => {
+    if (!capacityQuery.data || !usage) return true;
+    const minutes = requirements.get(subjectId)?.minutes ?? 0;
+    const projected = livePickedMin + newSlots * minutes;
+    if (projected + capacityQuery.data.existingMin <= capacityQuery.data.capacityMin) {
+      return true;
+    }
+    const remaining = capacityQuery.data.capacityMin - capacityQuery.data.existingMin - livePickedMin;
+    toast.warning(
+      `Over capacity: ${subjectTitle(subjectId)} needs ${minutes} min per slot but only ${Math.max(0, remaining)} min remain of this educator's week.`,
+    );
+    return false;
+  };
 
   const subjectTitle = (id: string): string =>
     subjectInfoById.get(id) !== undefined
@@ -313,7 +373,9 @@ export function TeachableSubjectsModal({
     ? null
     : emptySectionSubjects.length > 0
       ? `${subjectTitle(emptySectionSubjects[0])} has no sections — expand it and pick at least one slot.`
-      : null;
+      : usage?.overCapacity
+        ? `Over capacity: ${usage.usedMin} of ${usage.capacityMin} weekly minutes used. Remove slots before saving.`
+        : null;
 
   const save = () => {
     if (!schoolYearId || saveBlockReason) return;
@@ -395,6 +457,8 @@ export function TeachableSubjectsModal({
           </Select>
         </div>
 
+        <CapacityBar usage={usage} capacity={capacityQuery.data ?? null} />
+
         <ScrollArea className="h-[38vh] rounded-md border bg-card">
           {subjects.length === 0 ? (
             <p className="p-4 text-xs text-muted-foreground">
@@ -430,8 +494,8 @@ export function TeachableSubjectsModal({
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
               {saveBlockReason ??
-                (capacityQuery.data
-                  ? `${capacityQuery.data.remainingMin} min left this week (server count).`
+                (usage
+                  ? `${usage.remainingMin} min left of ${usage.capacityMin} min this week.`
                   : "Classes this educator is assigned to teach.")}
             </p>
             <div className="flex gap-2">
@@ -454,6 +518,48 @@ export function TeachableSubjectsModal({
       </div>
     </Modal>
   );
+
+  /** Weekly load bar: used vs capacity with the availability context. */
+  function CapacityBar({
+    usage,
+    capacity,
+  }: {
+    usage: CapacityUsage | null;
+    capacity: EducatorCapacity | null;
+  }): React.JSX.Element | null {
+    if (!usage || !capacity) return null;
+    return (
+      <div
+        className="rounded-md border p-2"
+        role="status"
+        aria-live="polite"
+        aria-label={`Weekly load ${usage.usedMin} of ${usage.capacityMin} minutes`}
+      >
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <span className="font-medium">
+            Weekly load: {usage.usedMin} of {usage.capacityMin} min (
+            {usage.percentUsed}%)
+          </span>
+          <span className="text-muted-foreground">
+            {capacity.effectiveWeekdays.length} day
+            {capacity.effectiveWeekdays.length === 1 ? "" : "s"} ·{" "}
+            {capacity.windowStart}–{capacity.windowEnd}
+          </span>
+        </div>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full rounded-full transition-all ${usage.overCapacity ? "bg-destructive" : "bg-primary"}`}
+            style={{ width: `${Math.min(100, usage.percentUsed)}%` }}
+          />
+        </div>
+        {usage.overCapacity ? (
+          <p className="mt-1 text-[11px] text-destructive">
+            Over capacity — remove slots before saving.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   /** One subject row. A plain closure so state lives in the modal and rows
       never remount on each keystroke. */
@@ -545,7 +651,12 @@ export function TeachableSubjectsModal({
                 No sections in {s.levelName ?? "this level"} yet.
               </p>
             ) : (
-              levelSections.map((sec) => {
+              <>
+                <p className="text-[10px] text-muted-foreground">
+                  Each slot = {subjectInfoById.get(s.id)?.minutes ?? 0} min ·{" "}
+                  {positions} slot{positions === 1 ? "" : "s"}/week per section.
+                </p>
+                {levelSections.map((sec) => {
                 const mine = picks[sec.id] ?? [];
                 const other = otherClaim(s.id, sec.id);
                 const blocked = new Set(other?.slots ?? []);
@@ -605,7 +716,7 @@ export function TeachableSubjectsModal({
                       <button
                         type="button"
                         onClick={() =>
-                          setSectionSlots(s.id, sec.id, allOn ? [] : free)
+                          setAllSectionSlots(s.id, sec.id, free, allOn)
                         }
                         className="rounded-md px-2 py-1 text-[10px] text-muted-foreground underline hover:text-foreground"
                       >
@@ -614,7 +725,8 @@ export function TeachableSubjectsModal({
                     ) : null}
                   </div>
                 );
-              })
+              })}
+              </>
             )}
           </div>
         ) : null}
