@@ -8,7 +8,8 @@ interface DialogFormProps {
   onClose: () => void;
   title: string;
   description?: string;
-  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "full";
+  /** Mirrors `Modal`'s size set so a wide form is not capped at 2xl. */
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
   onSubmit?: () => void;
   isSaving?: boolean;
   saveLabel?: string;

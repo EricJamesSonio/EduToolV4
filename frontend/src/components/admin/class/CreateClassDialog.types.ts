@@ -2,6 +2,8 @@ export interface ScheduleSlotForm {
   weekday:   string;
   startTime: string;
   endTime:   string;
+  /** Empty string = no room. Rooms are optional. */
+  roomId?:   string;
 }
 
 export interface CreateClassForm {

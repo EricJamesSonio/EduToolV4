@@ -203,6 +203,11 @@ export default function SubjectsPage(): React.JSX.Element {
         ? preset!.levelId ?? undefined
         : filters.filterLevelId !== "all" ? filters.filterLevelId : undefined
     }
+    // The preset's weekly sessions were collected but never passed through, so
+    // a preset's per-session lengths silently vanished on the New Subject form.
+    defaultSessionsPerWeek={presetActive ? preset!.sessionsPerWeek : undefined}
+    defaultSessionMinutes={presetActive ? preset!.sessionMinutes : undefined}
+    defaultSessionDurations={presetActive ? preset!.sessionDurations : undefined}
     open={createOpen}
     onClose={() => setCreateOpen(false)}
     onSaved={() => {

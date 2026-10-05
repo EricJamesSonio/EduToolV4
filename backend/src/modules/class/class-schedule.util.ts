@@ -42,3 +42,48 @@ export function slotsOverlap(
   const bEnd = new Date(b.endTime).getTime();
   return aStart < bEnd && aEnd > bStart;
 }
+
+/** A slot expressed as minutes-of-day, with no date component at all. */
+export interface MinuteSlot {
+  weekday: number;
+  startMin: number;
+  endMin: number;
+}
+
+/** Minutes-of-day for a stored/incoming schedule Date (local wall-clock). */
+export function dateToMinutes(d: Date): number {
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+/** Minutes-of-day from a stored/incoming schedule Date. */
+export function toMinuteSlot(
+  weekday: number,
+  startTime: Date,
+  endTime: Date,
+): MinuteSlot {
+  return {
+    weekday,
+    startMin: dateToMinutes(startTime),
+    endMin: dateToMinutes(endTime),
+  };
+}
+
+/**
+ * True when two slots share a weekday and their [start, end) wall-clock
+ * intervals overlap.
+ *
+ * This is the comparison every conflict check (educator / section / room) MUST
+ * use. Do NOT use `slotsOverlap` for conflict detection: `parseTimeToDate`
+ * stamps *today's* date onto each slot, so a slot persisted last Tuesday and
+ * one persisted today carry different date components and their full
+ * timestamps never compare as overlapping — even at identical weekday and
+ * clock time. Comparing minutes-of-day removes the meaningless date entirely.
+ *
+ * The frontend equivalent is `slotsOverlap` in `utils/classes.utils.ts`, which
+ * has always compared "HH:mm" strings and was therefore correct; that mismatch
+ * is why the server-side gap went unnoticed.
+ */
+export function minuteSlotsOverlap(a: MinuteSlot, b: MinuteSlot): boolean {
+  if (a.weekday !== b.weekday) return false;
+  return a.startMin < b.endMin && a.endMin > b.startMin;
+}

@@ -19,7 +19,14 @@ import type { AuditLog } from "@/types/admin/audit-log.types";
 import type { GetAuditLogQuery } from "@/api/admin/audit-log.api";
 
 import { PAGE_SIZE, ADMIN_ACTION_OPTIONS } from "./constants";
-import { actionBadgeVariant, formatActionLabel, safeFormatDate, exportToCsv } from "./utils";
+import {
+  actionBadgeVariant,
+  formatActionLabel,
+  formatEntityType,
+  nameFromMetadata,
+  safeFormatDate,
+  exportToCsv,
+} from "./utils";
 import { ActorCell } from "./ActorCell";
 import { ExpandableMetadata } from "./ExpandableMetadata";
 import { PaginationBar } from "./PaginationBar";
@@ -32,6 +39,7 @@ export function AuditLogTab() {
   const [search, setSearch]           = useState("");
   const [page, setPage]               = useState(1);
 
+  // Fallbacks for older responses; the server now resolves names itself.
   const { data: educators } = useEducators();
   const { data: classes }   = useClasses();
 
@@ -89,7 +97,14 @@ export function AuditLogTab() {
     {
       accessorKey: "actorId",
       header: "Actor",
-      cell: ({ row }) => <ActorCell actorId={row.original.actorId} educatorMap={educatorMap} />,
+      cell: ({ row }) => (
+        <ActorCell
+          actorId={row.original.actorId}
+          actorName={row.original.actorName}
+          actorRole={row.original.actorRole}
+          educatorMap={educatorMap}
+        />
+      ),
     },
     {
       accessorKey: "action",
@@ -104,19 +119,21 @@ export function AuditLogTab() {
       id: "target",
       header: "Target",
       cell: ({ row }) => {
-        const entityId = row.original.entityId ?? "unknown";
-        const entityType = row.original.entityType ?? "unknown";
-        const entityName = entityType.toLowerCase() === "class"
-          ? classMap.get(entityId) ?? null
-          : null;
+        const { entityId, entityType, entityName, metadata } = row.original;
+        const name =
+          entityName ??
+          (entityType?.toLowerCase() === "class" ? classMap.get(entityId) ?? null : null) ??
+          nameFromMetadata(metadata);
 
         return (
           <div className="space-y-0.5">
-            <p className="text-xs font-medium capitalize">{entityType}</p>
-            {entityName ? (
-              <p className="text-sm truncate max-w-[160px]" title={entityId}>{entityName}</p>
+            <p className="text-xs font-medium">{formatEntityType(entityType)}</p>
+            {name ? (
+              <p className="text-sm truncate max-w-[200px]" title={name}>{name}</p>
             ) : (
-              <p className="text-xs text-muted-foreground truncate max-w-[160px]">Unknown</p>
+              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                Name not recorded
+              </p>
             )}
           </div>
         );

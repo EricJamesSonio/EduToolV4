@@ -4,10 +4,10 @@
 import { Suspense, useState, useMemo, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { GraduationCap, Plus } from "lucide-react";
+import { DoorOpen, GraduationCap, Plus, Wand2 } from "lucide-react";
 import { useClassPreset } from "@/hooks/admin/useClassPreset";
 import { ClassPresetButton } from "@/components/admin/class/ClassPresetButton";
 
@@ -46,6 +46,7 @@ import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 function ClassesPageInner(): React.JSX.Element {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { ensureOrganization } = useOrganizationGuard();
 
@@ -59,7 +60,7 @@ function ClassesPageInner(): React.JSX.Element {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
-  const filters = useClassFilters();
+  const filters = useClassFilters(defaultSubjectId);
 
   const {
     filterProgramId,
@@ -290,6 +291,31 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
             setEnabled={setEnabled}
             clearPreset={clearPreset}
           />
+          {/* Plain Button + router.push, not asChild: this repo's Button is
+              Base UI's ButtonPrimitive and has no asChild, so passing it
+              leaked the prop to the DOM and wrapped a Link in a <button>. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/admin/rooms")}
+          >
+            <DoorOpen className="mr-1.5 h-4 w-4" />
+            Rooms
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              ensureOrganization(() =>
+                router.push(
+                  `/admin/classes/generate?schoolYearId=${selectedSchoolYearId}`,
+                ),
+              )
+            }
+          >
+            <Wand2 className="mr-1.5 h-4 w-4" />
+            Auto-generate
+          </Button>
           <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             New Class

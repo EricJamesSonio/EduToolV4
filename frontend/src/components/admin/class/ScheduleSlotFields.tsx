@@ -13,7 +13,11 @@ interface ScheduleSlotFieldsProps {
   isLoading?: boolean;
   /** Caps the number of slots. Omit for unlimited. */
   maxSlots?: number;
-  /** Fired with the current educator/section conflict state whenever a pick changes. */
+  /** School year the room bookings are scoped to. Rooms are optional. */
+  schoolYearId?: string | null;
+  /** The class being edited, excluded from its own conflict checks. */
+  excludeClassId?: string;
+  /** Fired with the current educator/section/room conflict state whenever a pick changes. */
   onConflictsChange?: (conflicts: ScheduleConflictState) => void;
 }
 
@@ -22,6 +26,8 @@ export function ScheduleSlotFields({
   sectionClasses,
   isLoading,
   maxSlots,
+  schoolYearId,
+  excludeClassId,
   onConflictsChange,
 }: ScheduleSlotFieldsProps) {
   return (
@@ -32,6 +38,8 @@ export function ScheduleSlotFields({
         sectionClasses={sectionClasses}
         isLoading={isLoading}
         maxSlots={maxSlots}
+        schoolYearId={schoolYearId}
+        excludeClassId={excludeClassId}
         onConflictsChange={onConflictsChange}
       />
     </div>

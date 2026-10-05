@@ -105,11 +105,6 @@ export function SchoolProfileCard() {
       )}
 
       <Card id="departments" icon={Layers} title="Departments" tone="blue">
-        {readOnly ? (
-          <p className="text-xs text-muted-foreground not-interactive">
-            Showing your configured departments. Switch to Edit to add more or make changes.
-          </p>
-        ) : null}
         <DepartmentStep
           selectedTypes={readOnly ? savedTypes : draft.selectedTypes}
           onToggle={handleToggleDepartment}

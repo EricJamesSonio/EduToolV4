@@ -1,5 +1,6 @@
 import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { SemesterService } from '../semester.service';
+import type { DatabaseService } from '@/core/database/database.provider';
 
 describe('SemesterService', () => {
   let service: SemesterService;
@@ -33,7 +34,10 @@ describe('SemesterService', () => {
       deleteTermsBySemester: jest.fn(),
       delete: jest.fn(),
     };
-    service = new SemesterService(repo);
+    service = new SemesterService(repo, {
+      program: { findFirst: jest.fn() },
+      programSemesterAssignment: { findFirst: jest.fn() },
+    } as unknown as DatabaseService);
     jest.clearAllMocks();
   });
 

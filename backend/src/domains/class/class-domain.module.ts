@@ -6,6 +6,7 @@ import { LessonModule } from '@/modules/lesson/lesson.module';
 import { AttendanceModule } from '@/modules/attendance/attendance.module';
 import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subject-prerequisite.module';
 import { PresentationModule } from '@/modules/presentation/presentation.module';
+import { ClassGeneratorModule } from '@/modules/class-generator/class-generator.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PresentationModule } from '@/modules/presentation/presentation.module';
     AttendanceModule,
     SubjectPrerequisiteModule,
     PresentationModule,
+    ClassGeneratorModule,
   ],
   exports: [
     ClassModule,
@@ -21,6 +23,7 @@ import { PresentationModule } from '@/modules/presentation/presentation.module';
     AttendanceModule,
     SubjectPrerequisiteModule,
     PresentationModule,
+    ClassGeneratorModule,
   ],
 })
 export class ClassDomainModule {}

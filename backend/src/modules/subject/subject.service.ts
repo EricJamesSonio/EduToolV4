@@ -25,14 +25,109 @@ import {
   SubjectResponse,
 } from './subject.types';
 import { mapSubjectToResponse } from './subject.mapper';
+import { resolveSessionRequirement } from './subject-session-defaults';
 import { validateSubjectScope } from './subject.validator';
+import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 
 @Injectable()
 export class SubjectService {
   constructor(
     private readonly subjectRepository: SubjectRepository,
     private readonly db: DatabaseService,
+    /**
+     * The org's slot duration, needed to validate `sessionMinutes`.
+     *
+     * Typed as the narrow `OrgScheduleConfigProvider` contract rather than the
+     * concrete service, so subject -> org-schedule-config stays
+     * one-directional and this service is trivial to unit-test. It is imported
+     * as a VALUE, not `import type`: `emitDecoratorMetadata` makes Nest read the
+     * runtime token off the constructor, and a type-only import erases it,
+     * leaving Nest unable to resolve the dependency at boot.
+     */
+    private readonly orgScheduleConfigService: OrgScheduleConfigProvider,
   ) {}
+
+  /** Slot length used for the alignment rule. Falls back to 30 if unavailable. */
+  private async slotMinutes(orgId: string): Promise<number> {
+    const cfg = await this.orgScheduleConfigService.getByOrg(orgId);
+    return cfg.slotDuration || 30;
+  }
+
+  /**
+   * An explicit `sessionMinutes` must be a whole number of slots, otherwise a
+   * class built from it could never sit on the grid.
+   *
+   * Only explicit values are checked. A default that is not a multiple is
+   * rounded up by the resolver, so this never rejects an untouched subject.
+   */
+  private async assertSessionMinutesAligned(
+    orgId: string,
+    sessionMinutes: number | undefined,
+  ): Promise<void> {
+    if (sessionMinutes == null) return;
+    const slot = await this.slotMinutes(orgId);
+    if (sessionMinutes % slot !== 0) {
+      throw new BadRequestException(
+        `Minutes per session must be a multiple of the school's ${slot}m slot length. ${sessionMinutes}m is not.`,
+      );
+    }
+  }
+
+  /**
+   * Validates per-session lengths against the weekly count and the slot grid.
+   *
+   * An empty list means "uniform" and is always valid. A non-empty one must
+   * line up with the count that will actually apply (the incoming
+   * `sessionsPerWeek`, else the stored one, else the program-type default) —
+   * otherwise the stored array would silently describe a different number of
+   * meetings than the subject is marked for.
+   *
+   * Each entry is slot-aligned for the same reason `sessionMinutes` is: a
+   * class built from it could never sit on the grid.
+   */
+  private async assertSessionDurationsValid(
+    orgId: string,
+    sessionDurations: number[] | null | undefined,
+    effectiveCount: number,
+  ): Promise<void> {
+    if (!sessionDurations || sessionDurations.length === 0) return;
+
+    if (sessionDurations.length !== effectiveCount) {
+      throw new BadRequestException(
+        `Per-session times must have exactly one entry per weekly session. ` +
+          `This subject meets ${effectiveCount}x per week but ${sessionDurations.length} ` +
+          `time(s) were supplied. Use "Apply to all", or supply ${effectiveCount}.`,
+      );
+    }
+
+    const slot = await this.slotMinutes(orgId);
+    sessionDurations.forEach((minutes, index) => {
+      if (minutes % slot !== 0) {
+        throw new BadRequestException(
+          `Session ${index + 1} (${minutes}m) must be a multiple of the school's ` +
+            `${slot}m slot length.`,
+        );
+      }
+    });
+  }
+
+  /**
+   * The weekly count that will actually apply once this save lands: the
+   * incoming value, else the stored one, else the program-type default.
+   *
+   * Durations are validated against THIS, not just the incoming field — a
+   * request that changes only `sessionsPerWeek` must not be able to leave a
+   * stale length array describing the old number of meetings.
+   */
+  private effectiveWeeklyCount(
+    incoming: number | null | undefined,
+    stored: number | null | undefined,
+    programType: string | null | undefined,
+  ): number {
+    if (incoming != null) return incoming;
+    if (stored != null) return stored;
+    return resolveSessionRequirement({}, programType, 30).sessionsPerWeek;
+  }
 
   async create(orgId: string, dto: CreateSubjectDto): Promise<SubjectResponse> {
     const program = (await this.subjectRepository.findProgramById(
@@ -42,6 +137,12 @@ export class SubjectService {
     if (!program) throw new NotFoundException('Program not found.');
 
     validateSubjectScope(dto, program.type);
+    await this.assertSessionMinutesAligned(orgId, dto.sessionMinutes);
+    await this.assertSessionDurationsValid(
+      orgId,
+      dto.sessionDurations,
+      this.effectiveWeeklyCount(dto.sessionsPerWeek, null, program.type),
+    );
 
     const existingSubject = await this.subjectRepository.findDuplicateByName(
       orgId,
@@ -66,8 +167,10 @@ export class SubjectService {
       strandId: dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
+      sessionsPerWeek: dto.sessionsPerWeek ?? null,
+      sessionMinutes: dto.sessionMinutes ?? null,
     })) as SubjectRecord;
-    return mapSubjectToResponse(subject);
+    return mapSubjectToResponse(subject, await this.slotMinutes(orgId));
   }
 
   async findAll(
@@ -95,8 +198,10 @@ export class SubjectService {
       limit,
     });
 
+    const slot = await this.slotMinutes(orgId);
+
     return {
-      data: data.map((s) => mapSubjectToResponse(s)),
+      data: data.map((s) => mapSubjectToResponse(s, slot)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -107,7 +212,7 @@ export class SubjectService {
       orgId,
     )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
-    return mapSubjectToResponse(subject);
+    return mapSubjectToResponse(subject, await this.slotMinutes(orgId));
   }
 
   async update(
@@ -126,11 +231,16 @@ export class SubjectService {
       );
     }
 
+    await this.assertSessionMinutesAligned(orgId, dto.sessionMinutes);
+
     const programChanged =
       !!dto.programId && dto.programId !== subject.program_id;
     const typeChanged =
       !!dto.subjectType && dto.subjectType !== subject.subject_type;
     const scopeChanged = programChanged || typeChanged;
+    // Only needed when the program moves: the new program's default weekly
+    // count is what the saved row will fall back to.
+    let targetProgramType: string | null = null;
 
     if (scopeChanged) {
       const targetProgramId = dto.programId ?? subject.program_id;
@@ -145,6 +255,8 @@ export class SubjectService {
         orgId,
       )) as ProgramRecord | null;
       if (!program) throw new NotFoundException('Program not found.');
+
+      targetProgramType = program.type;
 
       validateSubjectScope(
         {
@@ -180,6 +292,30 @@ export class SubjectService {
       await this.subjectRepository.clearSharings(id, orgId);
     }
 
+    // Data rule: a count change must never leave stale durations behind. If
+    // this request changes the count and does not restate the lengths, they
+    // are cleared rather than left describing the old number of meetings.
+    //
+    // `null` (clear) is deliberately distinct from `undefined` (leave alone),
+    // which is how the repository tells "set this column" from "don't touch".
+    const countChanged =
+      dto.sessionsPerWeek !== undefined &&
+      dto.sessionsPerWeek !== subject.sessions_per_week;
+    let sessionDurations: number[] | null | undefined = dto.sessionDurations;
+    if (countChanged && dto.sessionDurations === undefined) {
+      sessionDurations = null;
+    }
+
+    await this.assertSessionDurationsValid(
+      orgId,
+      sessionDurations ?? null,
+      this.effectiveWeeklyCount(
+        dto.sessionsPerWeek,
+        subject.sessions_per_week,
+        programChanged ? targetProgramType : undefined,
+      ),
+    );
+
     const updated = (await this.subjectRepository.update(id, {
       name: dto.name,
       subjectType: dto.subjectType,
@@ -191,8 +327,11 @@ export class SubjectService {
         scopeChanged && dto.strandId === undefined ? null : dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
+      sessionsPerWeek: dto.sessionsPerWeek,
+      sessionMinutes: dto.sessionMinutes,
+      sessionDurations,
     })) as SubjectRecord;
-    return mapSubjectToResponse(updated);
+    return mapSubjectToResponse(updated, await this.slotMinutes(orgId));
   }
 
   async lock(id: string, orgId: string): Promise<SubjectResponse> {
@@ -207,7 +346,7 @@ export class SubjectService {
       id,
       true,
     )) as SubjectRecord;
-    return mapSubjectToResponse(updated);
+    return mapSubjectToResponse(updated, await this.slotMinutes(orgId));
   }
 
   async unlock(id: string, orgId: string): Promise<SubjectResponse> {
@@ -222,7 +361,7 @@ export class SubjectService {
       id,
       false,
     )) as SubjectRecord;
-    return mapSubjectToResponse(updated);
+    return mapSubjectToResponse(updated, await this.slotMinutes(orgId));
   }
 
   async unlockAllForOrg(orgId: string) {

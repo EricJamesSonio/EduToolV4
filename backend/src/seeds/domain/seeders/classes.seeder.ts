@@ -70,6 +70,11 @@ export async function seedClasses(
           id: semesterId,
           org_id: orgId,
           school_year_id: schoolYearId,
+          // Semester is program-scoped since migration
+          // 20260925113449_add_semester_program_scope: it fulfills one
+          // SemesterTemplateItem for exactly one program.
+          program_id: programId,
+          template_semester_id: firstSem.id,
           name: firstSem.name,
           start_date: syStart,
           end_date: new Date(

@@ -28,7 +28,7 @@ export class ClassRepository {
         capacity: data.capacity,
       },
       include: {
-        schedules: true,
+        schedules: { include: { room: { select: { name: true } } } },
         educator: {
           include: {
             profile: { select: { full_name: true } },
@@ -87,7 +87,7 @@ export class ClassRepository {
       _count: {
         select: { enrollments: true },
       },
-      schedules: true,
+      schedules: { include: { room: { select: { name: true } } } },
       gradingSchemes: {
         where: { template_id: { not: null } },
         orderBy: { created_at: 'desc' as const },
@@ -195,7 +195,7 @@ export class ClassRepository {
         _count: {
           select: { enrollments: true },
         },
-        schedules: true,
+        schedules: { include: { room: { select: { name: true } } } },
         educator: {
           include: {
             profile: { select: { full_name: true } },
@@ -227,7 +227,7 @@ export class ClassRepository {
         ...(data.capacity !== undefined && { capacity: data.capacity }),
       },
       include: {
-        schedules: true,
+        schedules: { include: { room: { select: { name: true } } } },
         educator: {
           include: {
             profile: { select: { full_name: true } },
@@ -296,6 +296,12 @@ export class ClassRepository {
     });
   }
 
+  /**
+   * An educator's occupied slots in a school year, for the conflict check.
+   * Selects ONLY class_id (used to exclude the class being edited) plus the
+   * slot times — the previous `include` joined class -> educator -> profile
+   * and pulled three tables the caller never read.
+   */
   async findEducatorSchedules(
     educatorId: string,
     orgId: string,
@@ -310,16 +316,11 @@ export class ClassRepository {
           deleted_at: null,
         },
       },
-      include: {
-        class: {
-          include: {
-            educator: {
-              include: {
-                profile: { select: { full_name: true } },
-              },
-            },
-          },
-        },
+      select: {
+        class_id: true,
+        weekday: true,
+        start_time: true,
+        end_time: true,
       },
     });
   }
@@ -349,6 +350,11 @@ export class ClassRepository {
       select: { id: true },
     });
   }
+  /**
+   * A section's occupied slots in a school year. Like findEducatorSchedules,
+   * selects only what the conflict check reads — the previous
+   * `include: { class: true }` pulled the entire class row per slot.
+   */
   async findSectionSchedules(
     sectionId: string,
     orgId: string,
@@ -363,7 +369,12 @@ export class ClassRepository {
           deleted_at: null,
         },
       },
-      include: { class: true },
+      select: {
+        class_id: true,
+        weekday: true,
+        start_time: true,
+        end_time: true,
+      },
     });
   }
 
@@ -531,7 +542,12 @@ export class ClassRepository {
   async replaceSchedules(
     orgId: string,
     classId: string,
-    slots: Array<{ weekday: number; startTime: Date; endTime: Date }>,
+    slots: Array<{
+      weekday: number;
+      startTime: Date;
+      endTime: Date;
+      roomId?: string | null;
+    }>,
   ) {
     await this.db.classSchedule.deleteMany({ where: { class_id: classId } });
 
@@ -544,6 +560,8 @@ export class ClassRepository {
         weekday: s.weekday,
         start_time: s.startTime,
         end_time: s.endTime,
+        // Null keeps the slot room-less, which is the default.
+        room_id: s.roomId ?? null,
       })),
     });
   }

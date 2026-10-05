@@ -1,29 +1,79 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SubjectHierarchyFilter, type HierarchyFilterValue } from "@/components/admin/subject/hierarchy/SubjectHierarchyFilter";
 import { SubjectHierarchyGraph } from "@/components/admin/subject/hierarchy/SubjectHierarchyGraph";
 import { SubjectHierarchyLegend } from "@/components/admin/subject/hierarchy/SubjectHierarchyLegend";
+import {
+  findScopeProgram,
+  hierarchyScopePrompt,
+  isHierarchyScopeReady,
+} from "@/components/admin/subject/hierarchy/hierarchyScope";
+import { useHierarchyPrograms } from "@/hooks/admin/useHierarchyPrograms";
 import { useSubjectHierarchy } from "@/hooks/admin/useSubjectHierarchy";
 import { YEAR_COLORS } from "@/lib/palette";
+
+const HEADER_COLLAPSED_KEY = "subject-hierarchy-header-collapsed";
+
+/** Persisted so the "focus on the subjects" preference survives navigation. */
+function usePersistedCollapsed(): [boolean, (v: boolean) => void] {
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(HEADER_COLLAPSED_KEY) === "true");
+    } catch {
+      // Private mode / disabled storage — fall back to the default (expanded).
+    }
+  }, []);
+
+  const toggle = (next: boolean) => {
+    setCollapsed(next);
+    try {
+      window.localStorage.setItem(HEADER_COLLAPSED_KEY, String(next));
+    } catch {
+      // Preference is a nicety; never let a storage failure break the page.
+    }
+  };
+
+  return [collapsed, toggle];
+}
 
 export default function SubjectHierarchyPage(): React.JSX.Element {
   const router = useRouter();
   const [filter, setFilter] = useState<HierarchyFilterValue>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = usePersistedCollapsed();
 
-  const { data, isLoading, columns } = useSubjectHierarchy({
-    schoolYearId: filter.schoolYearId,
-    programId: filter.programId,
-    courseId: filter.courseId,
-    strandId: filter.strandId,
-    levelId: filter.levelId,
-  });
+  // Same cache entry the filter reads — no duplicate department request.
+  const { data: programs = [] } = useHierarchyPrograms(filter.schoolYearId);
+  const selectedProgram = useMemo(
+    () => findScopeProgram(programs, filter.programId),
+    [programs, filter.programId],
+  );
+
+  // Subjects load only for a scope that is actually meaningful: a course for a
+  // college department that has courses, a strand for an SHS department that
+  // has strands, and the department alone when it has neither. See
+  // `isHierarchyScopeReady` for why this mirrors the filter's dropdown rules.
+  const scopeReady = isHierarchyScopeReady(filter, selectedProgram);
+  const prompt = hierarchyScopePrompt(filter, selectedProgram);
+
+  const { data, isLoading, columns } = useSubjectHierarchy(
+    {
+      schoolYearId: filter.schoolYearId,
+      programId: filter.programId,
+      courseId: filter.courseId,
+      strandId: filter.strandId,
+      levelId: filter.levelId,
+    },
+    scopeReady,
+  );
 
   const ranks = useMemo(() => (data?.levels ?? []).map((l) => l.rank), [data]);
   const levelNameOf = useMemo(() => {
@@ -38,46 +88,88 @@ export default function SubjectHierarchyPage(): React.JSX.Element {
   const prereqsOfSelected = useMemo(() => {
     if (!selected || !data) return [];
     const fromIds = new Set(
-      data.edges.filter((e) => e.to === selected.id).map((e) => e.from),
+            data.edges.filter((e) => e.to === selected.id && e.from !== e.to).map((e) => e.from),
     );
     return data.nodes.filter((n) => fromIds.has(n.id));
   }, [data, selected]);
   const dependentsOfSelected = useMemo(() => {
     if (!selected || !data) return [];
     const toIds = new Set(
-      data.edges.filter((e) => e.from === selected.id).map((e) => e.to),
+           data.edges.filter((e) => e.from === selected.id && e.from !== e.to).map((e) => e.to),
     );
     return data.nodes.filter((n) => toIds.has(n.id));
   }, [data, selected]);
 
-  const hasScope = !!filter.programId || !!filter.schoolYearId;
+  const summary = data
+    ? `${data.nodes.length} subjects · ${data.edges.length} prerequisite links · ${columns.length} years`
+    : null;
 
   const headerContent = (
     <div className="space-y-3">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">Subject Hierarchy</h1>
-      <SubjectHierarchyFilter
-        value={filter}
-        levels={data?.levels}
-        onChange={(v) => {
-          setFilter(v);
-          setSelectedId(null);
-        }}
-      />
-      {!hasScope && (
-        <p className="text-sm text-muted-foreground">
-          Select a school year and department — pick a course for College or a strand for SHS — then narrow to a level to see only that level's subjects.
-        </p>
-      )}
-      {data && (
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
-          <SubjectHierarchyLegend ranks={ranks} levelNameOf={levelNameOf} />
-          <p className="text-xs text-muted-foreground">
-            {data.nodes.length} subjects · {data.edges.length} prerequisite links · {columns.length} years
-            {data.truncated && (
-              <span className="ml-2 text-amber-600">Large scope truncated — narrow by course/strand.</span>
-            )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Subject Hierarchy</h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-xs"
+          aria-expanded={!collapsed}
+          aria-controls="hierarchy-header-body"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronUp className="h-4 w-4" />
+          )}
+          {collapsed ? "Show filters" : "Hide filters"}
+        </Button>
+      </div>
+
+      {/* Kept mounted (hidden rather than unmounted) so `aria-controls` on the
+          toggle always resolves to a real node in the DOM. */}
+      <div id="hierarchy-header-body" className="space-y-3" hidden={collapsed}>
+        <SubjectHierarchyFilter
+          value={filter}
+          levels={data?.levels}
+          onChange={(v) => {
+            setFilter(v);
+            setSelectedId(null);
+          }}
+        />
+        {prompt === "course" && (
+          <p className="text-sm text-muted-foreground">
+            Pick a course to see its subjects and levels.
           </p>
-        </div>
+        )}
+        {prompt === "strand" && (
+          <p className="text-sm text-muted-foreground">
+            Pick a strand to see its subjects and levels.
+          </p>
+        )}
+        {!filter.programId && (
+          <p className="text-sm text-muted-foreground">
+            Select a school year and department — pick a course for College or a strand for SHS — then narrow to a level to see only that level&apos;s subjects.
+          </p>
+        )}
+        {data && (
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+            <SubjectHierarchyLegend ranks={ranks} levelNameOf={levelNameOf} />
+            <p className="text-xs text-muted-foreground">
+              {summary}
+              {data.truncated && (
+                <span className="ml-2 text-amber-600">Large scope truncated — narrow by course/strand.</span>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Collapsed: keep the scope context visible so the admin still knows what
+          they are looking at, without the chrome eating graph height. */}
+      {collapsed && (
+        <p className="text-xs text-muted-foreground">
+          {summary ?? "No subjects loaded for this scope yet."}
+        </p>
       )}
     </div>
   );

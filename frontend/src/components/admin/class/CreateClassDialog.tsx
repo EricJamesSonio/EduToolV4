@@ -97,6 +97,7 @@ function handleGoToSemesterSettings(): void {
                 educatorClasses={data.educatorClasses}
                 sectionClasses={data.sectionClasses}
                 isLoading={data.educatorClassesLoading}
+                schoolYearId={schoolYearId}
                 onConflictsChange={handleScheduleConflictsChange}
               />
             </div>

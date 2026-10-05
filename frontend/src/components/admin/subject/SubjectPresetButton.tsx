@@ -5,6 +5,7 @@ import { Pin, Settings2 } from "lucide-react";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { levelApi } from "@/api/admin/level.api";
+import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
 import type { Program } from "@/types/admin/program.types";
 import type { Level } from "@/types/admin/level.types";
 import type { SubjectPreset, SubjectPresetData } from "@/hooks/admin/useSubjectPreset";
@@ -18,6 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  WeeklySessionsSection,
+  type WeeklySessionDraft,
+} from "@/components/admin/subject/WeeklySessionsSection";
 
 interface SubjectPresetButtonProps {
   schoolYearId: string;
@@ -41,6 +46,15 @@ export function SubjectPresetButton({
   const [courseId, setCourseId] = useState("");
   const [strandId, setStrandId] = useState("");
   const [levelId, setLevelId] = useState("");
+  /** Shared weekly-sessions draft, same shape the New Subject dialog edits. */
+  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySessionDraft>({
+    sessionsPerWeek: "",
+    sessionDurations: [],
+    uniformMinutes: null,
+    touched: false,
+  });
+
+  const { stepMin: slotMinutes } = useScheduleWindow();
 
   // Load the current preset into the picker whenever it's opened
   useEffect(() => {
@@ -49,12 +63,28 @@ export function SubjectPresetButton({
     setCourseId(preset?.courseId ?? "");
     setStrandId(preset?.strandId ?? "");
     setLevelId(preset?.levelId ?? "");
+    const perWeek = preset?.sessionsPerWeek ?? "";
+    const stored = preset?.sessionDurations?.length
+      ? preset.sessionDurations
+      : preset?.sessionMinutes != null
+        ? [preset.sessionMinutes]
+        : [];
+    setWeeklyDraft({
+      sessionsPerWeek: perWeek != null && perWeek !== undefined ? String(perWeek) : "",
+      sessionDurations: stored,
+      uniformMinutes:
+        stored.length > 0 && stored.every((d) => d === stored[0]) ? stored[0] : null,
+      touched: stored.length > 0,
+    });
   }, [open, preset]);
 
   const selectedProgram = programs.find((p) => p.id === programId);
   const programType = selectedProgram?.type ?? "";
   const hasCourses = programType === "college";
   const hasStrands = programType === "shs";
+  // Departments like Elementary / JHS / Kinder / Daycare: levels belong to the
+  // program directly (no course or strand).
+  const hasPlainLevels = !!programId && !hasCourses && !hasStrands;
 
   const { data: courseLevels = [] } = useAsyncQuery(
     [...queryKeys.admin.levels.all, "preset-course", schoolYearId, courseId] as const,
@@ -68,19 +98,60 @@ export function SubjectPresetButton({
     { enabled: hasStrands && !!strandId },
   );
 
-  const availableLevels: Level[] = hasCourses ? courseLevels : hasStrands ? strandLevels : [];
+  const { data: programLevels = [] } = useAsyncQuery(
+    [...queryKeys.admin.levels.all, "preset-program", schoolYearId, programId] as const,
+    () => levelApi.getBySchoolYear(schoolYearId, programId),
+    { enabled: hasPlainLevels },
+  );
+
+  const availableLevels: Level[] = hasCourses
+    ? courseLevels
+    : hasStrands
+      ? strandLevels
+      : hasPlainLevels
+        ? programLevels
+        : [];
+
+  // Same rules as the New Subject form: every explicit length must sit on the
+  // school's slot grid and inside the 5–480m window.
+  const sessionError: string | null = (() => {
+    const count = weeklyDraft.sessionsPerWeek
+      ? Number(weeklyDraft.sessionsPerWeek)
+      : null;
+    const rows = weeklyDraft.sessionDurations;
+    if (count && rows.length && rows.length !== count) {
+      return `Supply one time per session (${count}), or use "Apply to all".`;
+    }
+    for (const m of rows) {
+      if (m < 5) return "Enter at least 5 minutes per session.";
+      if (m > 480) return "Session length cannot exceed 480 minutes (8h).";
+      if (m % slotMinutes !== 0) {
+        return `${m}m is not a multiple of the school's ${slotMinutes}m slot length.`;
+      }
+    }
+    return null;
+  })();
 
   const canSet =
     !!programId &&
     (hasCourses ? !!courseId : hasStrands ? !!strandId : true) &&
-    !!levelId;
+    !!levelId &&
+    !sessionError;
 
   const handleSet = () => {
+    const rows = weeklyDraft.sessionDurations;
     savePreset({
       programId,
       courseId: hasCourses ? courseId : null,
       strandId: hasStrands ? strandId : null,
       levelId,
+      sessionsPerWeek: weeklyDraft.sessionsPerWeek
+        ? Number(weeklyDraft.sessionsPerWeek)
+        : null,
+      // Keep the uniform base in sync so a preset reader that only knows
+      // `sessionMinutes` still sees the right number.
+      sessionMinutes: rows.length ? (rows[0] ?? null) : null,
+      sessionDurations: rows,
     });
     setOpen(false);
   };
@@ -91,6 +162,12 @@ export function SubjectPresetButton({
     setCourseId("");
     setStrandId("");
     setLevelId("");
+    setWeeklyDraft({
+      sessionsPerWeek: "",
+      sessionDurations: [],
+      uniformMinutes: null,
+      touched: false,
+    });
     setOpen(false);
   };
 
@@ -132,7 +209,7 @@ export function SubjectPresetButton({
           open={open}
           onClose={() => setOpen(false)}
           title="Subject Preset"
-          description="Pick a department, course/strand, and level. New Subject will auto-fill with these until you turn the preset off or change it."
+          description="Pick a department, course/strand, level, and weekly sessions. New Subject will auto-fill with these until you turn the preset off or change it."
           size="md"
         >
           <ModalBody>
@@ -259,6 +336,17 @@ export function SubjectPresetButton({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Weekly sessions — same control the subject form uses */}
+              <WeeklySessionsSection
+                value={weeklyDraft}
+                onChange={setWeeklyDraft}
+                slotMinutes={slotMinutes}
+                resolvedCount={5}
+                resolvedDurations={[60, 60, 60, 60, 60]}
+                isOnDefault={!weeklyDraft.touched}
+                error={sessionError ?? undefined}
+              />
             </div>
           </ModalBody>
 

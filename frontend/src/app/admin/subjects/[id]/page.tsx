@@ -5,10 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import {
   Pencil, Lock, LockOpen,
-  AlertTriangle, Eye, Share2, X,
+  AlertTriangle, Share2, X,
 } from "lucide-react";
 import { subjectApi } from "@/api/admin/subject.api";
 import { levelApi } from "@/api/admin/level.api";
@@ -19,6 +18,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ShareSubjectDialog } from "@/components/admin/subject/ShareSubjectDialog";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
 import { PrerequisitesSection } from "@/components/admin/subject/PrerequisitesSection";
+import { LinkedClassesSection } from "@/components/admin/subject/LinkedClassesSection";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +134,6 @@ export default function SubjectDetailPage({
   params: Promise<{ id: string }>;
 }): React.JSX.Element {
   const { id } = use(params);
-  const router  = useRouter();
   const queryClient = useQueryClient();
 
   const [editOpen, setEditOpen]           = useState(false);
@@ -208,6 +207,18 @@ export default function SubjectDetailPage({
   const isLocked = subject.lockStatus === "locked";
   const isMinor  = subject.subjectType === "minor";
   const levelDisplayName = subject.levelName ?? subject.programName ?? null;
+    const weeklyCount   = subject.effectiveSessionsPerWeek ?? 5;
+  const weeklyMinutes = subject.effectiveSessionMinutes ?? 60;
+  const weeklyIsDefault = subject.sessionRequirementSource !== "explicit";
+  // A subject may give each weekly session its own length; collapse to a plain
+  // "5 × 60m" only when they really are all the same.
+  const weeklyDurations = subject.effectiveSessionDurations ?? [];
+  const weeklyDurationsAreUniform =
+    weeklyDurations.length === 0 ||
+    weeklyDurations.every((d) => d === weeklyMinutes);
+  const weeklyDurationSummary = weeklyDurationsAreUniform
+    ? `${weeklyMinutes}m`
+    : weeklyDurations.map((d) => `${d}m`).join(" / ");
 
   return (
     <div className="space-y-6">
@@ -266,6 +277,25 @@ export default function SubjectDetailPage({
             <span className="text-sm text-muted-foreground">—</span>
           )}
         </div>
+                <div className="flex items-center gap-4 px-4 py-3">
+          <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Weekly Sessions</span>
+          <span className="text-sm">
+            {weeklyDurationsAreUniform ? (
+              <span className="font-medium whitespace-nowrap">
+                {weeklyCount} × {weeklyMinutes}m
+              </span>
+            ) : (
+              <span className="font-medium whitespace-nowrap">
+                {weeklyCount} × {weeklyDurationSummary}
+              </span>
+            )}
+            {weeklyIsDefault && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                (department default)
+              </span>
+            )}
+          </span>
+        </div>
         <div className="flex items-center gap-4 px-4 py-3">
           <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Lock Status</span>
           <span className="text-sm">{isLocked ? "Locked" : "Unlocked"}</span>
@@ -282,17 +312,7 @@ export default function SubjectDetailPage({
 
       <PrerequisitesSection subject={subject} />
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold not-interactive">Linked Classes</h2>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => router.push(`/admin/classes?subjectId=${subject.id}`)}
-        >
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          View All Classes
-        </Button>
-      </div>
+      <LinkedClassesSection subjectId={subject.id} schoolYearId={activeSchoolYearId} />
 
       {editOpen && (
         <SubjectDialog

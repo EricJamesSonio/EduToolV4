@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Loader2, Save, Clock } from "lucide-react";
+import { Loader2, Save, Clock, Plus, Trash2 } from "lucide-react";
 
 import {
   useAsyncQuery,
@@ -24,15 +24,31 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateSlots, formatHourLabel } from "@/utils/schedule-slots.utils";
+import type { OrgScheduleBreak } from "@/types/admin/org-schedule-config.types";
 import type { AxiosError } from "axios";
 
 type FormValues = {
   startTime: string;
   endTime: string;
   slotDuration: string;
+  activeWeekdays: number[];
+  breaks: OrgScheduleBreak[];
 };
 
 const DURATION_OPTIONS = [15, 20, 25, 30, 45, 60] as const;
+
+const ALL_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
+
+/** Displayed Mon -> Sun, matching the grid's column order. */
+const WEEKDAY_CHOICES = [
+  { value: 1, short: "Mon", full: "Monday" },
+  { value: 2, short: "Tue", full: "Tuesday" },
+  { value: 3, short: "Wed", full: "Wednesday" },
+  { value: 4, short: "Thu", full: "Thursday" },
+  { value: 5, short: "Fri", full: "Friday" },
+  { value: 6, short: "Sat", full: "Saturday" },
+  { value: 0, short: "Sun", full: "Sunday" },
+];
 
 export function OrgScheduleTab(): React.JSX.Element {
   const { data: cfg, isLoading } = useAsyncQuery(
@@ -49,7 +65,14 @@ export function OrgScheduleTab(): React.JSX.Element {
     setValue,
     formState: { isDirty },
   } = useForm<FormValues>({
-    defaultValues: { startTime: "07:00", endTime: "17:00", slotDuration: "30" },
+    defaultValues: {
+      startTime: "07:00",
+      endTime: "17:00",
+      slotDuration: "30",
+      // Inert default: every day is a school day until an admin narrows it.
+      activeWeekdays: [...ALL_WEEKDAYS],
+      breaks: [],
+    },
   });
 
   useEffect(() => {
@@ -58,6 +81,9 @@ export function OrgScheduleTab(): React.JSX.Element {
         startTime: cfg.startTime,
         endTime: cfg.endTime,
         slotDuration: String(cfg.slotDuration),
+        activeWeekdays:
+          cfg.activeWeekdays?.length ? cfg.activeWeekdays : [...ALL_WEEKDAYS],
+        breaks: cfg.breaks ?? [],
       });
     }
   }, [cfg, reset]);
@@ -68,6 +94,8 @@ export function OrgScheduleTab(): React.JSX.Element {
         startTime: values.startTime,
         endTime: values.endTime,
         slotDuration: Number(values.slotDuration),
+        activeWeekdays: values.activeWeekdays,
+        breaks: values.breaks,
       }),
     {
       invalidateKeys: [adminQueryKeys.orgScheduleConfig.detail()],
@@ -77,6 +105,11 @@ export function OrgScheduleTab(): React.JSX.Element {
           startTime: updated.startTime,
           endTime: updated.endTime,
           slotDuration: String(updated.slotDuration),
+          activeWeekdays:
+            updated.activeWeekdays?.length
+              ? updated.activeWeekdays
+              : [...ALL_WEEKDAYS],
+          breaks: updated.breaks ?? [],
         });
       },
       onError: (err: unknown) => {
@@ -98,6 +131,35 @@ export function OrgScheduleTab(): React.JSX.Element {
   const startTime = watch("startTime");
   const endTime = watch("endTime");
   const slotDuration = watch("slotDuration");
+  const activeWeekdays = watch("activeWeekdays") ?? [];
+  const breaks = watch("breaks") ?? [];
+
+  const toggleWeekday = (day: number): void => {
+    const next = activeWeekdays.includes(day)
+      ? activeWeekdays.filter((d) => d !== day)
+      : [...activeWeekdays, day].sort((a, b) => a - b);
+    setValue("activeWeekdays", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const setBreaks = (next: OrgScheduleBreak[]): void =>
+    setValue("breaks", next, { shouldDirty: true });
+
+  const updateBreak = (
+    index: number,
+    patch: Partial<OrgScheduleBreak>,
+  ): void =>
+    setBreaks(breaks.map((b, i) => (i === index ? { ...b, ...patch } : b)));
+
+  const addBreak = (): void =>
+    setBreaks([
+      ...breaks,
+      { label: "Break", start: "12:00", end: "13:00" },
+    ]);
+
+  const removeBreak = (index: number): void =>
+    setBreaks(breaks.filter((_, i) => i !== index));
+
+  const noSchoolDay = activeWeekdays.length === 0;
 
   const preview = useMemo(() => {
     const dur = Number(slotDuration);
@@ -195,8 +257,136 @@ export function OrgScheduleTab(): React.JSX.Element {
             )}
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">School days</Label>
+              <button
+                type="button"
+                onClick={() =>
+                  setValue(
+                    "activeWeekdays",
+                    activeWeekdays.length === ALL_WEEKDAYS.length
+                      ? []
+                      : [...ALL_WEEKDAYS],
+                    { shouldDirty: true },
+                  )
+                }
+                className="text-[11px] text-muted-foreground hover:text-foreground"
+              >
+                {activeWeekdays.length === ALL_WEEKDAYS.length
+                  ? "Clear all"
+                  : "Select all"}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {WEEKDAY_CHOICES.map((d) => {
+                const on = activeWeekdays.includes(d.value);
+                return (
+                  <button
+                    key={d.value}
+                    type="button"
+                    aria-pressed={on}
+                    title={d.full}
+                    onClick={() => toggleWeekday(d.value)}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      on
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {d.short}
+                  </button>
+                );
+              })}
+            </div>
+            {noSchoolDay ? (
+              <p className="text-xs text-destructive">
+                Select at least one school day — classes cannot be scheduled
+                otherwise.
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Only these days can be selected when scheduling a class.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Breaks</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={addBreak}
+                disabled={breaks.length >= 6}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add break
+              </Button>
+            </div>
+            {breaks.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                No breaks. Add lunch or recess so no class is scheduled across
+                it.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {breaks.map((b, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={b.label}
+                      maxLength={40}
+                      aria-label="Break label"
+                      placeholder="Lunch"
+                      onChange={(e) =>
+                        updateBreak(i, { label: e.target.value })
+                      }
+                      className="h-8 flex-1"
+                    />
+                    <Input
+                      type="time"
+                      step={60}
+                      aria-label="Break start"
+                      value={b.start}
+                      onChange={(e) =>
+                        updateBreak(i, { start: e.target.value })
+                      }
+                      className="h-8 w-28"
+                    />
+                    <Input
+                      type="time"
+                      step={60}
+                      aria-label="Break end"
+                      value={b.end}
+                      onChange={(e) =>
+                        updateBreak(i, { end: e.target.value })
+                      }
+                      className="h-8 w-28"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Remove ${b.label || "break"}`}
+                      onClick={() => removeBreak(i)}
+                      className="h-8 w-8 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Breaks apply to every school day and must line up with the{" "}
+              {slotDuration}m slot grid.
+            </p>
+          </div>
+
           <div className="flex justify-end">
-            <Button type="submit" disabled={mutate.isPending || !isDirty}>
+            <Button type="submit" disabled={mutate.isPending || !isDirty || noSchoolDay}>
               {mutate.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (

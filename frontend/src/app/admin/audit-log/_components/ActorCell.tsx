@@ -4,32 +4,45 @@ import { Badge } from "@/components/ui/badge";
 
 export function ActorCell({
   actorId,
+  actorName,
+  actorRole,
   educatorMap,
 }: {
   actorId?: string | null;
-  educatorMap: Map<string, string>;
+  /** Resolved by the server. Preferred over the educator lookup. */
+  actorName?: string | null;
+  actorRole?: string | null;
+  educatorMap?: Map<string, string>;
 }) {
-  const safeActorId = actorId ?? "unknown";
+  const safeActorId = actorId ?? "";
 
   if (safeActorId === "system") {
     return (
-      <Badge variant="outline" className="font-mono text-xs">
+      <Badge variant="outline" className="text-xs">
         System
       </Badge>
     );
   }
 
-  const name = educatorMap.get(safeActorId) ?? null;
+  const name = actorName ?? (educatorMap?.get(safeActorId) || null);
 
-  return name ? (
-    <span className="text-sm font-medium truncate max-w-[160px] block" title={safeActorId}>
-      {name}
-    </span>
-  ) : (
-    <span
-      className="text-xs text-muted-foreground truncate max-w-[160px] block"
-    >
-      Unknown
-    </span>
+  if (!name) {
+    return (
+      <span
+        className="block max-w-[160px] truncate text-xs text-muted-foreground"
+        title={safeActorId || undefined}
+      >
+        Deleted account
+      </span>
+    );
+  }
+
+  return (
+    <div className="max-w-[180px]" title={safeActorId}>
+      <span className="block truncate text-sm font-medium">{name}</span>
+      {actorRole && (
+        <span className="block text-xs text-muted-foreground">{actorRole}</span>
+      )}
+    </div>
   );
 }

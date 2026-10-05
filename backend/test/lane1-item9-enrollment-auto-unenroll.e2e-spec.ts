@@ -128,6 +128,7 @@ runSuite(
         data: {
           org_id: orgId,
           school_year_id: syId,
+          program_id: program.id,
           name: '1st Semester',
           start_date: new Date(now - 10 * day),
           end_date: new Date(now + 10 * day),

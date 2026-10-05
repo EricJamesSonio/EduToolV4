@@ -102,6 +102,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
+      // Profile subjects carry no year level, so none is registered.
       ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId);
 
       for (const [code, courseId] of Object.entries(ctx.courseMap)) {
@@ -177,6 +178,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
+      // Profile subjects carry no year level, so none is registered.
       ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId);
 
       for (const strandName of strandCodes) {
@@ -271,7 +273,7 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId);
+      ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId, s.yearLevel);
 
       for (const [code, courseId] of Object.entries(ctx.courseMap)) {
         const isExcluded = ctx.excludedLevelSubjects[code]?.includes(s.name);
@@ -373,7 +375,7 @@ export class MinorSubjectSeederService {
         }
 
         seenShsMinors.set(dedupeKey, subjectId);
-        ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId);
+        ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId, s.yearLevel);
       }
 
       if (

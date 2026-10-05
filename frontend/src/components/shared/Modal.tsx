@@ -9,14 +9,17 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "full";
+type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
 
 const SIZE_MAP: Record<ModalSize, string> = {
   sm:   "sm:max-w-sm",
   md:   "sm:max-w-md",
   lg:   "sm:max-w-lg",
   xl:   "sm:max-w-xl",
-  "2xl": "max-w-2xl",
+  "2xl": "sm:max-w-2xl",
+  "3xl": "sm:max-w-3xl",
+  "4xl": "sm:max-w-4xl",
+  "5xl": "sm:max-w-5xl",
   full: "max-w-[calc(100%-2rem)] sm:max-w-[95vw]",
 };
 

@@ -13,7 +13,13 @@ export class OrgScheduleConfigRepository {
 
   upsert(
     orgId: string,
-    data: { start_time: string; end_time: string; slot_duration: number },
+    data: {
+      start_time: string;
+      end_time: string;
+      slot_duration: number;
+      active_weekdays: number[];
+      breaks: unknown;
+    },
   ) {
     return this.db.orgScheduleConfig.upsert({
       where: { org_id: orgId },
@@ -21,17 +27,25 @@ export class OrgScheduleConfigRepository {
         start_time: data.start_time,
         end_time: data.end_time,
         slot_duration: data.slot_duration,
+        active_weekdays: data.active_weekdays,
+        breaks: (data.breaks ?? []) as never,
       },
       create: {
         org_id: orgId,
         start_time: data.start_time,
         end_time: data.end_time,
         slot_duration: data.slot_duration,
+        active_weekdays: data.active_weekdays,
+        breaks: (data.breaks ?? []) as never,
       },
     });
   }
 
-  /** Lazy-create with defaults if missing, mirroring OrgEnrollmentSetting pattern */
+  /**
+   * Lazy-create with defaults if missing, mirroring OrgEnrollmentSetting pattern.
+   * Defaults to all seven weekdays and no breaks, which is inert: it cannot
+   * invalidate any existing schedule.
+   */
   upsertDefaults(orgId: string) {
     return this.db.orgScheduleConfig.upsert({
       where: { org_id: orgId },
@@ -41,6 +55,8 @@ export class OrgScheduleConfigRepository {
         start_time: '07:00',
         end_time: '17:00',
         slot_duration: 30,
+        active_weekdays: [0, 1, 2, 3, 4, 5, 6],
+        breaks: [] as never,
       },
     });
   }

@@ -69,6 +69,7 @@ describe('ClassService.getStudentClasses — batched lookup', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as never,
     );
     return { service, repo };
   };
