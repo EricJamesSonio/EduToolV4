@@ -46,13 +46,16 @@ export function scheduleKey(
 
 export function timeOnly(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 export function scheduleDate(hhmm: string, anchor?: Date): Date {
   const [h, m] = hhmm.split(':').map(Number);
   const d = anchor ? new Date(anchor) : new Date();
-  d.setHours(h, m, 0, 0);
+  // UTC-marked. Seed rows must read back identically in every server TZ —
+  // a local `setHours` is exactly how dev-seeded rows ended up shifted from
+  // values created on production.
+  d.setUTCHours(h, m, 0, 0);
   return d;
 }
 

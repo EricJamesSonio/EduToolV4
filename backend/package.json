@@ -15,6 +15,7 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest && jest --config ./test/jest-e2e.json --runInBand",
+    "test:tz": "cross-env TZ=UTC jest src/commons/utils/__TEST__/schedule-time.util.spec.ts src/modules/class src/modules/class-generator --silent && cross-env TZ=Asia/Manila jest src/commons/utils/__TEST__/schedule-time.util.spec.ts src/modules/class src/modules/class-generator --silent && cross-env TZ=America/Los_Angeles jest src/commons/utils/__TEST__/schedule-time.util.spec.ts src/modules/class src/modules/class-generator --silent",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
@@ -23,6 +24,7 @@
     "seed:domain": "ts-node -r tsconfig-paths/register src/seeds/seed-domain-data.ts",
     "check:orphans": "ts-node -r tsconfig-paths/register src/seeds/orphan-health-check.ts",
     "check:class-duplicates": "ts-node -r tsconfig-paths/register src/scripts/class-duplicate-check.ts",
+    "check:catb-midnight": "ts-node -r tsconfig-paths/register src/scripts/category-b-midnight-audit.ts",
     "test:play": "ts-node -r tsconfig-paths/register src/seeds/playground-assessment-grading.ts",
     "drop_db": "ts-node -r tsconfig-paths/register src/seeds/drop-database.ts"
   },
@@ -66,6 +68,7 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
+    "cross-env": "^10.1.0",
     "@nestjs/schematics": "^10.1.1",
     "@nestjs/testing": "^10.3.0",
     "@swc/cli": "^0.5.2",

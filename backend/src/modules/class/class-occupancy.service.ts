@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import { scheduleDateToMinutes } from '@/commons/utils/schedule-time.util';
 import type { OccupiedSlot } from './class-conflict.util';
 
 /**
@@ -90,9 +91,12 @@ export class ClassOccupancyService {
     return rows.map((r) => ({
       classId: r.class.id,
       weekday: r.weekday,
-      // Wall-clock only. The date component of these columns is meaningless.
-      startMin: r.start_time.getHours() * 60 + r.start_time.getMinutes(),
-      endMin: r.end_time.getHours() * 60 + r.end_time.getMinutes(),
+      // Wall-clock only, as stored UTC. The date component of these columns is
+      // meaningless, so this must read UTC — a local getter shifts every slot
+      // by the server's UTC offset and makes the conflict layer disagree with
+      // both the stored values and the admin's display.
+      startMin: scheduleDateToMinutes(r.start_time),
+      endMin: scheduleDateToMinutes(r.end_time),
       educatorId: r.class.educator_id,
       sectionId: r.class.section_id,
       roomId: r.room_id,

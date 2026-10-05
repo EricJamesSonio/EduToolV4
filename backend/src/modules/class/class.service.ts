@@ -34,14 +34,10 @@ import {
 import {
   parseTimeToDate,
   toTimeSlot,
-  minuteSlotsOverlap,
-  toMinuteSlot,
-  type MinuteSlot,
 } from './class-schedule.util';
 import { SubjectPrerequisiteService } from '../subject-prerequisite/subject-prerequisite.service';
 import {
   findConflicts,
-  type CandidateSlot,
 } from './class-conflict.util';
 import { ClassOccupancyService } from './class-occupancy.service';
 
@@ -149,8 +145,14 @@ export class ClassService {
   }
 
 
+  /**
+   * Minutes-of-day for a schedule Date (UTC wall-clock).
+   *
+   * Kept as a one-line delegate so the six call sites below do not change; new
+   * code should import `scheduleDateToMinutes` from the shared helper directly.
+   */
   private dateToMinutes(d: Date): number {
-    return d.getHours() * 60 + d.getMinutes();
+    return d.getUTCHours() * 60 + d.getUTCMinutes();
   }
 
   /** A class always holds its whole section, so capacity = the section's capacity. */
