@@ -3,50 +3,82 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import { useScrollAnimation } from "@/hooks/useScrollAnimation"; // Import the custom hook
+import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+
+interface DeviceFrameProps {
+  src: string;
+  alt: string;
+}
+
+function LaptopFrame({ src, alt }: DeviceFrameProps) {
+  return (
+    <div className="relative w-full">
+      <div className="relative rounded-t-2xl border border-slate-700/70 bg-slate-900 p-[2.2%] pt-[3%] shadow-2xl">
+        <span className="absolute left-1/2 top-[1.2%] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-slate-600" />
+        <div className="overflow-hidden rounded-md bg-background">
+          <img src={src} alt={alt} className="block h-auto w-full" />
+        </div>
+      </div>
+
+      <div className="relative -mx-[4%] h-3 rounded-b-2xl bg-gradient-to-b from-slate-300 to-slate-400 shadow-xl sm:h-4 dark:from-slate-600 dark:to-slate-800">
+        <span className="absolute left-1/2 top-0 h-1 w-1/6 -translate-x-1/2 rounded-b-md bg-slate-500/50" />
+      </div>
+      <div className="mx-auto h-2 w-[92%] rounded-full bg-black/20 blur-xl" />
+    </div>
+  );
+}
+
+function PhoneFrame({ src, alt }: DeviceFrameProps) {
+  return (
+    <div className="relative rounded-[1.75rem] border border-slate-700/70 bg-slate-900 p-1.5 shadow-2xl sm:rounded-[2.25rem] sm:p-2">
+      <span className="absolute -right-[3px] top-14 h-8 w-[3px] rounded-r bg-slate-700" />
+      <span className="absolute -left-[3px] top-12 h-5 w-[3px] rounded-l bg-slate-700" />
+      <span className="absolute -left-[3px] top-20 h-8 w-[3px] rounded-l bg-slate-700" />
+
+      <div className="relative overflow-hidden rounded-[1.4rem] bg-background sm:rounded-[1.85rem]">
+        <span className="absolute left-1/2 top-1.5 z-10 h-3 w-1/3 -translate-x-1/2 rounded-full bg-slate-900 sm:h-3.5" />
+        <img src={src} alt={alt} className="block h-auto w-full" />
+      </div>
+    </div>
+  );
+}
 
 export function HeroSection() {
-  // Use the custom hook for the left side content
   const { ref: leftSideRef, isInView: leftSideInView } = useScrollAnimation();
-  // Use the custom hook for the right side content
   const { ref: rightSideRef, isInView: rightSideInView } = useScrollAnimation();
 
   return (
     <section
       id="home"
-      className="page-container relative min-h-screen flex items-start pt-20 md:pt-28 lg:pt-32"
+      className="page-container relative flex min-h-screen items-start pt-20 md:pt-28 lg:pt-32"
     >
-      {/* Decorative blobs (clipped to prevent horizontal overflow) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl"></div>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-primary/5 blur-3xl"></div>
+        <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-accent/5 blur-3xl"></div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-16 items-center relative">
-        {/* LEFT SIDE */}
-        {/* Apply the ref and conditionally add animation class */}
+      <div className="relative grid grid-cols-1 items-center gap-12 lg:grid-cols-2 xl:gap-16">
         <div
           ref={leftSideRef}
           className={`space-y-10 text-center lg:text-left ${leftSideInView ? "animate-fade-in-up" : ""}`}
         >
           <div className="space-y-6">
-            <h1 className="font-marketing font-extrabold cursor-default select-none text-5xl md:text-6xl">
+            <h1 className="cursor-default select-none font-marketing text-5xl font-extrabold md:text-6xl">
               The All-in-One{" "}
               <span className="text-accent">School Management</span> Platform
             </h1>
 
-            <p className="cursor-default select-none text-muted-foreground max-w-xl mx-auto lg:mx-0">
+            <p className="mx-auto max-w-xl cursor-default select-none text-muted-foreground lg:mx-0">
               Manage schools, students, teachers, grading, and assessments — all
               from one powerful and simple dashboard.
             </p>
           </div>
 
-          {/* CTA */}
-          <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start">
+          <div className="flex flex-col justify-center gap-5 sm:flex-row lg:justify-start">
             <Link href="/login">
               <Button
                 size="lg"
-                className="w-full sm:w-auto text-lg px-8 py-6 shadow-md"
+                className="w-full px-8 py-6 text-lg shadow-md sm:w-auto"
               >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -57,78 +89,46 @@ export function HeroSection() {
               <Button
                 size="lg"
                 variant="outline"
-                className="bg-white w-full sm:w-auto text-lg px-8 py-6"
+                className="w-full bg-white px-8 py-6 text-lg sm:w-auto"
               >
                 View Demo
               </Button>
             </Link>
           </div>
 
-          {/* Trust badges (kept, but cleaner) */}
-          <div className="font-marketing flex flex-wrap gap-6 justify-center lg:justify-start text-sm text-muted-foreground pt-2">
+          <div className="flex flex-wrap justify-center gap-6 pt-2 font-marketing text-sm text-muted-foreground lg:justify-start">
             {[
               "Multi-tenant",
               "Secure",
               "Automated grading",
               "Video meetings",
             ].map((item) => (
-              <span key={item} className="cursor-default select-none flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
+              <span
+                key={item}
+                className="flex cursor-default select-none items-center gap-2"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/50"></span>
                 {item}
               </span>
             ))}
           </div>
         </div>
 
-        {/* RIGHT SIDE (RESPONSIVE MOCKUPS) */}
-        {/* Apply the ref and conditionally add animation classes */}
         <div
           ref={rightSideRef}
-          className={`relative ${rightSideInView ? "animate-fade-in-up animate-delay-2" : ""} hidden lg:block`}
+          className={`relative px-2 pb-10 sm:px-6 ${rightSideInView ? "animate-fade-in-up animate-delay-2" : ""}`}
         >
-          {/* Glow */}
-          <div className="absolute -top-20 -right-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl"></div>
+          <div className="pointer-events-none absolute -top-16 right-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl"></div>
+          <div className="pointer-events-none absolute -bottom-10 left-0 h-56 w-56 rounded-full bg-accent/10 blur-3xl"></div>
 
-          <div className="relative w-full max-w-[820px] mx-auto">
-            {/* DESKTOP */}
-            <div className="relative bg-secondary/60 border border-border/60 rounded-2xl overflow-hidden shadow-2xl">
-              {/* Browser bar */}
-              <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 bg-secondary/80">
-                <div className="w-3 h-3 rounded-full bg-red-400/70"></div>
-                <div className="w-3 h-3 rounded-full bg-amber-400/70"></div>
-                <div className="w-3 h-3 rounded-full bg-emerald-400/70"></div>
-                <div className="ml-4 flex-1 bg-background/40 rounded-md px-3 py-1 text-xs text-muted-foreground">
-                  app.edutool.com
-                </div>
-              </div>
+          <div className="relative mx-auto w-full max-w-[820px]">
+            <LaptopFrame src="/desktop-3.png" alt="Relief-ED dashboard preview" />
 
-              {/* Screen (auto height now) */}
-              <div className="w-full bg-background/30">
-                <img
-                  src="/desktop-3.png"
-                  alt="Dashboard preview"
-                  className="w-full h-auto object-cover"
-                />
-              </div>
-            </div>
-
-            {/* MOBILE (floating, responsive) */}
-            <div className="absolute -bottom-12 -left-10 w-40 md:w-48 bg-secondary/90 border border-border/60 rounded-3xl overflow-hidden shadow-2xl">
-              <div className="flex justify-center pt-3 pb-2 bg-secondary/90">
-                <div className="w-10 h-2 rounded-full bg-border/60"></div>
-              </div>
-
-              <div className="w-full bg-background/30">
-                <img
-                  src="/mobile-3.png"
-                  alt="Mobile preview"
-                  className="w-full h-auto object-cover"
-                />
-              </div>
-
-              <div className="flex justify-center py-2 bg-secondary/90">
-                <div className="w-8 h-1.5 rounded-full bg-border/60"></div>
-              </div>
+            <div className="absolute -bottom-8 -left-1 w-[26%] min-w-[88px] max-w-[190px] sm:-bottom-10 sm:-left-6 lg:-left-10">
+              <PhoneFrame
+                src="/mobile-3.png"
+                alt="Relief-ED mobile dashboard preview"
+              />
             </div>
           </div>
         </div>
