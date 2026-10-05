@@ -523,6 +523,7 @@ export class ClassGeneratorService {
       this.db.subject.findMany({
         where: {
           org_id: req.orgId,
+          deleted_at: null,
           level: { program_id: { in: req.programIds } },
           ...(req.courseIds && req.courseIds.length > 0
             ? { course_id: { in: req.courseIds } }
@@ -560,7 +561,7 @@ export class ClassGeneratorService {
     // sees every pick; callers look up in-scope subjects only. Batched
     // round-trips beat one per subject.
     const yearSubjectRows = await this.db.subject.findMany({
-      where: { org_id: req.orgId, level: { school_year_id: req.schoolYearId } },
+      where: { org_id: req.orgId, deleted_at: null, level: { school_year_id: req.schoolYearId } },
       select: { id: true },
     });
     const yearSubjectIds = yearSubjectRows.map((s) => s.id);
@@ -1081,7 +1082,7 @@ export class ClassGeneratorService {
 
     const [subjects, educators, profiles] = await Promise.all([
       this.db.subject.findMany({
-        where: { org_id: orgId, level: { school_year_id: schoolYearId } },
+        where: { org_id: orgId, deleted_at: null, level: { school_year_id: schoolYearId } },
         select: { id: true },
       }),
       this.db.account.findMany({

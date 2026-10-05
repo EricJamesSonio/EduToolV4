@@ -2,17 +2,18 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { programApi } from "@/api/admin/program.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { usePrograms } from "@/hooks/admin/usePrograms";
+import { useProgramDeletionCheck } from "@/hooks/admin/useProgramDeletionCheck";
 import type { Program } from "@/types/admin/program.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DeleteEntityDialog } from "@/components/shared/DeleteEntityDialog";
 import { AsyncListState } from "@/components/shared/AsyncListState";
 import { CardGrid } from "@/components/shared/CardGrid";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -74,20 +75,29 @@ export default function ProgramsPage(): React.JSX.Element {
     isError: programsError,
   } = usePrograms(selectedSchoolYearId ?? undefined);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => programApi.delete(id),
-    onSuccess: () => {
-      toast.success("Department deleted.");
-      if (selectedSchoolYearId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId }) });
-      }
-      setDeleteTarget(null);
+  const deleteMutation = useMutationWithInvalidation(
+    (id: string) => programApi.delete(id),
+    {
+      invalidateKeys: [
+        queryKeys.admin.programs.all,
+        queryKeys.admin.schoolYears.readiness(),
+      ],
+      onSuccess: () => {
+        toast.success("Department deleted.");
+        if (selectedSchoolYearId) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId }) });
+        }
+        setDeleteTarget(null);
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to delete department.");
+        setDeleteTarget(null);
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to delete department.");
-      setDeleteTarget(null);
-    },
-  });
+  );
+
+  const deletionCheckQuery = useProgramDeletionCheck(deleteTarget?.id, !!deleteTarget);
+  const deletionCheckError = deletionCheckQuery.error as AxiosError<{ message: string }> | null;
 
   const noSchoolYears = !syLoading && schoolYears.length === 0;
 
@@ -167,15 +177,21 @@ export default function ProgramsPage(): React.JSX.Element {
       )}
 
       {deleteTarget && (
-        <ConfirmDialog
+        <DeleteEntityDialog
           open
-          title="Delete this department?"
-          message={`Delete "${deleteTarget.name}"? This cannot be undone. Make sure it has no levels, courses, or strands assigned to it first.`}
-          confirmLabel="Delete Department"
-          destructive
-          isLoading={deleteMutation.isPending}
-          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
           onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          entityLabel="department"
+          entityName={deleteTarget.name}
+          check={{
+            data: deletionCheckQuery.data,
+            isLoading: deletionCheckQuery.isLoading,
+            isError: deletionCheckQuery.isError,
+            errorMessage: deletionCheckError?.response?.data?.message,
+          }}
+          isDeleting={deleteMutation.isPending}
+          onConfirmDelete={() => deleteMutation.mutate(deleteTarget.id)}
+          confirmLabel="Delete Department"
+          willDeleteNote={`"${deleteTarget.name}" and everything under it will be permanently deleted.`}
         />
       )}
     </div>

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import type { SubjectType } from "@/types/admin/subject.types";
+import type { SubjectTab } from "@/types/admin/subject.types";
 
 export interface FiltersState {
   selectedSchoolYearId: string | null;
-  activeTab: SubjectType;
+  activeTab: SubjectTab;
   selectedProgramId: string;
   filterLevelId: string;
   selectedCourseId: string;
@@ -12,7 +12,7 @@ export interface FiltersState {
 
 export interface FiltersActions {
   setSelectedSchoolYearId: (id: string | null) => void;
-  setActiveTab: (tab: SubjectType) => void;
+  setActiveTab: (tab: SubjectTab) => void;
   setSelectedProgramId: (id: string) => void;
   setFilterLevelId: (id: string) => void;
   setSelectedCourseId: (id: string) => void;
@@ -24,7 +24,7 @@ export function useSubjectFilters(): FiltersState & FiltersActions {
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<
     string | null
   >(null);
-  const [activeTab, setActiveTab] = useState<SubjectType>("major");
+  const [activeTab, setActiveTab] = useState<SubjectTab>("major");
   const [selectedProgramId, setSelectedProgramId] = useState<string>("all");
   const [filterLevelId, setFilterLevelId] = useState<string>("all");
   const [selectedCourseId, setSelectedCourseId] = useState<string>("all");

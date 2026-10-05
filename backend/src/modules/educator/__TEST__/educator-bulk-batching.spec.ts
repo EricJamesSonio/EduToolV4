@@ -19,10 +19,14 @@ describe('EducatorService.bulkCreate — batched org lookup', () => {
     const orgService = {
       getOwn: jest.fn().mockResolvedValue({ emailExtension: '@school.edu' }),
     };
+    const db = { $transaction: jest.fn() };
+    const audit = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
     const service = new EducatorService(
       repo as any,
       classService as any,
       orgService as any,
+      db as any,
+      audit as any,
     );
     return { service, repo, orgService };
   };

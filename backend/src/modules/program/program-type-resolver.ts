@@ -16,8 +16,11 @@ export async function resolveProgramIdFromSubject(
   subjectId: string,
   orgId: string,
 ): Promise<string | null> {
+  // Archived subjects are not selectable: new classes, enrollments and template
+  // scoping for new work must not resolve them. (History paths that start from
+  // an existing class keep their own unfiltered reads.)
   const subject = await db.subject.findFirst({
-    where: { id: subjectId, org_id: orgId },
+    where: { id: subjectId, org_id: orgId, deleted_at: null },
     select: {
       program_id: true,
       course_id: true,

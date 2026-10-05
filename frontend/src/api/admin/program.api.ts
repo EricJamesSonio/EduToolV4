@@ -2,6 +2,7 @@
 
 import client from "@/api/client";
 import type { Program, ProgramType } from "@/types/admin/program.types";
+import type { DeletionCheck } from "@/types/admin/deletion.types";
 
 export type { ProgramType };
 
@@ -85,6 +86,11 @@ export const programApi = {
 
   delete: async (id: string): Promise<void> => {
     await client.delete(`/programs/${id}`);
+  },
+
+  deletionCheck: async (id: string): Promise<DeletionCheck> => {
+    const res = await client.get<ApiEnvelope<DeletionCheck>>(`/programs/${id}/deletion-check`);
+    return res.data.data;
   },
 
   // NEW — for the Classes page "All Departments" semester filter. One row

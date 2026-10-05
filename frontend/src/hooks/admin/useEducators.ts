@@ -244,8 +244,11 @@ export const useDeleteEducator =
             );
           }
 
+          const axiosErr = err as unknown as {
+            response?: { data?: { message?: string } };
+          };
           toast.error(
-            "Failed to delete educator",
+            axiosErr?.response?.data?.message ?? "Failed to delete educator",
           );
         },
 

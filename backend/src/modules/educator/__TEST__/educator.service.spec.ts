@@ -17,7 +17,21 @@ describe('EducatorService', () => {
   let repo: any;
   let classService: any;
   let orgService: any;
+  let tx: any;
+  let db: any;
+  let audit: any;
   const orgId = 'org-1';
+  const actorId = 'actor-1';
+
+  const cleanBlockers = {
+    classes: 0,
+    teachableLinks: 0,
+    ownedSubjects: 0,
+    meetings: 0,
+    ownershipLogs: 0,
+    gradeLocks: 0,
+    gradeLockEvents: 0,
+  };
 
   beforeEach(() => {
     repo = {
@@ -31,13 +45,18 @@ describe('EducatorService', () => {
       softDelete: jest.fn(),
       updatePassword: jest.fn(),
       findEmailsInBatch: jest.fn(),
+      getBlockerCounts: jest.fn(),
+      deleteAccountCascade: jest.fn(),
     };
     classService = {
       hasActiveClasses: jest.fn(),
       getEducatorClassCounts: jest.fn().mockResolvedValue(new Map()),
     };
     orgService = { getOwn: jest.fn() };
-    service = new EducatorService(repo, classService, orgService);
+    tx = { account: { findFirst: jest.fn() } };
+    db = { $transaction: jest.fn((fn: (txArg: unknown) => unknown) => fn(tx)) };
+    audit = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
+    service = new EducatorService(repo, classService, orgService, db as any, audit as any);
     jest.clearAllMocks();
     (generateEducatorId as jest.Mock).mockReturnValue('EDU-001');
     (generateSystemPassword as jest.Mock).mockReturnValue('Pass123!');
@@ -122,21 +141,42 @@ describe('EducatorService', () => {
     });
   });
 
-  describe('remove / resetPassword / bulkCreate', () => {
+  describe('remove / deletionCheck / resetPassword / bulkCreate', () => {
     it('remove throws NotFound', async () => {
-      repo.findById.mockResolvedValue(null);
-      await expect(service.remove('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
+      tx.account.findFirst.mockResolvedValue(null);
+      await expect(service.remove('nope', orgId, actorId)).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.deleteAccountCascade).not.toHaveBeenCalled();
     });
-    it('remove throws Conflict when has active classes', async () => {
-      repo.findById.mockResolvedValue({ id: '1' });
-      classService.hasActiveClasses.mockResolvedValue(true);
-      await expect(service.remove('1', orgId)).rejects.toBeInstanceOf(ConflictException);
+    it('remove throws Conflict when classes exist (no auto-unassign)', async () => {
+      tx.account.findFirst.mockResolvedValue({ id: '1', email: 'a@e.edu' });
+      repo.getBlockerCounts.mockResolvedValue({ ...cleanBlockers, classes: 2 });
+      await expect(service.remove('1', orgId, actorId)).rejects.toThrow(/classes/);
+      expect(repo.deleteAccountCascade).not.toHaveBeenCalled();
     });
-    it('remove succeeds', async () => {
+    it('remove throws Conflict when only meetings/history exist', async () => {
+      tx.account.findFirst.mockResolvedValue({ id: '1', email: 'a@e.edu' });
+      repo.getBlockerCounts.mockResolvedValue({ ...cleanBlockers, meetings: 1, gradeLockEvents: 1 });
+      await expect(service.remove('1', orgId, actorId)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.deleteAccountCascade).not.toHaveBeenCalled();
+    });
+    it('remove succeeds and audits when clean', async () => {
+      tx.account.findFirst.mockResolvedValue({ id: '1', email: 'a@e.edu' });
+      repo.getBlockerCounts.mockResolvedValue(cleanBlockers);
+      await service.remove('1', orgId, actorId);
+      expect(repo.deleteAccountCascade).toHaveBeenCalledWith(tx, '1');
+      expect(audit.logAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'educator_deleted' }),
+      );
+    });
+    it('deletionCheck reports blockers without deleting', async () => {
       repo.findById.mockResolvedValue({ id: '1' });
-      classService.hasActiveClasses.mockResolvedValue(false);
-      await service.remove('1', orgId);
-      expect(repo.softDelete).toHaveBeenCalledWith('1');
+      repo.getBlockerCounts.mockResolvedValue({ ...cleanBlockers, teachableLinks: 3 });
+      const report = await service.deletionCheck('1', orgId);
+      expect(report.canDelete).toBe(false);
+      expect(report.blockers).toEqual([
+        { key: 'teachable-links', label: 'teachable subject links', count: 3 },
+      ]);
+      expect(repo.deleteAccountCascade).not.toHaveBeenCalled();
     });
     it('resetPassword throws NotFound', async () => {
       repo.findById.mockResolvedValue(null);

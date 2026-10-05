@@ -667,6 +667,15 @@ model Subject {
   // subject is on the program-type default.
   session_durations Int[] @default([])
 
+  // Soft delete (archive): set when ANY class references the subject, so
+  // transcripts, grades and class history keep resolving. Archived subjects
+  // are hidden everywhere they are *selectable* (subject lists, class
+  // creation/generation, teachable subjects, prerequisite pickers, hierarchy,
+  // enrollment/section assignment, profile seeding) via `deleted_at: null`,
+  // and stay visible wherever history is displayed (no filter there).
+  // Existing rows stay NULL — no backfill.
+  deleted_at DateTime?
+
   program Program? @relation(fields: [program_id], references: [id])
   course  Course?  @relation(fields: [course_id], references: [id])
   strand  Strand?  @relation(fields: [strand_id], references: [id])
@@ -678,15 +687,19 @@ model Subject {
   sharings      SubjectSharing[]
   educatorSubjects EducatorSubject[]
   completionOverrides SubjectCompletionOverride[]
+
+  @@index([org_id, deleted_at])
 }
 
 /// Which subjects an educator is able to teach, declared before any class
 /// exists. Today an educator is only linked to a subject once a class is
 /// created, which is too late for automated generation.
 ///
-/// `Subject` has no `deleted_at` — subjects are HARD deleted — so the relation
-/// is Restrict: deleting a subject that still has teachable links must fail
-/// loudly rather than silently orphan the educator's profile.
+/// `Subject` soft-deletes (`deleted_at`) once any class references it, so the
+/// relation stays Restrict: hard-deleting a subject that still has teachable
+/// links must fail loudly rather than silently orphan the educator's profile.
+/// The service cleans those links first and only hard-deletes class-free
+/// subjects; class-backed subjects are archived instead.
 model EducatorSubject {
   id          String   @id @default(uuid())
   org_id      String

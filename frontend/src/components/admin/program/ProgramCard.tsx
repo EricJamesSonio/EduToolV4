@@ -20,7 +20,6 @@ interface ProgramCardProps {
 
 export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.Element {
   const router = useRouter();
-  const isCustom = program.type === "custom";
   const courseCount = program.courses?.length ?? 0;
   const strandCount = program.strands?.length ?? 0;
 
@@ -63,14 +62,12 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
           label="View"
           onClick={() => router.push(`/admin/programs/${program.id}`)}
         />
-        {isCustom && (
-          <ListItemCardAction
-            icon={Trash2}
-            label="Delete"
-            className="text-destructive border-destructive/20 hover:bg-destructive/10"
-            onClick={() => onDelete(program)}
-          />
-        )}
+        <ListItemCardAction
+          icon={Trash2}
+          label="Delete"
+          className="text-destructive border-destructive/20 hover:bg-destructive/10"
+          onClick={() => onDelete(program)}
+        />
       </div>
     </div>
   );

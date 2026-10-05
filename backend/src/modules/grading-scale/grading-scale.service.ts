@@ -73,6 +73,7 @@ export class GradingScaleService {
     const subjects = await this.db.subject.findMany({
       where: {
         org_id: orgId,
+        deleted_at: null,
         OR: [
           { program_id: programId },
           ...(courseIds.length ? [{ course_id: { in: courseIds } }] : []),

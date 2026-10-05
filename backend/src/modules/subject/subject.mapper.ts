@@ -37,6 +37,7 @@ export function mapSubjectToResponse(
     strandId: subject.strand_id ?? null,
     strandName: subject.strandName ?? null,
     lockStatus: subject.is_locked ? 'locked' : 'unlocked',
+    deletedAt: subject.deleted_at ?? null,
     yearLevel: subject.year_level ?? null,
     termLabel: subject.term_label ?? null,
     sessionsPerWeek: subject.sessions_per_week ?? null,
@@ -49,6 +50,7 @@ export function mapSubjectToResponse(
     prerequisites: subject.prerequisites ?? [],
     prereqFor: subject.prereqFor ?? [],
     sharings: subject.sharings ?? [],
+    classCount: subject.classCount ?? null,
     createdAt: subject.created_at ?? null,
     updatedAt: subject.updated_at ?? null,
   };

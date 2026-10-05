@@ -39,7 +39,7 @@ export class SubjectPrerequisiteRepository {
   async findSubjectsForLevelCheck(orgId: string, ids: string[]) {
     if (ids.length === 0) return [];
     return this.db.subject.findMany({
-      where: { org_id: orgId, id: { in: [...new Set(ids)] } },
+      where: { org_id: orgId, deleted_at: null, id: { in: [...new Set(ids)] } },
       select: {
         id: true,
         name: true,

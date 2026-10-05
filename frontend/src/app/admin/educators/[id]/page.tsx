@@ -5,8 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Trash2, Mail, Hash, User, Pencil } from "lucide-react";
 import { useEducator, useDeleteEducator, useResetEducatorPassword, useTeachableSubjects } from "@/hooks/admin/useEducators";
+import { useEducatorDeletionCheck } from "@/hooks/admin/useEducatorDeletionCheck";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DeleteEntityDialog } from "@/components/shared/DeleteEntityDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import { EducatorClassAssignmentManager } from "@/components/admin/educator/EducatorClassAssignmentManager";
 import { EducatorTeachableSubjectsCard } from "@/components/admin/educator/EducatorTeachableSubjectsCard";
@@ -64,6 +66,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
   const resetMutation  = useResetEducatorPassword();
   const deleteMutation = useDeleteEducator();
 
+  const deletionCheckQuery = useEducatorDeletionCheck(
+    deleteConfirmOpen ? educator?.id : undefined,
+    deleteConfirmOpen,
+  );
+  const deletionCheckError = deletionCheckQuery.error as AxiosError<{ message: string }> | null;
+
   const hasActiveClasses = (educator?.classCount ?? 0) > 0;
 
   const handleResetConfirm = () => {
@@ -82,21 +90,6 @@ export default function EducatorDetailPage(): React.JSX.Element {
         const axiosErr = err as AxiosError<{ message: string }>;
         toast.error(axiosErr?.response?.data?.message ?? "Failed to reset password.");
         setResetConfirmOpen(false);
-      },
-    });
-  };
-
-  const handleDeleteConfirm = () => {
-    if (!educator) return;
-    deleteMutation.mutate(educator.id, {
-      onSuccess: () => {
-        toast.success("Educator removed.");
-        router.push("/admin/educators");
-      },
-      onError: (err: unknown) => {
-        const axiosErr = err as AxiosError<{ message: string }>;
-        toast.error(axiosErr?.response?.data?.message ?? "Failed to remove educator.");
-        setDeleteConfirmOpen(false);
       },
     });
   };
@@ -225,7 +218,7 @@ export default function EducatorDetailPage(): React.JSX.Element {
           <Button
             variant="destructive"
             size="sm"
-            disabled={hasActiveClasses || deleteMutation.isPending}
+            disabled={deleteMutation.isPending}
             onClick={() => setDeleteConfirmOpen(true)}
             className="gap-1.5 shrink-0"
           >
@@ -255,17 +248,37 @@ export default function EducatorDetailPage(): React.JSX.Element {
         onConfirm={handleResetConfirm}
       />
 
-      {/* Delete confirm */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        title="Remove this educator?"
-        message={`Remove "${educator.fullName}" from the organization? This cannot be undone.`}
-        confirmLabel="Remove Educator"
-        destructive
-        isLoading={deleteMutation.isPending}
-        onConfirm={handleDeleteConfirm}
-      />
+      {/* Delete (blocked with guidance when any history exists) */}
+      {educator && (
+        <DeleteEntityDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          entityLabel="educator"
+          entityName={educator.fullName}
+          check={{
+            data: deletionCheckQuery.data,
+            isLoading: deletionCheckQuery.isLoading,
+            isError: deletionCheckQuery.isError,
+            errorMessage: deletionCheckError?.response?.data?.message,
+          }}
+          isDeleting={deleteMutation.isPending}
+          onConfirmDelete={() =>
+            deleteMutation.mutate(educator.id, {
+              onSuccess: () => {
+                setDeleteConfirmOpen(false);
+                router.push("/admin/educators");
+              },
+              onError: (err: unknown) => {
+                const axiosErr = err as AxiosError<{ message: string }>;
+                toast.error(axiosErr?.response?.data?.message ?? "Failed to remove educator.");
+                setDeleteConfirmOpen(false);
+              },
+            })
+          }
+          confirmLabel="Remove Educator"
+          willDeleteNote={`"${educator.fullName}" has no linked records and will be permanently removed.`}
+        />
+      )}
 
       {/* New credentials after reset */}
       {newCredentials && (

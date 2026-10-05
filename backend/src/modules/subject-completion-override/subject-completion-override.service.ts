@@ -144,7 +144,7 @@ export class SubjectCompletionOverrideService {
     dto: CreateSubjectCompletionDto,
   ) {
     const subject = await this.db.subject.findFirst({
-      where: { id: dto.subjectId, org_id: orgId },
+      where: { id: dto.subjectId, org_id: orgId, deleted_at: null },
       select: { id: true, name: true },
     });
     if (!subject) throw new NotFoundException('Subject not found.');
@@ -285,7 +285,7 @@ export class SubjectCompletionOverrideService {
   async catalog(orgId: string, search?: string, take = 100) {
     if (!search || search.trim().length === 0) {
       return this.db.subject.findMany({
-        where: { org_id: orgId },
+        where: { org_id: orgId, deleted_at: null },
         select: {
           id: true,
           name: true,
@@ -302,7 +302,7 @@ export class SubjectCompletionOverrideService {
     }
     const q = search.trim();
     return this.db.subject.findMany({
-      where: { org_id: orgId, name: { contains: q, mode: 'insensitive' } },
+      where: { org_id: orgId, deleted_at: null, name: { contains: q, mode: 'insensitive' } },
       select: {
         id: true,
         name: true,

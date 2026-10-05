@@ -28,6 +28,13 @@ import { mapSubjectToResponse } from './subject.mapper';
 import { resolveSessionRequirement } from './subject-session-defaults';
 import { validateSubjectScope } from './subject.validator';
 import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { SubjectDeletionCheckDto } from './dto/subject-deletion.dto';
+import { runInTx } from '@/commons/utils/prisma-transaction.util';
+import {
+  buildDeletionReport,
+  item,
+} from '@/commons/utils/deletion-report.util';
 
 @Injectable()
 export class SubjectService {
@@ -45,6 +52,7 @@ export class SubjectService {
      * leaving Nest unable to resolve the dependency at boot.
      */
     private readonly orgScheduleConfigService: OrgScheduleConfigProvider,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /** Slot length used for the alignment rule. Falls back to 30 if unavailable. */
@@ -194,6 +202,7 @@ export class SubjectService {
       yearLevel: query.yearLevel,
       termLabel: query.termLabel,
       subjectType: query.subjectType,
+      archived: query.archived === 'true',
       page,
       limit,
     });
@@ -223,8 +232,14 @@ export class SubjectService {
     const subject = (await this.subjectRepository.findById(
       id,
       orgId,
+      true,
     )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
+    if (subject.deleted_at) {
+      throw new BadRequestException(
+        'This subject is archived. Restore it before editing.',
+      );
+    }
     if (subject.is_locked) {
       throw new BadRequestException(
         'This subject is locked and cannot be modified. Unlock it first.',
@@ -338,8 +353,14 @@ export class SubjectService {
     const subject = (await this.subjectRepository.findById(
       id,
       orgId,
+      true,
     )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
+    if (subject.deleted_at) {
+      throw new BadRequestException(
+        'This subject is archived. Restore it first.',
+      );
+    }
     if (subject.is_locked)
       throw new BadRequestException('Subject is already locked.');
     const updated = (await this.subjectRepository.setLocked(
@@ -353,8 +374,14 @@ export class SubjectService {
     const subject = (await this.subjectRepository.findById(
       id,
       orgId,
+      true,
     )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
+    if (subject.deleted_at) {
+      throw new BadRequestException(
+        'This subject is archived. Restore it first.',
+      );
+    }
     if (!subject.is_locked)
       throw new BadRequestException('Subject is already unlocked.');
     const updated = (await this.subjectRepository.setLocked(
@@ -383,8 +410,14 @@ export class SubjectService {
     const rawSubject = (await this.subjectRepository.findById(
       id,
       orgId,
+      true,
     )) as SubjectRecord | null;
     if (!rawSubject) throw new NotFoundException('Subject not found.');
+    if (rawSubject.deleted_at) {
+      throw new BadRequestException(
+        'This subject is archived. Restore it before sharing.',
+      );
+    }
 
     if (rawSubject.subject_type !== 'minor') {
       throw new BadRequestException('Only minor subjects can be shared.');
@@ -459,8 +492,14 @@ export class SubjectService {
     const subject = (await this.subjectRepository.findById(
       id,
       orgId,
+      true,
     )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
+    if (subject.deleted_at) {
+      throw new BadRequestException(
+        'This subject is archived. Restore it first.',
+      );
+    }
     await this.subjectRepository.removeSharing(sharingId, orgId);
     return { success: true };
   }
@@ -506,8 +545,12 @@ export class SubjectService {
     const levelRank = new Map(orderedLevels.map((l) => [l.id, l.rank]));
     const levelIds = new Set(orderedLevels.map((l) => l.id));
 
-    // 2. Subjects in scope (single query, no per-row includes).
-    const subjectWhere: Record<string, unknown> = { org_id: orgId };
+    // 2. Subjects in scope (single query, no per-row includes). Archived
+    // subjects are never selectable — not in lists, hierarchy, or pickers.
+    const subjectWhere: Record<string, unknown> = {
+      org_id: orgId,
+      deleted_at: null,
+    };
     if (query.programId) subjectWhere['program_id'] = query.programId;
     else if (query.schoolYearId) {
       const programs = await this.db.program.findMany({
@@ -569,7 +612,7 @@ export class SubjectService {
     let extraNodes: typeof subjects = [];
     if (missingPrereqIds.length) {
       extraNodes = await this.db.subject.findMany({
-        where: { org_id: orgId, id: { in: missingPrereqIds } },
+        where: { org_id: orgId, deleted_at: null, id: { in: missingPrereqIds } },
         select: {
           id: true,
           name: true,
@@ -612,5 +655,143 @@ export class SubjectService {
       edges,
       truncated: subjects.length >= CAP,
     };
+  }
+
+  /**
+   * Safe-delete pre-check. Unlike other entities this never blocks: a subject
+   * with no classes hard-deletes (`outcome: "delete"`), a subject with any
+   * class — soft-deleted ones included — archives instead (`"archive"`).
+   * DELETE re-runs the class count inside the transaction to close the race.
+   */
+  async deletionCheck(
+    id: string,
+    orgId: string,
+  ): Promise<SubjectDeletionCheckDto> {
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject) throw new NotFoundException('Subject not found.');
+
+    const classCount = await this.subjectRepository.getClassCount(
+      this.db,
+      orgId,
+      id,
+    );
+    if (classCount > 0) {
+      return {
+        canDelete: true,
+        outcome: 'archive',
+        blockers: [],
+        willDelete: [
+          { key: 'classes', label: 'classes using this subject', count: classCount },
+        ],
+      };
+    }
+
+    const cleanup = await this.subjectRepository.getCleanupCounts(
+      this.db,
+      orgId,
+      id,
+    );
+    return {
+      ...buildDeletionReport(
+        [],
+        [
+          item('sharings', 'subject sharings', cleanup.sharings),
+          item('prerequisites', 'prerequisite links', cleanup.prerequisites),
+          item('teachable-links', 'educator teachable links', cleanup.teachableLinks),
+          item('overrides', 'completion overrides', cleanup.overrides),
+        ],
+      ),
+      outcome: 'delete',
+    };
+  }
+
+  async remove(
+    id: string,
+    orgId: string,
+    actorId: string,
+  ): Promise<{ id: string; outcome: 'deleted' | 'archived' }> {
+    const result = await runInTx(this.db, async (tx) => {
+      const subject = await tx.subject.findFirst({
+        where: { id, org_id: orgId },
+        select: { id: true, name: true, deleted_at: true },
+      });
+      if (!subject || subject.deleted_at) {
+        throw new NotFoundException('Subject not found.');
+      }
+
+      // Re-run the class count inside the transaction — a class created
+      // between check and delete must flip the outcome to archive, never
+      // orphan.
+      const classCount = await this.subjectRepository.getClassCount(
+        tx,
+        orgId,
+        id,
+      );
+      if (classCount > 0) {
+        await this.subjectRepository.softDelete(tx, id);
+        return { outcome: 'archived' as const, name: subject.name };
+      }
+
+      await this.subjectRepository.hardDeleteCascade(tx, orgId, id);
+      return { outcome: 'deleted' as const, name: subject.name };
+    });
+
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action:
+          result.outcome === 'archived' ? 'subject_archived' : 'subject_deleted',
+        entityType: 'subject',
+        entityId: id,
+        metadata: { name: result.name },
+      })
+      .catch(() => {});
+
+    return { id, outcome: result.outcome };
+  }
+
+  async restore(
+    id: string,
+    orgId: string,
+    actorId: string,
+  ): Promise<SubjectResponse> {
+    const archived = await this.subjectRepository.findArchivedById(id, orgId);
+    if (!archived) {
+      throw new NotFoundException('Archived subject not found.');
+    }
+
+    const collision = await this.subjectRepository.findDuplicateByName(
+      orgId,
+      archived.name,
+      archived.program_id ?? undefined,
+      archived.level_id,
+      archived.subject_type,
+    );
+    if (collision) {
+      throw new ConflictException(
+        `Cannot restore "${archived.name}" — an active subject with this name already exists for this program and level.`,
+      );
+    }
+
+    await this.subjectRepository.restoreSubject(id);
+    const subject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
+    if (!subject) throw new NotFoundException('Subject not found.');
+
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'subject_restored',
+        entityType: 'subject',
+        entityId: id,
+        metadata: { name: archived.name },
+      })
+      .catch(() => {});
+
+    return mapSubjectToResponse(subject, await this.slotMinutes(orgId));
   }
 }

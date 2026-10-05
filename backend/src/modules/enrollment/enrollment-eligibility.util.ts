@@ -35,7 +35,7 @@ export async function resolveSubjectAcademicStructure(
   orgId: string,
 ): Promise<SubjectAcademicStructure> {
   const subject = await db.subject.findFirst({
-    where: { id: subjectId, org_id: orgId },
+    where: { id: subjectId, org_id: orgId, deleted_at: null },
     select: {
       course_id: true,
       strand_id: true,
@@ -95,7 +95,7 @@ export async function resolveSubjectAcademicStructures(
   if (uniqueIds.length === 0) return result;
 
   const subjects = await db.subject.findMany({
-    where: { id: { in: uniqueIds }, org_id: orgId },
+    where: { id: { in: uniqueIds }, org_id: orgId, deleted_at: null },
     select: {
       id: true,
       program_id: true,

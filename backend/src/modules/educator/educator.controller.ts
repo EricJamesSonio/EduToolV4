@@ -237,6 +237,21 @@ export class EducatorController {
   }
 
   /**
+   * GET /educators/:id/deletion-check  @Roles(ADMIN)
+   * What blocks this educator's delete. Declared before `@Get(':id')` so the
+   * nested route is never shadowed. Blocked means unassign first — there is
+   * no deactivate alternative.
+   */
+  @Get(':id/deletion-check')
+  @Roles('admin')
+  async deletionCheck(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.educatorService.deletionCheck(id, orgId);
+  }
+
+  /**
    * GET /educators/:id
    * Returns a single educator's profile.
    */
@@ -274,14 +289,18 @@ export class EducatorController {
 
   /**
    * DELETE /educators/:id  @Roles(ADMIN)
-   * Soft deletes the educator.
-   * Phase 3: blocked if active classes exist.
+   * Deletes an educator with zero linked records. Anything linked blocks
+   * with a ConflictException — classes are never auto-unassigned.
    */
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
-    await this.educatorService.remove(id, orgId);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    await this.educatorService.remove(id, orgId, actorId);
   }
 
   /**

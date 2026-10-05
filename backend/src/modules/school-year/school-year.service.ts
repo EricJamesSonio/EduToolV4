@@ -14,12 +14,20 @@ import { GradingScaleService } from '../grading-scale/grading-scale.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
 import { SchoolProfileService } from '@/modules/school-profile/school-profile.service';
+import { ProgramService } from '@/modules/program/program.service';
 import { DatabaseService } from '@/core/database/database.provider';
 import {
   CreateSchoolYearDto,
   UpdateSchoolYearDto,
   SchoolYearCreateResult,
 } from './dto/school-year.dto';
+import { SchoolYearDeletionCheckDto } from './dto/school-year-deletion.dto';
+import { runInTx } from '@/commons/utils/prisma-transaction.util';
+import {
+  buildDeletionReport,
+  formatBlockerMessage,
+  item,
+} from '@/commons/utils/deletion-report.util';
 
 const TEN_MONTHS_MS = 10 * 30 * 24 * 60 * 60 * 1000;
 const MAX_CONFLICT_NAMES_IN_MESSAGE = 3;
@@ -35,6 +43,7 @@ export class SchoolYearService {
     private readonly readinessService: SchoolYearReadinessService,
     private readonly orgSeeder: OrgSeederService,
     private readonly schoolProfileService: SchoolProfileService,
+    private readonly programService: ProgramService,
     private readonly db: DatabaseService,
   ) {}
 
@@ -461,25 +470,95 @@ export class SchoolYearService {
     return this.schoolYearRepository.findById(id, orgId);
   }
 
-  async remove(id: string, orgId: string, actorId: string) {
-    await this.expireIfNeeded();
+  /**
+   * Safe-delete pre-check: what blocks the delete and what goes with it.
+   * Blocked by ANY enrolled student, ANY enrollment application, ANY class,
+   * or an `active` year (archive/end it instead). DELETE re-runs this inside
+   * the transaction to close the race.
+   */
+  async deletionCheck(
+    id: string,
+    orgId: string,
+  ): Promise<SchoolYearDeletionCheckDto> {
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
 
-    if (schoolYear.status !== 'pending') {
-      throw new ConflictException(
-        'Only a pending school year that has not been used can be deleted.',
-      );
-    }
+    const blockers =
+      await this.schoolYearRepository.getBlockerCounts(this.db, orgId, id);
+    const cascade = await this.schoolYearRepository.getCascadeCounts(
+      this.db,
+      orgId,
+      id,
+    );
 
-    const inUse = await this.schoolYearRepository.hasUsage(id);
-    if (inUse) {
-      throw new ConflictException(
-        'This school year cannot be deleted because it is already in use (it has students, classes, sections, or curriculum data).',
-      );
-    }
+    const activeBlocker =
+      schoolYear.status === 'active'
+        ? item('status', 'active status (end the year instead)', 1)
+        : null;
 
-    await this.schoolYearRepository.delete(id);
+    return buildDeletionReport(
+      [
+        activeBlocker,
+        item('enrollments', 'enrolled students', blockers.enrollments),
+        item('applications', 'enrollment applications', blockers.applications),
+        item('classes', 'classes', blockers.classes),
+      ],
+      [
+        item('departments', 'departments', cascade.departments),
+        item('levels', 'levels', cascade.levels),
+        item('sections', 'sections', cascade.sections),
+        item('subjects', 'subjects', cascade.subjects),
+        item('semesters', 'semesters', cascade.semesters),
+      ],
+    );
+  }
+
+  async remove(id: string, orgId: string, actorId: string) {
+    await this.expireIfNeeded();
+
+    const deleted = await runInTx(this.db, async (tx) => {
+      const schoolYear = await tx.schoolYear.findFirst({
+        where: { id, org_id: orgId },
+        select: { id: true, name: true, status: true },
+      });
+      if (!schoolYear) throw new NotFoundException('School year not found.');
+
+      if (schoolYear.status === 'active') {
+        throw new ConflictException(
+          'Cannot delete an active school year — end it instead.',
+        );
+      }
+
+      const blockers =
+        await this.schoolYearRepository.getBlockerCounts(tx, orgId, id);
+      const report = buildDeletionReport(
+        [
+          item('enrollments', 'enrolled students', blockers.enrollments),
+          item('applications', 'enrollment applications', blockers.applications),
+          item('classes', 'classes', blockers.classes),
+        ],
+        [],
+      );
+      if (!report.canDelete) {
+        throw new ConflictException(
+          formatBlockerMessage('school year', report.blockers),
+        );
+      }
+
+      // Every department cascades through the shared program logic (which
+      // re-checks its own blockers) — never duplicated here.
+      const programs = await tx.program.findMany({
+        where: { org_id: orgId, school_year_id: id },
+        select: { id: true },
+      });
+      for (const program of programs) {
+        await this.programService.deleteProgramCascade(tx, orgId, program.id);
+      }
+
+      // Year-level leftovers, then the year itself.
+      await this.schoolYearRepository.deleteYearLeftovers(tx, orgId, id);
+      return schoolYear;
+    });
 
     this.auditLogService
       .logAdminAction({
@@ -488,7 +567,7 @@ export class SchoolYearService {
         action: 'school_year_deleted',
         entityType: 'school_year',
         entityId: id,
-        metadata: { name: schoolYear.name },
+        metadata: { name: deleted.name },
       })
       .catch(() => {});
 

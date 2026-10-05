@@ -1,5 +1,7 @@
 export type SubjectLockStatus = "unlocked" | "locked";
 export type SubjectType = "major" | "minor";
+/** Subjects page tabs: active lists plus the read-only Archived tab. */
+export type SubjectTab = SubjectType | "archived";
 
 export interface SubjectSharing {
   id: string;
@@ -38,6 +40,11 @@ export interface Subject {
   educatorName: string | null;
 
   lockStatus: SubjectLockStatus;
+
+  /** ISO timestamp when archived; null while active. */
+  deletedAt: string | null;
+  /** Linked class count — populated on archived listings, null otherwise. */
+  classCount: number | null;
 
   yearLevel: string | null;
   termLabel: string | null;
