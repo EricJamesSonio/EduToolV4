@@ -1,9 +1,8 @@
-// ===== File: frontend\src\app\admin\grade-lock\page.tsx =====
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { Settings } from "lucide-react";
-
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Layers, Settings } from "lucide-react";
+import { Pagination } from "@/components/shared/Pagination";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { DataTable } from "@/components/shared/DataTable";
@@ -15,9 +14,9 @@ import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSe
 import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog";
 import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats";
 import { GradeLockGlobalTemplates } from "@/components/admin/grade-lock/GradeLockGlobalTemplates";
-import { GradeLockGlobalRuleBanner } from "@/components/admin/grade-lock/GradeLockGlobalRuleBanner";
 import { GradeLockUnlockRequestsPanel } from "@/components/admin/grade-lock/GradeLockUnlockRequestsPanel";
 import { GradeLockApplyTemplateDialog } from "@/components/admin/grade-lock/GradeLockApplyTemplateDialog";
+import { GradeLockApplyAllDialog } from "@/components/admin/grade-lock/GradeLockApplyAllDialog";
 import { GradeLockUnlockActionDialog } from "@/components/admin/grade-lock/GradeLockUnlockActionDialog";
 
 import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns";
@@ -38,6 +37,7 @@ export default function GradeLockPage(): React.ReactElement {
 
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null);
   const [applyTarget, setApplyTarget] = useState<GradeLock | null>(null);
+  const [applyAllOpen, setApplyAllOpen] = useState(false);
 
   const [actionTarget, setActionTarget] = useState<UnlockRequest | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
@@ -46,6 +46,8 @@ export default function GradeLockPage(): React.ReactElement {
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedCourseStrand, setSelectedCourseStrand] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears();
   const { data: gradeLocks, isLoading } = useGradeLocks(selectedSchoolYearId ?? undefined);
@@ -65,10 +67,29 @@ export default function GradeLockPage(): React.ReactElement {
     [templates],
   );
 
-  const handleSchoolYearSelect = useCallback((id: string | null) => {
-    setSelectedSchoolYearId(id);
+  const resetHierarchyFilters = useCallback(() => {
     setSelectedProgram("");
     setSelectedCourseStrand("");
+    setSelectedLevel("");
+  }, []);
+
+  const handleSchoolYearSelect = useCallback(
+    (id: string | null) => {
+      setSelectedSchoolYearId(id);
+      resetHierarchyFilters();
+    },
+    [resetHierarchyFilters],
+  );
+
+  const handleProgramChange = useCallback((value: string) => {
+    setSelectedProgram(value);
+    // A new department invalidates its old course/strand and level.
+    setSelectedCourseStrand("");
+    setSelectedLevel("");
+  }, []);
+
+  const handleCourseStrandChange = useCallback((value: string) => {
+    setSelectedCourseStrand(value);
     setSelectedLevel("");
   }, []);
 
@@ -119,6 +140,28 @@ export default function GradeLockPage(): React.ReactElement {
     return result;
   }, [locks, selectedSchoolYearId, selectedProgram, selectedCourseStrand, selectedLevel]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSchoolYearId, selectedProgram, selectedCourseStrand, selectedLevel]);
+
+  const pagedLocks = useMemo(
+    () => filteredLocks.slice((page - 1) * limit, page * limit),
+    [filteredLocks, page, limit],
+  );
+
+  // Active school year's end date, else the latest end date (mirrors the backend).
+  const deadlineFloor = useMemo(() => {
+    const byEndDesc = [...(schoolYears ?? [])]
+      .filter((sy) => sy.end_date)
+      .sort(
+        (a, b) =>
+          new Date(b.end_date as string).getTime() -
+          new Date(a.end_date as string).getTime(),
+      );
+    const active = byEndDesc.find((sy) => sy.status === "active");
+    return (active ?? byEndDesc[0])?.end_date ?? null;
+  }, [schoolYears]);
+
   return (
     <div className="space-y-8 p-6">
       <PageHeader
@@ -137,6 +180,15 @@ export default function GradeLockPage(): React.ReactElement {
       />
 
       <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setApplyAllOpen(true)}
+          disabled={filteredLocks.length === 0}
+          className="gap-2"
+        >
+          <Layers className="h-4 w-4" />
+          Apply to All
+        </Button>
         <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
           <Settings className="h-4 w-4" />
           Manage Templates
@@ -144,7 +196,6 @@ export default function GradeLockPage(): React.ReactElement {
       </div>
 
       <GradeLockGlobalTemplates templates={templates} onEdit={setEditTarget} />
-      <GradeLockGlobalRuleBanner deadline={activeTemplate?.lock_deadline} />
 
       <GradeLockHierarchyFilter
         selectedSchoolYearId={selectedSchoolYearId ?? ""}
@@ -152,13 +203,10 @@ export default function GradeLockPage(): React.ReactElement {
         selectedCourseStrand={selectedCourseStrand}
         selectedLevel={selectedLevel}
         filteredCount={filteredLocks.length}
-        onProgramChange={setSelectedProgram}
-        onCourseStrandChange={(value) => {
-          setSelectedCourseStrand(value);
-          setSelectedLevel("");
-        }}
+        onProgramChange={handleProgramChange}
+        onCourseStrandChange={handleCourseStrandChange}
         onLevelChange={setSelectedLevel}
-        onReset={() => handleSchoolYearSelect(null)}
+        onReset={resetHierarchyFilters}
       />
 
       <GradeLockStats gradeLocks={filteredLocks} />
@@ -171,10 +219,18 @@ export default function GradeLockPage(): React.ReactElement {
 
       <DataTable
         columns={columns}
-        data={filteredLocks}
+        data={pagedLocks}
         isLoading={isLoading}
         emptyTitle="No classes found"
         emptyDescription="No grade lock records exist. Try adjusting your filters."
+      />
+
+      <Pagination
+        page={page}
+        limit={limit}
+        total={filteredLocks.length}
+        onPageChange={setPage}
+        onLimitChange={setLimit}
       />
 
       <GradeLockApplyTemplateDialog
@@ -184,6 +240,15 @@ export default function GradeLockPage(): React.ReactElement {
         onClose={() => setApplyTarget(null)}
       />
 
+      <GradeLockApplyAllDialog
+        open={applyAllOpen}
+        onClose={() => setApplyAllOpen(false)}
+        templates={templates}
+        defaultTemplateId={activeTemplate?.id ?? templates[0]?.id ?? ""}
+        classIds={filteredLocks.map((l) => l.class_id)}
+        locks={filteredLocks}
+      />
+
       <GradeLockSettingModal
         open={settingModalOpen || !!editTarget}
         onClose={() => {
@@ -191,6 +256,7 @@ export default function GradeLockPage(): React.ReactElement {
           setEditTarget(null);
         }}
         existingSetting={editTarget ?? (settingModalOpen ? activeTemplate : null)}
+        minDeadline={deadlineFloor}
       />
 
       <GradeLockOverrideDialog

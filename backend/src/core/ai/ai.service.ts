@@ -27,6 +27,7 @@ export type {
   ConceptItem,
   ConceptBuild,
   ConceptExtractResult,
+  AiQuestionType,
   QuestionBlueprint,
   GeneratedQuestion,
   GenerationProgress,

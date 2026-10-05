@@ -227,6 +227,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
       {enrollOpen && (
         <EnrollStudentDialog
           classId={id}
+          subjectId={cls?.subjectId ?? null}
           open={enrollOpen}
           onClose={() => setEnrollOpen(false)}
         />

@@ -26,10 +26,28 @@ export const useComputeGrades = (classId: string, termId: string) => {
   );
 };
 
-export const useSetManualScore = (classId: string, termId: string, studentId: string) => {
+/**
+ * Commits a manual category score for one student.
+ *
+ * `studentId` is a mutation *variable* rather than a hook argument because the
+ * grade tables commit for an arbitrary row (the ManualCell the educator edited),
+ * not for a single fixed student.
+ *
+ * Invalidates both the term-scoped list (`grades.list(classId, termId)`) and the
+ * class-scoped list (`grades.list(classId, "")`), because the term grades page
+ * mounts the former while the class grades page and its term switcher read the
+ * latter.
+ */
+export const useSetManualScore = (classId: string, termId: string) => {
   return useMutationWithInvalidation(
-    (dto: ManualScoreDto) => gradeApi.setManualScore(classId, termId, studentId, dto),
-    { invalidateKeys: [queryKeys.educator.grades.list(classId, termId)] },
+    ({ studentId, ...dto }: ManualScoreDto & { studentId: string }) =>
+      gradeApi.setManualScore(classId, termId, studentId, dto),
+    {
+      invalidateKeys: [
+        queryKeys.educator.grades.list(classId, termId),
+        queryKeys.educator.grades.list(classId, ''),
+      ],
+    },
   );
 };
 

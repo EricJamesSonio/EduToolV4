@@ -275,7 +275,7 @@ export function Step5({
                       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Section {si + 1}
                       </span>
-                      <span className="text-xs px-2 py-0.5 rounded-full border badge-warning">
+                      <span className="text-xs px-2 py-0.5 rounded-sm border badge-warning">
                         Manual (Educator-Written)
                       </span>
                     </div>
@@ -321,7 +321,7 @@ export function Step5({
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Section {si + 1}
                     </span>
-                    <span className="text-xs px-2 py-0.5 rounded-full border badge-info">
+                    <span className="text-xs px-2 py-0.5 rounded-sm border badge-info">
                       {sec.questionType.replace(/_/g, " ")}
                     </span>
                   </div>
@@ -345,7 +345,7 @@ export function Step5({
                     {selectedConceptNames.map((name) => (
                       <span
                         key={name}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                        className="text-[10px] px-2 py-0.5 rounded-sm bg-muted text-muted-foreground"
                       >
                         {name}
                       </span>

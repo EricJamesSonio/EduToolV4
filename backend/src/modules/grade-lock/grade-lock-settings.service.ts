@@ -1,7 +1,7 @@
 import {
   Injectable,
   ConflictException,
-  NotFoundException,
+  NotFoundException, BadRequestException
 } from '@nestjs/common';
 import { GradeLockRepository } from './grade-lock.repository';
 import type {
@@ -12,8 +12,21 @@ import type {
 @Injectable()
 export class GradeLockSettingsService {
   constructor(private readonly repo: GradeLockRepository) {}
+    private async assertDeadlineAllowed(
+    orgId: string,
+    deadline?: string | null,
+  ): Promise<void> {
+    if (!deadline) return;
+    const floor = await this.repo.findDeadlineFloor(orgId);
+    if (floor && new Date(deadline) < floor) {
+      throw new BadRequestException(
+        `Lock deadline cannot be before the end of the school year (${floor.toISOString()})`,
+      );
+    }
+  }
 
   async createSetting(orgId: string, dto: CreateGradeLockSettingDto) {
+        await this.assertDeadlineAllowed(orgId, dto.lock_deadline);
     if (dto.is_default) {
       await this.repo.clearDefaultSettings(orgId);
     }
@@ -54,6 +67,7 @@ export class GradeLockSettingsService {
     dto: UpdateGradeLockSettingDto,
   ) {
     await this.getSetting(orgId, settingId);
+        await this.assertDeadlineAllowed(orgId, dto.lock_deadline);
 
     if (dto.is_default) {
       await this.repo.clearDefaultSettings(orgId, settingId);

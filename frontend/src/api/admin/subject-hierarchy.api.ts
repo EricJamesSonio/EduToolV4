@@ -39,6 +39,9 @@ export interface HierarchyScope {
   programId?: string;
   courseId?: string;
   strandId?: string;
+  /** Narrows the primary subject set to one level. Must be part of the
+   *  cache key, or switching levels shows the previous level's subjects. */
+  levelId?: string;
 }
 
 export type SubjectStatus = "completed" | "pending" | "none";
@@ -56,6 +59,7 @@ export const subjectHierarchyApi = {
         ...(scope.programId ? { programId: scope.programId } : {}),
         ...(scope.courseId ? { courseId: scope.courseId } : {}),
         ...(scope.strandId ? { strandId: scope.strandId } : {}),
+        ...(scope.levelId ? { levelId: scope.levelId } : {}),
       },
     });
     return (

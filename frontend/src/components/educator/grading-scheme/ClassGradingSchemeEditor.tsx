@@ -7,7 +7,7 @@ import { Lock, Plus, Save, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
+import { GradingSchemeComponentRow, labelForType } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 
 import {
@@ -26,7 +26,7 @@ interface ClassGradingSchemeEditorProps {
 }
 
 const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
-  name: "",
+  name: labelForType("written_work"),
   type: "written_work",
   weight: 0,
   isOptional: false,

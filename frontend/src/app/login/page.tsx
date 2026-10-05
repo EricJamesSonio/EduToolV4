@@ -211,7 +211,7 @@ export default function LoginPage() {
             ].map(({ icon: Icon, label }) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1.5 text-xs text-primary-foreground/90"
+                className="inline-flex items-center gap-1.5 rounded-sm bg-primary-foreground/15 px-3 py-1.5 text-xs text-primary-foreground/90"
               >
                 <Icon className="h-3.5 w-3.5" />
                 {label}

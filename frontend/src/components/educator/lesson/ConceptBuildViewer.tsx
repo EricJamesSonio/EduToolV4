@@ -208,7 +208,7 @@ export function ConceptBuildViewer({
                 {keywords.map((kw, i) => (
                   <span
                     key={i}
-                    className="text-xs bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] px-2 py-0.5 rounded-full"
+                    className="text-xs bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] px-2 py-0.5 rounded-sm"
                   >
                     {kw}
                   </span>

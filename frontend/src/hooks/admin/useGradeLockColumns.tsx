@@ -17,7 +17,10 @@ function lockStatusVariant(
     case "locked":
       return "destructive"
     case "auto_locked":
+    case "overdue":
       return "outline"
+    case "scheduled":
+      return "default"
     default:
       return "secondary"
   }
@@ -29,6 +32,10 @@ function lockStatusLabel(status: GradeLockStatus): string {
       return "Locked"
     case "auto_locked":
       return "Auto-Locked"
+    case "scheduled":
+      return "Scheduled"
+    case "overdue":
+      return "Overdue"
     default:
       return "Unlocked"
   }

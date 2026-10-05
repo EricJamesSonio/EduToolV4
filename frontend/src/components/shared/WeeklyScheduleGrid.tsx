@@ -1,9 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import type { Class } from "@/types/admin/class.types";
-import { WEEKDAYS } from "./EducatorClassAssignmentManager";
+
 import { minutesToDisplayLabel } from "@/utils/classes.utils";
+
+/** Weekday index (0 = Sunday) to short label. */
+export const SCHEDULE_WEEKDAYS = [
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+];
 
 export interface ScheduleRange {
   weekday: number;
@@ -16,21 +27,71 @@ export interface DraftCell {
   minute: number;
 }
 
-export type ScheduleSource = "section" | "educator" | "both";
+/**
+ * A resource contending for a time slot. The class dialog surfaces three:
+ * the educator's own classes, the section's other classes, and the bookings of
+ * whichever rooms are currently selected on the picked slots.
+ */
+export type ScheduleSource = "section" | "educator" | "room";
 
-export const SOURCE_STYLES: Record<ScheduleSource, string> = {
-  section:  "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
-  educator: "bg-chart-4/15 border-dashed border-[var(--chart-4)]/60 text-[var(--chart-4)]",
-  both:     "bg-destructive/15 border-destructive/40 text-destructive",
+/**
+ * A block can be contended by ANY combination of sources, so the tag is a
+ * list rather than a single value. The old shape was
+ * `"section" | "educator" | "both"`, which had no way to express a class that
+ * is both the section's AND booked in a room.
+ */
+export type ScheduleTag = ScheduleSource[];
+
+const SOURCE_STYLES: Record<ScheduleSource, string> = {
+  section: "bg-chart-1/15 border-[var(--chart-1)]/30 text-[var(--chart-1)]",
+  educator:
+    "bg-chart-4/15 border-dashed border-[var(--chart-4)]/60 text-[var(--chart-4)]",
+  room: "bg-chart-2/15 border-[var(--chart-2)]/30 text-[var(--chart-2)]",
 };
 
-export const SOURCE_LABELS: Record<ScheduleSource, string> = {
-  section:  "Section",
+/**
+ * Two or more sources landing on the same existing class is a *description* of
+ * that class ("the section's class AND the educator's class"), not a problem
+ * with the slot being created. It therefore gets a distinct look rather than
+ * the destructive red, which is reserved for "your new slot will be rejected".
+ */
+const CONTENDED_STYLE =
+  "bg-chart-3/15 border-[var(--chart-3)]/40 text-[var(--chart-3)]";
+
+/** A picked slot that collides with something and cannot be saved as-is. */
+export const PICK_CONFLICT_STYLE =
+  "bg-destructive/15 border-destructive/60 text-destructive";
+
+const SOURCE_LABELS: Record<ScheduleSource, string> = {
+  section: "Section",
   educator: "Educator busy",
-  both:     "Section & educator",
+  room: "Room booked",
 };
 
-interface EducatorScheduleGridProps {
+/** Block style for a tag: the single source's colour, or red when contended. */
+export function sourceStyle(tag: ScheduleTag | undefined): string | undefined {
+  if (!tag || tag.length === 0) return undefined;
+  if (tag.length === 1) return SOURCE_STYLES[tag[0]];
+  return CONTENDED_STYLE;
+}
+
+/** Human label, e.g. "Section & educator", "Section & room". */
+export function sourceLabel(tag: ScheduleTag | undefined): string {
+  if (!tag || tag.length === 0) return "";
+  return tag.map((s) => SOURCE_LABELS[s]).join(" & ");
+}
+
+/** Swatch style for a legend entry (single source or the contended state). */
+export function legendStyle(key: ScheduleSource | "contended"): string {
+  return key === "contended" ? CONTENDED_STYLE : SOURCE_STYLES[key];
+}
+
+/** Shared by every multi-source block, so it appears once. */
+export function legendLabel(key: ScheduleSource | "contended"): string {
+  return key === "contended" ? "Section & educator" : SOURCE_LABELS[key];
+}
+
+interface WeeklyScheduleGridProps {
   classes: Class[];
   isLoading?: boolean;
   getSublabel?: (cls: Class) => string;
@@ -45,7 +106,24 @@ interface EducatorScheduleGridProps {
   stepMin?: number;
   onDraftStart?: (cell: DraftCell) => void;
   onPickRange?: (range: ScheduleRange) => void;
-  classTags?: Record<string, ScheduleSource>;
+  classTags?: Record<string, ScheduleTag>;
+  /**
+   * Indexes of `pickedRanges` that collide with something and therefore cannot
+   * be saved. Those blocks render in the destructive colour and say why, so the
+   * clash is visible on the grid itself rather than only in a message below it.
+   */
+  conflictedPickIndexes?: number[];
+
+  /**
+   * Weekdays the school holds classes (0 = Sunday .. 6 = Saturday). Inactive
+   * days render greyed and cannot be clicked. A day that still has existing
+   * blocks is still rendered (greyed) so nothing silently disappears.
+   * Omit to disable the rule.
+   */
+  activeWeekdays?: number[];
+
+  /** Org-wide breaks in minutes-of-day. Rendered muted and not clickable. */
+  blockedRanges?: { startMin: number; endMin: number; label?: string }[];
 }
 
 interface ScheduleBlock {
@@ -56,7 +134,7 @@ interface ScheduleBlock {
   endMin: number;
   label: string;
   sublabel: string;
-  tag?: ScheduleSource;
+  tag?: ScheduleTag;
 }
 
 interface PositionedBlock extends ScheduleBlock {
@@ -125,7 +203,9 @@ function layoutOverlaps(dayBlocks: ScheduleBlock[]): PositionedBlock[] {
     }
 
     const colCount = columnEnds.length;
-    placed.forEach((p) => { p.colCount = colCount; });
+    placed.forEach((p) => {
+      p.colCount = colCount;
+    });
     result.push(...placed);
 
     cluster = [];
@@ -147,7 +227,7 @@ function layoutOverlaps(dayBlocks: ScheduleBlock[]): PositionedBlock[] {
   return result;
 }
 
-export function EducatorScheduleGrid({
+export function WeeklyScheduleGrid({
   classes,
   isLoading,
   getSublabel,
@@ -162,7 +242,10 @@ export function EducatorScheduleGrid({
   onDraftStart,
   onPickRange,
   classTags,
-}: EducatorScheduleGridProps) {
+  conflictedPickIndexes,
+  activeWeekdays,
+  blockedRanges,
+}: WeeklyScheduleGridProps) {
   const [hover, setHover] = useState<DraftCell | null>(null);
 
   const blocks = useMemo<ScheduleBlock[]>(() => {
@@ -184,14 +267,23 @@ export function EducatorScheduleGrid({
     return result;
   }, [classes, classTags, getSublabel]);
 
+  // Mon -> Sun, in order. With showAllDays the full week renders even when a
+  // day has no classes, so a read-only schedule reads as a real timetable
+  // rather than collapsing to only the days that happen to be occupied.
   const days = useMemo(() => {
-    if (interactive && showAllDays) return DAY_ORDER;
+    if (showAllDays) return DAY_ORDER;
     const used = new Set(blocks.map((b) => b.weekday));
     return DAY_ORDER.filter((d) => d !== 0 || used.has(0));
-  }, [blocks, interactive, showAllDays]);
+  }, [blocks, showAllDays]);
+
+  // True when a caller supplied the school's operating window. The window
+  // drives the vertical extent in BOTH modes, so a read-only schedule shows
+  // the whole school day (empty slots included) instead of only the span its
+  // classes happen to cover.
+  const hasWindow = windowStartMin != null && windowEndMin != null;
 
   const { gridStart, gridEnd, interval } = useMemo(() => {
-    if (interactive) {
+    if (hasWindow || interactive) {
       const step = stepMin;
       const ws = windowStartMin ?? 0;
       const we = windowEndMin ?? 0;
@@ -200,6 +292,8 @@ export function EducatorScheduleGrid({
       if (blocks.length > 0) {
         const minB = Math.min(...blocks.map((b) => b.startMin));
         const maxB = Math.max(...blocks.map((b) => b.endMin));
+        // Widen defensively so a class outside the configured window is still
+        // visible instead of being silently pushed off the grid.
         if (minB < start) start = ws - Math.ceil((ws - minB) / step) * step;
         if (maxB > end) end = ws + Math.ceil((maxB - ws) / step) * step;
       }
@@ -219,7 +313,8 @@ export function EducatorScheduleGrid({
       .map((t) => t - start)
       .filter((o) => o > 0);
 
-    const rawGcd = offsets.length > 0 ? offsets.reduce((a, b) => gcd(a, b)) : 30;
+    const rawGcd =
+      offsets.length > 0 ? offsets.reduce((a, b) => gcd(a, b)) : 30;
 
     const chosen =
       MIN_INTERVAL_CANDIDATES.find((c) => rawGcd % c === 0) ??
@@ -228,18 +323,22 @@ export function EducatorScheduleGrid({
     const end = rawEnd + chosen;
 
     return { gridStart: start, gridEnd: end, interval: chosen };
-  }, [blocks, interactive, windowStartMin, windowEndMin, stepMin]);
+  }, [blocks, interactive, hasWindow, windowStartMin, windowEndMin, stepMin]);
 
   const { dayLayout, totalDataCols } = useMemo(() => {
     let col = 2;
-    const layout: Record<number, { startCol: number; colCount: number; blocks: PositionedBlock[] }> = {};
+    const layout: Record<
+      number,
+      { startCol: number; colCount: number; blocks: PositionedBlock[] }
+    > = {};
 
     for (const d of days) {
       const dayBlocks = blocks.filter((b) => b.weekday === d);
       const positioned = layoutOverlaps(dayBlocks);
-      const colCount = positioned.length > 0
-        ? Math.max(...positioned.map((b) => b.colCount))
-        : 1;
+      const colCount =
+        positioned.length > 0
+          ? Math.max(...positioned.map((b) => b.colCount))
+          : 1;
 
       layout[d] = { startCol: col, colCount, blocks: positioned };
       col += colCount;
@@ -249,16 +348,42 @@ export function EducatorScheduleGrid({
   }, [days, blocks]);
 
   const pickingLocked =
-    (interactive && maxPicks != null && pickedRanges.length >= maxPicks) ?? false;
+    (interactive && maxPicks != null && pickedRanges.length >= maxPicks) ??
+    false;
 
   const winStart = windowStartMin ?? 0;
   const winEnd = windowEndMin ?? 0;
 
+  // A day the school is closed, or a minute inside a break, is treated exactly
+  // like an occupied cell: it cannot start or extend a picked range, so a
+  // picked range can never straddle a break or land on a non-school day.
+  const isDayActive = useCallback(
+    (weekday: number): boolean =>
+      !activeWeekdays || activeWeekdays.length === 0 || activeWeekdays.includes(weekday),
+    [activeWeekdays],
+  );
+
+  const isBreakMinute = useCallback(
+    (minute: number): boolean =>
+      (blockedRanges ?? []).some(
+        (b) => minute >= b.startMin && minute < b.endMin,
+      ),
+    [blockedRanges],
+  );
+
   const isOccupied = (weekday: number, minute: number): boolean =>
-    blocks.some((b) => b.weekday === weekday && minute >= b.startMin && minute < b.endMin) ||
-    pickedRanges.some((r) => r.weekday === weekday && minute >= r.startMin && minute < r.endMin);
+    blocks.some(
+      (b) => b.weekday === weekday && minute >= b.startMin && minute < b.endMin,
+    ) ||
+    pickedRanges.some(
+      (r) => r.weekday === weekday && minute >= r.startMin && minute < r.endMin,
+    );
 
   const isFreeRange = (weekday: number, from: number, to: number): boolean => {
+    // A range may not START inside a break; ending exactly at a break start is
+    // legal, so only the start boundary is checked here. canEnd separately
+    // checks the minute before the end.
+    if (from === to || isBreakMinute(from)) return false;
     for (let m = from; m < to; m += interval) {
       if (isOccupied(weekday, m)) return false;
     }
@@ -266,13 +391,20 @@ export function EducatorScheduleGrid({
   };
 
   const canStart = (d: number, m: number): boolean =>
-    m >= winStart && m < winEnd && !isOccupied(d, m);
+    isDayActive(d) &&
+    !isBreakMinute(m) &&
+    m >= winStart &&
+    m < winEnd &&
+    !isOccupied(d, m);
 
   const canEnd = (d: number, m: number): boolean =>
     !!draftStart &&
     draftStart.weekday === d &&
     m > draftStart.minute &&
     m <= winEnd &&
+    // The end cell is exclusive, so check the minute BEFORE it: ending exactly
+    // at a break start is legal, ending inside it is not.
+    !isBreakMinute(m - 1) &&
     isFreeRange(d, draftStart.minute, m);
 
   const isClickable = (d: number, m: number): boolean =>
@@ -302,7 +434,9 @@ export function EducatorScheduleGrid({
   if (blocks.length === 0 && !interactive) {
     return (
       <div className="flex flex-col items-center justify-center py-12 border rounded-md">
-        <p className="text-sm font-medium not-interactive">No schedule to display</p>
+        <p className="text-sm font-medium not-interactive">
+          No schedule to display
+        </p>
         <p className="text-xs text-muted-foreground not-interactive">
           Assign this educator to a class with a schedule.
         </p>
@@ -316,7 +450,11 @@ export function EducatorScheduleGrid({
 
   const preview =
     interactive && draftStart && hover && canEnd(hover.weekday, hover.minute)
-      ? { weekday: draftStart.weekday, startMin: draftStart.minute, endMin: hover.minute }
+      ? {
+          weekday: draftStart.weekday,
+          startMin: draftStart.minute,
+          endMin: hover.minute,
+        }
       : null;
 
   return (
@@ -328,16 +466,27 @@ export function EducatorScheduleGrid({
           gridTemplateRows: `auto repeat(${numRows}, ${interval * PX_PER_MINUTE}px)`,
         }}
       >
-        <div className="sticky top-0 z-10 bg-card border-b border-r" />
+<div className="sticky top-0 z-10 bg-primary text-primary-foreground border-b border-r border-primary-foreground/20 py-2 px-0.5 text-center text-xs font-bold not-interactive truncate">
+  Hours
+</div>
         {days.map((d) => {
           const { startCol, colCount } = dayLayout[d];
           return (
             <div
               key={`head-${d}`}
-              className="sticky top-0 z-10 bg-card border-b border-r py-1 px-0.5 text-center text-[10px] font-semibold text-muted-foreground not-interactive truncate"
+            className={`sticky top-0 z-10 border-b border-r border-primary-foreground/20 py-2 px-0.5 text-center text-xs font-bold not-interactive truncate ${
+              isDayActive(d)
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground"
+            }`}
+              title={
+                isDayActive(d)
+                  ? undefined
+                  : "The school does not hold classes on this day."
+              }
               style={{ gridColumn: `${startCol} / span ${colCount}` }}
             >
-              {WEEKDAYS[d]}
+              {SCHEDULE_WEEKDAYS[d]}
             </div>
           );
         })}
@@ -363,6 +512,8 @@ export function EducatorScheduleGrid({
                 const minute = gridStart + i * interval;
                 const clickable = isClickable(d, minute);
                 const outside = minute < winStart || minute > winEnd;
+                const onBreak = isBreakMinute(minute);
+                const dayOff = !isDayActive(d);
                 const isDraftCell =
                   draftStart?.weekday === d && draftStart.minute === minute;
                 return (
@@ -374,9 +525,24 @@ export function EducatorScheduleGrid({
                     onMouseEnter={() => {
                       if (!pickingLocked) setHover({ weekday: d, minute });
                     }}
+                    title={
+                      dayOff
+                        ? "The school does not hold classes on this day."
+                        : onBreak
+                          ? blockedRanges?.find(
+                              (b) => minute >= b.startMin && minute < b.endMin,
+                            )?.label
+                          : undefined
+                    }
                     className={
                       !clickable
-                        ? `border-b border-r pointer-events-none cursor-not-allowed ${outside ? "bg-muted/60" : ""}`
+                        ? `border-b border-r pointer-events-none cursor-not-allowed ${
+                            outside || dayOff
+                              ? "bg-muted/60"
+                              : onBreak
+                                ? "bg-muted/40"
+                                : ""
+                          }`
                         : `border-b border-r cursor-pointer transition-colors ${
                             isDraftCell
                               ? "bg-primary/25 ring-1 ring-inset ring-primary"
@@ -404,15 +570,19 @@ export function EducatorScheduleGrid({
         {days.map((d) => {
           const { startCol, blocks: dayBlocks } = dayLayout[d];
           return dayBlocks.map((b) => {
-            const rowStart = 2 + Math.round((b.startMin - gridStart) / interval);
-            const rowSpan = Math.max(1, Math.round((b.endMin - b.startMin) / interval));
+            const rowStart =
+              2 + Math.round((b.startMin - gridStart) / interval);
+            const rowSpan = Math.max(
+              1,
+              Math.round((b.endMin - b.startMin) / interval),
+            );
 
             return (
               <div
                 key={b.key}
-                title={`${b.label}${b.sublabel ? ` · ${b.sublabel}` : ""}${b.tag ? ` - ${SOURCE_LABELS[b.tag]}` : ""}`}
-                className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${
-                  b.tag ? SOURCE_STYLES[b.tag] : colorForClass(b.classId)
+                title={`${b.label}${b.sublabel ? ` · ${b.sublabel}` : ""}${b.tag ? ` - ${sourceLabel(b.tag)}` : ""}`}
+                className={`border px-1.5 py-1 overflow-hidden ${
+                  sourceStyle(b.tag) ?? colorForClass(b.classId)
                 }`}
                 style={{
                   gridRow: `${rowStart} / span ${rowSpan}`,
@@ -430,9 +600,9 @@ export function EducatorScheduleGrid({
                 <p className="text-[9px] opacity-70 leading-tight not-interactive">
                   {toLabel(b.startMin)}–{toLabel(b.endMin)}
                 </p>
-                {b.tag && (
+                {b.tag && b.tag.length > 0 && (
                   <p className="text-[9px] font-medium opacity-80 leading-tight truncate not-interactive">
-                    {SOURCE_LABELS[b.tag]}
+                    {sourceLabel(b.tag)}
                   </p>
                 )}
               </div>
@@ -442,7 +612,7 @@ export function EducatorScheduleGrid({
 
         {interactive && preview && dayLayout[preview.weekday] && (
           <div
-            className="bg-primary/15 border-primary/60 border rounded-md pointer-events-none"
+            className="bg-primary/15 border-primary/60 border pointer-events-none"
             style={{
               gridRow: `${2 + Math.round((preview.startMin - gridStart) / interval)} / span ${Math.max(1, Math.round((preview.endMin - preview.startMin) / interval))}`,
               gridColumn: dayLayout[preview.weekday].startCol,
@@ -454,23 +624,37 @@ export function EducatorScheduleGrid({
           pickedRanges.map((range, idx) => {
             const { startCol } = dayLayout[range.weekday] ?? {};
             if (startCol == null) return null;
-            const rowStart = 2 + Math.round((range.startMin - gridStart) / interval);
-            const rowSpan = Math.max(1, Math.round((range.endMin - range.startMin) / interval));
+            const rowStart =
+              2 + Math.round((range.startMin - gridStart) / interval);
+            const rowSpan = Math.max(
+              1,
+              Math.round((range.endMin - range.startMin) / interval),
+            );
+            const conflicted = conflictedPickIndexes?.includes(idx) ?? false;
             return (
               <div
                 key={`pick-${idx}-${range.startMin}`}
-                className="m-0.5 rounded-md border bg-primary/15 border-primary/60 px-1.5 py-1 overflow-hidden"
+                className={`border px-1.5 py-1 overflow-hidden ${
+                  conflicted
+                    ? PICK_CONFLICT_STYLE
+                    : "bg-primary/15 border-primary/60"
+                }`}
                 style={{
                   gridRow: `${rowStart} / span ${rowSpan}`,
                   gridColumn: startCol,
                 }}
               >
                 <p className="text-[11px] font-medium leading-tight truncate not-interactive">
-                  New slot
+                  {conflicted ? "Conflict" : "New slot"}
                 </p>
                 <p className="text-[9px] opacity-70 leading-tight not-interactive">
                   {toLabel(range.startMin)}–{toLabel(range.endMin)}
                 </p>
+                {conflicted && (
+                  <p className="text-[9px] font-medium leading-tight truncate not-interactive">
+                    Can&apos;t save
+                  </p>
+                )}
               </div>
             );
           })}

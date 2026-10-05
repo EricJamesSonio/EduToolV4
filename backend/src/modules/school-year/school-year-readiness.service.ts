@@ -9,6 +9,30 @@ import { DatabaseService } from '@/core/database/database.provider';
 
 export type ReadinessSeverity = 'blocking' | 'warning';
 
+/**
+ * The entity kinds a readiness issue can point at. Shared by `ref.type` and
+ * `ReadinessEntity.type` so a consumer can build one route table for both
+ * shapes without special-casing.
+ */
+export type ReadinessEntityType =
+  | 'program'
+  | 'course'
+  | 'strand'
+  | 'level'
+  | 'subject'
+  | 'section'
+  | 'class';
+
+export interface ReadinessEntity {
+  id: string;
+  name: string;
+  /**
+   * What kind of entity `id` refers to. Required: the detail surfaces link each
+   * entity to its page, and an id alone cannot be resolved to a route.
+   */
+  type: ReadinessEntityType;
+}
+
 export interface ReadinessIssue {
   code: string;
   severity: ReadinessSeverity;
@@ -16,11 +40,16 @@ export interface ReadinessIssue {
   /** How many entities are affected by this issue (absent on legacy per-entity issues). */
   count?: number;
   /** Optional detail list of affected entities, capped (see pushList). */
-  entities?: { id: string; name: string }[];
+  entities?: ReadinessEntity[];
   ref?: {
-    type: 'program' | 'course' | 'strand' | 'level' | 'subject';
+    type: ReadinessEntityType;
     id: string;
     name: string;
+    /**
+     * Owning program's id. Set on `course` and `strand` refs only — their
+     * detail pages are nested under the program and are unreachable without it.
+     */
+    programId?: string;
   };
 }
 
@@ -122,7 +151,12 @@ export class SchoolYearReadinessService {
           this.push(issues, {
             code: 'course_no_level',
             severity: 'blocking',
-            ref: { type: 'course', id: course.id, name: course.name },
+            ref: {
+              type: 'course',
+              id: course.id,
+              name: course.name,
+              programId: program.id,
+            },
             message: `Course "${course.name}" has no levels.`,
             when: course._count.levels === 0,
           });
@@ -141,7 +175,12 @@ export class SchoolYearReadinessService {
           this.push(issues, {
             code: 'strand_no_level',
             severity: 'blocking',
-            ref: { type: 'strand', id: strand.id, name: strand.name },
+            ref: {
+              type: 'strand',
+              id: strand.id,
+              name: strand.name,
+              programId: program.id,
+            },
             message: `Strand "${strand.name}" has no levels.`,
             when: strand._count.levels === 0,
           });
@@ -232,6 +271,7 @@ const levels = await this.db.level.findMany({
     });
     this.pushList(issues, {
       code: 'subject_no_class',
+      type: 'subject',
       items: subjects
         .filter((s) => s._count.classes === 0)
         .map((s) => ({ id: s.id, name: s.name })),
@@ -258,6 +298,7 @@ const levels = await this.db.level.findMany({
     });
     this.pushList(issues, {
       code: 'section_no_class',
+      type: 'section',
       items: sections.filter((s) => !sectionsWithClasses.has(s.id)),
       message: (count) =>
         `${count} section(s) in this school year have no class created.`,
@@ -275,6 +316,7 @@ const levels = await this.db.level.findMany({
     });
     this.pushList(issues, {
       code: 'program_no_calendar',
+      type: 'program',
       items: programsWithoutCalendar,
       message: (count) =>
         `${count} program(s) have no academic calendar set up.`,
@@ -292,6 +334,7 @@ const levels = await this.db.level.findMany({
     });
     this.pushList(issues, {
       code: 'program_no_grading_scale',
+      type: 'program',
       items: programsWithoutScale,
       message: (count) => `${count} program(s) have no grading scale assigned.`,
     });
@@ -344,18 +387,24 @@ const levels = await this.db.level.findMany({
     }
     this.pushList(issues, {
       code: 'program_no_semester_assignment',
+      type: 'program',
       items: noAssignment,
       message: (count) =>
         `${count} program(s) have no semester template assigned.`,
     });
     this.pushList(issues, {
       code: 'program_semester_dates_incomplete',
+      type: 'program',
       items: incompleteDates,
       message: (count) =>
         `${count} program(s) have incomplete semester term dates.`,
     });
 
     // 6. Every Class in this school year has at least one GradingScheme.
+    //    Class has no `section` relation in the schema (only the section_id
+    //    column), so section names are resolved from the `sections` list loaded
+    //    for the `section_no_class` check above rather than via a nested select.
+    const sectionNameById = new Map(sections.map((s) => [s.id, s.name]));
     const classesWithoutScheme = await this.db.class.findMany({
       where: {
         school_year_id: schoolYearId,
@@ -363,15 +412,24 @@ const levels = await this.db.level.findMany({
         deleted_at: null,
         gradingSchemes: { none: {} },
       },
-      select: { id: true, subject: { select: { name: true } } },
+      select: { id: true, section_id: true, subject: { select: { name: true } } },
       orderBy: { created_at: 'asc' },
     });
     this.pushList(issues, {
       code: 'class_no_grading_scheme',
-      items: classesWithoutScheme.map((c) => ({
-        id: c.id,
-        name: c.subject?.name ?? c.id,
-      })),
+      type: 'class',
+      items: classesWithoutScheme.map((c) => {
+        // These entities link to a *class* page, so the subject name alone is
+        // ambiguous when a subject has several classes — qualify it by section.
+        const sectionName = c.section_id
+          ? sectionNameById.get(c.section_id)
+          : undefined;
+        const label = c.subject?.name ?? c.id;
+        return {
+          id: c.id,
+          name: sectionName ? `${label} · ${sectionName}` : label,
+        };
+      }),
       message: (count) => `${count} class(es) have no grading scheme.`,
     });
 
@@ -489,12 +547,14 @@ const levels = await this.db.level.findMany({
 
   /**
    * Pushes a single aggregated blocking issue from a list of affected entities,
-   * carrying the total `count` and a capped `entities` detail list.
+   * carrying the total `count`, a capped `entities` detail list, and the entity
+   * `type` every entry shares (so the client can link each one).
    */
   private pushList(
     issues: ReadinessIssue[],
     args: {
       code: string;
+      type: ReadinessEntityType;
       message: (count: number) => string;
       items: { id: string; name: string }[];
     },
@@ -506,7 +566,9 @@ const levels = await this.db.level.findMany({
       severity: 'blocking',
       message: args.message(args.items.length),
       count: args.items.length,
-      entities: args.items.slice(0, cap),
+      entities: args.items
+        .slice(0, cap)
+        .map((e) => ({ ...e, type: args.type })),
     });
   }
 

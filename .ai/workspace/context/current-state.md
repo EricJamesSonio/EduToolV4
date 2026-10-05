@@ -1,11 +1,56 @@
 # Current Project State
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 <!--
 One section per major domain/module. Keep status labels consistent:
 implemented / partially implemented / not implemented / needs investigation
 -->
+
+## Grading-scheme category naming (2026-09-29)
+
+Status: implemented (TICK-ASSESS-004 fast-forwarded to development, commit 60eb7e58)
+
+Implemented:
+
+- Category `Name` auto-fills from the selected type and follows it while untouched; hand-typed names are preserved; all 4 grading-scheme editors pre-fill new rows. Single rule in `GradingSchemeComponentRow` (`labelForType`, `isAutoName`), 7 seeding sites, plus `aria-label` on the previously unlabeled Name input. New spec 6/6 green.
+- Merge gate: rebased branch off `development c34af581` (created fresh, no rebase needed), validated vs baseline — frontend 12 suites / 108 tests green (baseline 11 / 102), lint 0 errors, tsc 17 errors identical to baseline (0 new).
+- Out of scope (flagged): class/template dialog editors still append a *fixed* type instead of the first unused one, so two rows can share a type and therefore a name — harmless, component `name` has no backend uniqueness constraint.
+
+## Assessment type gradability + manual category scoring (2026-09-30)
+
+Status: implemented (TICK-ASSESS-005 `f378f39c`, TICK-GRADE-005 `f877f96f` — both merged to development)
+
+Implemented:
+- `SYSTEM_GRADABLE_TYPES` / `MANUAL_ONLY_TYPES` / `isSystemGradable()` in
+  `assessment-type.constants.ts` answer "which types can the AI auto-grade?",
+  derived from the enum with the complement computed so the two cannot drift.
+  The frontend mirrors this and filters the wizard's type picker by the active
+  grading mode; the backend rejects a manual-only type with system/hybrid mode
+  on both `create` and `generatePreview`.
+- Manual-only types (participation, behavior, attendance, performance_task) are
+  educator-scored on the **Grades page**: `isManualScoredCategory()` in
+  `grade-core.service.ts` routes them to the `ManualScore` path across 7 call
+  sites (grade-core, grade.service, grade-educator, grade-student, export),
+  replacing the `type === 'manual'` check that never matched persisted data.
+- `CategoryBreakdown` exposes `isManualScored` and `maxScore`, so the grade
+  tables render an editable, capped column *before* any score exists. The cap is
+  `max_score` when set, else the category weight, enforced in the cell and
+  authoritatively server-side (which also rejects unknown categories).
+- True/False generation fixed: unified on `true_or_false` across the AI layer,
+  with the unchecked `as QuestionBlueprint['type']` casts replaced by a throwing
+  `toAiQuestionType()` and `buildChunkPrompt` now throwing instead of silently
+  falling back to the identification format.
+
+Open review findings / not verified:
+- The Grades page change was diagnosed from source, not reproduced in a browser —
+  a click-through is still worth doing.
+- The manual-only set is a product decision, not a fact; `attendance` and
+  `performance_task` are the debatable members. Changing it is a one-constant
+  edit plus the two specs.
+- The legacy `'manual'` scheme-component marker remains unresolved (see
+  FOLLOW_UPS.md). TICK-GRADE-005 works around it by deriving from the type set
+  rather than by making `'manual'` creatable.
 
 ## Assessment type unification (2026-09-29)
 

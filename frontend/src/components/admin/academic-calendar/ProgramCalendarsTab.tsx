@@ -14,6 +14,18 @@ interface Props {
   schoolYearEnd?: string;
 }
 
+function EmptyPanel({ icon: Icon, title, hint }: { icon: typeof CalendarDays; title: string; hint?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card/50 px-6 py-16 text-center">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Icon className="h-6 w-6" />
+      </div>
+      <p className="text-sm font-medium not-interactive">{title}</p>
+      {hint && <p className="mt-1 max-w-sm text-xs text-muted-foreground not-interactive">{hint}</p>}
+    </div>
+  );
+}
+
 export function ProgramCalendarsTab({ schoolYearId, schoolYearStart, schoolYearEnd }: Props) {
   const { data: programs = [], isLoading } = useAsyncQuery(
     queryKeys.admin.programs.list({ schoolYearId }),
@@ -23,49 +35,49 @@ export function ProgramCalendarsTab({ schoolYearId, schoolYearStart, schoolYearE
 
   if (!schoolYearId) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <CalendarDays className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm text-muted-foreground not-interactive">
-          Select a school year to manage department calendars.
-        </p>
-      </div>
+      <EmptyPanel
+        icon={CalendarDays}
+        title="Select a school year"
+        hint="Choose a school year from the top right to manage department calendars."
+      />
     );
   }
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
       </div>
     );
   }
 
   if (programs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <BookOpen className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm text-muted-foreground not-interactive">
-          No departments found for this school year.
-        </p>
-      </div>
+      <EmptyPanel
+        icon={BookOpen}
+        title="No departments found"
+        hint="There are no departments for this school year yet. Add one under Departments first."
+      />
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <p className="text-xs text-muted-foreground not-interactive">
         Define the Sem 1 and Sem 2 timelines per department — terms are auto-generated and stored for use in semester settings.
       </p>
-      {programs.map((program) => (
-        <ProgramCalendarCard
-          key={program.id}
-          programId={program.id}
-          programName={program.name}
-          schoolYearId={schoolYearId}
-          schoolYearStart={schoolYearStart}
-          schoolYearEnd={schoolYearEnd}
-        />
-      ))}
+      <div className="space-y-4">
+        {programs.map((program) => (
+          <ProgramCalendarCard
+            key={program.id}
+            programId={program.id}
+            programName={program.name}
+            schoolYearId={schoolYearId}
+            schoolYearStart={schoolYearStart}
+            schoolYearEnd={schoolYearEnd}
+          />
+        ))}
+      </div>
     </div>
   );
 }

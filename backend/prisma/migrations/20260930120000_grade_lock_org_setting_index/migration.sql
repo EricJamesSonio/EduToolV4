@@ -1,0 +1,22 @@
+-- GradeLock: setting-scoped admin operations full-scanned.
+--
+-- countActiveLocksForSetting (guards deleting a setting that still has active
+-- locks) and deleteLocksForSetting (the delete itself) both filter
+-- (org_id, setting_id). The only index on this table was class_id (unique),
+-- which cannot serve either — so both were O(n) over every lock in the system.
+-- This is the same pair of columns Prisma's @@index([org_id, setting_id])
+-- generates, so the schema and database stay in drift-free sync.
+--
+-- TRANSACTION-SAFE: plain CREATE INDEX, which is what `prisma migrate
+-- deploy` / `migrate dev` can run (Prisma wraps migration.sql in a
+-- transaction, and CREATE INDEX CONCURRENTLY is rejected inside one).
+-- For zero-downtime application on a populated production database, run the
+-- CONCURRENTLY variant by hand instead (autocommit, NOT inside BEGIN/COMMIT):
+--
+--   CREATE INDEX CONCURRENTLY IF NOT EXISTS "GradeLock_org_id_setting_id_idx"
+--     ON "GradeLock"("org_id", "setting_id");
+--
+-- *** FOR REVIEW ONLY - DO NOT APPLY to a shared/staging DB until told. ***
+-- No statement here was executed; `prisma migrate dev/deploy` has NOT been run.
+
+CREATE INDEX IF NOT EXISTS "GradeLock_org_id_setting_id_idx" ON "GradeLock"("org_id", "setting_id");

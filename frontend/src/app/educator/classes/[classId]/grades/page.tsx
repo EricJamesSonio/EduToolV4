@@ -14,14 +14,14 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { WEEK_COLORS } from "@/lib/palette";
-import { useQueryClient } from "@tanstack/react-query";
-import { useClassGrades, useComputeGrades } from "@/hooks/educator/useGrades";
+import { useClassGrades, useComputeGrades, useSetManualScore } from "@/hooks/educator/useGrades";
 import { cn } from "@/lib/utils";
-import { gradeApi } from "@/api/educator/grade.api";
-import { educatorGradeLockApi } from "@/api/educator/grade-lock.api";
-import apiClient from "@/api/client";
-import { queryKeys } from "@/hooks/queryKeys.factory";
-import { useClassGradeLock, useRequestUnlock } from "@/hooks/educator/useGradeLock";
+import {
+  useClassGradeLock,
+  useRequestUnlock,
+  useLockClassGrades,
+  useUnlockClassGrades,
+} from "@/hooks/educator/useGradeLock";
 
 import type { ViewMode, ReadinessIssue } from "@/components/educator/grades";
 import { DefaultGradeTable, CleanGradeTable, StatsBar, ReadinessDialog, RequestUnlockDialog } from "@/components/educator/grades";
@@ -29,21 +29,20 @@ import { DefaultGradeTable, CleanGradeTable, StatsBar, ReadinessDialog, RequestU
 export default function GradesPage() {
   const { classId } = useParams<{ classId: string }>();
 
-  const { data: allTerms, isLoading } = useClassGrades(classId);
+  const { data: allTerms, isLoading, refetch: refetchClassGrades } = useClassGrades(classId);
 
   const [activeTermId, setActiveTermId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("default");
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
-  const [locking, setLocking] = useState(false);
-  const [unlocking, setUnlocking] = useState(false);
   const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
-  const [refreshKey, setRefreshKey] = useState(0);
   const [readinessIssues, setReadinessIssues] = useState<ReadinessIssue[]>([]);
   const [readinessDialogOpen, setReadinessDialogOpen] = useState(false);
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const requestUnlockMutation = useRequestUnlock(classId);
-  const qc = useQueryClient();
+  const manualScoreMutation = useSetManualScore(classId, activeTermId ?? "");
+  const lockMutation = useLockClassGrades(classId);
+  const unlockMutation = useUnlockClassGrades(classId);
 
   // Set initial active term once data loads
   useEffect(() => {
@@ -62,12 +61,18 @@ export default function GradesPage() {
       const key = `${studentId}-${category}`;
       setSaving((prev) => new Set(prev).add(key));
       try {
-        await gradeApi.setManualScore(classId, activeTermId, studentId, { category, score: value });
+        await manualScoreMutation.mutateAsync({ studentId, category, score: value });
         toast.success(`${category} score updated.`);
-        qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, activeTermId) });
-        qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
-      } catch {
-        toast.error("Failed to save score. Please try again.");
+      } catch (err) {
+        // TICK-GRADE-005: surface the server's reason (e.g. "cannot exceed the
+        // category maximum of 20", or an unknown category). A generic
+        // "try again" left the educator with no idea what to fix, which matters
+        // now that the server rejects over-cap scores.
+        const axiosErr = err as { response?: { data?: { message?: string } } };
+        toast.error(
+          axiosErr?.response?.data?.message ??
+            "Failed to save score. Please try again."
+        );
       } finally {
         setSaving((prev) => {
           const next = new Set(prev);
@@ -76,17 +81,14 @@ export default function GradesPage() {
         });
       }
     },
-    [classId, activeTermId, qc]
+    [activeTermId, manualScoreMutation]
   );
 
   const handleLockGrades = async () => {
-    setLocking(true);
     try {
-      await educatorGradeLockApi.lockClass(classId);
+      await lockMutation.mutateAsync();
       toast.success("Grades locked successfully.");
       setLockDialogOpen(false);
-      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all });
-      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) });
     } catch (err: unknown) {
       const data = (err as { response?: { data?: { issues?: ReadinessIssue[]; message?: string } } })?.response?.data;
       if (data?.issues) {
@@ -95,24 +97,17 @@ export default function GradesPage() {
       } else {
         toast.error(data?.message ?? "Failed to lock grades.");
       }
-    } finally {
-      setLocking(false);
     }
   };
 
   const handleUnlockGrades = async () => {
-    setUnlocking(true);
     try {
-      await apiClient.post(`/grade-lock/${classId}/unlock`, { reason: "Educator unlocked grades" });
+      await unlockMutation.mutateAsync("Educator unlocked grades");
       toast.success("Grades unlocked successfully.");
       setUnlockConfirmOpen(false);
-      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all });
-      qc.invalidateQueries({ queryKey: queryKeys.educator.gradeLock.list(classId) });
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(msg ?? "Failed to unlock grades.");
-    } finally {
-      setUnlocking(false);
     }
   };
 
@@ -304,12 +299,9 @@ export default function GradesPage() {
               termData={activeTerm}
               onManualCommit={handleManualCommit}
               saving={saving}
-              refreshKey={refreshKey}
               isLocked={isClassLocked}
               onRefresh={() => {
-                setRefreshKey((k) => k + 1);
-                if (activeTermId) qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, activeTermId) });
-                qc.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
+                void refetchClassGrades();
               }}
             />
           ) : (
@@ -343,9 +335,9 @@ export default function GradesPage() {
             Are you sure you want to publish all grades for this class?
           </span>
         }
-        confirmLabel={locking ? "Publishing..." : "Publish All"}
+        confirmLabel={lockMutation.isPending ? "Publishing..." : "Publish All"}
         onConfirm={handleLockGrades}
-        isLoading={locking}
+        isLoading={lockMutation.isPending}
       />
 
       {/* Unlock confirm dialog */}
@@ -359,9 +351,9 @@ export default function GradesPage() {
             Are you sure you want to unlock grades for this class?
           </span>
         }
-        confirmLabel={unlocking ? "Unlocking..." : "Unlock Grades"}
+        confirmLabel={unlockMutation.isPending ? "Unlocking..." : "Unlock Grades"}
         onConfirm={handleUnlockGrades}
-        isLoading={unlocking}
+        isLoading={unlockMutation.isPending}
       />
 
       <RequestUnlockDialog

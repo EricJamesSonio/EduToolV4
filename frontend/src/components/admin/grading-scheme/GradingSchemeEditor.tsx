@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { GradingSchemeComponentRow, COMPONENT_TYPES } from "./GradingSchemeComponentRow";
+import { GradingSchemeComponentRow, COMPONENT_TYPES, labelForType } from "./GradingSchemeComponentRow";
 import { useUpdateGradingScheme } from "@/hooks/admin/useGradingSchemes";
 import { cn } from "@/lib/utils";
 import type { ComponentType, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
@@ -32,7 +32,7 @@ function splitEqually(total: number, n: number): number[] {
 function makeDefaultRows(): EditableRow[] {
   const weights = splitEqually(100, DEFAULT_TYPES.length);
   return DEFAULT_TYPES.map((type, i) => ({
-    name:       "",
+    name:       labelForType(type),
     type,
     weight:     weights[i],
     isOptional: false,
@@ -121,7 +121,7 @@ export function GradingSchemeEditor() {
         COMPONENT_TYPES.find((t) => !usedTypes.has(t.value))?.value ?? "custom";
 
       const newRow: EditableRow = {
-        name:       "",
+        name:       labelForType(nextType),
         type:       nextType,
         weight:     0,
         isOptional: false,

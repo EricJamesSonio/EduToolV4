@@ -12,6 +12,7 @@ import { SubjectPrerequisiteService } from './subject-prerequisite.service';
 import {
   CreatePrerequisiteDto,
   BulkCreatePrerequisiteDto,
+  BatchPrerequisiteCheckDto,
 } from './dto/subject-prerequisite.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -74,5 +75,52 @@ export class SubjectPrerequisiteController {
     @Query('subject_id') subject_id: string,
   ) {
     return this.prerequisiteService.remove(prerequisite_id, subject_id, orgId);
+  }
+  /**
+   * Transposed batch: for each student, is every one of `subject_ids`
+   * eligible? Used by the admin enrollment surfaces to gray out students the
+   * enroll gate would reject, before an enroll attempt is made.
+   *
+   * org_id comes from the token only — never from the body — so the batch
+   * cannot read another tenant's grades or prerequisite links.
+   */
+  @Post('check-batch')
+  @Roles('admin', 'platform_owner')
+  async checkEligibilityBatch(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: BatchPrerequisiteCheckDto,
+  ) {
+    const studentIds = [...new Set(dto.student_ids)];
+
+    // One batched call per subject; the transposed service method keeps the
+    // whole request to a fixed number of queries instead of one pair per
+    // student.
+    const byStudent = new Map<
+      string,
+      Record<string, { eligible: boolean; missing: unknown[] }>
+    >();
+    for (const studentId of studentIds) byStudent.set(studentId, {});
+
+    for (const subjectId of [...new Set(dto.subject_ids)]) {
+      const result =
+        await this.prerequisiteService.checkEligibilityForStudentsBatch(
+          subjectId,
+          studentIds,
+          orgId,
+        );
+      for (const studentId of studentIds) {
+        const entry =
+          result.get(studentId) ?? { eligible: true, missing: [] };
+        byStudent.get(studentId)![subjectId] = entry;
+      }
+    }
+
+    // Return the map BARE: the global ResponseInterceptor (main.ts) already
+    // wraps every handler result as { success, data }. Returning { data } here
+    // would double-wrap into { success, data: { data: {...} } }, and the
+    // client would unwrap to a non-map object and read every student as
+    // eligible. Every other controller in this codebase returns a bare
+    // payload for exactly this reason.
+    return Object.fromEntries(byStudent);
   }
 }

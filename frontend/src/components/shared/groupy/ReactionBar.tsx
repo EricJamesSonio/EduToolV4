@@ -42,7 +42,7 @@ export function ReactionBar({
             onClick={() => (isMine ? onRemove() : onReact(type))}
             title={type}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors",
+              "inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs transition-colors",
               isMine
                 ? "bg-primary/15 border-primary/40 text-foreground"
                 : "bg-background border-border text-muted-foreground hover:border-primary/40"

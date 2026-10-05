@@ -210,7 +210,7 @@ const invalidateSchoolYears = () => {
       <div
         className={cn(
           listItemCardClass,
-          year.status === "active" && "border-primary/30 bg-primary/5"
+          year.status === "active" && "border-[#86EFAC] ring-1 ring-[#86EFAC]/60"
         )}
       >
         {/* Header with Icon and Info */}

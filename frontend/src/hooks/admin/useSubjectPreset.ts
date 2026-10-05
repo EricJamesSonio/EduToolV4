@@ -5,6 +5,18 @@ export interface SubjectPresetData {
   courseId: string | null;
   strandId: string | null;
   levelId: string | null;
+  /** null / undefined = follow the department standard. */
+  sessionsPerWeek?: number | null;
+  /** Uniform length, kept for presets saved before per-session times existed. */
+  sessionMinutes?: number | null;
+  /**
+   * Per-session lengths. Empty / undefined = uniform.
+   *
+   * Carried so a preset with mixed lengths does not silently collapse to one
+   * length on the next "Set Preset" — every subject created from it would
+   * otherwise get a different shape than the admin configured.
+   */
+  sessionDurations?: number[] | null;
 }
 
 export interface SubjectPreset extends SubjectPresetData {
@@ -20,7 +32,16 @@ function readPreset(schoolYearId: string | null): SubjectPreset | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SubjectPreset;
     if (!parsed || typeof parsed !== "object" || !parsed.programId) return null;
-    return parsed;
+    // Presets saved before weekly sessions existed fall back to the standard.
+    return {
+      ...parsed,
+      sessionsPerWeek: parsed.sessionsPerWeek ?? null,
+      sessionMinutes: parsed.sessionMinutes ?? null,
+      // Presets saved before per-session times are uniform by definition.
+      sessionDurations: Array.isArray(parsed.sessionDurations)
+        ? parsed.sessionDurations
+        : [],
+    };
   } catch {
     return null;
   }
@@ -37,10 +58,11 @@ function writePreset(schoolYearId: string, data: SubjectPreset | null): void {
 }
 
 /**
- * Persists a "New Subject" form preset (department/course/strand/level) in
- * localStorage, namespaced per school year — programs/courses/strands/levels
- * are school-year-scoped entities, so a preset from another school year would
- * reference IDs that don't exist in the current one.
+ * Persists a "New Subject" form preset (department/course/strand/level and
+ * weekly sessions) in localStorage, namespaced per school year —
+ * programs/courses/strands/levels are school-year-scoped entities, so a preset
+ * from another school year would reference IDs that don't exist in the
+ * current one.
  */
 export function useSubjectPreset(schoolYearId: string | null) {
   const [preset, setPresetState] = useState<SubjectPreset | null>(() =>

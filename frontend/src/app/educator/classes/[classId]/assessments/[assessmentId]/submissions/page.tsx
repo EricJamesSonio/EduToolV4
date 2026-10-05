@@ -274,7 +274,7 @@ export default function SubmissionsPage(): React.JSX.Element {
                     <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
                       {getStatusLabel(sub)}
                     </span>
                   </TableCell>

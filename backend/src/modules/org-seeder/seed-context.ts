@@ -97,6 +97,7 @@ export class SeedContext {
   readonly courseMap: Record<string, string> = {};
   readonly strandMap: Record<string, string> = {};
   readonly levelMap: Record<string, string> = {};
+  readonly subjectLevelById: Record<string, string> = {};
 
   /**
    * Subject ids grouped by scope, then by subject name.
@@ -190,18 +191,30 @@ export class SeedContext {
   }
 
   /** Register a subject's id under its real ownership scope (course/strand/programKey/shared bucket). */
-  registerSubjectId(scope: string, name: string, id: string): void {
+  /** Register a subject's id under its real ownership scope. When a level is given, also register a level-qualified key so same-named subjects at different levels stay distinct. */
+  /** Register a subject id under its scope. With a level, also register `name::level` so same-named subjects at different levels stay distinct. */
+  registerSubjectId(scope: string, name: string, id: string, levelName?: string): void {
     if (!this.subjectIdsByScope[scope]) {
       this.subjectIdsByScope[scope] = {};
     }
     this.subjectIdsByScope[scope][name] = id;
+    if (levelName) {
+      this.subjectIdsByScope[scope][`${name}::${levelName}`] = id;
+      this.subjectLevelById[id] = levelName;
+    }
   }
 
-  /** Look up a subject id by scope first, falling back to another scope (e.g. the shared minor bucket) when not found. */
-  getSubjectId(scope: string, name: string, fallbackScope?: string): string | undefined {
-    const direct = this.subjectIdsByScope[scope]?.[name];
+  /** With levelName, only the level-qualified entry matches. Without it, the plain name does. */
+  getSubjectId(
+    scope: string,
+    name: string,
+    fallbackScope?: string,
+    levelName?: string,
+  ): string | undefined {
+    const key = levelName ? `${name}::${levelName}` : name;
+    const direct = this.subjectIdsByScope[scope]?.[key];
     if (direct) return direct;
-    if (fallbackScope) return this.subjectIdsByScope[fallbackScope]?.[name];
+    if (fallbackScope) return this.subjectIdsByScope[fallbackScope]?.[key];
     return undefined;
   }
 }

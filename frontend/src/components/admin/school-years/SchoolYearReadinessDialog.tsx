@@ -83,7 +83,7 @@ export function SchoolYearReadinessDialog({
                             <div className="flex items-start gap-2">
                               <span className="text-foreground">{issue.message}</span>
                               {typeof issue.count === "number" && (
-                                <span className="ml-auto shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                                <span className="ml-auto shrink-0 rounded-sm bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
                                   {issue.count}
                                 </span>
                               )}

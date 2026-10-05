@@ -1,4 +1,4 @@
-export type GradeLockStatus = 'unlocked' | 'locked' | 'auto_locked'
+export type GradeLockStatus = 'unlocked' | 'scheduled' | 'overdue' | 'locked' | 'auto_locked'
 
 export interface GradeLockSetting {
   id: string
@@ -92,4 +92,30 @@ export interface UnlockRequest {
   reason: string
   actor_id: string
   created_at: string
+}
+
+/**
+ * Result of one assign-bulk request. The four counters always sum to the
+ * number of de-duplicated ids that were sent.
+ */
+export interface BulkAssignResult {
+  assigned: number
+  skippedLocked: number
+  skippedUnchanged: number
+  skippedInvalid: number
+}
+
+/** Aggregated totals across every chunk of a client-side bulk run. */
+export interface BulkAssignTotals extends BulkAssignResult {
+  /** Number of class ids actually sent (de-duplicated). */
+  requested: number
+  /** Chunks completed so far. */
+  chunksDone: number
+  /** Total chunks this run will make. */
+  chunksTotal: number
+}
+
+export interface BulkAssignOptions {
+  signal?: AbortSignal
+  onProgress?: (done: number, total: number) => void
 }

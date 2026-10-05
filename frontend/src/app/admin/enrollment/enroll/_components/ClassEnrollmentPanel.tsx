@@ -1,12 +1,18 @@
 "use client";
 
-import { CalendarDays, Users, ChevronUp, ChevronDown, CheckSquare, UserPlus, UserCheck, Eye, AlertCircle } from "lucide-react";
+import { CalendarDays, Users, ChevronUp, ChevronDown, CheckSquare, UserPlus, UserCheck, Eye, AlertCircle, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatSchedule } from "./utils";
+import {
+  hasUnmetPrerequisites,
+  prerequisiteBlockMessage,
+  type PrerequisiteMiss,
+} from "@/utils/prerequisites";
 
 import type { Class } from "@/types/admin/class.types";
 
@@ -20,6 +26,8 @@ interface EligibleStudent {
   id: string;
   fullName: string;
   studentId: string | null;
+  /** Unmet prerequisites for this class's subject. Non-empty = cannot enroll. */
+  missingPrerequisites?: PrerequisiteMiss[];
 }
 
 interface EnrolledStudent {
@@ -45,6 +53,8 @@ interface ClassEnrollmentPanelProps {
   onEnrollInClass: (cls: EnrichedClass) => void;
   enrollBlocked: boolean;
   enrollingClassIds: Set<string>;
+  /** Prerequisite verdict for the expanded class is still in flight. */
+  prerequisiteCheckPending?: boolean;
 }
 
 export function ClassEnrollmentPanel({
@@ -61,6 +71,7 @@ export function ClassEnrollmentPanel({
   onEnrollInClass,
   enrollBlocked,
   enrollingClassIds,
+  prerequisiteCheckPending = false,
 }: ClassEnrollmentPanelProps) {
   const [modeByClass, setModeByClass] = useState<Record<string, ClassMode>>({});
 
@@ -106,7 +117,12 @@ export function ClassEnrollmentPanel({
               const eligibleStudents = (eligibleStudentsByClass[cls.id] ?? []).filter(
                 (s) => !enrolledIds.has(s.id),
               );
-              const eligibleStudentIds = eligibleStudents.map((s) => s.id);
+              // Students with unmet prerequisites are still LISTED (so the admin
+              // understands who is missing what) but are not selectable and are
+              // excluded from select-all — the enroll gate would reject them.
+              const eligibleStudentIds = eligibleStudents
+                .filter((s) => !hasUnmetPrerequisites(s.missingPrerequisites))
+                .map((s) => s.id);
               const allSelected =
                 eligibleStudentIds.length > 0 &&
                 eligibleStudentIds.every((id) => selections.has(id));
@@ -281,25 +297,49 @@ export function ClassEnrollmentPanel({
                           <div className="max-h-60 overflow-y-auto divide-y">
                             {eligibleStudents.map((student) => {
                               const isChecked = selections.has(student.id);
+                              const blocked = hasUnmetPrerequisites(
+                                student.missingPrerequisites,
+                              );
                               return (
                                 <button
                                   key={student.id}
                                   type="button"
-                                  onClick={() => onToggleStudent(cls.id, student.id)}
+                                  aria-disabled={blocked}
+                                  onClick={() => {
+                                    if (blocked) {
+                                      toast.warning(
+                                        prerequisiteBlockMessage(
+                                          student.fullName,
+                                          student.missingPrerequisites,
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    onToggleStudent(cls.id, student.id);
+                                  }}
                                   className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/30",
+                                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                                    blocked
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "hover:bg-muted/30",
                                     isChecked && "bg-primary/5",
                                   )}
                                 >
                                   <div
                                     className={cn(
                                       "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                                      isChecked
-                                        ? "border-primary bg-primary text-primary-foreground"
-                                        : "border-muted-foreground/40",
+                                      blocked
+                                        ? "border-muted-foreground/30 bg-muted"
+                                        : isChecked
+                                          ? "border-primary bg-primary text-primary-foreground"
+                                          : "border-muted-foreground/40",
                                     )}
                                   >
-                                    {isChecked && <CheckSquare className="h-3 w-3" />}
+                                    {blocked ? (
+                                      <Lock className="h-2.5 w-2.5 text-muted-foreground" />
+                                    ) : (
+                                      isChecked && <CheckSquare className="h-3 w-3" />
+                                    )}
                                   </div>
                                   <span className="w-24 text-sm text-muted-foreground truncate">
                                     {student.studentId ?? "—"}
@@ -307,6 +347,15 @@ export function ClassEnrollmentPanel({
                                   <span className="flex-1 text-sm font-medium truncate">
                                     {student.fullName}
                                   </span>
+                                  {blocked && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="shrink-0 gap-1 text-[10px] text-muted-foreground"
+                                    >
+                                      <AlertCircle className="h-3 w-3" />
+                                      Prerequisite
+                                    </Badge>
+                                  )}
                                 </button>
                               );
                             })}
@@ -330,13 +379,20 @@ export function ClassEnrollmentPanel({
                             ) : (
                               <Button
                                 size="sm"
-                                disabled={selections.size === 0 || isEnrolling || isFull}
+                                disabled={
+                                  selections.size === 0 ||
+                                  isEnrolling ||
+                                  isFull ||
+                                  (prerequisiteCheckPending && isExpanded)
+                                }
                                 onClick={() => onEnrollInClass(cls)}
                               >
                                 {isEnrolling ? (
                                   "Enrolling..."
                                 ) : isFull ? (
                                   "Class Full"
+                                ) : prerequisiteCheckPending && isExpanded ? (
+                                  "Checking prerequisites..."
                                 ) : (
                                   <>
                                     <UserPlus className="h-3.5 w-3.5 mr-1.5" />

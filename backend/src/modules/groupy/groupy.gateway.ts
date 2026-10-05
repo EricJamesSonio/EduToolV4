@@ -6,6 +6,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/core/database/database.provider';
@@ -22,6 +23,10 @@ interface AuthPayload {
   email: string;
 }
 
+// The gateway's own SocketRateLimiter already governs message bursts.
+// ThrottlerGuard is HTTP-oriented (it reads context.switchToHttp()), so it
+// must not be applied to socket handlers — hence the class-level skip.
+@SkipThrottle({ default: true })
 @WebSocketGateway({
   namespace: 'groupy',
   cors: { origin: '*', credentials: true },

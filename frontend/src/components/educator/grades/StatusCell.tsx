@@ -6,9 +6,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import apiClient from "@/api/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/hooks/queryKeys.factory";
+import { useUpdateSubmissionStatus } from "@/hooks/educator/useSubmissions";
 import { fmt } from "./utils";
 
 const STATUS_ACTIONS = [
@@ -58,13 +56,13 @@ export function StatusCell({
   onOverride?: (overrideStatus: "MISSING" | "EXEMPTED" | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState(false);
   const [customScoreOpen, setCustomScoreOpen] = useState(false);
   const [customDraft, setCustomDraft] = useState("");
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const qc = useQueryClient();
+  const statusMutation = useUpdateSubmissionStatus(classId, assessmentId);
+  const pending = statusMutation.isPending;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -97,7 +95,9 @@ export function StatusCell({
     setOpen(!open);
   };
 
-  const handleStatusAction = async (newStatus: string) => {
+  const handleStatusAction = async (
+    newStatus: "exempted" | "custom" | "missed",
+  ) => {
     const effectiveId = submissionId || (studentId ? `not_started_${studentId}` : null);
     if (!effectiveId) return;
     if (newStatus === "custom") {
@@ -118,20 +118,16 @@ export function StatusCell({
     setCustomScoreOpen(false);
   };
 
-  const patchStatus = async (effectiveId: string, body: { status: string; manualScore?: number }) => {
-    setPending(true);
+  const patchStatus = async (
+    effectiveId: string,
+    body: { status: "exempted" | "custom" | "missed"; manualScore?: number },
+  ) => {
     try {
-      await apiClient.patch(
-        `/classes/${classId}/assessments/${assessmentId}/submissions/${effectiveId}/status`,
-        body,
-      );
-      qc.invalidateQueries({ queryKey: queryKeys.educator.submissions.all });
-      qc.invalidateQueries({ queryKey: queryKeys.educator.grades.all });
+      await statusMutation.mutateAsync({ submissionId: effectiveId, ...body });
       onStatusChange();
     } catch {
       toast.error("Failed to update status.");
     } finally {
-      setPending(false);
       setOpen(false);
     }
   };

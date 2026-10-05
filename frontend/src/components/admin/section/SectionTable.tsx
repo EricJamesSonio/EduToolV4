@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
-import { Button } from "@/components/ui/button";
+import { RowActions, RowActionButton } from "@/components/shared/RowActions";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -156,37 +156,16 @@ export function SectionTable({
         const section = row.original;
 
         return (
-          <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-              onClick={() => onView(section)}
-              title="View section details"
-            >
-              <Eye className="h-3.5 w-3.5" />
-            </Button>
-
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-              onClick={() => onEdit(section)}
-              title="Edit section"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          <RowActions>
+            <RowActionButton icon={Pencil} label="Edit" onClick={() => onEdit(section)} />
+            <RowActionButton icon={Eye} label="View" onClick={() => onView(section)} />
+            <RowActionButton
+              icon={Trash2}
+              label="Delete"
+              destructive
               onClick={() => onDelete(section)}
-              title="Delete section"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+            />
+          </RowActions>
         );
       },
     },

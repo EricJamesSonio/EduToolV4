@@ -1,4 +1,3 @@
-// ===== File: frontend\src\components\admin\grade-lock\GradeLockHierarchyFilter.tsx =====
 "use client";
 
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
@@ -43,17 +42,19 @@ export function GradeLockHierarchyFilter({
   onLevelChange,
   onReset,
 }: GradeLockHierarchyFilterProps): React.JSX.Element {
-
   const { data: programs = [], isLoading: loadingPrograms } = useAsyncQuery(
     queryKeys.admin.programs.list({ selectedSchoolYearId }),
     () => programApi.getAll(selectedSchoolYearId),
     { enabled: !!selectedSchoolYearId },
   );
 
-  const selectedProgramObj = programs.find(p => p.id === selectedProgram);
+  const selectedProgramObj = programs.find((p) => p.id === selectedProgram);
 
   const { data: courses = [], isLoading: loadingCourses } = useAsyncQuery(
-    queryKeys.admin.courses.list({ schoolYearId: selectedSchoolYearId, programId: selectedProgram }),
+    queryKeys.admin.courses.list({
+      schoolYearId: selectedSchoolYearId,
+      programId: selectedProgram,
+    }),
     () =>
       courseApi.getAll({
         schoolYearId: selectedSchoolYearId,
@@ -62,7 +63,7 @@ export function GradeLockHierarchyFilter({
     { enabled: !!selectedSchoolYearId && !!selectedProgram },
   );
 
-  const selectedCourseObj = courses.find(c => c.id === selectedCourseStrand);
+  const selectedCourseObj = courses.find((c) => c.id === selectedCourseStrand);
 
   const { data: strands = [], isLoading: loadingStrands } = useAsyncQuery(
     queryKeys.admin.strands.list({ program_id: selectedProgram }),
@@ -74,23 +75,49 @@ export function GradeLockHierarchyFilter({
   );
 
   const safeStrands = Array.isArray(strands) ? strands : [];
-  const selectedStrandObj = safeStrands.find(s => s.id === selectedCourseStrand);
+  const selectedStrandObj = safeStrands.find(
+    (s) => s.id === selectedCourseStrand,
+  );
 
+  const hasCourseStrand = courses.length > 0 || safeStrands.length > 0;
+
+  // The level step only unlocks once the parent choices are settled.
+  const levelStepReady =
+    !!selectedProgram &&
+    !loadingCourses &&
+    !loadingStrands &&
+    (!hasCourseStrand || !!selectedCourseStrand);
+
+  // Levels must follow the parent filters: course -> strand -> program.
+  // The key includes every scope value, otherwise different scopes share one
+  // cache entry and show each other's levels.
   const { data: levels = [], isLoading: loadingLevels } = useAsyncQuery(
-    queryKeys.admin.levels.list({ schoolYearId: selectedSchoolYearId }),
-    () => levelApi.getBySchoolYear(selectedSchoolYearId),
-    { enabled: !!selectedSchoolYearId },
+    [
+      ...queryKeys.admin.levels.all,
+      "grade-lock-filter",
+      selectedSchoolYearId,
+      selectedProgram,
+      selectedCourseStrand,
+    ] as const,
+    () => {
+      if (selectedCourseObj) {
+        return levelApi.getByCourse(selectedSchoolYearId, selectedCourseStrand);
+      }
+      if (selectedStrandObj) {
+        return levelApi.getByStrand(selectedSchoolYearId, selectedCourseStrand);
+      }
+      return levelApi.getBySchoolYear(selectedSchoolYearId, selectedProgram);
+    },
+    {
+      enabled:
+        !!selectedSchoolYearId &&
+        levelStepReady &&
+        (!selectedCourseStrand || !!selectedCourseObj || !!selectedStrandObj),
+    },
   );
 
   const safeLevels = Array.isArray(levels) ? levels : [];
-  const selectedLevelObj = safeLevels.find(l => l.id === selectedLevel);
-
-  const hasCourseStrand =
-    courses.length > 0 || safeStrands.length > 0;
-
-  const levelStepReady =
-    selectedProgram &&
-    (!hasCourseStrand || selectedCourseStrand);
+  const selectedLevelObj = safeLevels.find((l) => l.id === selectedLevel);
 
   if (loadingPrograms) {
     return <Skeleton className="h-10 w-full" />;
@@ -98,35 +125,40 @@ export function GradeLockHierarchyFilter({
 
   return (
     <div className="space-y-4">
-
       <div className="flex flex-wrap gap-3 items-center">
-
         {selectedSchoolYearId && (
-          loadingPrograms ? (
-            <Skeleton className="h-9 w-44" />
-          ) : (
-            <Select value={selectedProgram} onValueChange={(v) => { if (v !== null) onProgramChange(v); }}>
-              <SelectTrigger className="w-44">
-                <SelectValue>
-                  {selectedProgramObj?.name ?? "Select Department"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {programs.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )
+          <Select
+            value={selectedProgram}
+            onValueChange={(v) => {
+              if (v !== null) onProgramChange(v);
+            }}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue>
+                {selectedProgramObj?.name ?? "Select Department"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {programs.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
-        {selectedProgram && courses.length > 0 && (
-          loadingCourses ? (
+        {selectedProgram &&
+          courses.length > 0 &&
+          (loadingCourses ? (
             <Skeleton className="h-9 w-56" />
           ) : (
-            <Select value={selectedCourseStrand} onValueChange={(v) => { if (v !== null) onCourseStrandChange(v); }}>
+            <Select
+              value={selectedCourseStrand}
+              onValueChange={(v) => {
+                if (v !== null) onCourseStrandChange(v);
+              }}
+            >
               <SelectTrigger className="w-56">
                 <SelectValue>
                   {selectedCourseObj?.name ?? "Select Course"}
@@ -140,14 +172,19 @@ export function GradeLockHierarchyFilter({
                 ))}
               </SelectContent>
             </Select>
-          )
-        )}
+          ))}
 
-        {selectedProgram && safeStrands.length > 0 && (
-          loadingStrands ? (
+        {selectedProgram &&
+          safeStrands.length > 0 &&
+          (loadingStrands ? (
             <Skeleton className="h-9 w-56" />
           ) : (
-            <Select value={selectedCourseStrand} onValueChange={(v) => { if (v !== null) onCourseStrandChange(v); }}>
+            <Select
+              value={selectedCourseStrand}
+              onValueChange={(v) => {
+                if (v !== null) onCourseStrandChange(v);
+              }}
+            >
               <SelectTrigger className="w-56">
                 <SelectValue>
                   {selectedStrandObj?.name ?? "Select Strand"}
@@ -161,14 +198,18 @@ export function GradeLockHierarchyFilter({
                 ))}
               </SelectContent>
             </Select>
-          )
-        )}
+          ))}
 
-        {levelStepReady && (
-          loadingLevels ? (
+        {levelStepReady &&
+          (loadingLevels ? (
             <Skeleton className="h-9 w-40" />
           ) : (
-            <Select value={selectedLevel} onValueChange={(v) => { if (v !== null) onLevelChange(v); }}>
+            <Select
+              value={selectedLevel}
+              onValueChange={(v) => {
+                if (v !== null) onLevelChange(v);
+              }}
+            >
               <SelectTrigger className="w-40">
                 <SelectValue>
                   {selectedLevelObj?.name ?? "Select Level"}
@@ -182,19 +223,16 @@ export function GradeLockHierarchyFilter({
                 ))}
               </SelectContent>
             </Select>
-          )
-        )}
+          ))}
 
         <Button variant="outline" size="sm" onClick={onReset}>
           Reset
         </Button>
-
       </div>
 
       <div className="text-sm text-muted-foreground not-interactive">
         Showing {filteredCount} class{filteredCount !== 1 ? "es" : ""}
       </div>
-
     </div>
   );
 }

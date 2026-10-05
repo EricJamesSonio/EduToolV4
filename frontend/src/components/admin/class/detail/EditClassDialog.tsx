@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
+import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
 import { useForm, FormProvider } from "react-hook-form";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -34,7 +35,7 @@ import { toArray } from "../utils/classDetail.utils";
 interface EditClassForm {
   educatorId: string;
   sectionId: string;
-  schedules: { weekday: string; startTime: string; endTime: string }[];
+  schedules: { weekday: string; startTime: string; endTime: string; roomId?: string }[];
 }
 
 interface EditClassDialogProps {
@@ -44,7 +45,7 @@ interface EditClassDialogProps {
   schoolYearId: string;
 }
 
-const NO_CONFLICTS: ScheduleConflictState = { educator: false, section: false };
+const NO_CONFLICTS: ScheduleConflictState = { educator: false, section: false, room: false };
 
 export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassDialogProps): React.JSX.Element {
   const { data: educatorsRaw } = useAsyncQuery(
@@ -75,6 +76,9 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
           weekday: String(s.weekday),
           startTime: s.startTime,
           endTime: s.endTime,
+          // Round-trip the existing room, otherwise saving unrelated edits
+          // would wipe every room assignment on the class.
+          roomId: s.roomId ?? "",
         })) ?? [],
     },
   });
@@ -114,6 +118,8 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
           weekday: Number(s.weekday),
           startTime: s.startTime,
           endTime: s.endTime,
+          // Empty string clears the room; the backend stores null.
+          roomId: s.roomId || undefined,
         })) as ScheduleSlot[],
       };
       return classApi.update(cls.id, payload);
@@ -122,6 +128,7 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
       invalidateKeys: [
         queryKeys.admin.classes.detail(cls.id),
         queryKeys.admin.classes.list(),
+        adminQueryKeys.rooms.all,
       ],
       onSuccess: () => {
         toast.success("Class updated.");
@@ -159,7 +166,8 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
   const isSubmitDisabled =
     mutation.isPending ||
     scheduleConflicts.educator ||
-    scheduleConflicts.section;
+    scheduleConflicts.section ||
+    scheduleConflicts.room;
 
   return (
     <Modal open={open} onClose={handleClose} title="Edit Class" size="lg">
@@ -238,6 +246,8 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
             educatorClasses={educatorClasses}
             sectionClasses={sectionClasses}
             isLoading={scheduleContextLoading}
+            schoolYearId={schoolYearId}
+            excludeClassId={cls.id}
             onConflictsChange={handleScheduleConflictsChange}
           />
 

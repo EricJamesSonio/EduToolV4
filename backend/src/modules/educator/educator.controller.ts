@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Patch,
   Delete,
   Body,
@@ -13,12 +14,20 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { EducatorService } from './educator.service';
+import { EducatorSubjectService } from './educator-subject.service';
+import { EducatorScheduleProfileService } from './educator-schedule-profile.service';
 import {
   CreateEducatorDto,
   UpdateEducatorDto,
   QueryEducatorDto,
   UpdateEducatorStatusDto,
   BulkCreateEducatorDto,
+  SetEducatorSubjectsDto,
+  SetEducatorSubjectSlotsDto,
+  SetEducatorSubjectBundleDto,
+  EducatorCapacityQueryDto,
+  CarryOverEducatorSubjectsDto,
+  SetEducatorScheduleProfileDto,
 } from './dto/educator.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -28,7 +37,137 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 @Controller('educators')
 @UseGuards(AuthGuard, RolesGuard)
 export class EducatorController {
-  constructor(private readonly educatorService: EducatorService) {}
+  constructor(
+    private readonly educatorService: EducatorService,
+    private readonly educatorSubjectService: EducatorSubjectService,
+    private readonly scheduleProfileService: EducatorScheduleProfileService,
+  ) {}
+
+  /**
+   * GET /educators/:id/schedule-profile
+   * Returns the profile with `effectiveWeekdays` already intersected with the
+   * org's school days, so the client never has to re-derive that rule.
+   */
+  @Get(':id/schedule-profile')
+  @Roles('admin')
+  async getScheduleProfile(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.scheduleProfileService.get(orgId, id);
+  }
+
+  /**
+   * PUT /educators/:id/schedule-profile
+   * Narrowing availability never blocks and never moves existing classes: it
+   * reports how many already fall outside as a warning count.
+   */
+  @Put(':id/schedule-profile')
+  @Roles('admin')
+  async setScheduleProfile(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: SetEducatorScheduleProfileDto,
+  ) {
+    return this.scheduleProfileService.set(orgId, id, dto);
+  }
+
+  /**
+   * GET /educators/:id/subjects
+   * Subjects this educator is able to teach, with display context. The
+   * generator assigns only from this set.
+   */
+  @Get(':id/subjects')
+  @Roles('admin')
+  async listSubjects(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.educatorSubjectService.listForEducator(orgId, id);
+  }
+
+  /**
+   * PUT /educators/:id/subjects
+   * Replaces the whole set. Rejecting rather than silently dropping unknown
+   * ids is deliberate: a typo must not quietly shrink an educator's profile.
+   */
+  @Put(':id/subjects')
+  @Roles('admin')
+  async setSubjects(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: SetEducatorSubjectsDto,
+  ) {
+    return this.educatorSubjectService.replaceSet(orgId, id, dto.subjectIds, actorId);
+  }
+
+  /**
+   * GET /educators/:id/capacity?schoolYearId=
+   * Weekly capacity breakdown for the assignment UI: what the schedule
+   * allows, what live classes already take, what picks take, what is left.
+   */
+  @Get(':id/capacity')
+  @Roles('admin')
+  async capacity(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: EducatorCapacityQueryDto,
+  ) {
+    return this.educatorSubjectService.capacity(
+      orgId,
+      id,
+      query.schoolYearId,
+    );
+  }
+
+  /**
+   * PUT /educators/:id/subject-slots
+   * Replaces which weekly slot positions the educator handles per subject
+   * section. Slots are 1-based counts (slot 1..S), never days or times.
+   * Every subject must already be linked; pairs held by another educator
+   * are rejected; picks plus existing classes must fit weekly capacity.
+   */
+  @Put(':id/subject-slots')
+  @Roles('admin')
+  async setSubjectSlots(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: SetEducatorSubjectSlotsDto,
+  ) {
+    return this.educatorSubjectService.setSlots(
+      orgId,
+      id,
+      dto.schoolYearId,
+      dto.assignments,
+      actorId,
+    );
+  }
+
+  /**
+   * PUT /educators/:id/subject-bundle
+   * One atomic save for the teachable modal: replaces the link set AND the
+   * slot picks in a single transaction. Any validation failure leaves the
+   * link table untouched.
+   */
+  @Put(':id/subject-bundle')
+  @Roles('admin')
+  async setSubjectBundle(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: SetEducatorSubjectBundleDto,
+  ) {
+    return this.educatorSubjectService.setBundle(
+      orgId,
+      id,
+      dto.schoolYearId,
+      dto.subjectIds,
+      dto.assignments,
+      actorId,
+    );
+  }
 
   /**
    * POST /educators  @Roles(ADMIN)
@@ -57,6 +196,31 @@ export class EducatorController {
     @Body() dto: BulkCreateEducatorDto,
   ) {
     return this.educatorService.bulkCreate(orgId, dto.entries);
+  }
+
+  /**
+   * POST /educators/carry-over-subjects
+   * Copies teachable subjects from one school year to another, matching on
+   * name + program type + parent names. Unmatched links are reported, never
+   * guessed.
+   *
+   * Declared alongside the other static routes on purpose: Nest matches in
+   * declaration order, so a route nested after `@Get(':id')` would never fire.
+   */
+  @Post('carry-over-subjects')
+  @Roles('admin')
+  async carryOverSubjects(
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: CarryOverEducatorSubjectsDto,
+  ) {
+    return this.educatorSubjectService.carryOver(
+      orgId,
+      dto.fromSchoolYearId,
+      dto.toSchoolYearId,
+      dto.educatorIds,
+      actorId,
+    );
   }
 
   /**

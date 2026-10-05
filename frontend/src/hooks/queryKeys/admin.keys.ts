@@ -69,6 +69,17 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'classes', 'distinct-educators', filters] as const,
   },
 
+  subjectPrerequisites: {
+    all: [...adminKeys.all, 'subject-prerequisites'] as const,
+    checkBatch: (subjectIds: string[], studentIds: string[]) =>
+      [
+        ...adminKeys.all,
+        'subject-prerequisites',
+        'check-batch',
+        [...subjectIds].sort().join(','),
+        [...studentIds].sort().join(','),
+      ] as const,
+  },
   courses: {
     all: [...adminKeys.all, 'courses'] as const,
     list: (filters?: QueryFilters) =>
@@ -83,6 +94,18 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'educators', 'list', filters] as const,
     detail: (id: string) =>
       [...adminKeys.all, 'educators', 'detail', id] as const,
+    /** Teachable subjects for one educator (Phase 3). */
+    teachableSubjects: (educatorId: string) =>
+      [...adminKeys.all, 'educators', 'teachable-subjects', educatorId] as const,
+    /** Weekly slot picks per subject section for one educator. */
+    slots: (educatorId: string) =>
+      [...adminKeys.all, 'educators', 'subject-slots', educatorId] as const,
+    /** Weekly capacity breakdown for one educator and school year. */
+    capacity: (educatorId: string, schoolYearId: string) =>
+      [...adminKeys.all, 'educators', 'capacity', educatorId, schoolYearId] as const,
+    /** Availability profile for one educator (Phase 4). */
+    scheduleProfile: (educatorId: string) =>
+      [...adminKeys.all, 'educators', 'schedule-profile', educatorId] as const,
     assignments: (educatorId: string) =>
       [
         ...adminKeys.all,
@@ -377,6 +400,28 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'subjects', 'list', filters] as const,
     detail: (id: string) =>
       [...adminKeys.all, 'subjects', 'detail', id] as const,
+    /** Educators who can teach this subject (Phase 3). */
+    educators: (id: string) =>
+      [...adminKeys.all, 'subjects', 'educators', id] as const,
+  },
+
+  classGenerator: {
+    all: [...adminKeys.all, 'class-generator'] as const,
+    readiness: (schoolYearId: string, programIds: string) =>
+      [
+        ...adminKeys.all,
+        'class-generator',
+        'readiness',
+        schoolYearId,
+        programIds,
+      ] as const,
+    roster: (schoolYearId: string) =>
+      [
+        ...adminKeys.all,
+        'class-generator',
+        'roster',
+        schoolYearId,
+      ] as const,
   },
 
   concerns: {
@@ -387,6 +432,14 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'concerns', 'detail', id] as const,
     categories: (filters?: QueryFilters) =>
       [...adminKeys.all, 'concerns', 'categories', filters] as const,
+  },
+
+  rooms: {
+    all: [...adminKeys.all, 'rooms'] as const,
+    list: (schoolYearId?: string | null) =>
+      [...adminKeys.all, 'rooms', 'list', schoolYearId ?? null] as const,
+    usage: (schoolYearId: string, roomId?: string | null) =>
+      [...adminKeys.all, 'rooms', 'usage', schoolYearId, roomId ?? null] as const,
   },
 
   schoolProfile: {

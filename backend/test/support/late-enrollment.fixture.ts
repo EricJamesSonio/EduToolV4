@@ -201,6 +201,7 @@ export async function setupLateEnrollmentFixture(): Promise<LateEnrollmentFixtur
     data: {
       org_id: org.id,
       school_year_id: schoolYear.id,
+      program_id: program.id,
       name: 'Sem 1',
       start_date: new Date(now.getFullYear(), 0, 1),
       end_date: new Date(now.getFullYear() + 1, 0, 1),

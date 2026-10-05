@@ -24,3 +24,39 @@ export const useRequestUnlock = (classId: string) => {
     },
   );
 };
+
+/**
+ * Locks every grade in the class. Locking publishes final scores and blocks
+ * further edits, so both the grade tables (every term) and the lock info must
+ * be refreshed. `grades.all` is a prefix key, so it covers
+ * `grades.list(classId, termId)` for all terms as well as `grades.list(classId, "")`.
+ */
+export const useLockClassGrades = (classId: string) => {
+  return useMutationWithInvalidation<void, unknown, void>(
+    () => educatorGradeLockApi.lockClass(classId),
+    {
+      invalidateKeys: [
+        queryKeys.educator.grades.all,
+        queryKeys.educator.gradeLock.list(classId),
+      ],
+    },
+  );
+};
+
+/**
+ * Unlocks a class so grades become editable again. Same invalidation surface as
+ * `useLockClassGrades` — both flip the lock state that gates every grade view.
+ *
+ * `reason` is required by the backend's `UnlockClassDto`.
+ */
+export const useUnlockClassGrades = (classId: string) => {
+  return useMutationWithInvalidation<void, unknown, string>(
+    (reason: string) => educatorGradeLockApi.unlockClass(classId, reason),
+    {
+      invalidateKeys: [
+        queryKeys.educator.grades.all,
+        queryKeys.educator.gradeLock.list(classId),
+      ],
+    },
+  );
+};

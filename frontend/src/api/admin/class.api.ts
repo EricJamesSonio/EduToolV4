@@ -10,6 +10,8 @@ export interface ScheduleSlot {
   weekday:   number;
   startTime: string;
   endTime:   string;
+  /** Optional room for this slot. Omit for "no room" — rooms are optional. */
+  roomId?:   string;
 }
 
 export interface CreateClassRequest {
@@ -73,6 +75,9 @@ interface RawSchedule {
   weekday:    number;
   start_time: string;  // ISO datetime e.g. "2026-04-02T08:00:00.000Z"
   end_time:   string;
+  room_id?:   string | null;
+  // Present because the class reads include the room's name.
+  room?:      { name: string } | null;
 }
 
 interface RawClass {
@@ -116,7 +121,10 @@ interface ApiResponse<T> {
 // setHours), so the round-trip must read them back in LOCAL time — reading UTC
 // shifts every slot by the UTC offset (e.g. "06:30" local -> "22:30" on UTC+8)
 // and breaks the schedule grid's occupancy vs. the conflict check.
-function toTimeString(iso: string): string {
+//
+// Exported so the room API maps its usage rows through the exact same
+// conversion — a second implementation would be a second set of bugs.
+export function toTimeString(iso: string): string {
   try {
     const d = new Date(iso);
     const h = String(d.getHours()).padStart(2, "0");
@@ -134,6 +142,8 @@ function mapSchedule(s: RawSchedule): ClassSchedule {
     weekday:   s.weekday,
     startTime: toTimeString(s.start_time),
     endTime:   toTimeString(s.end_time),
+    roomId:    s.room_id ?? null,
+    roomName:  s.room?.name ?? null,
   };
 }
 

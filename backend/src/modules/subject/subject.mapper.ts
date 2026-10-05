@@ -1,8 +1,26 @@
 // filepath: backend/src/modules/subject/subject.mapper.ts
 
 import { SubjectRecord, SubjectResponse } from './subject.types';
+import { resolveSessionRequirement } from './subject-session-defaults';
 
-export function mapSubjectToResponse(subject: SubjectRecord): SubjectResponse {
+/**
+ * `slotMinutes` is the org's slot duration. It only affects DEFAULT resolution
+ * (rounding a default up to the slot grid); an explicit value is used as-is.
+ */
+export function mapSubjectToResponse(
+  subject: SubjectRecord,
+  slotMinutes = 30,
+): SubjectResponse {
+  const effective = resolveSessionRequirement(
+    {
+      sessionsPerWeek: subject.sessions_per_week ?? null,
+      sessionMinutes: subject.session_minutes ?? null,
+      sessionDurations: subject.session_durations ?? [],
+    },
+    subject.program?.type ?? null,
+    slotMinutes,
+  );
+
   return {
     id: subject.id,
     orgId: subject.org_id,
@@ -21,6 +39,13 @@ export function mapSubjectToResponse(subject: SubjectRecord): SubjectResponse {
     lockStatus: subject.is_locked ? 'locked' : 'unlocked',
     yearLevel: subject.year_level ?? null,
     termLabel: subject.term_label ?? null,
+    sessionsPerWeek: subject.sessions_per_week ?? null,
+    sessionMinutes: subject.session_minutes ?? null,
+    sessionDurations: subject.session_durations ?? [],
+    effectiveSessionsPerWeek: effective.sessionsPerWeek,
+    effectiveSessionMinutes: effective.sessionMinutes,
+    effectiveSessionDurations: effective.durations,
+    sessionRequirementSource: effective.source,
     prerequisites: subject.prerequisites ?? [],
     prereqFor: subject.prereqFor ?? [],
     sharings: subject.sharings ?? [],

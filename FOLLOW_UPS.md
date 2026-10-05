@@ -25,16 +25,28 @@
   `Concern(org_id, created_at)` for the digest sweep — revisit if those paths
   stay hot after Phases 1–3 land.
 
-## TICK-ASSESS-001 (2026-09-28) — `manual` DTO-vs-entity mismatch (deliberately untouched)
+## TICK-ASSESS-005 (2026-09-30) — `manual` DTO-vs-entity mismatch (still deliberately untouched)
 - `backend/src/modules/grading-scheme/entity/grading-scheme.entity.ts`
   `ComponentType` historically included `'manual'`, which the canonical
   `ComponentType` enum (`constants/assessment-type.constants.ts`, 14 values)
   and `@IsEnum` DTO validation do NOT accept. The entity type now reads
   `AssessmentComponentType | 'manual'` to preserve existing behavior.
+- **STILL OPEN — TICK-ASSESS-005 did not resolve this.** It added
+  `SYSTEM_GRADABLE_TYPES` / `MANUAL_ONLY_TYPES` / `isSystemGradable()`, which
+  answer "can the AI auto-grade this type?" and are a *different* concern from
+  whether `'manual'` is a creatable scheme-component type. The entity, the
+  `grade-core.service.ts` `category.type === 'manual'` branch, and the
+  data-seeder rows below are untouched.
 - Open decision needed: should `'manual'` be a creatable scheme-component
   type (then add it to the canonical enum + DTO + frontend lists), or is it
   legacy/stale data that should be migrated away (then remove from the
   entity)? Related: frontend seeder
   `components/admin/data-seeder/constants/grading-schemes.ts` hardcodes
   `type: 'manual'` for Participation/Behavior — also rejects under the DTO.
+- **Partially addressed by TICK-GRADE-005**, which derives manual-scored
+  categories from the type set (participation/behavior/attendance/
+  performance_task) rather than from the `'manual'` marker, so Behavior and
+  Participation work on the Grades page without `'manual'` ever being
+  creatable. The `'manual'` marker itself is still unresolved.
 - Do NOT resolve inline in a future ASSESS phase without that decision.
+

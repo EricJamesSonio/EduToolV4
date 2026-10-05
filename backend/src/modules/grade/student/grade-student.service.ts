@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { GradeRepository } from '../grade.repository';
 import { EnrollmentRepository } from 'src/modules/enrollment/enrollment.repository';
-import { GradeCoreService, SchemeCategory } from '../core/grade-core.service';
+import { GradeCoreService, SchemeCategory, isManualScoredCategory } from '../core/grade-core.service';
 
 function componentsToCategories(components: any[]): SchemeCategory[] {
   return components.map((c) => ({
@@ -113,7 +113,7 @@ export class GradeStudentService {
       const isReleased = grade?.is_locked ?? false;
 
         const totalActiveWeight = categories.reduce((sum, cat) => {
-          if (cat.type === 'manual') {
+          if (isManualScoredCategory(cat.type)) {
             return studentManuals.some(
               (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
             )

@@ -70,8 +70,19 @@ function buildPrismaClient(): PrismaClient {
 
 const prisma = buildPrismaClient();
 
-function isPlainMeta(value: unknown): value is Record<string, any> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
+/**
+ * Reads Prisma's `JsonValue` metadata as a plain, non-array object, or `null`
+ * for anything else (null, scalar, array).
+ *
+ * The return type is declared rather than inferred on purpose. A type
+ * *predicate* over `JsonValue` (`string | number | boolean | JsonObject |
+ * JsonArray | null`) cannot exclude `JsonArray`, because an array is also an
+ * "object" — so the narrowed union keeps that branch and every property read
+ * below errors. Returning the shape outright avoids the predicate entirely.
+ */
+function toPlainMeta(value: unknown): Record<string, any> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, any>;
 }
 
 /** Generates a code and retries on the (currently unenforced) chance of a collision. */
@@ -106,8 +117,8 @@ async function main() {
   // Pre-collect every existing code so new ones can't collide with a live one.
   const existingCodes = new Set<string>();
   for (const acc of accounts) {
-    const meta = acc.profile?.metadata;
-    if (!isPlainMeta(meta)) continue;
+    const meta = toPlainMeta(acc.profile?.metadata);
+    if (!meta) continue;
     if (typeof meta.educatorId === 'string') existingCodes.add(meta.educatorId);
     if (typeof meta.studentId === 'string') existingCodes.add(meta.studentId);
   }
@@ -120,7 +131,7 @@ async function main() {
       continue;
     }
 
-    const meta = isPlainMeta(acc.profile.metadata) ? acc.profile.metadata : {};
+    const meta = toPlainMeta(acc.profile.metadata) ?? {};
     const hasCode =
       acc.role === 'educator'
         ? typeof meta.educatorId === 'string'

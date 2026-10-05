@@ -64,7 +64,7 @@ export function EnrolledStudentTable({
       cell: ({ row }) => (
         <span
           className={cn(
-            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize not-interactive",
+            "inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium capitalize not-interactive",
             STATUS_CLASS[row.original.status] ?? "bg-muted text-muted-foreground",
           )}
         >

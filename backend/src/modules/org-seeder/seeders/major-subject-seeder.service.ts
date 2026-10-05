@@ -97,7 +97,7 @@ export class MajorSubjectSeederService {
       });
 
       if (existing) {
-        ctx.registerSubjectId(scopeKey, s.name, existing.id);
+        ctx.registerSubjectId(scopeKey, s.name, existing.id, s.levelName);
         ctx.result.subjects.already_exists++;
       } else {
         const created = await this.db.subject.create({
@@ -115,7 +115,7 @@ export class MajorSubjectSeederService {
             is_locked: false,
           },
         });
-        ctx.registerSubjectId(scopeKey, s.name, created.id);
+        ctx.registerSubjectId(scopeKey, s.name, created.id, s.levelName);
         ctx.result.subjects.seeded++;
       }
     }
@@ -202,7 +202,7 @@ export class MajorSubjectSeederService {
         });
 
         if (existing) {
-          ctx.registerSubjectId(scopeKey, subj.name, existing.id);
+          ctx.registerSubjectId(scopeKey, subj.name, existing.id, level.name);
           ctx.result.subjects.already_exists++;
         } else {
           const created = await this.db.subject.create({
@@ -220,7 +220,7 @@ export class MajorSubjectSeederService {
               is_locked: false,
             },
           });
-          ctx.registerSubjectId(scopeKey, subj.name, created.id);
+          ctx.registerSubjectId(scopeKey, subj.name, created.id, level.name);
           ctx.result.subjects.seeded++;
         }
       }

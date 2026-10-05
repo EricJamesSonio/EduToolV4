@@ -5,6 +5,7 @@ import {
   EducatorClassController,
 } from './class.controller';
 import { ClassService } from './class.service';
+import { ClassOccupancyService } from './class-occupancy.service';
 import { ClassCoreModule } from './core/class-core.module';
 import { EnrollmentModule } from '../enrollment/enrollment.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
@@ -28,7 +29,7 @@ import { OrgScheduleConfigModule } from '../org-schedule-config/org-schedule-con
     StudentClassController,
     EducatorClassController,
   ],
-  providers: [ClassService],
-  exports: [ClassService, ClassCoreModule],
+  providers: [ClassService, ClassOccupancyService],
+  exports: [ClassService, ClassCoreModule, ClassOccupancyService],
 })
 export class ClassModule {}

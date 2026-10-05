@@ -5,6 +5,7 @@ import type { AxiosError } from "axios";
 
 import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
+import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
 import { classApi } from "@/api/admin/class.api";
 import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
 
@@ -17,7 +18,7 @@ import {
 import { clearClassDraft, loadClassDraft, saveClassDraft } from "./useClassDraft";
 import { useCreateClassData } from "./useCreateClassData";
 
-const NO_CONFLICTS: ScheduleConflictState = { educator: false, section: false };
+const NO_CONFLICTS: ScheduleConflictState = { educator: false, section: false, room: false };
 
 export type CreateClassData = ReturnType<typeof useCreateClassData>;
 
@@ -199,12 +200,14 @@ export function useCreateClassForm({
           weekday: Number(s.weekday),
           startTime: s.startTime,
           endTime: s.endTime,
+          // Empty string means "no room" — send nothing so the backend stores null.
+          roomId: s.roomId || undefined,
         })) as ScheduleSlot[],
       };
       return classApi.create(payload);
     },
     {
-      invalidateKeys: [queryKeys.admin.classes.all],
+      invalidateKeys: [queryKeys.admin.classes.all, adminQueryKeys.rooms.all],
       onSuccess: () => {
         toast.success("Class created.");
         clearClassDraft();
@@ -227,6 +230,7 @@ export function useCreateClassForm({
     mutation.isPending ||
     scheduleConflicts.educator ||
     scheduleConflicts.section ||
+    scheduleConflicts.room ||
     subjectAlreadyHasClass ||
     !programId ||
     data.programMissingTemplate ||

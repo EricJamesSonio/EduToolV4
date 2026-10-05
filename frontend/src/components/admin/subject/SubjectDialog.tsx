@@ -10,7 +10,20 @@ import type { CreateSubjectRequest, UpdateSubjectRequest } from "@/api/admin/sub
 import type { Subject, SubjectType } from "@/types/admin/subject.types";
 import type { Level } from "@/types/admin/level.types";
 import { programApi } from "@/api/admin/program.api";
+
 import { levelApi } from "@/api/admin/level.api";
+import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
+
+/**
+ * Sentinel for the "use the department standard" option lives in
+ * WeeklySessionsSection so the dialog and the preset agree on it.
+ */
+import {
+  WeeklySessionsSection,
+  MIN_SESSION_MINUTES,
+  MAX_SESSION_MINUTES,
+  type WeeklySessionDraft,
+} from "@/components/admin/subject/WeeklySessionsSection";
 import { DialogForm } from "@/components/shared/DialogForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +46,121 @@ interface SubjectFormValues {
   courseId: string;
   strandId: string;
   subjectType: SubjectType;
+  /** Empty string = "use the department standard". */
+  sessionsPerWeek: string;
+  /**
+   * Length of EACH weekly session in minutes, in order. Empty means uniform
+   * (every session uses `sessionMinutes`), which is what a default subject and
+   * a plain "same time every session" subject both store.
+   */
+  sessionDurations: number[];
+}
+
+/**
+ * Builds the per-session draft the shared WeeklySessionsSection edits.
+ *
+ * Stored `sessionDurations` are authoritative for an explicit subject. For a
+ * default subject the resolved values are passed through ONLY so the section
+ * can DISPLAY them read-only — nothing here is written back unless the user
+ * switches to a custom schedule.
+ */
+export function toWeeklySessionDraft(
+  values: Pick<SubjectFormValues, "sessionsPerWeek" | "sessionDurations">,
+  resolvedDurations: number[],
+  uniformMinutes: number | null,
+): WeeklySessionDraft {
+  const count = values.sessionsPerWeek
+    ? Number(values.sessionsPerWeek)
+    : resolvedDurations.length;
+  const rows = values.sessionDurations.length
+    ? values.sessionDurations
+    : Array.from({ length: count }, () => uniformMinutes ?? 60);
+  const uniform =
+    rows.length > 0 && rows.every((d) => d === rows[0]) ? rows[0] : null;
+  return {
+    sessionsPerWeek: values.sessionsPerWeek,
+    sessionDurations: rows,
+    uniformMinutes: uniform,
+    // Keyed off the STORED values, not the expanded `rows` (which are always
+    // non-empty because they fall back to the standard for display). A subject
+    // with nothing explicit stored has not been touched and must not become
+    // explicit merely by opening the form.
+    touched: values.sessionsPerWeek !== "" || values.sessionDurations.length > 0,
+  };
+}
+
+/**
+ * Turns the section draft back into form values.
+ *
+ * A draft that is still identical to the department standard is NOT written as
+ * explicit — switching to a custom schedule is the only thing that makes a
+ * subject explicit, so simply opening and saving the dialog leaves a default
+ * subject on the default.
+ */
+export function applyWeeklySessionDraft(
+  draft: WeeklySessionDraft,
+  resolvedCount: number,
+  resolvedBaseMinutes: number,
+): Pick<SubjectFormValues, "sessionsPerWeek" | "sessionDurations"> {
+  // Untouched AND numerically equal to the standard = still following it.
+  // Touching the control is what makes the subject explicit, even when the
+  // chosen numbers happen to coincide with the standard.
+  const rows = draft.sessionDurations.length
+    ? draft.sessionDurations
+    : Array.from({ length: resolvedCount }, () => resolvedBaseMinutes);
+  const sameAsStandard =
+    draft.sessionsPerWeek === "" ||
+    Number(draft.sessionsPerWeek) === resolvedCount;
+  if (!draft.touched && sameAsStandard) {
+    return { sessionsPerWeek: "", sessionDurations: [] };
+  }
+  const count = draft.sessionsPerWeek ? Number(draft.sessionsPerWeek) : resolvedCount;
+  return {
+    sessionsPerWeek: draft.sessionsPerWeek || String(count),
+    sessionDurations: rows,
+  };
+}
+
+/**
+ * Builds the create/update payload from form values.
+ *
+ * In edit mode an unchanged name is omitted: legacy/seeded names may contain
+ * characters the current name rule rejects (e.g. "/" in
+ * "CS Thesis / Capstone Project"), and resending them would 400 a save that
+ * never touched the name. An actual rename is still sent and validated.
+ */
+export function buildSubjectPayload(
+  values: SubjectFormValues,
+  subject?: Subject,
+): CreateSubjectRequest | UpdateSubjectRequest {
+  const isEdit = !!subject;
+  const nameChanged =
+    !isEdit || values.name.trim() !== (subject?.title ?? "").trim();
+  return {
+    ...(nameChanged ? { name: values.name } : {}),
+    subjectType: values.subjectType,
+    programId: values.programId || undefined,
+    // When editing, empty selections clear the previous department-scoped
+    // course/strand/level so a subject can be moved cleanly across programs.
+    levelId: values.levelId || (isEdit ? null : undefined),
+    courseId: values.courseId || (isEdit ? null : undefined),
+    strandId: values.strandId || (isEdit ? null : undefined),
+    // Empty means "use the department standard", which the API stores as null.
+    sessionsPerWeek: values.sessionsPerWeek
+      ? Number(values.sessionsPerWeek)
+      : null,
+    /**
+     * `sessionMinutes` stays the BASE so the existing consumers keep working.
+     * When every session is the same length it is that length; with mixed
+     * lengths it is the first, and `sessionDurations` is authoritative.
+     */
+    sessionMinutes: values.sessionDurations.length
+      ? (values.sessionDurations[0] ?? null)
+      : null,
+    // Empty means uniform: every session uses sessionMinutes. The service
+    // rejects a non-empty list whose length disagrees with sessionsPerWeek.
+    sessionDurations: values.sessionDurations,
+  };
 }
 
 interface SubjectDialogProps {
@@ -44,6 +172,12 @@ interface SubjectDialogProps {
   defaultCourseId?: string;
   defaultStrandId?: string;
   defaultLevelId?: string;
+  /** Create mode only (from the preset). null/undefined = department standard. */
+  defaultSessionsPerWeek?: number | null;
+  /** Create mode only (from the preset). Total minutes; null/undefined = standard. */
+  defaultSessionMinutes?: number | null;
+  /** Create mode only (from the preset). Per-session lengths; empty = uniform. */
+  defaultSessionDurations?: number[] | null;
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -58,6 +192,9 @@ export function SubjectDialog({
   defaultCourseId,
   defaultStrandId,
   defaultLevelId,
+  defaultSessionsPerWeek,
+  defaultSessionMinutes,
+  defaultSessionDurations,
   open,
   onClose,
   onSaved,
@@ -79,8 +216,65 @@ export function SubjectDialog({
       courseId: subject?.courseId ?? defaultCourseId ?? "",
       strandId: subject?.strandId ?? defaultStrandId ?? "",
       subjectType: (subject?.subjectType ?? defaultSubjectType) as SubjectType,
+      ...(subject
+        ? {
+            sessionsPerWeek:
+              subject.sessionsPerWeek != null
+                ? String(subject.sessionsPerWeek)
+                : "",
+            sessionDurations: subject.sessionDurations ?? [],
+          }
+        : {
+            sessionsPerWeek:
+              defaultSessionsPerWeek != null
+                ? String(defaultSessionsPerWeek)
+                : "",
+            sessionDurations:
+              defaultSessionDurations?.length
+                ? defaultSessionDurations
+                : defaultSessionMinutes != null
+                  ? [defaultSessionMinutes]
+                  : [],
+          }),
     },
   });
+
+  const { stepMin: slotMinutes } = useScheduleWindow();
+  const draftSessionsPerWeek = watch("sessionsPerWeek");
+  const draftDurations = watch("sessionDurations");
+  /** True when the subject has no explicit weekly requirement stored. */
+  const isOnDefault =
+    !subject || subject.sessionRequirementSource !== "explicit";
+  /**
+   * Resolved values shown when following the standard. For an explicit subject
+   * these are its own values, so the section shows real data in both modes.
+   */
+  const resolvedCount = subject?.effectiveSessionsPerWeek ?? 5;
+  const resolvedDurations = subject?.effectiveSessionDurations ?? [];
+  const resolvedBaseMinutes = subject?.effectiveSessionMinutes ?? 60;
+
+  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySessionDraft>(() =>
+    toWeeklySessionDraft(
+      {
+        sessionsPerWeek: draftSessionsPerWeek,
+        sessionDurations: draftDurations,
+      },
+      subject?.effectiveSessionDurations?.length
+        ? subject.effectiveSessionDurations
+        : Array.from({ length: subject?.effectiveSessionsPerWeek ?? 5 }, () => subject?.effectiveSessionMinutes ?? 60),
+      subject?.sessionMinutes ?? null,
+    ),
+  );
+  const [weeklyError, setWeeklyError] = useState<string | null>(null);
+
+  const onWeeklyChange = (next: WeeklySessionDraft): void => {
+    setWeeklyDraft(next);
+    setWeeklyError(null);
+    setValue("sessionsPerWeek", next.sessionsPerWeek, { shouldDirty: true });
+    setValue("sessionDurations", next.sessionDurations, { shouldDirty: true });
+  };
+
+  const isLocked = subject?.lockStatus === "locked";
 
   const selectedProgramId = watch("programId");
   const selectedLevelId = watch("levelId");
@@ -149,16 +343,7 @@ export function SubjectDialog({
 
   const mutation = useMutationWithInvalidation(
     (values: SubjectFormValues) => {
-      const payload: CreateSubjectRequest | UpdateSubjectRequest = {
-        name: values.name,
-        subjectType: values.subjectType,
-        programId: values.programId || undefined,
-        // When editing, empty selections clear the previous department-scoped
-        // course/strand/level so a subject can be moved cleanly across programs.
-        levelId: values.levelId || (isEdit ? null : undefined),
-        courseId: values.courseId || (isEdit ? null : undefined),
-        strandId: values.strandId || (isEdit ? null : undefined),
-      };
+      const payload = buildSubjectPayload(values, subject);
       return isEdit
         ? subjectApi.update(subject!.id, payload as UpdateSubjectRequest)
         : subjectApi.create(payload as CreateSubjectRequest);
@@ -185,6 +370,13 @@ export function SubjectDialog({
       courseId: defaultCourseId ?? "",
       strandId: defaultStrandId ?? "",
       subjectType: defaultSubjectType,
+      sessionsPerWeek:
+        defaultSessionsPerWeek != null ? String(defaultSessionsPerWeek) : "",
+      sessionDurations: defaultSessionDurations?.length
+        ? defaultSessionDurations
+        : defaultSessionMinutes != null
+          ? [defaultSessionMinutes]
+          : [],
     });
     onClose();
   };
@@ -194,6 +386,38 @@ export function SubjectDialog({
     if (duplicate) {
       setError('name', { message: 'Subject already exists for this program and level.' });
       return;
+    }
+    // Validate every explicit session length up front so a doomed request never
+    // leaves the dialog: the server caps at 480m, floors at 5m, and requires
+    // every length to be a whole number of the school's slots.
+    const explicitCount = values.sessionsPerWeek
+      ? Number(values.sessionsPerWeek)
+      : null;
+    if (explicitCount && values.sessionDurations.length) {
+      if (values.sessionDurations.length !== explicitCount) {
+        setWeeklyError(
+          `Supply one time per session (${explicitCount}), or use "Apply to all".`,
+        );
+        return;
+      }
+    }
+    for (const minutes of values.sessionDurations) {
+      if (minutes < MIN_SESSION_MINUTES) {
+        setWeeklyError(
+          "Enter at least 5 minutes per session, or switch back to the department standard.",
+        );
+        return;
+      }
+      if (minutes > MAX_SESSION_MINUTES) {
+        setWeeklyError("Session length cannot exceed 480 minutes (8h).");
+        return;
+      }
+      if (minutes % slotMinutes !== 0) {
+        setWeeklyError(
+          `${minutes}m is not a multiple of the school's ${slotMinutes}m slot length.`,
+        );
+        return;
+      }
     }
     mutation.mutate(values);
   };
@@ -240,7 +464,7 @@ export function SubjectDialog({
       open={open}
       onClose={handleClose}
       title={isEdit ? "Edit Subject" : "New Subject"}
-      size="md"
+      size="3xl"
       onSubmit={handleSubmit(handleFormSubmit)}
       isSaving={mutation.isPending}
       saveLabel={isEdit ? "Save Changes" : "Create Subject"}
@@ -269,6 +493,22 @@ export function SubjectDialog({
           </Tabs>
         </div>
       )}
+
+      {/* Weekly sessions — optional, only drives automated class generation */}
+      <WeeklySessionsSection
+        value={weeklyDraft}
+        onChange={onWeeklyChange}
+        slotMinutes={slotMinutes}
+        resolvedCount={resolvedCount}
+        resolvedDurations={
+          resolvedDurations.length
+            ? resolvedDurations
+            : Array.from({ length: resolvedCount }, () => resolvedBaseMinutes)
+        }
+        isOnDefault={isOnDefault}
+        disabled={isLocked}
+        error={isLocked ? "This subject is locked — unlock it to change its weekly sessions." : weeklyError ?? undefined}
+      />
 
       {/* Department — always shown (create + edit) */}
       <div className="space-y-1.5">

@@ -388,21 +388,19 @@ export default function EnrollmentPage() {
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
                   <p className="text-xs text-muted-foreground not-interactive">Total Students</p>
                   <p className="text-2xl font-semibold not-interactive">{total}</p>
-                  <p className="text-xs text-muted-foreground not-interactive">in this school year</p>
+             
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
                   <p className="text-xs text-muted-foreground not-interactive">Active</p>
                   <p className="text-2xl font-semibold text-foreground not-interactive">
                     {activeCount}
                   </p>
-                  <p className="text-xs text-muted-foreground not-interactive">
-                    {pendingCount > 0 ? `${pendingCount} pending (this page)` : "no pending (this page)"}
-                  </p>
+         
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
                   <p className="text-xs text-muted-foreground not-interactive">Department Enrollments</p>
                   <p className="text-2xl font-semibold not-interactive">{totalProgramEnrollments}</p>
-                  <p className="text-xs text-muted-foreground not-interactive">across all departments (this page)</p>
+        
                 </div>
               </div>
             )}

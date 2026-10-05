@@ -25,11 +25,11 @@ export function AssessmentBadges({ type, status, isPublished }: AssessmentBadges
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Badge variant="outline">{TYPE_LABELS[type] ?? type}</Badge>
-      <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium", STATUS_COLORS[status] ?? "")}>
+      <span className={cn("inline-flex items-center rounded-sm border px-2.5 py-1 text-xs font-medium", STATUS_COLORS[status] ?? "")}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
       {isPublished && (
-        <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium badge-purple">
+        <span className="inline-flex items-center rounded-sm border px-2.5 py-1 text-xs font-medium badge-purple">
           Published
         </span>
       )}

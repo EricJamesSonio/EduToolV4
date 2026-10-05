@@ -1,7 +1,7 @@
 // ===== File: frontend\src\app\admin\enrollment\enroll\page.tsx =====
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -34,6 +34,12 @@ import { useClasses, useEnrollStudent, useClassEnrollments } from "@/hooks/admin
 import { useSubjects } from "@/hooks/admin/useSubject";
 import { useEducators } from "@/hooks/admin/useEducators";
 import { useSemesters } from "@/hooks/admin/useSemester";
+import { useSubjectsPrerequisiteCheck } from "@/hooks/admin/useSubjectPrerequisites";
+import {
+  getMissingPrerequisites,
+  hasUnmetPrerequisites,
+  type PrerequisiteMiss,
+} from "@/utils/prerequisites";
 
 import type { Subject } from "@/types/admin/subject.types";
 import type { Educator } from "@/types/admin/educator.types";
@@ -44,6 +50,14 @@ import type {
 } from "@/types/admin/student-enrollment.types";
 import type { Class } from "@/types/admin/class.types";
 import type { SchoolYearReadiness } from "@/types/admin/school-year.types";
+
+/** A student candidate for a class, plus any unmet prerequisites for it. */
+type EligibleStudentEntry = {
+  id: string;
+  fullName: string;
+  studentId: string | null;
+  missingPrerequisites?: PrerequisiteMiss[];
+};
 
 import {
   ProgramSelector,
@@ -108,38 +122,6 @@ export default function EnrollWorkspacePage() {
       return { ...prev, [classId]: next };
     });
   }, []);
-
-  const handleEnrollInClass = useCallback(async (cls: Class) => {
-    if (!isSchoolYearReady) {
-      setReadyBlockOpen(true);
-      return;
-    }
-    const selections = classStudentSelections[cls.id];
-    if (!selections || selections.size === 0) return;
-
-    const studentIds = Array.from(selections);
-    setEnrollingClassIds((prev) => new Set(prev).add(cls.id));
-
-    try {
-      await Promise.all(
-        studentIds.map((studentId) =>
-          enrollInClassMutation.mutateAsync({ classId: cls.id, studentId })
-        )
-      );
-      toast.success(`${studentIds.length} student(s) enrolled in ${cls.subjectName ?? "class"}.`);
-      setClassStudentSelections((prev) => ({ ...prev, [cls.id]: new Set() }));
-      setExpandedClassId(null);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      toast.error(e?.response?.data?.message ?? "Failed to enroll some students.");
-    } finally {
-      setEnrollingClassIds((prev) => {
-        const next = new Set(prev);
-        next.delete(cls.id);
-        return next;
-      });
-    }
-  }, [classStudentSelections, enrollInClassMutation, isSchoolYearReady]);
 
   const handleAssignSection = useCallback(
     (programEnrollmentId: string, sectionId: string) => {
@@ -327,10 +309,12 @@ export default function EnrollWorkspacePage() {
     );
   }, [enrollments, programId, courseId, strandId, levelId]);
 
-  const eligibleStudentsByClass = useMemo(() => {
+  /** Structural candidates only (program/course/strand/level/section match).
+   *  Prerequisite status is layered on below from the server. */
+  const eligibleStudentsByClassRaw: Record<string, EligibleStudentEntry[]> = useMemo(() => {
     if (!programId || !levelId) return {};
 
-    const bySection = new Map<string, { id: string; fullName: string; studentId: string | null }[]>();
+    const bySection = new Map<string, EligibleStudentEntry[]>();
 
     for (const enr of allContextEnrollments) {
       const info = studentMap.get(enr.student_id);
@@ -353,12 +337,143 @@ export default function EnrollWorkspacePage() {
       }
     }
 
-    const map: Record<string, { id: string; fullName: string; studentId: string | null }[]> = {};
+    const map: Record<string, EligibleStudentEntry[]> = {};
     for (const cls of filteredClasses) {
       map[cls.id] = cls.sectionId ? bySection.get(cls.sectionId) ?? [] : [];
     }
     return map;
   }, [programId, levelId, courseId, strandId, allContextEnrollments, studentMap, filteredClasses]);
+
+  // Only one class is expanded at a time, so the prerequisite batch is scoped
+  // to that class's subject plus its not-yet-enrolled section students —
+  // bounded by one section, and skipped entirely when nothing is expanded.
+  const expandedClass = useMemo(
+    () => filteredClasses.find((cls) => cls.id === expandedClassId) ?? null,
+    [filteredClasses, expandedClassId],
+  );
+
+  const enrolledIdsForExpanded = useMemo(
+    () =>
+      new Set(
+        (classEnrollmentsQuery.data ?? []).map((e) => e.student_id),
+      ),
+    [classEnrollmentsQuery.data],
+  );
+
+  const expandedClassStudentIds = useMemo(() => {
+    if (!expandedClass) return [];
+    return (eligibleStudentsByClassRaw[expandedClass.id] ?? [])
+      .filter((s) => !enrolledIdsForExpanded.has(s.id))
+      .map((s) => s.id);
+  }, [expandedClass, eligibleStudentsByClassRaw, enrolledIdsForExpanded]);
+
+  const prereqCheckQuery = useSubjectsPrerequisiteCheck(
+    expandedClass?.subjectId ?? null,
+    expandedClassStudentIds,
+  );
+
+  // Surface a failed prerequisite check instead of silently rendering every
+  // student as eligible — that silent fallback is indistinguishable from "the
+  // feature is off" and only shows up as a failed enroll much later.
+  const prereqCheckErrorReported = useRef(false);
+  useEffect(() => {
+    if (!prereqCheckQuery.isError) {
+      prereqCheckErrorReported.current = false;
+      return;
+    }
+    if (prereqCheckErrorReported.current) return;
+    prereqCheckErrorReported.current = true;
+    toast.error(
+      "Could not check subject prerequisites. Students are shown as unblocked, so an enroll may still fail.",
+    );
+  }, [prereqCheckQuery.isError]);
+
+  /**
+   * Candidates for each class, annotated with unmet prerequisites for the
+   * expanded class's subject. Blocked students stay LISTED so the admin can
+   * see who is missing what — the panel grays them out instead of letting the
+   * enroll call fail.
+   *
+   * Only applied once the batch has actually resolved. While it is pending the
+   * raw list is used, and `prerequisiteCheckPending` tells the panel to hold
+   * the enroll action until the answer is known.
+   */
+  const eligibleStudentsByClass: Record<string, EligibleStudentEntry[]> = useMemo(() => {
+    const data = prereqCheckQuery.data;
+    if (!expandedClass || !data) return eligibleStudentsByClassRaw;
+
+    const list = eligibleStudentsByClassRaw[expandedClass.id] ?? [];
+    // The batch map is keyed by STUDENT id first, then subject id
+    // (see getMissingPrerequisites) — do not read the outer level with a
+    // subject id, that silently yields undefined and unblocks everyone.
+    const annotated = list.map((s) => {
+      const missing = getMissingPrerequisites(
+        data,
+        s.id,
+        expandedClass.subjectId,
+      );
+      return missing.length > 0
+        ? { ...s, missingPrerequisites: missing }
+        : s;
+    });
+
+    return { ...eligibleStudentsByClassRaw, [expandedClass.id]: annotated };
+  }, [eligibleStudentsByClassRaw, prereqCheckQuery.data, expandedClass]);
+
+  /** True while the prerequisite verdict for the expanded class is unknown. */
+  const prerequisiteCheckPending =
+    !!expandedClass && prereqCheckQuery.isPending;
+
+  const handleEnrollInClass = useCallback(async (cls: Class) => {
+    if (!isSchoolYearReady) {
+      setReadyBlockOpen(true);
+      return;
+    }
+    const selections = classStudentSelections[cls.id];
+    if (!selections || selections.size === 0) return;
+
+    if (prerequisiteCheckPending && cls.id === expandedClassId) {
+      toast.warning(
+        "Still checking prerequisites for this class — please wait a moment.",
+      );
+      return;
+    }
+
+    // Defensive: never send a student the server-side gate will reject. The
+    // panel already prevents selecting them, but a stale prerequisite cache
+    // (e.g. a grade locked in another tab) must not surface as a raw error.
+    const blocked = eligibleStudentsByClass[cls.id] ?? [];
+    const blockedIds = new Set(
+      blocked.filter((s) => hasUnmetPrerequisites(s.missingPrerequisites)).map((s) => s.id),
+    );
+    const studentIds = Array.from(selections).filter((id) => !blockedIds.has(id));
+    if (studentIds.length === 0) {
+      toast.warning("No eligible students selected — all have unmet prerequisites.");
+      return;
+    }
+
+    setEnrollingClassIds((prev) => new Set(prev).add(cls.id));
+
+    try {
+      await Promise.all(
+        studentIds.map((studentId) =>
+          enrollInClassMutation.mutateAsync({ classId: cls.id, studentId })
+        )
+      );
+      toast.success(`${studentIds.length} student(s) enrolled in ${cls.subjectName ?? "class"}.`);
+      setClassStudentSelections((prev) => ({ ...prev, [cls.id]: new Set() }));
+      setExpandedClassId(null);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e?.response?.data?.message ?? "Failed to enroll some students.");
+    } finally {
+      setEnrollingClassIds((prev) => {
+        const next = new Set(prev);
+        next.delete(cls.id);
+        return next;
+      });
+    }
+  }, [classStudentSelections, enrollInClassMutation, isSchoolYearReady, eligibleStudentsByClass, prerequisiteCheckPending, expandedClassId]);
 
   const enrolledStudentsByClass = useMemo(() => {
     const map: Record<
@@ -663,6 +778,9 @@ export default function EnrollWorkspacePage() {
               onEnrollInClass={handleEnrollInClass}
               enrollBlocked={!isSchoolYearReady}
               enrollingClassIds={enrollingClassIds}
+              prerequisiteCheckPending={
+                prerequisiteCheckPending && expandedClassId !== null
+              }
             />
           </div>
         </>

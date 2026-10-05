@@ -55,6 +55,11 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
 
   const creation = {
     assertTypeMatchesScheme: jest.fn(),
+    // TICK-ASSESS-005: added to the helper when manual-only types were barred
+    // from auto-grading. It is a real (non-throwing) jest.fn() so the existing
+    // create/preview cases keep exercising the flow; the rejection behavior
+    // itself is covered in assessment-creation.helper.spec.ts.
+    assertTypeMatchesGradingMode: jest.fn(),
     resolveGradingMode: jest.fn(),
     validateSystemDto: jest.fn(),
     createAssessmentRecord: jest.fn(),

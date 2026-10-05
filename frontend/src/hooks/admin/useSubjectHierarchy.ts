@@ -15,11 +15,26 @@ import {
  * - `enabled` gate: no fetch until a program (or school year) is picked.
  */
 export function scopeKey(scope: HierarchyScope): string {
-  return [scope.schoolYearId ?? "-", scope.programId ?? "-", scope.courseId ?? "-", scope.strandId ?? "-"].join("|");
+  // levelId MUST be part of the key: omitting it makes two different level
+  // selections collide in the cache, so switching level silently serves the
+  // previously selected level's subjects.
+  return [
+    scope.schoolYearId ?? "-",
+    scope.programId ?? "-",
+    scope.courseId ?? "-",
+    scope.strandId ?? "-",
+    scope.levelId ?? "-",
+  ].join("|");
 }
 
 export function useSubjectHierarchy(scope: HierarchyScope, enabled = true) {
-  const ready = enabled && (!!scope.programId || !!scope.schoolYearId);
+  // A department is the minimum meaningful scope. Previously this was
+  // `programId || schoolYearId`, which made a bare school year fetch every
+  // department's subjects at once. Selecting the department alone is still
+  // correct for departments with no course/strand dimension — callers that need
+  // the stricter "course/strand chosen" rule pass `enabled` themselves (see
+  // `isHierarchyScopeReady`).
+  const ready = enabled && !!scope.programId;
   const query = useQuery({
     queryKey: ["admin", "subject-hierarchy", scopeKey(scope)],
     queryFn: () => subjectHierarchyApi.get(scope),
@@ -30,8 +45,14 @@ export function useSubjectHierarchy(scope: HierarchyScope, enabled = true) {
     placeholderData: (prev) => prev,
   });
 
+  // `placeholderData: (prev) => prev` above keeps the previous scope's nodes
+  // visible while a new scope loads — but React Query applies it even to a
+  // DISABLED query, so a scope that just became incomplete would still render
+  // the last department's subjects. Suppressing data when not ready is what
+  // actually stops the stale graph; `enabled` alone is not enough.
+  const data = ready ? query.data : undefined;
+
   const columns = useMemo(() => {
-    const data = query.data;
     if (!data) return [];
     // Group nodes by year rank → columns 1st → highest.
     const byRank = new Map<number, typeof data.nodes>();
@@ -47,9 +68,9 @@ export function useSubjectHierarchy(scope: HierarchyScope, enabled = true) {
         levelName: data.levels.find((l) => l.rank === rank)?.name ?? `Year ${rank}`,
         nodes: [...nodes].sort((a, b) => a.name.localeCompare(b.name)),
       }));
-  }, [query.data]);
+  }, [data]);
 
-  return { ...query, columns };
+  return { ...query, data, columns, ready };
 }
 
 /**

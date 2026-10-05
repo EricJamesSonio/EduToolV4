@@ -111,12 +111,23 @@ export class LevelService {
   }
 
   /**
-   * Update a level
+   * Bulk-rename the org's default level names.
+   *
+   * Rows without an `id` are new-naming requests with no target and are skipped;
+   * the remaining renames run in one transaction so a partial rename is
+   * impossible.
    */
-  async updateOne(id: string, orgId: string, dto: UpdateLevelDto) {
-    const existing = await this.levelRepository.findById(id, orgId);
-    if (!existing) throw new NotFoundException('Level not found.');
-    return this.levelRepository.update(id, { name: dto.name });
+  async updateDefaults(orgId: string, dto: UpdateLevelDefaultsDto) {
+    const toUpdate = dto.levels.filter((l) => !!l.id);
+
+    return this.db.$transaction(
+      toUpdate.map((l) =>
+        this.db.level.update({
+          where: { id: l.id },
+          data: { name: l.name },
+        }),
+      ),
+    );
   }
 
   /**
