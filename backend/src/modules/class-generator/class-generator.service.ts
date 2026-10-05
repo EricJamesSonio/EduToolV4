@@ -1260,15 +1260,38 @@ export class ClassGeneratorService {
     req: GenerateRequest,
     actorId: string,
   ): Promise<{ created: number; skipped: { reason: string; detail: string }[] }> {
+    // Re-planned at commit time rather than trusting the preview: the world may
+    // have changed between the admin looking at it and clicking approve.
     const plan = await this.preview(req);
     const created: string[] = [];
     const skipped: { reason: string; detail: string }[] = [];
+
+    // ── Idempotency, part 1 of 2: skip work we can see already landed ────────
+    // `preview()` had no duplicate awareness at all, so a second commit for the
+    // same scope re-planned every pair from scratch and only discovered the
+    // existing classes one create() at a time — where a ConflictException is
+    // reported as `reason: 'error'`, indistinguishable from a real failure.
+    //
+    // The authoritative existence set is loaded ONCE, up front, for exactly
+    // the (section, subject, semester) pairs this run would create. Rows land
+    // in `seen` as they are created below, which also de-duplicates pairs that
+    // appear twice within a single plan.
+    const seen = await this.loadExistingClassKeys(req);
 
     for (const item of plan.items) {
       if (item.unplacedReason || !item.educatorId) {
         skipped.push({
           reason: 'unplaced',
           detail: `${item.subjectName} — ${item.sectionName}: ${item.unplacedReason ?? 'no educator'}`,
+        });
+        continue;
+      }
+
+      const key = this.classKey(item.sectionId, item.subjectId, req.semesterId);
+      if (seen.has(key)) {
+        skipped.push({
+          reason: 'already-exists',
+          detail: `${item.subjectName} — ${item.sectionName}: a class already exists for this section, subject and semester.`,
         });
         continue;
       }
@@ -1291,19 +1314,71 @@ export class ClassGeneratorService {
           actorId,
         );
         created.push(item.subjectId);
+        seen.add(key);
       } catch (err) {
         // One bad item must not abandon the rest of the batch. The admin sees
         // exactly which ones did not land and why.
+        //
+        // A duplicate is reported as its own reason, not 'error'. It is an
+        // expected outcome of a repeated run, and conflating the two made a
+        // clean second run look like a batch of failures.
+        const message = (err as Error)?.message ?? 'unknown error';
         skipped.push({
-          reason: 'error',
-          detail: `${item.subjectName} — ${item.sectionName}: ${
-            (err as Error)?.message ?? 'unknown error'
-          }`,
+          reason: this.isDuplicateError(err) ? 'already-exists' : 'error',
+          detail: `${item.subjectName} — ${item.sectionName}: ${message}`,
         });
       }
     }
 
     return { created: created.length, skipped };
+  }
+
+  /**
+   * Natural key of a generated class. Mirrors the unique index proposed for
+   * `Class` and `ClassService.assertNoDuplicateSubjectInSection`.
+   */
+  private classKey(
+    sectionId: string | null,
+    subjectId: string,
+    semesterId: string,
+  ): string {
+    return `${sectionId ?? ''}|${subjectId}|${semesterId}`;
+  }
+
+  /**
+   * Every non-deleted class key already present in the scope this run targets.
+   *
+   * ONE query for the whole scope, not one per candidate. `deleted_at: null`
+   * mirrors the service-level check, so an archived class never blocks a fresh
+   * one — which is also why the proposed partial index must carry the same
+   * predicate.
+   *
+   * Scoped to the semester as well as the year: the key includes semester_id,
+   * so loading the whole year would be both slower and no more correct.
+   */
+  private async loadExistingClassKeys(req: GenerateRequest): Promise<Set<string>> {
+    const rows = await this.db.class.findMany({
+      where: {
+        org_id: req.orgId,
+        school_year_id: req.schoolYearId,
+        semester_id: req.semesterId,
+        deleted_at: null,
+      },
+      select: { section_id: true, subject_id: true, semester_id: true },
+    });
+    return new Set(
+      rows.map((r) => this.classKey(r.section_id, r.subject_id, r.semester_id)),
+    );
+  }
+
+  /**
+   * True when the failure was the one-class-per-(section, subject, semester)
+   * guard. Matched on the message because `ClassService` raises a
+   * `ConflictException` with prose, not a typed error code.
+   */
+  private isDuplicateError(err: unknown): boolean {
+    const message = (err as Error)?.message ?? '';
+    return /already has a class for this subject in this semester/i.test(message);
   }
 }
 

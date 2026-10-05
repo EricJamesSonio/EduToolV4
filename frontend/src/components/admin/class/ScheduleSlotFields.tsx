@@ -2,6 +2,7 @@
 
 import { Label } from "@/components/ui/label";
 import { ClassSchedulePicker, type ScheduleConflictState } from "./ClassSchedulePicker";
+import type { SelectionGate } from "./CreateClassStepGate";
 import type { Class } from "@/types/admin/class.types";
 
 interface ScheduleSlotFieldsProps {
@@ -17,6 +18,11 @@ interface ScheduleSlotFieldsProps {
   schoolYearId?: string | null;
   /** The class being edited, excluded from its own conflict checks. */
   excludeClassId?: string;
+  /**
+   * Whether the grid accepts picks. Required, and supplied by the caller,
+   * because Create and Edit have genuinely different prerequisites.
+   */
+  selectionGate: SelectionGate;
   /** Fired with the current educator/section/room conflict state whenever a pick changes. */
   onConflictsChange?: (conflicts: ScheduleConflictState) => void;
 }
@@ -28,6 +34,7 @@ export function ScheduleSlotFields({
   maxSlots,
   schoolYearId,
   excludeClassId,
+  selectionGate,
   onConflictsChange,
 }: ScheduleSlotFieldsProps) {
   return (
@@ -40,6 +47,7 @@ export function ScheduleSlotFields({
         maxSlots={maxSlots}
         schoolYearId={schoolYearId}
         excludeClassId={excludeClassId}
+        selectionGate={selectionGate}
         onConflictsChange={onConflictsChange}
       />
     </div>

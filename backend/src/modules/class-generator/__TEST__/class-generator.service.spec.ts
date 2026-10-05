@@ -37,11 +37,14 @@ const makeHarness = (opts: {
   claims?: Array<ReturnType<typeof claim>>;
   profiles?: any[];
   occupied?: any[];
+  /** Pre-existing non-deleted classes, as raw (section_id, subject_id, semester_id) rows. */
+  existingClasses?: Array<{ section_id: string | null; subject_id: string; semester_id: string }>;
 } = {}) => {
   const db = {
     section: { findMany: jest.fn().mockResolvedValue(opts.sections ?? []) },
     subject: { findMany: jest.fn().mockResolvedValue(opts.subjects ?? []) },
     account: { findMany: jest.fn().mockResolvedValue(opts.educators ?? []) },
+    class: { findMany: jest.fn().mockResolvedValue(opts.existingClasses ?? []) },
     educatorScheduleProfile: {
       findMany: jest.fn().mockResolvedValue(opts.profiles ?? []),
     },
@@ -769,6 +772,87 @@ describe('ClassGeneratorService', () => {
       expect(out.created).toBe(1);
       expect(out.skipped[0].reason).toBe('error');
       expect(out.skipped[0].detail).toMatch(/educator already has a class/);
+    });
+
+    it('reports a duplicate ConflictException as already-exists, not error', async () => {
+      const { service, classService } = makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 1, 60)],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+      // The service-level guard firing is the race-window fallback: the
+      // up-front read said "free", but a concurrent request inserted first.
+      classService.create.mockRejectedValueOnce(
+        new Error(
+          'This section already has a class for this subject in this semester.',
+        ),
+      );
+
+      const out = await service.commit(req, 'actor-1');
+
+      expect(out.created).toBe(0);
+      expect(out.skipped[0].reason).toBe('already-exists');
+    });
+  });
+
+  describe('commit idempotency', () => {
+    const pairHarness = () =>
+      makeHarness({
+        sections: [section('sec-1')],
+        subjects: [subject('s1', 'lvl-1', 1, 60)],
+        educators: [educator('e1', 'Alice')],
+        claims: [claim('s1', 'sec-1', 'e1')],
+      });
+
+    it('skips a pair that already has a class, without calling create', async () => {
+      const { service, classService, db } = pairHarness();
+      db.class.findMany.mockResolvedValue([
+        { section_id: 'sec-1', subject_id: 's1', semester_id: 'sem-1' },
+      ]);
+
+      const out = await service.commit(req, 'actor-1');
+
+      expect(out.created).toBe(0);
+      expect(classService.create).not.toHaveBeenCalled();
+      expect(out.skipped[0].reason).toBe('already-exists');
+    });
+
+    it('loads the existing-class keys exactly once per commit', async () => {
+      const { service, db } = pairHarness();
+      await service.commit(req, 'actor-1');
+      expect(db.class.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('creates the pair when no class exists for it', async () => {
+      const { service, classService, db } = pairHarness();
+      db.class.findMany.mockResolvedValue([]);
+
+      const out = await service.commit(req, 'actor-1');
+
+      expect(out.created).toBe(1);
+      expect(classService.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('scopes the existing-class read and ignores archived rows', async () => {
+      const { service, db, classService } = pairHarness();
+      db.class.findMany.mockResolvedValue([]);
+
+      await service.commit(req, 'actor-1');
+
+      // deleted_at: null is what keeps an archived class from blocking a run,
+      // so it must match the predicate the service-level check uses.
+      expect(db.class.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            org_id: req.orgId,
+            school_year_id: req.schoolYearId,
+            semester_id: req.semesterId,
+            deleted_at: null,
+          }),
+        }),
+      );
+      expect(classService.create).toHaveBeenCalledTimes(1);
     });
   });
 
