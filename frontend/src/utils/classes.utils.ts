@@ -1,3 +1,5 @@
+import { hhmmToMinutes } from "@/utils/scheduleTime.utils";
+
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 const DAY_DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
@@ -51,13 +53,16 @@ export function toArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+/**
+ * Minutes-of-day for a schedule time.
+ *
+ * Accepts an "HH:mm" string or an ISO datetime. Delegates to the shared
+ * schedule-time helper so this file cannot drift from `toHHmm` — they used to
+ * be separate implementations reading local getters, which showed a 07:00 UTC
+ * class as 15:00 in a UTC+8 browser.
+ */
 function parseClockMinutes(value: string): number | null {
-  if (!value) return null;
-  const plain = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value.trim());
-  if (plain) return Number(plain[1]) * 60 + Number(plain[2]);
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.getHours() * 60 + date.getMinutes();
+  return hhmmToMinutes(value);
 }
 
 function formatMinutes(total: number): string {

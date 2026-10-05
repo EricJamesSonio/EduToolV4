@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
+    "test:tz": "cross-env TZ=UTC jest && cross-env TZ=Asia/Manila jest && cross-env TZ=America/Los_Angeles jest",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
     "test:e2e:headed": "cross-env HEADED=1 playwright test"

@@ -2,6 +2,7 @@ import client from "@/api/client";
 import type { Class, ClassSchedule } from "@/types/admin/class.types";
 import type { Student } from "@/types/admin/student.types";
 import type { PaginatedResponse } from "@/types/api.types";
+import { toHHmm } from "@/utils/scheduleTime.utils";
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_SELECT_LIMIT = 5000;
@@ -116,23 +117,23 @@ interface ApiResponse<T> {
   data:    T;
 }
 
-// Extract "HH:mm" from ISO datetime "2026-04-02T08:00:00.000Z".
-// The backend stores schedule times as local wall-clock (parseTimeToDate uses
-// setHours), so the round-trip must read them back in LOCAL time — reading UTC
-// shifts every slot by the UTC offset (e.g. "06:30" local -> "22:30" on UTC+8)
-// and breaks the schedule grid's occupancy vs. the conflict check.
-//
-// Exported so the room API maps its usage rows through the exact same
-// conversion — a second implementation would be a second set of bugs.
+/**
+ * Extract "HH:mm" from an ISO datetime like "2026-04-02T08:00:00.000Z".
+ *
+ * Schedule times are stored as UTC wall-clock: the backend writes "08:00" as
+ * `...T08:00:00.000Z` and the date component is meaningless. Reading this with
+ * LOCAL getters showed an 08:00 class as 16:00 in a UTC+8 browser, which put the
+ * grid out of step with the server's conflict check.
+ *
+ * This delegates to the shared schedule-time helper so class times, room usage
+ * times and student schedule times cannot disagree — a second implementation
+ * here would be a second set of bugs.
+ */
 export function toTimeString(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const h = String(d.getHours()).padStart(2, "0");
-    const m = String(d.getMinutes()).padStart(2, "0");
-    return `${h}:${m}`;
-  } catch {
-    return iso;
-  }
+  const hhmm = toHHmm(iso);
+  // Keep the original value rather than "" so a malformed row degrades to what
+  // it looked like before, instead of rendering as an empty cell.
+  return hhmm || iso;
 }
 
 function mapSchedule(s: RawSchedule): ClassSchedule {
