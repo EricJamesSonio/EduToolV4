@@ -148,6 +148,32 @@ export class SetEducatorSubjectSlotsDto {
   assignments!: SubjectSlotAssignmentDto[];
 }
 
+// ── PUT /educators/:id/subject-bundle ───────────────────────────────────────
+
+export class SetEducatorSubjectBundleDto {
+  @IsUUID()
+  schoolYearId!: string;
+
+  /**
+   * Full replacement set, same semantics as SetEducatorSubjectsDto.
+   * Assignments below must reference only ids listed here.
+   */
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  @ArrayMaxSize(500)
+  subjectIds!: string[];
+
+  /**
+   * Slot picks for a subset of subjectIds. May be empty (links only);
+   * entries reuse SubjectSlotAssignmentDto rules (sections min 1).
+   */
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SubjectSlotAssignmentDto)
+  @ArrayMaxSize(200)
+  assignments!: SubjectSlotAssignmentDto[];
+}
+
 export class EducatorCapacityQueryDto {
   @IsUUID()
   schoolYearId!: string;

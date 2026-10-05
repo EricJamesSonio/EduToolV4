@@ -24,6 +24,7 @@ import {
   BulkCreateEducatorDto,
   SetEducatorSubjectsDto,
   SetEducatorSubjectSlotsDto,
+  SetEducatorSubjectBundleDto,
   EducatorCapacityQueryDto,
   CarryOverEducatorSubjectsDto,
   SetEducatorScheduleProfileDto,
@@ -139,6 +140,30 @@ export class EducatorController {
       orgId,
       id,
       dto.schoolYearId,
+      dto.assignments,
+      actorId,
+    );
+  }
+
+  /**
+   * PUT /educators/:id/subject-bundle
+   * One atomic save for the teachable modal: replaces the link set AND the
+   * slot picks in a single transaction. Any validation failure leaves the
+   * link table untouched.
+   */
+  @Put(':id/subject-bundle')
+  @Roles('admin')
+  async setSubjectBundle(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: SetEducatorSubjectBundleDto,
+  ) {
+    return this.educatorSubjectService.setBundle(
+      orgId,
+      id,
+      dto.schoolYearId,
+      dto.subjectIds,
       dto.assignments,
       actorId,
     );
