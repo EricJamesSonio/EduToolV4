@@ -19,6 +19,9 @@ export interface Term {
 export interface Semester {
   id: string
   schoolYearId: string
+  // The program this semester belongs to — required backend-side since the
+  // semester program-scope migration; semesters are per-department.
+  programId: string
   name: string
   startDate: string
   endDate: string

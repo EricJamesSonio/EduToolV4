@@ -54,18 +54,20 @@ export function TemplateDropdown({ value, onChange }: TemplateSelectorProps) {
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 justify-between gap-2 min-w-[9.5rem]">
-          <span className="flex items-center gap-1.5 truncate">
-            <span
-              className="h-4 w-4 rounded-sm bg-cover bg-center shrink-0 border"
-              style={{ backgroundImage: `url(${current.image})` }}
-            />
-            <span className="truncate">{current.label}</span>
-          </span>
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        </Button>
-      </PopoverTrigger>
+      <PopoverTrigger
+        render={
+          <Button variant="outline" size="sm" className="h-9 justify-between gap-2 min-w-[9.5rem]">
+            <span className="flex items-center gap-1.5 truncate">
+              <span
+                className="h-4 w-4 rounded-sm bg-cover bg-center shrink-0 border"
+                style={{ backgroundImage: `url(${current.image})` }}
+              />
+              <span className="truncate">{current.label}</span>
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          </Button>
+        }
+      />
       <PopoverContent align="start" className="w-72 p-2">
         <TemplateSelector value={value} onChange={onChange} />
       </PopoverContent>

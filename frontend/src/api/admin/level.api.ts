@@ -99,6 +99,23 @@ getByStrand: async (
     return res.data.data;
   },
 
+  /**
+   * Adds the next level in sequence (label derived server-side from the
+   * program type). Replaces the old name-typed "add level" flows.
+   */
+  addNext: async (data: {
+    programId: string;
+    schoolYearId: string;
+    courseId?: string;
+    strandId?: string;
+  }): Promise<Level> => {
+    const res = await client.post<{ success: boolean; data: Level }>(
+      "/levels/add-next",
+      data
+    );
+    return res.data.data;
+  },
+
   deleteOne: async (id: string): Promise<"deleted" | "archived"> => {
     const res = await client.delete<{
       success: boolean;

@@ -755,6 +755,7 @@ export default function EnrollWorkspacePage() {
               onSectionAssign={handleAssignSection}
               updateProgEnrollPending={updateProgEnrollMutation.isPending}
               search={search}
+              onSearchChange={setSearch}
               filtered={filtered}
               selected={selected}
               onToggleAll={toggleAll}

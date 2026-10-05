@@ -46,14 +46,14 @@ export default function SchoolYearLevelsPage({
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.levels.list({ schoolYearId: id }) });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      levelApi.updateOne(id, name),
+    mutationFn: ({ id, count }: { id: string; count: number }) =>
+      levelApi.updateOne(id, count),
     onMutate: ({ id }) => setUpdatingId(id),
     onSuccess: () => {
-      toast.success("Level renamed.");
+      toast.success("Level renumbered.");
       invalidate();
     },
-    onError: () => toast.error("Failed to rename level."),
+    onError: () => toast.error("Failed to renumber level."),
     onSettled: () => setUpdatingId(null),
   });
 
@@ -67,11 +67,11 @@ export default function SchoolYearLevelsPage({
     onError: () => toast.error("Failed to generate levels."),
   });
 
-  // Derives a sensible default name for the new level based on existing ones.
-  // e.g. if the program already has "Grade 1", "Grade 2" → new level = "Grade 3"
-  const createMutation = useMutation({
-    mutationFn: ({ programId, name }: { programId: string; name: string }) =>
-      levelApi.create({ programId, name, schoolYearId: id }),
+  // Labels are derived server-side from the program type — adding appends
+  // the next level in sequence via POST /levels/add-next.
+  const addNextMutation = useMutation({
+    mutationFn: ({ programId }: { programId: string }) =>
+      levelApi.addNext({ programId, schoolYearId: id }),
     onSuccess: () => {
       toast.success("Level added.");
       invalidate();
@@ -104,11 +104,6 @@ export default function SchoolYearLevelsPage({
     },
     {}
   );
-
-  /** Derive the next level name from the existing ones for a program. */
-  function nextLevelName(programLevels: Level[]): string {
-    return `Level ${programLevels.length + 1}`;
-  }
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -191,23 +186,19 @@ export default function SchoolYearLevelsPage({
               program={program}
               levels={levelsByProgram[program.id] ?? []}
               isEnded={isEnded ?? false}
-              onUpdate={(levelId, name) =>
-                updateMutation.mutate({ id: levelId, name })
+              onUpdate={(levelId, count) =>
+                updateMutation.mutate({ id: levelId, count })
               }
               onDelete={(level) => setDeleteTarget(level)}
               onGenerate={(programId, count) =>
                 generateMutation.mutate({ programId, count })
               }
               onAdd={(programId) => {
-                const existing = levelsByProgram[programId] ?? [];
-                createMutation.mutate({
-                  programId,
-                  name: nextLevelName(existing),
-                });
+                addNextMutation.mutate({ programId });
               }}
               isUpdating={updateMutation.isPending}
               isGenerating={generateMutation.isPending}
-              isAdding={createMutation.isPending}
+              isAdding={addNextMutation.isPending}
               updatingId={updatingId}
             />
           ))}

@@ -56,10 +56,10 @@ export function isSystemGradable(type: string): boolean {
  * System/hybrid assessments are auto-graded, so manual-only types are removed;
  * the manual path can use every type in the scheme.
  */
-export function typesForGradingMode(
-  types: readonly string[],
+export function typesForGradingMode<T extends string>(
+  types: readonly T[],
   gradingMode: GradingMode,
-): string[] {
+): T[] {
   if (gradingMode === "manual") return [...types];
   return types.filter(isSystemGradable);
 }
