@@ -1,6 +1,6 @@
 # TICK-INFRA-016 — Unblock Vercel publish: fix 20 frontend type errors
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-10-05
 Created by: agent
@@ -39,18 +39,25 @@ related suites green, full `npm run build` green locally, then push.
 
 ## Acceptance Criteria
 
-- [ ] `Semester` carries required `programId` (backend already requires it)
-- [ ] Level add/rename call sites use count-based API (`addNext` added to level.api.ts)
-- [ ] Base-UI leftovers migrated (`render=` trigger, nullable Select handlers)
-- [ ] Assessment builder `type` stays `AssessmentType`
-- [ ] CreateSchoolYearDialog sends previewed `name`
-- [ ] Enroll page passes `onSearchChange`
-- [ ] `tone="blue"` removed (2 sites); `Organization.autoSeedNewSchoolYears` added; `PROGRAM_KEYS` typed; preset button passes educator id
-- [ ] `tsc --noEmit` 0 errors, eslint clean, related suites green, `npm run build` green
+- [x] `Semester` carries required `programId` (backend already requires it)
+- [x] Level add/rename call sites use count-based API (`addNext` added to level.api.ts)
+- [x] Base-UI leftovers migrated (`render=` trigger, nullable Select handlers)
+- [x] Assessment builder `type` stays `AssessmentType`
+- [x] CreateSchoolYearDialog sends previewed `name`
+- [x] Enroll page passes `onSearchChange`
+- [x] `tone="blue"` removed (2 sites); `Organization.autoSeedNewSchoolYears` added; `PROGRAM_KEYS` typed; preset button passes educator id
+- [x] `tsc --noEmit` 0 errors, eslint clean, related suites green, `npm run build` green
 
 ## Confidence
 
-- Score: not yet claimed — only after suites + local build pass.
+- Score: 92/100 (Requirement clarity 24, Codebase verification 22, Architecture fit 19, Edge cases 13, Blast radius 14).
+- Gaps: no browser click-through of the touched dialogs (rename-stepper, school-year create, enroll panel, font/template popovers) — behavior preserved by construction (same handlers, narrowed types), but a visual pass is still worthwhile. Backend `addNextLevel`/`autoSeedNewSchoolYears` verified present in this base.
+- Verified: FE `tsc --noEmit` 0 errors (was 20); eslint clean on all 18 touched files (1 dead disable-directive removed); assessment-builder + SubjectDialog suites 43/43; full `npm run build` exit 0 (Turbopack compile + type-check + prerender + route table).
+
+## Tests
+
+- Regression: assessment-builder gradability spec (covers the `typesForGradingMode` generic), SubjectDialog suite — 43/43 green
+- Gates: FE tsc 0, eslint clean, `npm run build` exit 0
 
 ## Tests
 
@@ -64,6 +71,13 @@ None.
 ## Activity Log
 
 2026-10-05 — Claimed (counter INFRA 15 -> 16). All 20 errors mapped read-only before coding.
+
+2026-10-05 — Implemented all 8 batches in one commit, verified (tsc 0, eslint clean, 43/43 suites, build exit 0), pushed branch. Ticket to ready-for-review.
+
+## Commits
+
+- ac881deb — fix(frontend): resolve 20 type errors blocking Vercel build (18 files)
+- Branch: agent/TICK-INFRA-016-vercel-build-types (from origin/development cd5cda19, pushed)
 
 ## Commits
 
