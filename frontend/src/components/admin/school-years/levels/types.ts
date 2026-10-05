@@ -5,7 +5,7 @@ export interface LevelListSharedProps {
   isEnded:         boolean;
   programType:     string;
   onViewSubjects?: (levelId: string) => void;
-  onRename:        (id: string, name: string) => void;
+  onRename:        (id: string, count: number) => void;
   onDelete:        (level: Level) => void;
   onAdd:           () => void;
   onGenerate:      (count: number) => void;

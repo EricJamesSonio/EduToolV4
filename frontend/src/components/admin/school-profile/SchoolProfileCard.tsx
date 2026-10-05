@@ -104,7 +104,7 @@ export function SchoolProfileCard() {
         </div>
       )}
 
-      <Card id="departments" icon={Layers} title="Departments" tone="blue">
+      <Card id="departments" icon={Layers} title="Departments">
         <DepartmentStep
           selectedTypes={readOnly ? savedTypes : draft.selectedTypes}
           onToggle={handleToggleDepartment}
@@ -159,7 +159,7 @@ export function SchoolProfileCard() {
         their dedicated pages — not part of the school profile.
       */}
       {!readOnly && draft.selectedTypes.size > 0 && (
-        <Card id="save" icon={Database} title="Save Configuration" tone="green">
+        <Card id="save" icon={Database} title="Save Configuration">
           <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
             <p className="text-xs text-muted-foreground not-interactive">
               Saving replaces the Data Seeder&apos;s predefined data for your

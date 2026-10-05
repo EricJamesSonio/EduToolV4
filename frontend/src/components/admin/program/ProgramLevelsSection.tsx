@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Layers } from "lucide-react";
 import { levelApi } from "@/api/admin/level.api";
 import { SectionsPanel } from "@/components/admin/school-years/SectionsPanel";
-import { InlineEdit } from "@/components/admin/levels/InlineEdit";
+import { LevelNumberStepper } from "@/components/admin/levels/LevelNumberStepper";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { getCountConfig } from "@/components/admin/levels/get-count-config";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,12 @@ import {
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
 import { cn } from "@/lib/utils";
+import { extractLevelNumber } from "@/lib/level-label";
 import type { Level } from "@/types/admin/level.types";
+import {
+  PROGRAM_TYPE_VALUES,
+  type ProgramType,
+} from "@/types/admin/program.types";
 
 interface ProgramLevelsSectionProps {
   programId: string;
@@ -43,6 +48,13 @@ export function ProgramLevelsSection({
   const [showGenerate, setShowGenerate] = useState(false);
 
   const cfg = getCountConfig(programType);
+  // The backend derives labels server-side, so renumbering needs a valid
+  // program type — fall back to "custom" for anything unexpected.
+  const stepperType: ProgramType = (
+    PROGRAM_TYPE_VALUES as readonly string[]
+  ).includes(programType)
+    ? (programType as ProgramType)
+    : "custom";
   const [genCount, setGenCount] = useState(cfg.default);
 
   // Unique key based on scope
@@ -76,7 +88,8 @@ const createMutation = useMutation({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => levelApi.updateOne(id, name),
+    mutationFn: ({ id, count }: { id: string; count: number }) =>
+      levelApi.updateOne(id, count),
     onMutate: ({ id }) => setUpdatingId(id),
     onSettled: () => setUpdatingId(null),
     onSuccess: () => { setEditingId(null); invalidate(); },
@@ -185,9 +198,12 @@ const createMutation = useMutation({
           {levels.map((level) => (
             <div key={level.id} className={listItemCardClass}>
               {editingId === level.id ? (
-                <InlineEdit
-                  value={level.name}
-                  onSave={(name) => updateMutation.mutate({ id: level.id, name })}
+                <LevelNumberStepper
+                  programType={stepperType}
+                  initialValue={extractLevelNumber(stepperType, level.name)}
+                  onSave={(n) =>
+                    updateMutation.mutate({ id: level.id, count: n })
+                  }
                   onCancel={() => setEditingId(null)}
                   isLoading={updatingId === level.id && updateMutation.isPending}
                 />
@@ -200,11 +216,11 @@ const createMutation = useMutation({
                     <h3 className={cn(listItemTitleClass, "truncate not-interactive")}>{level.name}</h3>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => setEditingId(level.id)}
-                      className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      title="Rename level"
-                    >
+                      <button
+                        onClick={() => setEditingId(level.id)}
+                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        title="Renumber level"
+                      >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button

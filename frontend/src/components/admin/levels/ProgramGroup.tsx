@@ -13,13 +13,15 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { InlineEdit } from "./InlineEdit";
+import { LevelNumberStepper } from "./LevelNumberStepper";
 import { getCountConfig } from "./get-count-config";
+import { extractLevelNumber } from "@/lib/level-label";
 import type { Level } from "@/types/admin/level.types";
 import type {
   Program,
   CourseSnapshot,
   StrandSnapshot,
+  ProgramType,
 } from "@/types/admin/program.types";
 
 interface GenerateLevelsRowProps {
@@ -86,18 +88,20 @@ function GenerateLevelsRow({
 
 interface LevelRowProps {
   level: Level;
+  programType: ProgramType;
   isEnded: boolean;
   isEditing: boolean;
   isUpdating: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
-  onSave: (name: string) => void;
+  onSave: (count: number) => void;
   onDelete: () => void;
   indented?: boolean;
 }
 
 function LevelRow({
   level,
+  programType,
   isEnded,
   isEditing,
   isUpdating,
@@ -117,8 +121,9 @@ function LevelRow({
         <div className="w-px h-4 bg-border" />
       </div>
       {isEditing ? (
-        <InlineEdit
-          value={level.name}
+        <LevelNumberStepper
+          programType={programType}
+          initialValue={extractLevelNumber(programType, level.name)}
           onSave={onSave}
           onCancel={onCancelEdit}
           isLoading={isUpdating}
@@ -153,19 +158,21 @@ function LevelRow({
 interface CourseGroupProps {
   label: string;
   levels: Level[];
+  programType: ProgramType;
   isEnded: boolean;
   editingId: string | null;
   isUpdating: boolean;
   updatingId: string | null;
   onEdit: (id: string) => void;
   onCancelEdit: () => void;
-  onSave: (id: string, name: string) => void;
+  onSave: (id: string, count: number) => void;
   onDelete: (level: Level) => void;
 }
 
 function CourseGroup({
   label,
   levels,
+  programType,
   isEnded,
   editingId,
   isUpdating,
@@ -208,12 +215,13 @@ function CourseGroup({
               <LevelRow
                 key={level.id}
                 level={level}
+                programType={programType}
                 isEnded={isEnded}
                 isEditing={editingId === level.id}
                 isUpdating={isUpdating && updatingId === level.id}
                 onEdit={() => onEdit(level.id)}
                 onCancelEdit={onCancelEdit}
-                onSave={(name) => onSave(level.id, name)}
+                onSave={(count) => onSave(level.id, count)}
                 onDelete={() => onDelete(level)}
                 indented
               />
@@ -229,7 +237,7 @@ interface ProgramGroupProps {
   program: Program;
   levels: Level[];
   isEnded: boolean;
-  onUpdate: (id: string, name: string) => void;
+  onUpdate: (id: string, count: number) => void;
   onDelete: (level: Level) => void;
   onGenerate: (programId: string, count: number) => void;
   onAdd: (programId: string) => void;
@@ -312,14 +320,15 @@ export function ProgramGroup({
                     key={group.id}
                     label={group.label}
                     levels={levels}
+                    programType={program.type}
                     isEnded={isEnded}
                     editingId={editingId}
                     isUpdating={isUpdating}
                     updatingId={updatingId}
                     onEdit={(id) => setEditingId(id)}
                     onCancelEdit={() => setEditingId(null)}
-                    onSave={(id, name) => {
-                      onUpdate(id, name);
+                    onSave={(id, count) => {
+                      onUpdate(id, count);
                       setEditingId(null);
                     }}
                     onDelete={onDelete}
@@ -352,13 +361,14 @@ export function ProgramGroup({
                 <LevelRow
                   key={level.id}
                   level={level}
+                  programType={program.type}
                   isEnded={isEnded}
                   isEditing={editingId === level.id}
                   isUpdating={isUpdating && updatingId === level.id}
                   onEdit={() => setEditingId(level.id)}
                   onCancelEdit={() => setEditingId(null)}
-                  onSave={(name) => {
-                    onUpdate(level.id, name);
+                  onSave={(count) => {
+                    onUpdate(level.id, count);
                     setEditingId(null);
                   }}
                   onDelete={() => onDelete(level)}

@@ -4,6 +4,8 @@ import { Plus, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Level } from "@/types/admin/level.types";
 import type { LevelListSharedProps } from "./types";
+import type { ProgramType } from "@/types/admin/program.types";
+import { PROGRAM_TYPE_VALUES } from "@/types/admin/program.types";
 import { LevelRow }          from "./LevelRow";
 import { GenerateLevelsRow } from "./GenerateLevelsRow";
 
@@ -32,6 +34,12 @@ export function LevelList({
 }: LevelListProps): React.JSX.Element {
   const [showGenerate, setShowGenerate] = useState(false);
   const indented = !!(courseId || strandId);
+  // LevelRow's stepper needs a valid program type — fall back to "custom".
+  const stepperType: ProgramType = (
+    PROGRAM_TYPE_VALUES as readonly string[]
+  ).includes(programType)
+    ? (programType as ProgramType)
+    : "custom";
 
   return (
     <div className="divide-y">
@@ -45,6 +53,7 @@ export function LevelList({
         <LevelRow
           key={level.id}
           level={level}
+          programType={stepperType}
           schoolYearId={schoolYearId}
           isEnded={isEnded}
           courseId={courseId}

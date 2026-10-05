@@ -22,8 +22,9 @@ import { SemesterTemplateStep } from "./SemesterTemplateStep";
 import { LEVEL_DEFS } from "./constants/seed-data";
 import { useSeederCard } from "./hooks/useSeederCard";
 import { SeedProgressDialog } from "./SeedProgressDialog";
+import type { ProgramType } from "@/types/admin/program.types";
 
-const PROGRAM_KEYS = ["daycare", "kinder", "elementary", "jhs", "shs", "college"];
+const PROGRAM_KEYS: ProgramType[] = ["daycare", "kinder", "elementary", "jhs", "shs", "college"];
 
 function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
   return (
