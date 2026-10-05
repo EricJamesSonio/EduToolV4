@@ -315,9 +315,9 @@ describe('acquireBundleLocks', () => {
   it('takes the educator lock first, then one ordered lock per pair', async () => {
     const calls: Array<{ sql: string; key: string }> = [];
     const tx: any = {
-      $queryRawUnsafe: jest.fn(async (sql: string, key: string) => {
+      $executeRawUnsafe: jest.fn(async (sql: string, key: string) => {
         calls.push({ sql, key });
-        return [{ ok: 1 }];
+        return 1;
       }),
     };
     const repo = new EducatorSubjectRepository({} as any);
@@ -335,3 +335,4 @@ describe('acquireBundleLocks', () => {
     }
   });
 });
+
