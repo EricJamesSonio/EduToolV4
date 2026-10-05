@@ -273,7 +273,7 @@ export class EducatorSubjectRepository {
         .sort(),
     ];
     for (const key of keys) {
-      await tx.$queryRawUnsafe(
+      await tx.$executeRawUnsafe(
         'SELECT pg_advisory_xact_lock(hashtext($1))',
         key,
       );
