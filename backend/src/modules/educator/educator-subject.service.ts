@@ -8,6 +8,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 import {
   EducatorSubjectRepository,
   parseSectionSlots,
+  type PrismaTx,
   type TeachableSubjectRow,
 } from './educator-subject.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -123,15 +124,9 @@ export class EducatorSubjectService {
 
   /**
    * PUT /educators/:id/subject-slots — replaces the weekly slot picks for the
-   * given subjects. Slots are 1-based count positions (slot 1..S of the
-   * subject's sessions-per-week), never days or times.
-   *
-   * Rules, in order: the educator exists; every subject is in this org AND
-   * already linked (tick the subject first); every subject is in the given
-   * school year; every section is in this org AND sits on the subject's
-   * level; every slot position exists (1..S); no listed pair is held by
-   * another educator (409, one educator per pair); the proposed picks plus
-   * existing classes fit the educator's weekly capacity (400 with numbers).
+   * given subjects. Validation lives in validateSlotAssignments (shared with
+   * the bundle endpoint); the over-capacity throw stays here so this
+   * endpoint's behavior is unchanged.
    */
   async setSlots(
     orgId: string,
@@ -142,6 +137,204 @@ export class EducatorSubjectService {
       sections: Array<{ sectionId: string; slots: number[] }>;
     }>,
     actorId: string,
+  ) {
+    const v = await this.validateSlotAssignments(
+      orgId,
+      educatorId,
+      schoolYearId,
+      assignments,
+      { requireLinked: true },
+    );
+
+    // Capacity: proposed picks (plus this educator's other links in the year)
+    // plus existing classes must fit the weekly capacity. Numbers, not vibes.
+    const usedMin = v.proposedMin + v.otherMin + v.parts.existingMin;
+    if (usedMin > v.parts.capacityMin) {
+      throw new BadRequestException(
+        `Over capacity: ${formatHours(usedMin)} of ${formatHours(v.parts.capacityMin)} weekly capacity ` +
+          `(${formatHours(v.parts.existingMin)} existing classes + ${formatHours(v.proposedMin + v.otherMin)} picks).`,
+      );
+    }
+
+    await this.repo.setSlots(orgId, educatorId, v.clean);
+
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'educator_subject_slots_set',
+        entityType: 'educator',
+        entityId: educatorId,
+        metadata: { count: v.clean.length, pickedMin: v.proposedMin },
+      })
+      .catch(() => {});
+
+    return { updated: v.clean.length };
+  }
+
+  /**
+   * PUT /educators/:id/subject-bundle — one atomic save for the teachable
+   * modal: replaces the link set AND the slot picks in a single transaction.
+   *
+   * Runs the union of the link-path and slot-path validations (the shared
+   * validator below, plus the link membership rule), then locks, re-verifies
+   * the concurrency-sensitive reads inside the transaction, and writes. Any
+   * failure leaves the link table untouched.
+   */
+  async setBundle(
+    orgId: string,
+    educatorId: string,
+    schoolYearId: string,
+    subjectIds: string[],
+    assignments: Array<{
+      subjectId: string;
+      sections: Array<{ sectionId: string; slots: number[] }>;
+    }>,
+    actorId: string,
+  ) {
+    const uniqueSubjects = [...new Set(subjectIds)];
+
+    // Every assignment must name a listed subject — the bundle equivalent of
+    // the slots endpoint's "tick the subject first" rule. Same message.
+    const listed = new Set(uniqueSubjects);
+    const unlisted = [...new Set(assignments.map((a) => a.subjectId))].filter(
+      (id) => !listed.has(id),
+    );
+    if (unlisted.length > 0) {
+      throw new BadRequestException(
+        'Add the subject to teachable subjects before assigning slots to it.',
+      );
+    }
+
+    // Link-path org check over the whole set (assignments are covered again
+    // inside the shared validator; checking the union first matches the
+    // two-call error precedence: bad link ids report before slot problems).
+    await this.repo.assertEducator(orgId, educatorId);
+    await this.repo.assertSubjectsInOrg(orgId, uniqueSubjects);
+
+    const v = await this.validateSlotAssignments(
+      orgId,
+      educatorId,
+      schoolYearId,
+      assignments,
+      { requireLinked: false },
+    );
+
+    const pairs = v.clean.flatMap((a) =>
+      a.sections
+        .filter((s) => s.slots.length > 0)
+        .map((s) => ({ subjectId: a.subjectId, sectionId: s.sectionId })),
+    );
+
+    const written = await this.db.$transaction(async (tx) => {
+      await this.repo.acquireBundleLocks(tx, educatorId, pairs);
+
+      // Concurrency re-verification on fresh in-transaction reads: a pair
+      // claimed (or an educator link changed) after the pre-check aborts
+      // here instead of double-booking. Occupancy (live classes) is read
+      // pre-transaction — class creation races with slot assignment the same
+      // way it does for the slots endpoint today.
+      for (const a of v.clean) {
+        for (const sec of a.sections) {
+          if (sec.slots.length === 0) continue;
+          const holder = await this.repo.findSectionHolder(
+            orgId,
+            a.subjectId,
+            sec.sectionId,
+            educatorId,
+            tx,
+          );
+          if (holder) {
+            throw new ConflictException(
+              `Section "${v.sections.get(sec.sectionId)?.name ?? sec.sectionId}" of "${v.levels.get(a.subjectId)?.name ?? a.subjectId}" is already assigned to ${holder.educatorName ?? 'another educator'}.`,
+            );
+          }
+        }
+      }
+
+      const freshOther = await this.linksExcept(
+        orgId,
+        educatorId,
+        uniqueSubjects,
+        v.yearSubjects,
+        tx,
+      );
+      // Fresh links may name subjects the pre-check never priced (they
+      // appeared after it). Price them too, or the recompute silently
+      // undercounts — the exact hole this check exists to close.
+      let required = v.required;
+      const unpriced = [...new Set(freshOther.map((l) => l.subjectId))].filter(
+        (id) => !required.has(id),
+      );
+      if (unpriced.length > 0) {
+        const freshLevels = await this.repo.subjectLevels(orgId, unpriced);
+        required = new Map([
+          ...required,
+          ...this.resolveRequirements(freshLevels, v.parts.slot),
+        ]);
+      }
+      const freshOtherMin = this.pickedMinutes(freshOther, required);
+      const usedMin = v.proposedMin + freshOtherMin + v.parts.existingMin;
+      if (usedMin > v.parts.capacityMin) {
+        throw new BadRequestException(
+          `Over capacity: ${formatHours(usedMin)} of ${formatHours(v.parts.capacityMin)} weekly capacity ` +
+            `(${formatHours(v.parts.existingMin)} existing classes + ${formatHours(v.proposedMin + freshOtherMin)} picks).`,
+        );
+      }
+
+      await this.repo.replaceAllWithSlots(
+        orgId,
+        educatorId,
+        uniqueSubjects.map((subjectId) => ({
+          subjectId,
+          sections:
+            v.clean.find((a) => a.subjectId === subjectId)?.sections ?? [],
+        })),
+        tx,
+      );
+      return { updated: v.clean.length, pickedMin: v.proposedMin };
+    });
+
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'educator_subject_bundle_set',
+        entityType: 'educator',
+        entityId: educatorId,
+        metadata: {
+          count: uniqueSubjects.length,
+          updated: written.updated,
+          pickedMin: written.pickedMin,
+        },
+      })
+      .catch(() => {});
+
+    return { count: uniqueSubjects.length, ...written };
+  }
+
+  /**
+   * Shared slot-assignment validation for setSlots and setBundle — the union
+   * lives here once, so the two endpoints cannot drift. Returns everything
+   * the caller needs to finish (capacity inputs, cleaned assignments); the
+   * over-capacity throw stays with the caller, because the bundle re-checks
+   * capacity inside its transaction on fresh reads.
+   *
+   * Rules, in order: the educator exists; every subject is in this org (and,
+   * with requireLinked, already linked — tick the subject first); every
+   * subject is in the given school year; every section is in this org AND
+   * sits on the subject's level; every slot position exists (1..S); no listed
+   * pair is held by another educator (409, one educator per pair).
+   */
+  private async validateSlotAssignments(
+    orgId: string,
+    educatorId: string,
+    schoolYearId: string,
+    assignments: Array<{
+      subjectId: string;
+      sections: Array<{ sectionId: string; slots: number[] }>;
+    }>,
+    opts: { requireLinked: boolean },
   ) {
     await this.repo.assertEducator(orgId, educatorId);
 
@@ -159,12 +352,14 @@ export class EducatorSubjectService {
       );
     }
 
-    const linked = new Set(await this.repo.findSubjectIds(orgId, educatorId));
-    const unlinked = subjectIds.filter((id) => !linked.has(id));
-    if (unlinked.length > 0) {
-      throw new BadRequestException(
-        'Add the subject to teachable subjects before assigning slots to it.',
-      );
+    if (opts.requireLinked) {
+      const linked = new Set(await this.repo.findSubjectIds(orgId, educatorId));
+      const unlinked = subjectIds.filter((id) => !linked.has(id));
+      if (unlinked.length > 0) {
+        throw new BadRequestException(
+          'Add the subject to teachable subjects before assigning slots to it.',
+        );
+      }
     }
 
     const yearSubjects = await this.subjectsInYear(orgId, schoolYearId);
@@ -247,33 +442,25 @@ export class EducatorSubjectService {
       })),
     }));
 
-    // Capacity: proposed picks (plus this educator's other links in the year)
-    // plus existing classes must fit the weekly capacity. Numbers, not vibes.
+    // Capacity inputs — the over-capacity throw stays with the caller (see
+    // method docblock): setSlots throws here on pre-transaction data, the
+    // bundle re-checks inside its transaction on fresh reads.
     const parts = await this.loadCapacityParts(orgId, educatorId, schoolYearId);
     const proposedMin = this.pickedMinutes(clean, required);
     const otherMin = this.pickedMinutes(otherLinks, required);
-    const usedMin = proposedMin + otherMin + parts.existingMin;
-    if (usedMin > parts.capacityMin) {
-      throw new BadRequestException(
-        `Over capacity: ${formatHours(usedMin)} of ${formatHours(parts.capacityMin)} weekly capacity ` +
-          `(${formatHours(parts.existingMin)} existing classes + ${formatHours(proposedMin + otherMin)} picks).`,
-      );
-    }
 
-    await this.repo.setSlots(orgId, educatorId, clean);
-
-    this.auditLogService
-      .logAdminAction({
-        orgId,
-        actorId,
-        action: 'educator_subject_slots_set',
-        entityType: 'educator',
-        entityId: educatorId,
-        metadata: { count: clean.length, pickedMin: proposedMin },
-      })
-      .catch(() => {});
-
-    return { updated: clean.length };
+    return {
+      subjectIds,
+      clean,
+      required,
+      yearSubjects,
+      sections,
+      levels,
+      otherLinks,
+      parts,
+      proposedMin,
+      otherMin,
+    };
   }
 
   /**
@@ -387,11 +574,12 @@ export class EducatorSubjectService {
     educatorId: string,
     excludeSubjectIds: string[],
     yearSubjects: Map<string, { id: string }>,
+    tx?: PrismaTx,
   ): Promise<
     Array<{ subjectId: string; sections: Array<{ sectionId: string; slots: number[] }> }>
   > {
     const excluded = new Set(excludeSubjectIds);
-    const links = await this.repo.findByEducator(orgId, educatorId);
+    const links = await this.repo.findByEducator(orgId, educatorId, tx);
     return links
       .filter((r) => !excluded.has(r.subject.id) && yearSubjects.has(r.subject.id))
       .map((r) => ({

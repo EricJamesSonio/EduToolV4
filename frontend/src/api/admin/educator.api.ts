@@ -75,6 +75,18 @@ export interface SetSubjectSlotsResponse {
   updated: number;
 }
 
+export interface SetTeachableBundleRequest {
+  schoolYearId: string;
+  subjectIds: string[];
+  assignments: SubjectSlotAssignment[];
+}
+
+export interface SetTeachableBundleResponse {
+  count: number;
+  updated: number;
+  pickedMin: number;
+}
+
 export interface EducatorCapacity {
   capacityMin: number;
   existingMin: number;
@@ -243,6 +255,21 @@ export const educatorApi = {
     const res = await client.put<ApiResponse<SetSubjectSlotsResponse>>(
       `/educators/${educatorId}/subject-slots`,
       { schoolYearId, assignments },
+    );
+    return res.data.data;
+  },
+
+  /**
+   * One atomic save: replaces the link set AND the slot picks in a single
+   * transaction. Any validation failure leaves existing links untouched.
+   */
+  setTeachableBundle: async (
+    educatorId: string,
+    body: SetTeachableBundleRequest,
+  ): Promise<SetTeachableBundleResponse> => {
+    const res = await client.put<ApiResponse<SetTeachableBundleResponse>>(
+      `/educators/${educatorId}/subject-bundle`,
+      body,
     );
     return res.data.data;
   },

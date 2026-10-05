@@ -1,5 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import type { PrismaClient } from '@prisma/client';
+
+/**
+ * Interactive-transaction client. Repository methods that must run inside
+ * the bundle transaction take it as an optional last argument and default
+ * to the shared client, so every non-transactional caller is untouched.
+ */
+export type PrismaTx = Parameters<
+  Parameters<PrismaClient['$transaction']>[0]
+>[0];
 
 export interface TeachableSubjectRow {
   id: string;
@@ -79,8 +89,9 @@ export class EducatorSubjectRepository {
   constructor(private readonly db: DatabaseService) {}
 
   /** Subjects linked to one educator, with display context. */
-  findByEducator(orgId: string, educatorId: string) {
-    return this.db.educatorSubject.findMany({
+  findByEducator(orgId: string, educatorId: string, tx?: PrismaTx) {
+    const client = tx ?? this.db;
+    return client.educatorSubject.findMany({
       where: { org_id: orgId, educator_id: educatorId },
       select: {
         section_ids: true,
@@ -208,6 +219,68 @@ export class EducatorSubjectRepository {
   }
 
   /**
+   * Replaces the educator's whole link set AND their slot picks in one call,
+   * for the atomic bundle write. Subjects in `rows` get rows (with slots or
+   * empty); every other existing link is dropped — the same replacement
+   * semantics as `replaceSet`. Must run inside the bundle transaction.
+   */
+  async replaceAllWithSlots(
+    orgId: string,
+    educatorId: string,
+    rows: SubjectSlotAssignment[],
+    tx: PrismaTx,
+  ): Promise<void> {
+    await tx.educatorSubject.deleteMany({
+      where: { org_id: orgId, educator_id: educatorId },
+    });
+    if (rows.length === 0) return;
+    await tx.educatorSubject.createMany({
+      data: rows.map((a) => {
+        const clean = a.sections.map((s) => ({
+          sectionId: s.sectionId,
+          slots: [...new Set(s.slots)].sort((x, y) => x - y),
+        }));
+        return {
+          org_id: orgId,
+          educator_id: educatorId,
+          subject_id: a.subjectId,
+          section_ids: clean
+            .filter((s) => s.slots.length > 0)
+            .map((s) => s.sectionId),
+          section_slots: clean,
+        };
+      }),
+      skipDuplicates: true,
+    });
+  }
+
+  /**
+   * Serializes concurrent bundle saves. One educator-level lock (same
+   * educator saving twice cannot interleave delete/create) plus one lock per
+   * touched pair in stable order (two educators claiming the same pair
+   * cannot both pass the in-transaction holder re-check). Xact-scoped, so a
+   * rollback or commit always releases them — no leak path.
+   */
+  async acquireBundleLocks(
+    tx: PrismaTx,
+    educatorId: string,
+    pairs: Array<{ subjectId: string; sectionId: string }>,
+  ): Promise<void> {
+    const keys = [
+      `educ-bundle:${educatorId}`,
+      ...pairs
+        .map((p) => `educ-pair:${p.subjectId}:${p.sectionId}`)
+        .sort(),
+    ];
+    for (const key of keys) {
+      await tx.$queryRawUnsafe(
+        'SELECT pg_advisory_xact_lock(hashtext($1))',
+        key,
+      );
+    }
+  }
+
+  /**
    * The other active educator holding one (subject, section) pair, if any.
    * One educator per pair is a hard rule: a second claim is rejected, not
    * warned. Legacy rows (section_ids with no slots entry) count as holding
@@ -218,8 +291,9 @@ export class EducatorSubjectRepository {
     subjectId: string,
     sectionId: string,
     excludeEducatorId: string,
+    tx?: PrismaTx,
   ): Promise<{ educatorId: string; educatorName: string | null } | null> {
-    const rows = await this.db.educatorSubject.findMany({
+    const rows = await (tx ?? this.db).educatorSubject.findMany({
       where: {
         org_id: orgId,
         subject_id: subjectId,

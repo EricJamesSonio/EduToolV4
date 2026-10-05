@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 
-import {
-  useSetSubjectSlots,
-  useSetTeachableSubjects,
-  useEducatorCapacity,
-} from "@/hooks/admin/useEducators";
+import { useSetTeachableBundle, useEducatorCapacity } from "@/hooks/admin/useEducators";
+import { useTeachableSeed } from "@/hooks/admin/useTeachableSeed";
 import { useSubjects } from "@/hooks/admin/useSubject";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -18,7 +15,15 @@ import { sectionApi } from "@/api/admin/section.api";
 import type {
   TeachableSubject,
   SubjectSlotAssignment,
+  EducatorCapacity,
 } from "@/api/admin/educator.api";
+import {
+  buildSeedPicks,
+  capacityUsage,
+  pickedMinutes,
+  type CapacityUsage,
+  type Picks,
+} from "@/utils/educatorSlotPicks";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +39,6 @@ import {
 
 const ALL = "all";
 
-type Picks = Record<string, Record<string, number[]>>;
 type Claim = { educatorId: string; educatorName: string; slots: number[] };
 
 interface TeachableSubjectsModalProps {
@@ -63,15 +67,6 @@ function normalize(p: Picks): Picks {
   return out;
 }
 
-function countSlots(p: Picks, info: Map<string, { minutes: number }>): number {
-  let total = 0;
-  for (const [subjectId, secs] of Object.entries(p)) {
-    const minutes = info.get(subjectId)?.minutes ?? 0;
-    for (const slots of Object.values(secs)) total += slots.length * minutes;
-  }
-  return total;
-}
-
 export function TeachableSubjectsModal({
   open,
   onClose,
@@ -83,16 +78,10 @@ export function TeachableSubjectsModal({
   const [programId, setProgramId] = useState(ALL);
   const [levelId, setLevelId] = useState(ALL);
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<string[]>([]);
-  /** Live picks: subject -> section -> 1-based weekly positions. */
-  const [picksBySubject, setPicksBySubject] = useState<Picks>({});
-  /** Seed snapshot for dirty-checking. */
-  const [seedPicks, setSeedPicks] = useState<Picks>({});
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const saveSubjects = useSetTeachableSubjects();
-  const saveSlots = useSetSubjectSlots();
-  const saving = saveSubjects.isPending || saveSlots.isPending;
+  const saveBundle = useSetTeachableBundle();
+  const saving = saveBundle.isPending;
   const capacityQuery = useEducatorCapacity(
     educatorId,
     open ? schoolYearId : undefined,
@@ -123,7 +112,7 @@ export function TeachableSubjectsModal({
       : undefined,
   );
   // Unfiltered year subjects: weekly count + minutes per subject.
-  const { data: allYearSubjects = [] } = useSubjects(
+  const { data: allYearSubjects = [], isLoading: infoLoading } = useSubjects(
     open && schoolYearId ? { schoolYearId } : undefined,
   );
   const subjectInfoById = useMemo(() => {
@@ -141,40 +130,25 @@ export function TeachableSubjectsModal({
     return map;
   }, [allYearSubjects]);
 
-  // Seed from the current links every time the modal opens. Legacy rows
-  // (section ids with no slot picks) expand to the full weekly count.
+  const {
+    seedKey,
+    selected,
+    setSelected,
+    picksBySubject,
+    setPicksBySubject,
+    seedPicks,
+  } = useTeachableSeed({
+    open,
+    educatorId,
+    schoolYearId,
+    assigned,
+    subjectInfoById,
+    infoLoading,
+  });
+  // A reopened session starts with no section expanded.
   useEffect(() => {
-    if (!open) return;
-    setSelected(assigned.map((s) => s.id));
-    const picks: Picks = {};
-    for (const s of assigned) {
-      const perSection: Record<string, number[]> = {};
-      const explicit = new Map(
-        (s.sectionSlots ?? []).map((p) => [p.sectionId, [...p.slots]]),
-      );
-      const positions = subjectInfoById.get(s.id)?.positions ?? 0;
-      for (const sectionId of s.sectionIds) {
-        const slots = explicit.get(sectionId);
-        if (slots && slots.length > 0) {
-          perSection[sectionId] = [...slots].sort((a, b) => a - b);
-        } else if (positions > 0) {
-          perSection[sectionId] = Array.from(
-            { length: positions },
-            (_, i) => i + 1,
-          );
-        }
-      }
-      for (const p of s.sectionSlots ?? []) {
-        if (!(p.sectionId in perSection) && p.slots.length > 0) {
-          perSection[p.sectionId] = [...p.slots].sort((a, b) => a - b);
-        }
-      }
-      if (Object.keys(perSection).length > 0) picks[s.id] = perSection;
-    }
-    setPicksBySubject(picks);
-    setSeedPicks(JSON.parse(JSON.stringify(picks)) as Picks);
     setExpanded(null);
-  }, [open, assigned, subjectInfoById]);
+  }, [seedKey]);
 
   const expandedSubject = useMemo(
     () => subjects.find((s) => s.id === expanded) ?? null,
@@ -293,13 +267,28 @@ export function TeachableSubjectsModal({
 
   const toggleSlot = (subjectId: string, sectionId: string, slot: number) => {
     const current = picksBySubject[subjectId]?.[sectionId] ?? [];
+    const adding = !current.includes(slot);
+    if (adding && !canAffordSlot(subjectId, 1)) return;
     setSectionSlots(
       subjectId,
       sectionId,
-      current.includes(slot)
-        ? current.filter((x) => x !== slot)
-        : [...current, slot],
+      adding
+        ? [...current, slot]
+        : current.filter((x) => x !== slot),
     );
+  };
+
+  /** "All" for one section row, with the same capacity guard as one click. */
+  const setAllSectionSlots = (
+    subjectId: string,
+    sectionId: string,
+    slots: number[],
+    allOn: boolean,
+  ) => {
+    if (!allOn && slots.length > 0 && !canAffordSlot(subjectId, slots.length)) {
+      return;
+    }
+    setSectionSlots(subjectId, sectionId, allOn ? [] : slots);
   };
 
   const assignedIds = useMemo(
@@ -311,49 +300,85 @@ export function TeachableSubjectsModal({
     JSON.stringify(normalize(picksBySubject)) !==
       JSON.stringify(normalize(seedPicks));
 
-  // Live capacity: server remaining, adjusted by unsaved pick changes.
-  const remainingMin = capacityQuery.data
-    ? capacityQuery.data.remainingMin -
-      (countSlots(picksBySubject, subjectInfoById) -
-        countSlots(seedPicks, subjectInfoById))
-    : null;
+  // Live capacity, mirroring the server formula (see educatorSlotPicks):
+  // picked minutes from live picks + existing classes vs weekly capacity.
+  const requirements = useMemo(() => {
+    const map = new Map<string, { positions: number; minutes: number }>();
+    for (const [id, info] of subjectInfoById) {
+      map.set(id, { positions: info.positions, minutes: info.minutes });
+    }
+    return map;
+  }, [subjectInfoById]);
+  const livePickedMin = useMemo(
+    () => pickedMinutes(picksBySubject, requirements),
+    [picksBySubject, requirements],
+  );
+  const usage = useMemo(() => {
+    if (!capacityQuery.data) return null;
+    return capacityUsage({
+      capacityMin: capacityQuery.data.capacityMin,
+      existingMin: capacityQuery.data.existingMin,
+      pickedMin: livePickedMin,
+    });
+  }, [capacityQuery.data, livePickedMin]);
+
+  /**
+   * Whether one more action fits. Unknown capacity (still loading) allows
+   * the click — the server stays the authority and rejects over-capacity
+   * saves with numbers.
+   */
+  const canAffordSlot = (subjectId: string, newSlots: number): boolean => {
+    if (!capacityQuery.data || !usage) return true;
+    const minutes = requirements.get(subjectId)?.minutes ?? 0;
+    const projected = livePickedMin + newSlots * minutes;
+    if (projected + capacityQuery.data.existingMin <= capacityQuery.data.capacityMin) {
+      return true;
+    }
+    const remaining = capacityQuery.data.capacityMin - capacityQuery.data.existingMin - livePickedMin;
+    toast.warning(
+      `Over capacity: ${subjectTitle(subjectId)} needs ${minutes} min per slot but only ${Math.max(0, remaining)} min remain of this educator's week.`,
+    );
+    return false;
+  };
+
+  const subjectTitle = (id: string): string =>
+    subjectInfoById.get(id) !== undefined
+      ? (allYearSubjects.find((s) => s.id === id)?.title ?? id.slice(0, 8))
+      : id.slice(0, 8);
+
+  // Ticked subjects with zero section slots cannot generate classes — Save
+  // stays disabled with the reason until each has at least one slot.
+  const emptySectionSubjects = useMemo(
+    () =>
+      selected.filter((id) => {
+        const secs = picksBySubject[id] ?? {};
+        return Object.values(secs).every((slots) => slots.length === 0);
+      }),
+    [selected, picksBySubject],
+  );
+
+  const saveBlockReason: string | null = !dirty
+    ? null
+    : emptySectionSubjects.length > 0
+      ? `${subjectTitle(emptySectionSubjects[0])} has no sections — expand it and pick at least one slot.`
+      : usage?.overCapacity
+        ? `Over capacity: ${usage.usedMin} of ${usage.capacityMin} weekly minutes used. Remove slots before saving.`
+        : null;
 
   const save = () => {
-    saveSubjects.mutate(
-      { educatorId, subjectIds: selected },
-      {
-        onSuccess: () => {
-          if (!schoolYearId) {
-            onClose();
-            return;
-          }
-          // Include subjects whose picks were all cleared so the server
-          // drops their old slots instead of keeping them.
-          const assignments: SubjectSlotAssignment[] = selected
-            .filter(
-              (id) =>
-                Object.keys(picksBySubject[id] ?? {}).length > 0 ||
-                Object.keys(seedPicks[id] ?? {}).length > 0,
-            )
-            .map((subjectId) => ({
-              subjectId,
-              sections: Object.entries(picksBySubject[subjectId] ?? {}).map(
-                ([sectionId, slots]) => ({
-                  sectionId,
-                  slots: [...slots].sort((a, b) => a - b),
-                }),
-              ),
-            }));
-          if (assignments.length === 0) {
-            onClose();
-            return;
-          }
-          saveSlots.mutate(
-            { educatorId, schoolYearId, assignments },
-            { onSuccess: () => onClose() },
-          );
-        },
-      },
+    if (!schoolYearId || saveBlockReason) return;
+    const assignments: SubjectSlotAssignment[] = selected.map((subjectId) => ({
+      subjectId,
+      sections: Object.entries(picksBySubject[subjectId] ?? {})
+        .filter(([, slots]) => slots.length > 0)
+        .map(([sectionId, slots]) => ({
+          sectionId,
+          slots: [...slots].sort((a, b) => a - b),
+        })),
+    }));
+    saveBundle.mutate(
+      { educatorId, schoolYearId, subjectIds: selected, assignments },
+      { onSuccess: () => onClose() },
     );
   };
 
@@ -420,6 +445,8 @@ export function TeachableSubjectsModal({
           </Select>
         </div>
 
+        <CapacityBar usage={usage} capacity={capacityQuery.data ?? null} />
+
         <ScrollArea className="h-[38vh] rounded-md border bg-card">
           {subjects.length === 0 ? (
             <p className="p-4 text-xs text-muted-foreground">
@@ -454,17 +481,20 @@ export function TeachableSubjectsModal({
         <ModalFooter>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {remainingMin !== null
-                ? `Weekly capacity remaining: ${remainingMin} min${
-                    remainingMin < 0 ? " (over capacity)" : ""
-                  }`
-                : "Classes this educator is assigned to teach."}
+              {saveBlockReason ??
+                (usage
+                  ? `${usage.remainingMin} min left of ${usage.capacityMin} min this week.`
+                  : "Classes this educator is assigned to teach.")}
             </p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose} disabled={saving}>
                 Cancel
               </Button>
-              <Button onClick={save} disabled={!dirty || saving}>
+              <Button
+                onClick={save}
+                disabled={!dirty || saving || !!saveBlockReason}
+                title={saveBlockReason ?? undefined}
+              >
                 {saving ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : null}
@@ -476,6 +506,48 @@ export function TeachableSubjectsModal({
       </div>
     </Modal>
   );
+
+  /** Weekly load bar: used vs capacity with the availability context. */
+  function CapacityBar({
+    usage,
+    capacity,
+  }: {
+    usage: CapacityUsage | null;
+    capacity: EducatorCapacity | null;
+  }): React.JSX.Element | null {
+    if (!usage || !capacity) return null;
+    return (
+      <div
+        className="rounded-md border p-2"
+        role="status"
+        aria-live="polite"
+        aria-label={`Weekly load ${usage.usedMin} of ${usage.capacityMin} minutes`}
+      >
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <span className="font-medium">
+            Weekly load: {usage.usedMin} of {usage.capacityMin} min (
+            {usage.percentUsed}%)
+          </span>
+          <span className="text-muted-foreground">
+            {capacity.effectiveWeekdays.length} day
+            {capacity.effectiveWeekdays.length === 1 ? "" : "s"} ·{" "}
+            {capacity.windowStart}–{capacity.windowEnd}
+          </span>
+        </div>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full rounded-full transition-all ${usage.overCapacity ? "bg-destructive" : "bg-primary"}`}
+            style={{ width: `${Math.min(100, usage.percentUsed)}%` }}
+          />
+        </div>
+        {usage.overCapacity ? (
+          <p className="mt-1 text-[11px] text-destructive">
+            Over capacity — remove slots before saving.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   /** One subject row. A plain closure so state lives in the modal and rows
       never remount on each keystroke. */
@@ -567,7 +639,12 @@ export function TeachableSubjectsModal({
                 No sections in {s.levelName ?? "this level"} yet.
               </p>
             ) : (
-              levelSections.map((sec) => {
+              <>
+                <p className="text-[10px] text-muted-foreground">
+                  Each slot = {subjectInfoById.get(s.id)?.minutes ?? 0} min ·{" "}
+                  {positions} slot{positions === 1 ? "" : "s"}/week per section.
+                </p>
+                {levelSections.map((sec) => {
                 const mine = picks[sec.id] ?? [];
                 const other = otherClaim(s.id, sec.id);
                 const blocked = new Set(other?.slots ?? []);
@@ -627,7 +704,7 @@ export function TeachableSubjectsModal({
                       <button
                         type="button"
                         onClick={() =>
-                          setSectionSlots(s.id, sec.id, allOn ? [] : free)
+                          setAllSectionSlots(s.id, sec.id, free, allOn)
                         }
                         className="rounded-md px-2 py-1 text-[10px] text-muted-foreground underline hover:text-foreground"
                       >
@@ -636,7 +713,8 @@ export function TeachableSubjectsModal({
                     ) : null}
                   </div>
                 );
-              })
+              })}
+              </>
             )}
           </div>
         ) : null}
