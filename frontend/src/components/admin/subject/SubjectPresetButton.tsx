@@ -10,7 +10,6 @@ import type { Program } from "@/types/admin/program.types";
 import type { Level } from "@/types/admin/level.types";
 import type { SubjectPreset, SubjectPresetData } from "@/hooks/admin/useSubjectPreset";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal, ModalBody, ModalFooter } from "@/components/shared/Modal";
 import {
@@ -20,9 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-/** Sentinel for "use the department default" (Base UI items can't be ""). */
-const DEFAULT_OPTION = "default";
+import {
+  WeeklySessionsSection,
+  type WeeklySessionDraft,
+} from "@/components/admin/subject/WeeklySessionsSection";
 
 interface SubjectPresetButtonProps {
   schoolYearId: string;
@@ -46,10 +46,13 @@ export function SubjectPresetButton({
   const [courseId, setCourseId] = useState("");
   const [strandId, setStrandId] = useState("");
   const [levelId, setLevelId] = useState("");
-  // Empty string = Default
-  const [sessionsPerWeek, setSessionsPerWeek] = useState("");
-  const [sessionHours, setSessionHours] = useState("");
-  const [sessionMins, setSessionMins] = useState("");
+  /** Shared weekly-sessions draft, same shape the New Subject dialog edits. */
+  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySessionDraft>({
+    sessionsPerWeek: "",
+    sessionDurations: [],
+    uniformMinutes: null,
+    touched: false,
+  });
 
   const { stepMin: slotMinutes } = useScheduleWindow();
 
@@ -60,17 +63,19 @@ export function SubjectPresetButton({
     setCourseId(preset?.courseId ?? "");
     setStrandId(preset?.strandId ?? "");
     setLevelId(preset?.levelId ?? "");
-    setSessionsPerWeek(
-      preset?.sessionsPerWeek != null ? String(preset.sessionsPerWeek) : "",
-    );
-    setSessionHours(
-      preset?.sessionMinutes != null
-        ? String(Math.floor(preset.sessionMinutes / 60))
-        : "",
-    );
-    setSessionMins(
-      preset?.sessionMinutes != null ? String(preset.sessionMinutes % 60) : "",
-    );
+    const perWeek = preset?.sessionsPerWeek ?? "";
+    const stored = preset?.sessionDurations?.length
+      ? preset.sessionDurations
+      : preset?.sessionMinutes != null
+        ? [preset.sessionMinutes]
+        : [];
+    setWeeklyDraft({
+      sessionsPerWeek: perWeek != null && perWeek !== undefined ? String(perWeek) : "",
+      sessionDurations: stored,
+      uniformMinutes:
+        stored.length > 0 && stored.every((d) => d === stored[0]) ? stored[0] : null,
+      touched: stored.length > 0,
+    });
   }, [open, preset]);
 
   const selectedProgram = programs.find((p) => p.id === programId);
@@ -107,30 +112,22 @@ export function SubjectPresetButton({
         ? programLevels
         : [];
 
-  // Session length: both empty = Default, otherwise hours + minutes collapse
-  // to one total that must match the school's slot length (same rules as the
-  // New Subject form).
-  const sessionTotalMinutes =
-    sessionHours === "" && sessionMins === ""
-      ? null
-      : (Number(sessionHours) || 0) * 60 + (Number(sessionMins) || 0);
-
+  // Same rules as the New Subject form: every explicit length must sit on the
+  // school's slot grid and inside the 5–480m window.
   const sessionError: string | null = (() => {
-    if (sessionHours !== "" && !(/^\d+$/.test(sessionHours) && Number(sessionHours) <= 8)) {
-      return "Hours must be 0–8.";
+    const count = weeklyDraft.sessionsPerWeek
+      ? Number(weeklyDraft.sessionsPerWeek)
+      : null;
+    const rows = weeklyDraft.sessionDurations;
+    if (count && rows.length && rows.length !== count) {
+      return `Supply one time per session (${count}), or use "Apply to all".`;
     }
-    if (sessionMins !== "" && !(/^\d+$/.test(sessionMins) && Number(sessionMins) <= 59)) {
-      return "Minutes must be 0–59.";
-    }
-    if (sessionTotalMinutes == null) return null;
-    if (sessionTotalMinutes < 5) {
-      return "Enter at least 5 minutes, or leave both empty for Default.";
-    }
-    if (sessionTotalMinutes > 480) {
-      return "Session length cannot exceed 480 minutes (8h).";
-    }
-    if (sessionTotalMinutes % slotMinutes !== 0) {
-      return `${sessionTotalMinutes}m is not a multiple of the school's ${slotMinutes}m slot length.`;
+    for (const m of rows) {
+      if (m < 5) return "Enter at least 5 minutes per session.";
+      if (m > 480) return "Session length cannot exceed 480 minutes (8h).";
+      if (m % slotMinutes !== 0) {
+        return `${m}m is not a multiple of the school's ${slotMinutes}m slot length.`;
+      }
     }
     return null;
   })();
@@ -142,13 +139,19 @@ export function SubjectPresetButton({
     !sessionError;
 
   const handleSet = () => {
+    const rows = weeklyDraft.sessionDurations;
     savePreset({
       programId,
       courseId: hasCourses ? courseId : null,
       strandId: hasStrands ? strandId : null,
       levelId,
-      sessionsPerWeek: sessionsPerWeek ? Number(sessionsPerWeek) : null,
-      sessionMinutes: sessionTotalMinutes,
+      sessionsPerWeek: weeklyDraft.sessionsPerWeek
+        ? Number(weeklyDraft.sessionsPerWeek)
+        : null,
+      // Keep the uniform base in sync so a preset reader that only knows
+      // `sessionMinutes` still sees the right number.
+      sessionMinutes: rows.length ? (rows[0] ?? null) : null,
+      sessionDurations: rows,
     });
     setOpen(false);
   };
@@ -159,9 +162,12 @@ export function SubjectPresetButton({
     setCourseId("");
     setStrandId("");
     setLevelId("");
-    setSessionsPerWeek("");
-    setSessionHours("");
-    setSessionMins("");
+    setWeeklyDraft({
+      sessionsPerWeek: "",
+      sessionDurations: [],
+      uniformMinutes: null,
+      touched: false,
+    });
     setOpen(false);
   };
 
@@ -331,60 +337,16 @@ export function SubjectPresetButton({
                 </Select>
               </div>
 
-              {/* Weekly sessions — optional, Default follows the department standard */}
-              <div className="space-y-1.5">
-                <Label>Weekly sessions</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Select
-                    value={sessionsPerWeek || DEFAULT_OPTION}
-                    onValueChange={(v) =>
-                      setSessionsPerWeek(v === DEFAULT_OPTION ? "" : (v ?? ""))
-                    }
-                  >
-                    <SelectTrigger aria-label="Sessions per week">
-                      <SelectValue placeholder="Default" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={DEFAULT_OPTION}>Default</SelectItem>
-                      {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n} per week
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={8}
-                    step={1}
-                    placeholder="Hours"
-                    aria-label="Session hours"
-                    value={sessionHours}
-                    onChange={(e) => setSessionHours(e.target.value)}
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    max={59}
-                    step={1}
-                    placeholder="Minutes"
-                    aria-label="Session minutes"
-                    value={sessionMins}
-                    onChange={(e) => setSessionMins(e.target.value)}
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Leave everything on Default to follow the department standard.
-                  Length must be a multiple of the school&apos;s {slotMinutes}m slot.
-                  {sessionTotalMinutes != null && sessionTotalMinutes > 0
-                    ? ` Current: ${sessionTotalMinutes}m.`
-                    : ""}
-                </p>
-                {sessionError && (
-                  <p className="text-xs text-destructive">{sessionError}</p>
-                )}
-              </div>
+              {/* Weekly sessions — same control the subject form uses */}
+              <WeeklySessionsSection
+                value={weeklyDraft}
+                onChange={setWeeklyDraft}
+                slotMinutes={slotMinutes}
+                resolvedCount={5}
+                resolvedDurations={[60, 60, 60, 60, 60]}
+                isOnDefault={!weeklyDraft.touched}
+                error={sessionError ?? undefined}
+              />
             </div>
           </ModalBody>
 
