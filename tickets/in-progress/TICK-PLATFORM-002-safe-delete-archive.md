@@ -106,7 +106,7 @@ filter). Audited all 76 files: intact and compiling, nothing half-written.
 
 ## Commits
 
-- (see below)
+- `91c94380` feat(platform): safe delete/archive for school year, department, subject, educator
 
 ## Notes
 
