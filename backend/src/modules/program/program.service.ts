@@ -3,10 +3,18 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { ProgramRepository } from './program.repository';
 import { DatabaseService } from '@/core/database/database.provider';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto';
+import { ProgramDeletionCheckDto } from './dto/program-deletion.dto';
+import { runInTx } from '@/commons/utils/prisma-transaction.util';
+import {
+  buildDeletionReport,
+  formatBlockerMessage,
+  item,
+} from '@/commons/utils/deletion-report.util';
 
 @Injectable()
 export class ProgramService {
@@ -236,28 +244,46 @@ export class ProgramService {
     return result;
   }
 
-  async remove(id: string, orgId: string, actorId: string) {
+  /**
+   * Safe-delete pre-check: what blocks the delete and what goes with it.
+   * The DELETE handler re-runs this inside the transaction to close the race
+   * between check and delete.
+   */
+  async deletionCheck(
+    id: string,
+    orgId: string,
+  ): Promise<ProgramDeletionCheckDto> {
     const program = await this.programRepository.findById(id, orgId);
     if (!program) throw new NotFoundException('Program not found.');
 
-    const [hasLevels, hasCourses, hasStrands] = await Promise.all([
-      this.programRepository.hasLevels(id),
-      this.programRepository.hasCourses(id),
-      this.programRepository.hasStrands(id),
+    const [blockers, cascade] = await Promise.all([
+      this.programRepository.getBlockerCounts(this.db, orgId, id),
+      this.programRepository.getCascadeCounts(this.db, orgId, id),
     ]);
 
-    const blockers: string[] = [];
-    if (hasLevels) blockers.push('levels');
-    if (hasCourses) blockers.push('courses');
-    if (hasStrands) blockers.push('strands');
+    return buildDeletionReport(
+      [
+        item('enrollments', 'student enrollments', blockers.enrollments),
+        item('applications', 'enrollment applications', blockers.applications),
+        item('classes', 'classes', blockers.classes),
+        item('overrides', 'completion overrides', blockers.overrides),
+        item('shared-subjects', 'subjects shared with another department', blockers.sharedSubjects),
+      ],
+      [
+        item('subjects', 'subjects', cascade.subjects),
+        item('levels', 'levels', cascade.levels),
+        item('sections', 'sections', cascade.sections),
+        item('courses', 'courses', cascade.courses),
+        item('strands', 'strands', cascade.strands),
+        item('semesters', 'semesters', cascade.semesters),
+      ],
+    );
+  }
 
-    if (blockers.length > 0) {
-      throw new ConflictException(
-        `Cannot delete this program — it still has ${blockers.join(', ')} assigned to it.`,
-      );
-    }
-
-    await this.programRepository.delete(id);
+  async remove(id: string, orgId: string, actorId: string) {
+    const deleted = await runInTx(this.db, async (tx) => {
+      return this.deleteProgramCascade(tx, orgId, id);
+    });
 
     this.auditLogService
       .logAdminAction({
@@ -266,8 +292,63 @@ export class ProgramService {
         action: 'program_deleted',
         entityType: 'program',
         entityId: id,
-        metadata: { name: program.name },
+        metadata: { name: deleted.name },
       })
       .catch(() => {});
+  }
+
+  private toBlockerItems(blockers: {
+    enrollments: number;
+    applications: number;
+    classes: number;
+    overrides: number;
+    sharedSubjects: number;
+  }) {
+    return [
+      item('enrollments', 'student enrollments', blockers.enrollments),
+      item('applications', 'enrollment applications', blockers.applications),
+      item('classes', 'classes', blockers.classes),
+      item('overrides', 'completion overrides', blockers.overrides),
+      item(
+        'shared-subjects',
+        'subjects shared with another department',
+        blockers.sharedSubjects,
+      ),
+    ];
+  }
+
+  /**
+   * Check + cascade for ONE department inside a caller-owned transaction.
+   * Reused by school-year delete so the logic lives in exactly one place.
+   * Throws NotFound (wrong org/missing) or Conflict (blocked) — the caller
+   * decides the audit action.
+   */
+  async deleteProgramCascade(
+    tx: Prisma.TransactionClient,
+    orgId: string,
+    programId: string,
+  ): Promise<{ id: string; name: string }> {
+    const program = await tx.program.findFirst({
+      where: { id: programId, org_id: orgId },
+      select: { id: true, name: true },
+    });
+    if (!program) throw new NotFoundException('Program not found.');
+
+    // Re-run the same check inside the transaction — closes the race where
+    // an enrollment/application/class lands between check and delete.
+    const blockers = await this.programRepository.getBlockerCounts(
+      tx,
+      orgId,
+      programId,
+    );
+    const report = buildDeletionReport(this.toBlockerItems(blockers), []);
+    if (!report.canDelete) {
+      throw new ConflictException(
+        formatBlockerMessage('department', report.blockers),
+      );
+    }
+
+    await this.programRepository.deleteCascade(tx, orgId, programId);
+    return program;
   }
 }

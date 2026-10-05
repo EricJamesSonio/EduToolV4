@@ -3,7 +3,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen, Eye, Pencil } from "lucide-react";
+import { Lock, LockOpen, Eye, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { RowActions, RowActionButton } from "@/components/shared/RowActions";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,8 @@ import type { Subject } from "@/types/admin/subject.types";
 export function useSubjectColumns(
   onEdit: (subject: Subject) => void,
   onLock: (subject: Subject) => void,
-  onUnlock: (subject: Subject) => void
+  onUnlock: (subject: Subject) => void,
+  onDelete?: (subject: Subject) => void,
 ): ColumnDef<Subject>[] {
   const router = useRouter();
 
@@ -96,6 +97,14 @@ export function useSubjectColumns(
                 icon={Lock}
                 label="Lock"
                 onClick={() => onLock(row)}
+              />
+            )}
+            {onDelete && (
+              <RowActionButton
+                icon={Trash2}
+                label="Delete"
+                destructive
+                onClick={() => onDelete(row)}
               />
             )}
           </RowActions>

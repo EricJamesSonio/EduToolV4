@@ -149,6 +149,18 @@ export class ProgramController {
     return this.programService.update(id, orgId, dto, actorId);
   }
 
+  @Get(':id/deletion-check')
+  async deletionCheck(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context');
+    }
+
+    return this.programService.deletionCheck(id, orgId);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(

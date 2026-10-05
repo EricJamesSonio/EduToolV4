@@ -246,4 +246,83 @@ export class EducatorRepository {
       data: { deleted_at: new Date() },
     });
   }
+
+  // ── Safe delete: repository counts what's linked, the service decides ──
+  // NOTE: class counts deliberately include soft-deleted rows — an archived
+  // class still resolves its educator for history. Do NOT auto-unassign.
+
+  async getBlockerCounts(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    educatorId: string,
+  ) {
+    const [
+      classes,
+      teachableLinks,
+      ownedSubjects,
+      meetings,
+      ownershipLogs,
+      gradeLocks,
+      gradeLockEvents,
+    ] = await Promise.all([
+      client.class.count({
+        where: { org_id: orgId, educator_id: educatorId },
+      }),
+      client.educatorSubject.count({
+        where: { org_id: orgId, educator_id: educatorId },
+      }),
+      client.subject.count({
+        where: { org_id: orgId, educator_id: educatorId },
+      }),
+      client.meeting.count({
+        where: { org_id: orgId, educator_id: educatorId },
+      }),
+      client.classOwnershipLog.count({
+        where: {
+          org_id: orgId,
+          OR: [
+            { from_educator_id: educatorId },
+            { to_educator_id: educatorId },
+          ],
+        },
+      }),
+      client.gradeLock.count({
+        where: { org_id: orgId, locked_by: educatorId },
+      }),
+      client.gradeLockEvent.count({
+        where: { org_id: orgId, actor_id: educatorId },
+      }),
+    ]);
+    return {
+      classes,
+      teachableLinks,
+      ownedSubjects,
+      meetings,
+      ownershipLogs,
+      gradeLocks,
+      gradeLockEvents,
+    };
+  }
+
+  /**
+   * Delete an educator with no history: notifications + profile are
+   * hard-deleted, the schedule profile cascades at DB level, and the Account
+   * itself is soft-deleted (existing `deleted_at` convention — the row stays
+   * for immutable history such as audit/groupy sender references).
+   */
+  async deleteAccountCascade(
+    client: Prisma.TransactionClient,
+    accountId: string,
+  ): Promise<void> {
+    await client.notification.deleteMany({
+      where: { account_id: accountId },
+    });
+    await client.profile.deleteMany({
+      where: { account_id: accountId },
+    });
+    await client.account.update({
+      where: { id: accountId },
+      data: { deleted_at: new Date() },
+    });
+  }
 }

@@ -31,13 +31,14 @@ describe('SubjectService', () => {
     // arity matches the service, not to assert on them.
     // `cfg` supplies the org slot length used to validate `sessionMinutes`.
     const cfg = { getByOrg: jest.fn().mockResolvedValue({ slotDuration: 30 }) };
+    const audit = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
 
     service = new SubjectService(repo, {
       level: { findMany: jest.fn() },
       program: { findMany: jest.fn() },
       subject: { findMany: jest.fn() },
       subjectPrerequisite: { findMany: jest.fn() },
-    } as unknown as DatabaseService, cfg);
+    } as unknown as DatabaseService, cfg, audit as never);
     jest.clearAllMocks();
   });
 

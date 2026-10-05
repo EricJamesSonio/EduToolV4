@@ -23,9 +23,12 @@ export class SubjectRepository {
     subjectType?: string,
     excludeId?: string,
   ) {
+    // Name-uniqueness ignores archived subjects — a deleted name is free,
+    // and restore rejects if an active subject has taken the name since.
     return this.db.subject.findFirst({
       where: {
         org_id: orgId,
+        deleted_at: null,
         name: { equals: name, mode: 'insensitive' as const },
         ...(programId ? { program_id: programId } : {}),
         ...(levelId ? { level_id: levelId } : {}),
@@ -185,6 +188,8 @@ export class SubjectRepository {
       yearLevel?: string;
       termLabel?: string;
       subjectType?: string;
+      /** When true, lists archived subjects instead of active ones. */
+      archived?: boolean;
       page?: number;
       limit?: number;
     },
@@ -244,6 +249,9 @@ export class SubjectRepository {
 
     const baseWhere = {
       org_id: orgId,
+      // Archived subjects are hidden everywhere they are *selectable*; the
+      // Archived tab passes `archived: true` to list them instead.
+      ...(filters.archived ? { deleted_at: { not: null } } : { deleted_at: null }),
       ...levelFilter,
       ...programFilter, // ← replaces the old inline programId check
       ...(filters.subjectType ? { subject_type: filters.subjectType } : {}),
@@ -327,6 +335,9 @@ export class SubjectRepository {
         ? this.db.subject.findMany({
             where: {
               org_id: orgId,
+              ...(filters.archived
+                ? { deleted_at: { not: null } }
+                : { deleted_at: null }),
               subject_type: 'minor',
               OR: sharedMatchers,
               ...(filters.search
@@ -387,12 +398,35 @@ export class SubjectRepository {
       sharings: sharingsBySubject[s.id] ?? [],
     }));
 
+    // Archived rows carry their linked class count (single grouped query, no
+    // N+1) so the Archived tab can show it next to the archived date.
+    if (filters.archived && data.length > 0) {
+      const counts = await this.db.class.groupBy({
+        by: ['subject_id'],
+        where: {
+          org_id: orgId,
+          subject_id: { in: data.map((s: any) => s.id as string) },
+        },
+        _count: { _all: true },
+      });
+      const bySubject = new Map(
+        counts.map((c) => [c.subject_id, c._count._all]),
+      );
+      for (const row of data) {
+        (row as any).classCount = bySubject.get((row as any).id) ?? 0;
+      }
+    }
+
     return { data, total };
   }
 
-  async findById(id: string, orgId: string) {
+  async findById(id: string, orgId: string, includeArchived = false) {
     const subject = await this.db.subject.findFirst({
-      where: { id, org_id: orgId },
+      where: {
+        id,
+        org_id: orgId,
+        ...(includeArchived ? {} : { deleted_at: null }),
+      },
       include: {
         program: { select: { id: true, type: true, name: true } },
         prerequisites: {
@@ -555,5 +589,104 @@ export class SubjectRepository {
       where: { id: levelId, org_id: orgId, deleted_at: null },
       select: { id: true, program_id: true },
     });
+  }
+
+  // ── Safe delete / archive: repository counts what's linked ──────────────
+
+  /** Archived row for restore. Returns null unless it is actually archived. */
+  async findArchivedById(id: string, orgId: string) {
+    return this.db.subject.findFirst({
+      where: { id, org_id: orgId, deleted_at: { not: null } },
+    });
+  }
+
+  /**
+   * Classes referencing the subject — ALL rows, soft-deleted included. An
+   * archived class still holds the Subject FK and keeps resolving the subject
+   * for history, so it forces archive instead of hard delete.
+   */
+  async getClassCount(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    subjectId: string,
+  ): Promise<number> {
+    return client.class.count({
+      where: { org_id: orgId, subject_id: subjectId },
+    });
+  }
+
+  /** Linked rows cleaned up on hard delete (class-free subjects only). */
+  async getCleanupCounts(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    subjectId: string,
+  ) {
+    const [sharings, prerequisites, teachableLinks, overrides] =
+      await Promise.all([
+        client.subjectSharing.count({
+          where: { org_id: orgId, subject_id: subjectId },
+        }),
+        client.subjectPrerequisite.count({
+          where: {
+            org_id: orgId,
+            OR: [{ subject_id: subjectId }, { prerequisite_id: subjectId }],
+          },
+        }),
+        client.educatorSubject.count({
+          where: { org_id: orgId, subject_id: subjectId },
+        }),
+        client.subjectCompletionOverride.count({
+          where: { org_id: orgId, subject_id: subjectId },
+        }),
+      ]);
+    return { sharings, prerequisites, teachableLinks, overrides };
+  }
+
+  async softDelete(
+    client: Prisma.TransactionClient,
+    id: string,
+  ): Promise<Date> {
+    const now = new Date();
+    await client.subject.update({
+      where: { id },
+      data: { deleted_at: now },
+    });
+    return now;
+  }
+
+  async restoreSubject(id: string) {
+    return this.db.subject.update({
+      where: { id },
+      data: { deleted_at: null },
+    });
+  }
+
+  /**
+   * Hard-delete a class-free subject and its links, children first.
+   * Completion overrides are cleaned up (not blockers); classes must have
+   * been verified absent by the caller — a race is closed by re-checking
+   * inside the same transaction.
+   */
+  async hardDeleteCascade(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    subjectId: string,
+  ): Promise<void> {
+    await client.subjectSharing.deleteMany({
+      where: { org_id: orgId, subject_id: subjectId },
+    });
+    await client.subjectPrerequisite.deleteMany({
+      where: {
+        org_id: orgId,
+        OR: [{ subject_id: subjectId }, { prerequisite_id: subjectId }],
+      },
+    });
+    await client.educatorSubject.deleteMany({
+      where: { org_id: orgId, subject_id: subjectId },
+    });
+    await client.subjectCompletionOverride.deleteMany({
+      where: { org_id: orgId, subject_id: subjectId },
+    });
+    await client.subject.delete({ where: { id: subjectId } });
   }
 }

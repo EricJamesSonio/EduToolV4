@@ -16,6 +16,15 @@ import { generateEducatorId, generateSystemPassword } from './educator.utils';
 import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassService } from '../class/class.service';
 import { OrganizationService } from '../organization/organization.service';
+import { DatabaseService } from '@/core/database/database.provider';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { EducatorDeletionCheckDto } from './dto/educator-deletion.dto';
+import { runInTx } from '@/commons/utils/prisma-transaction.util';
+import {
+  buildDeletionReport,
+  formatBlockerMessage,
+  item,
+} from '@/commons/utils/deletion-report.util';
 
 @Injectable()
 export class EducatorService {
@@ -23,6 +32,8 @@ export class EducatorService {
     private readonly educatorRepository: EducatorRepository,
     private readonly classService: ClassService,
     private readonly organizationService: OrganizationService,
+    private readonly db: DatabaseService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   // ── POST /educators ─────────────────────────────────────────────────────────
@@ -370,23 +381,87 @@ export class EducatorService {
   }
 
   /**
-   * Soft deletes the educator account.
-   * Phase 3: will check classService.hasActiveClasses(id) before allowing delete.
-   * For now, deletion proceeds without that check.
+   * Safe-delete pre-check: what blocks the delete. Educators with ANY history
+   * are strictly blocked (no deactivate alternative) — only educators with
+   * zero linked records can be deleted. DELETE re-runs this inside the
+   * transaction to close the race.
    */
-  async remove(id: string, orgId: string) {
+  async deletionCheck(
+    id: string,
+    orgId: string,
+  ): Promise<EducatorDeletionCheckDto> {
     const account = await this.educatorRepository.findById(id, orgId);
+    if (!account) throw new NotFoundException('Educator not found.');
 
-    if (!account) {
-      throw new NotFoundException('Educator not found.');
-    }
+    const blockers = await this.educatorRepository.getBlockerCounts(
+      this.db,
+      orgId,
+      id,
+    );
+    return buildDeletionReport(
+      [
+        item('classes', 'classes', blockers.classes),
+        item('teachable-links', 'teachable subject links', blockers.teachableLinks),
+        item('owned-subjects', 'directly assigned subjects', blockers.ownedSubjects),
+        item('meetings', 'meetings', blockers.meetings),
+        item('ownership-logs', 'class ownership records', blockers.ownershipLogs),
+        item('grade-locks', 'grade locks', blockers.gradeLocks),
+        item('grade-lock-events', 'grade lock events', blockers.gradeLockEvents),
+      ],
+      [],
+    );
+  }
 
-    // Phase 3 hook: check for active classes
-    const hasClasses = await this.classService.hasActiveClasses(id, orgId);
-    if (hasClasses)
-      throw new ConflictException('Reassign all active classes first.');
+  /**
+   * Deletes an educator with no history. Anything linked blocks with a
+   * ConflictException naming what to unassign first — classes are never
+   * auto-unassigned.
+   */
+  async remove(id: string, orgId: string, actorId: string) {
+    const deleted = await runInTx(this.db, async (tx) => {
+      const account = await tx.account.findFirst({
+        where: { id, org_id: orgId, role: 'educator', deleted_at: null },
+        select: { id: true, email: true },
+      });
+      if (!account) throw new NotFoundException('Educator not found.');
 
-    await this.educatorRepository.softDelete(id);
+      const blockers = await this.educatorRepository.getBlockerCounts(
+        tx,
+        orgId,
+        id,
+      );
+      const report = buildDeletionReport(
+        [
+          item('classes', 'classes', blockers.classes),
+          item('teachable-links', 'teachable subject links', blockers.teachableLinks),
+          item('owned-subjects', 'directly assigned subjects', blockers.ownedSubjects),
+          item('meetings', 'meetings', blockers.meetings),
+          item('ownership-logs', 'class ownership records', blockers.ownershipLogs),
+          item('grade-locks', 'grade locks', blockers.gradeLocks),
+          item('grade-lock-events', 'grade lock events', blockers.gradeLockEvents),
+        ],
+        [],
+      );
+      if (!report.canDelete) {
+        throw new ConflictException(
+          formatBlockerMessage('educator', report.blockers),
+        );
+      }
+
+      await this.educatorRepository.deleteAccountCascade(tx, id);
+      return account;
+    });
+
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'educator_deleted',
+        entityType: 'educator',
+        entityId: id,
+        metadata: { email: deleted.email },
+      })
+      .catch(() => {});
   }
 
   // ── POST /educators/:id/reset-password ──────────────────────────────────────

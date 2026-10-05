@@ -113,9 +113,24 @@ export class SchoolYearController {
   }
 
   /**
+   * GET /school-years/:id/deletion-check  @Roles(ADMIN)
+   * What blocks the delete and what goes with it (departments, levels,
+   * sections, subjects, ...). The DELETE re-runs the check in-transaction.
+   */
+  @Get(':id/deletion-check')
+  @Roles('admin')
+  async deletionCheck(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.schoolYearService.deletionCheck(id, orgId);
+  }
+
+  /**
    * DELETE /school-years/:id  @Roles(ADMIN)
-   * Permanently deletes a school year only if it is pending and unused
-   * (no students, classes, sections, or curriculum data attached).
+   * Hard-deletes an unused school year: every department cascades through
+   * the shared program logic first, then year-level rows, then the year.
+   * Blocked by any enrolled student, application, class, or an active year.
    */
   @Delete(':id')
   @Roles('admin')

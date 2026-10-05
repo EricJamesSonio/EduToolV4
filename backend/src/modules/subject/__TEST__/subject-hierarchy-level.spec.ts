@@ -68,6 +68,7 @@ describe('SubjectService.getHierarchy level scoping', () => {
       {} as never,
       db as never,
       { getByOrg: jest.fn().mockResolvedValue({ slotDuration: 30 }) } as never,
+      { logAdminAction: jest.fn().mockResolvedValue(undefined) } as never,
     );
     return { service, db };
   };

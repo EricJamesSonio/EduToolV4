@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
+
+/** Any client with the model delegates — `DatabaseService` or a tx client. */
+export type ProgramDeletionClient = Prisma.TransactionClient;
 
 const PROGRAM_LIST_INCLUDE = {
   courses: {
@@ -229,28 +233,288 @@ export class ProgramRepository {
     return this.db.program.delete({ where: { id } });
   }
 
-  // NOTE: these deliberately count ALL rows, archived ones included. Archived
-  // children still hold an FK to the program, so a "live-only" count would let
-  // program.delete hit a DB-level FK restrict error. Purge/restore for archived
-  // children is a separate concern (see orphan health check runbook).
-  async hasLevels(programId: string): Promise<boolean> {
-    const count = await this.db.level.count({
+  // ── Safe delete: repository counts what's linked, the service decides ──
+  // NOTE: class counts deliberately include soft-deleted rows — an archived
+  // class still holds the Subject FK, so ignoring it would hit a DB-level
+  // FK restrict error on subject delete.
+
+  async getOwnedSubjectIds(
+    client: ProgramDeletionClient,
+    programId: string,
+  ): Promise<string[]> {
+    const rows = await client.subject.findMany({
       where: { program_id: programId },
+      select: { id: true },
     });
-    return count > 0;
+    return rows.map((row) => row.id);
   }
 
-  async hasCourses(programId: string): Promise<boolean> {
-    const count = await this.db.course.count({
-      where: { program_id: programId },
-    });
-    return count > 0;
+  async getBlockerCounts(
+    client: ProgramDeletionClient,
+    orgId: string,
+    programId: string,
+  ) {
+    const [subjectIds, levelIds, courseIds, strandIds, semesterIds] =
+      await Promise.all([
+        this.getOwnedSubjectIds(client, programId),
+        client.level
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+        client.course
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+        client.strand
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+        client.semester
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+      ]);
+
+    const [enrollments, applications, classes, overrides, sharedSubjects] =
+      await Promise.all([
+        client.studentProgramEnrollment.count({
+          where: { org_id: orgId, program_id: programId },
+        }),
+        client.enrollmentApplication.count({
+          where: { org_id: orgId, program_id: programId },
+        }),
+        subjectIds.length === 0 && semesterIds.length === 0
+          ? 0
+          : client.class.count({
+              where: {
+                org_id: orgId,
+                OR: [
+                  ...(subjectIds.length > 0
+                    ? [{ subject_id: { in: subjectIds } }]
+                    : []),
+                  ...(semesterIds.length > 0
+                    ? [{ semester_id: { in: semesterIds } }]
+                    : []),
+                ],
+              },
+            }),
+        subjectIds.length === 0
+          ? 0
+          : client.subjectCompletionOverride.count({
+              where: { org_id: orgId, subject_id: { in: subjectIds } },
+            }),
+        // Foreign subjects pointing at this program's structure (sharing rows
+        // are cleaned in the cascade, but a hard subject FK from another
+        // department must fail loudly instead of being silently re-homed).
+        client.subject.count({
+          where: {
+            org_id: orgId,
+            program_id: { not: programId },
+            OR: [
+              ...(levelIds.length > 0
+                ? [{ level_id: { in: levelIds } }]
+                : []),
+              ...(courseIds.length > 0
+                ? [{ course_id: { in: courseIds } }]
+                : []),
+              ...(strandIds.length > 0
+                ? [{ strand_id: { in: strandIds } }]
+                : []),
+            ],
+          },
+        }),
+      ]);
+
+    return { enrollments, applications, classes, overrides, sharedSubjects };
   }
 
-  async hasStrands(programId: string): Promise<boolean> {
-    const count = await this.db.strand.count({
-      where: { program_id: programId },
-    });
-    return count > 0;
+  async getCascadeCounts(
+    client: ProgramDeletionClient,
+    orgId: string,
+    programId: string,
+  ) {
+    const [subjects, levels, courses, strands, semesters, sections] =
+      await Promise.all([
+        client.subject.count({
+          where: { org_id: orgId, program_id: programId },
+        }),
+        client.level.count({
+          where: { org_id: orgId, program_id: programId },
+        }),
+        client.course.count({
+          where: { org_id: orgId, program_id: programId },
+        }),
+        client.strand.count({
+          where: { org_id: orgId, program_id: programId },
+        }),
+        client.semester.count({
+          where: { org_id: orgId, program_id: programId },
+        }),
+        client.section.count({
+          where: {
+            org_id: orgId,
+            level: { org_id: orgId, program_id: programId },
+          },
+        }),
+      ]);
+
+    return { subjects, levels, courses, strands, semesters, sections };
   }
+
+  /**
+   * Hard-delete a department and everything it owns, children before parents.
+   * Callers must run the blocker check first (the service re-runs it inside
+   * the same transaction to close the race). `ProgramCalendar` rows and
+   * grading-scheme program assignments cascade at DB level and are not
+   * deleted explicitly.
+   */
+  async deleteCascade(
+    client: ProgramDeletionClient,
+    orgId: string,
+    programId: string,
+  ): Promise<void> {
+    const [subjectIds, levelIds, courseIds, strandIds, semesterIds] =
+      await Promise.all([
+        this.getOwnedSubjectIds(client, programId),
+        client.level
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+        client.course
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+        client.strand
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+        client.semester
+          .findMany({
+            where: { org_id: orgId, program_id: programId },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id)),
+      ]);
+
+    // 1. Sections (hold Level/Course/Strand FKs, onDelete Restrict).
+    if (levelIds.length > 0) {
+      await client.section.deleteMany({
+        where: { org_id: orgId, level_id: { in: levelIds } },
+      });
+    }
+
+    if (subjectIds.length > 0) {
+      // 2. Subject sharings — both directions: rows for our subjects AND rows
+      // pointing at our courses/strands/levels from foreign subjects.
+      const sharingOr: Prisma.SubjectSharingWhereInput[] = [
+        { subject_id: { in: subjectIds } },
+      ];
+      if (courseIds.length > 0) sharingOr.push({ course_id: { in: courseIds } });
+      if (strandIds.length > 0) sharingOr.push({ strand_id: { in: strandIds } });
+      if (levelIds.length > 0) sharingOr.push({ level_id: { in: levelIds } });
+      await client.subjectSharing.deleteMany({
+        where: { org_id: orgId, OR: sharingOr },
+      });
+
+      // 3. Prerequisites, both directions.
+      await client.subjectPrerequisite.deleteMany({
+        where: {
+          org_id: orgId,
+          OR: [
+            { subject_id: { in: subjectIds } },
+            { prerequisite_id: { in: subjectIds } },
+          ],
+        },
+      });
+
+      // 4. Educator-subject links (onDelete Restrict on the subject side).
+      await client.educatorSubject.deleteMany({
+        where: { org_id: orgId, subject_id: { in: subjectIds } },
+      });
+
+      // 5. Completion overrides for our subjects (cleanup, not a blocker).
+      await client.subjectCompletionOverride.deleteMany({
+        where: { org_id: orgId, subject_id: { in: subjectIds } },
+      });
+
+      // 6. Owned subjects (foreign-owned shared subjects are blockers, never
+      // deleted here).
+      await client.subject.deleteMany({
+        where: { org_id: orgId, program_id: programId },
+      });
+    } else {
+      // No owned subjects, but foreign sharings may still point at our
+      // courses/strands/levels — those rows would block their deletes.
+      const sharingOr: Prisma.SubjectSharingWhereInput[] = [];
+      if (courseIds.length > 0) sharingOr.push({ course_id: { in: courseIds } });
+      if (strandIds.length > 0) sharingOr.push({ strand_id: { in: strandIds } });
+      if (levelIds.length > 0) sharingOr.push({ level_id: { in: levelIds } });
+      if (sharingOr.length > 0) {
+        await client.subjectSharing.deleteMany({
+          where: { org_id: orgId, OR: sharingOr },
+        });
+      }
+    }
+
+    // 7. Levels (hold Course/Strand Restrict FKs) — after sections + subjects.
+    await client.level.deleteMany({
+      where: { org_id: orgId, program_id: programId },
+    });
+
+    // 8-9. Courses, then strands.
+    await client.course.deleteMany({
+      where: { org_id: orgId, program_id: programId },
+    });
+    await client.strand.deleteMany({
+      where: { org_id: orgId, program_id: programId },
+    });
+
+    // 10. Terms, then semesters.
+    if (semesterIds.length > 0) {
+      await client.term.deleteMany({
+        where: { org_id: orgId, semester_id: { in: semesterIds } },
+      });
+    }
+    await client.semester.deleteMany({
+      where: { org_id: orgId, program_id: programId },
+    });
+
+    // 11. Program-semester term dates, then the assignment.
+    const assignment = await client.programSemesterAssignment.findFirst({
+      where: { org_id: orgId, program_id: programId },
+      select: { id: true },
+    });
+    if (assignment) {
+      await client.programSemesterTermDate.deleteMany({
+        where: { org_id: orgId, assignment_id: assignment.id },
+      });
+      await client.programSemesterAssignment.delete({
+        where: { id: assignment.id },
+      });
+    }
+
+    // 12. Grading-scale assignment (no DB cascade on the program side).
+    await client.gradingScaleAssignment.deleteMany({
+      where: { org_id: orgId, program_id: programId },
+    });
+
+    // 13. The program itself. Program calendars + grading-scheme program
+    // assignments cascade at DB level.
+    await client.program.delete({ where: { id: programId } });
+  }
+
 }

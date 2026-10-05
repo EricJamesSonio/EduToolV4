@@ -13,6 +13,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 // the same services already used by OrganizationService.
 import { OrgSeederModule } from '@/modules/org-seeder/org-seeder.module';
 import { SchoolProfileModule } from '@/modules/school-profile/school-profile.module';
+import { ProgramModule } from '@/modules/program/program.module';
 
 @Module({
   imports: [
@@ -22,6 +23,9 @@ import { SchoolProfileModule } from '@/modules/school-profile/school-profile.mod
     AuditLogModule,
     OrgSeederModule,
     SchoolProfileModule,
+    // Reuses ProgramService.deleteProgramCascade — ProgramModule only depends
+    // on AuditLogModule, so this introduces no cycle.
+    ProgramModule,
   ],
   controllers: [SchoolYearController],
   providers: [

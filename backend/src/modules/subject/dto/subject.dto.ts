@@ -5,6 +5,7 @@ import {
   IsIn,
   IsInt,
   IsArray,
+  IsBooleanString,
   ArrayMaxSize,
   MinLength,
   MaxLength,
@@ -169,6 +170,14 @@ export class QuerySubjectDto {
   @IsString()
   @IsIn(['major', 'minor'])
   subjectType?: 'major' | 'minor';
+
+  /**
+   * When "true", lists archived subjects instead of active ones (drives the
+   * Archived tab). Archived subjects are hidden from every selectable list.
+   */
+  @IsOptional()
+  @IsBooleanString()
+  archived?: string;
 
   @IsOptional()
   @Type(() => Number)

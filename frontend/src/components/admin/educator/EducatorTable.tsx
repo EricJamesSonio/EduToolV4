@@ -6,16 +6,17 @@ import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye, KeyRound } from "lucide-react";
+import { Eye, KeyRound, Trash2 } from "lucide-react";
 import type { Educator } from "@/types/admin/educator.types";
 
 interface EducatorTableProps {
   data:             Educator[];
   isLoading?:       boolean;
   onResetPassword:  (educator: Educator) => void;
+  onDelete?:        (educator: Educator) => void;
 }
 
-export function EducatorTable({ data, isLoading, onResetPassword }: EducatorTableProps) {
+export function EducatorTable({ data, isLoading, onResetPassword, onDelete }: EducatorTableProps) {
   const router = useRouter();
 
   const columns = useMemo<ColumnDef<Educator>[]>(() => [
@@ -74,10 +75,21 @@ export function EducatorTable({ data, isLoading, onResetPassword }: EducatorTabl
             <KeyRound className="h-3.5 w-3.5" />
             Reset Password
           </Button>
+          {onDelete && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive"
+              onClick={() => onDelete(row.original)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          )}
         </div>
       ),
     },
-  ], [router, onResetPassword]);
+  ], [router, onResetPassword, onDelete]);
 
   return (
     <DataTable

@@ -114,6 +114,8 @@ export const adminQueryKeys = {
         educatorId,
         'assignments',
       ] as const,
+    deletionCheck: (educatorId: string) =>
+      [...adminKeys.all, 'educators', 'deletion-check', educatorId] as const,
   },
 
   enrichedLevels: {
@@ -248,6 +250,8 @@ export const adminQueryKeys = {
         'semesters-grouped',
         schoolYearId,
       ] as const,
+    deletionCheck: (programId: string) =>
+      [...adminKeys.all, 'programs', 'deletion-check', programId] as const,
   },
 
   registrars: {
@@ -270,6 +274,8 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'schoolYears', 'readiness'] as const,
     readinessDetail: (id: string) =>
       [...adminKeys.all, 'schoolYears', 'readiness', id] as const,
+    deletionCheck: (schoolYearId: string) =>
+      [...adminKeys.all, 'schoolYears', 'deletion-check', schoolYearId] as const,
   },
 
   enrollmentPortal: {
@@ -403,6 +409,8 @@ export const adminQueryKeys = {
     /** Educators who can teach this subject (Phase 3). */
     educators: (id: string) =>
       [...adminKeys.all, 'subjects', 'educators', id] as const,
+    deletionCheck: (subjectId: string) =>
+      [...adminKeys.all, 'subjects', 'deletion-check', subjectId] as const,
   },
 
   classGenerator: {

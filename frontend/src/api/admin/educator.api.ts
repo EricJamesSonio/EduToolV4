@@ -1,5 +1,6 @@
 import client from "@/api/client";
 import type { Educator } from "@/types/admin/educator.types";
+import type { DeletionCheck } from "@/types/admin/deletion.types";
 import type { PaginatedResponse } from "@/types/api.types";
 
 export const DEFAULT_PAGE_SIZE = 20;
@@ -195,6 +196,11 @@ export const educatorApi = {
 
   delete: async (id: string): Promise<void> => {
     await client.delete(`/educators/${id}`);
+  },
+
+  deletionCheck: async (id: string): Promise<DeletionCheck> => {
+    const res = await client.get<ApiResponse<DeletionCheck>>(`/educators/${id}/deletion-check`);
+    return res.data.data;
   },
 
   resetPassword: async (id: string): Promise<{ id: string; plainPassword: string }> => {

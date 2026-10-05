@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
@@ -174,6 +175,146 @@ export class SchoolYearRepository {
 
   async delete(id: string) {
     return this.db.schoolYear.delete({ where: { id } });
+  }
+
+  // ── Safe delete: repository counts what's linked, the service decides ──
+  // NOTE: class counts deliberately include soft-deleted rows — an archived
+  // class still holds its school-year FK.
+
+  async getBlockerCounts(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    schoolYearId: string,
+  ) {
+    const [enrollments, applications, classes] = await Promise.all([
+      client.studentSchoolYear.count({
+        where: { org_id: orgId, school_year_id: schoolYearId },
+      }),
+      client.enrollmentApplication.count({
+        where: { org_id: orgId, school_year_id: schoolYearId },
+      }),
+      client.class.count({
+        where: { org_id: orgId, school_year_id: schoolYearId },
+      }),
+    ]);
+    return { enrollments, applications, classes };
+  }
+
+  async getCascadeCounts(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    schoolYearId: string,
+  ) {
+    const [departments, levels, sections, subjects, semesters, classes] =
+      await Promise.all([
+        client.program.count({
+          where: { org_id: orgId, school_year_id: schoolYearId },
+        }),
+        client.level.count({
+          where: { org_id: orgId, school_year_id: schoolYearId },
+        }),
+        client.section.count({
+          where: { org_id: orgId, school_year_id: schoolYearId },
+        }),
+        client.subject.count({
+          where: {
+            org_id: orgId,
+            OR: [
+              { level: { school_year_id: schoolYearId } },
+              {
+                program: {
+                  school_year_id: schoolYearId,
+                },
+              },
+            ],
+          },
+        }),
+        client.semester.count({
+          where: { org_id: orgId, school_year_id: schoolYearId },
+        }),
+        client.class.count({
+          where: { org_id: orgId, school_year_id: schoolYearId },
+        }),
+      ]);
+    return { departments, levels, sections, subjects, semesters, classes };
+  }
+
+  /**
+   * Delete year-level rows left over after every department cascade ran.
+   * Department cascades already removed their programs, subjects, levels,
+   * sections, courses, strands, semesters, terms, semester assignments,
+   * grading assignments and program calendars — these deleteMany calls only
+   * catch strays so the school-year delete never hits an FK restrict error.
+   */
+  async deleteYearLeftovers(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    schoolYearId: string,
+  ): Promise<void> {
+    // Calendars (academic calendars have no DB cascade; program calendars
+    // cascaded with their programs, this catches strays).
+    await client.academicCalendar.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+    await client.programCalendar.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+
+    // Enrollment periods (applications block the delete, so none exist).
+    await client.enrollmentPeriod.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+
+    // Grading assignments (program-scoped rows went with their programs).
+    await client.gradingScaleAssignment.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+    await client.gradingSchemeProgramAssignment.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+
+    // Semesters/terms not yet removed.
+    const semesters = await client.semester.findMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+      select: { id: true },
+    });
+    if (semesters.length > 0) {
+      await client.term.deleteMany({
+        where: {
+          org_id: orgId,
+          semester_id: { in: semesters.map((s) => s.id) },
+        },
+      });
+    }
+    await client.semester.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+
+    // Remaining curriculum rows.
+    await client.section.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+    await client.subject.deleteMany({
+      where: {
+        org_id: orgId,
+        OR: [
+          { level: { school_year_id: schoolYearId } },
+          { program: { school_year_id: schoolYearId } },
+        ],
+      },
+    });
+    await client.level.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+    await client.course.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+    await client.strand.deleteMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+    });
+
+    // The school year itself.
+    await client.schoolYear.delete({ where: { id: schoolYearId } });
   }
 
   /** Find all school years whose end_date has passed and are still active */

@@ -251,11 +251,13 @@ const levels = await this.db.level.findMany({
     const courseIds = courses.map((c) => c.id);
     const strandIds = strands.map((s) => s.id);
 
-    // 1. Every subject scoped to this school year (via level/program/course/strand)
-    //    has at least one Class.
+    // 1. Every ACTIVE subject scoped to this school year (via
+    //    level/program/course/strand) has at least one Class. Archived subjects
+    //    are hidden from selectable lists and demand no classes.
     const subjects = await this.db.subject.findMany({
       where: {
         org_id: orgId,
+        deleted_at: null,
         OR: [
           { level_id: { in: levelIds } },
           { program_id: { in: programIds } },

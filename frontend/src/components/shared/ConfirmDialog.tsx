@@ -25,6 +25,8 @@ interface ConfirmDialogProps {
   destructive?: boolean;
   /** Show loading state on confirm button */
   isLoading?: boolean;
+  /** Hide the cancel button (info-only "blocked" dialogs) */
+  hideCancel?: boolean;
 }
 
 export function ConfirmDialog({
@@ -38,6 +40,7 @@ export function ConfirmDialog({
   onConfirm,
   destructive = false,
   isLoading = false,
+  hideCancel = false,
 }: ConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
@@ -66,13 +69,15 @@ export function ConfirmDialog({
         </DialogHeader>
 
         <DialogFooter className="mt-2 gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
-            {cancelLabel}
-          </Button>
+          {!hideCancel && (
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+            >
+              {cancelLabel}
+            </Button>
+          )}
           <Button
             variant={destructive ? "destructive" : "default"}
             onClick={handleConfirm}

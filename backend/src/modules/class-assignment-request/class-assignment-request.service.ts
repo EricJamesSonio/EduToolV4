@@ -47,7 +47,7 @@ export class ClassAssignmentRequestService {
     const requestedIds = dto.studentRequestedSubjectIds ?? [];
     if (requestedIds.length > 0) {
       const subjects = await this.db.subject.findMany({
-        where: { id: { in: requestedIds }, org_id: orgId },
+        where: { id: { in: requestedIds }, org_id: orgId, deleted_at: null },
         select: { id: true },
       });
       if (subjects.length !== requestedIds.length) {
@@ -67,7 +67,7 @@ export class ClassAssignmentRequestService {
     }> = [];
     if (requestedIds.length > 0) {
       const requestedSubjects = await this.db.subject.findMany({
-        where: { id: { in: requestedIds }, org_id: orgId },
+        where: { id: { in: requestedIds }, org_id: orgId, deleted_at: null },
         select: { id: true, name: true },
       });
       const nameMap = new Map(requestedSubjects.map((s) => [s.id, s.name]));
@@ -133,7 +133,7 @@ export class ClassAssignmentRequestService {
     // Validate finalized subject ids
     if (dto.adminFinalizedSubjectIds.length > 0) {
       const subjects = await this.db.subject.findMany({
-        where: { id: { in: dto.adminFinalizedSubjectIds }, org_id: orgId },
+        where: { id: { in: dto.adminFinalizedSubjectIds }, org_id: orgId, deleted_at: null },
         select: { id: true },
       });
       if (subjects.length !== dto.adminFinalizedSubjectIds.length) {

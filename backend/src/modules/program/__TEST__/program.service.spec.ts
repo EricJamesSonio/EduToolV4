@@ -17,15 +17,18 @@ describe('ProgramService', () => {
       findAllWithStats: jest.fn(),
       findById: jest.fn(),
       update: jest.fn(),
-      delete: jest.fn(),
-      hasLevels: jest.fn(),
-      hasCourses: jest.fn(),
-      hasStrands: jest.fn(),
+      countLevelsAndSections: jest.fn().mockResolvedValue([]),
+      getBlockerCounts: jest.fn(),
+      getCascadeCounts: jest.fn(),
+      deleteCascade: jest.fn(),
     };
     db = {
+      program: { findFirst: jest.fn() },
+      $transaction: jest.fn((fn: (txArg: unknown) => unknown) =>
+        fn({ program: db.program }),
+      ),
       programSemesterAssignment: { findFirst: jest.fn(), findMany: jest.fn() },
       semester: { findMany: jest.fn() },
-      program: { findMany: jest.fn() },
     };
     audit = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
     service = new ProgramService(repo, db, audit);
@@ -48,52 +51,60 @@ describe('ProgramService', () => {
   });
 
   describe('findById / findAll / remove', () => {
+    const cleanBlockers = {
+      enrollments: 0,
+      applications: 0,
+      classes: 0,
+      overrides: 0,
+      sharedSubjects: 0,
+    };
     it('findById throws NotFound', async () => {
       repo.findById.mockResolvedValue(null);
       await expect(service.findById('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
     });
     it('findById returns program', async () => {
-      repo.findById.mockResolvedValue({ id: 'prog-1', name: 'A' });
-      expect(await service.findById('prog-1', orgId)).toEqual({ id: 'prog-1', name: 'A' });
+      repo.findById.mockResolvedValue({ id: 'prog-1', name: 'A', courses: [], strands: [] });
+      expect(await service.findById('prog-1', orgId)).toEqual({ id: 'prog-1', name: 'A', courses: [], strands: [] });
     });
     it('findAll delegates', async () => {
       repo.findAll.mockResolvedValue([{ id: '1' }]);
       expect(await service.findAll(orgId, 'sy-1')).toEqual([{ id: '1' }]);
     });
     it('remove throws NotFound when missing', async () => {
-      repo.findById.mockResolvedValue(null);
+      db.program.findFirst.mockResolvedValue(null);
       await expect(service.remove('nope', orgId, actorId)).rejects.toBeInstanceOf(NotFoundException);
     });
-    it('remove throws Conflict when has levels', async () => {
-      repo.findById.mockResolvedValue({ id: 'prog-1', name: 'A' });
-      repo.hasLevels.mockResolvedValue(true);
-      repo.hasCourses.mockResolvedValue(false);
-      repo.hasStrands.mockResolvedValue(false);
+    it('remove throws Conflict when enrollments exist', async () => {
+      db.program.findFirst.mockResolvedValue({ id: 'prog-1', name: 'A' });
+      repo.getBlockerCounts.mockResolvedValue({ ...cleanBlockers, enrollments: 1 });
       await expect(service.remove('prog-1', orgId, actorId)).rejects.toBeInstanceOf(ConflictException);
-      expect(repo.delete).not.toHaveBeenCalled();
+      expect(repo.deleteCascade).not.toHaveBeenCalled();
     });
     it('remove throws with combined blockers', async () => {
-      repo.findById.mockResolvedValue({ id: 'prog-1', name: 'A' });
-      repo.hasLevels.mockResolvedValue(true);
-      repo.hasCourses.mockResolvedValue(true);
-      repo.hasStrands.mockResolvedValue(true);
-      await expect(service.remove('prog-1', orgId, actorId)).rejects.toThrow(/levels.*courses.*strands/);
+      db.program.findFirst.mockResolvedValue({ id: 'prog-1', name: 'A' });
+      repo.getBlockerCounts.mockResolvedValue({
+        ...cleanBlockers,
+        enrollments: 1,
+        applications: 2,
+        classes: 3,
+      });
+      await expect(service.remove('prog-1', orgId, actorId)).rejects.toThrow(
+        /student enrollments.*enrollment applications.*classes/,
+      );
     });
     it('remove succeeds and audits', async () => {
-      repo.findById.mockResolvedValue({ id: 'prog-1', name: 'A' });
-      repo.hasLevels.mockResolvedValue(false);
-      repo.hasCourses.mockResolvedValue(false);
-      repo.hasStrands.mockResolvedValue(false);
-      repo.delete.mockResolvedValue({});
+      db.program.findFirst.mockResolvedValue({ id: 'prog-1', name: 'A' });
+      repo.getBlockerCounts.mockResolvedValue(cleanBlockers);
+      repo.deleteCascade.mockResolvedValue(undefined);
       await service.remove('prog-1', orgId, actorId);
-      expect(repo.delete).toHaveBeenCalledWith('prog-1');
+      expect(repo.deleteCascade).toHaveBeenCalled();
       expect(audit.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'program_deleted' }));
     });
   });
 
   describe('getSemesters', () => {
     it('returns [] when no assignment', async () => {
-      db.programSemesterAssignment.findFirst.mockResolvedValue(null);
+      db.semester.findMany.mockResolvedValue([]);
       expect(await service.getSemesters('prog-1', 'sy-1', orgId)).toEqual([]);
     });
     it('returns mapped semesters with terms', async () => {
@@ -111,17 +122,16 @@ describe('ProgramService', () => {
 
   describe('getSemestersGroupedByProgram', () => {
     it('returns [] when no assignments', async () => {
-      db.programSemesterAssignment.findMany.mockResolvedValue([]);
+      db.semester.findMany.mockResolvedValue([]);
       expect(await service.getSemestersGroupedByProgram(orgId, 'sy-1')).toEqual([]);
     });
     it('maps assignments to semester rows sorted by date and program name', async () => {
       const date1 = new Date('2024-06-01');
       const date2 = new Date('2024-11-01');
-      db.programSemesterAssignment.findMany.mockResolvedValue([
-        { program: { id: 'prog-1', name: 'B Program' }, template: { semesters: [{ name: '1st Semester' }] } },
-        { program: { id: 'prog-2', name: 'A Program' }, template: { semesters: [{ name: '1st Semester' }] } },
+      db.semester.findMany.mockResolvedValue([
+        { id: 'sem-1', name: '1st Semester', start_date: date1, end_date: date2, program_id: 'prog-1', program: { id: 'prog-1', name: 'B Program' } },
+        { id: 'sem-2', name: '1st Semester', start_date: date1, end_date: date2, program_id: 'prog-2', program: { id: 'prog-2', name: 'A Program' } },
       ]);
-      db.semester.findMany.mockResolvedValue([{ id: 'sem-1', name: '1st Semester', start_date: date1, end_date: date2 }]);
       const res = await service.getSemestersGroupedByProgram(orgId, 'sy-1');
       expect(res).toHaveLength(2);
       // Sorted by program name when dates equal
@@ -129,9 +139,6 @@ describe('ProgramService', () => {
       expect(res[1].programName).toBe('B Program');
     });
     it('skips assignments with no matching semester row', async () => {
-      db.programSemesterAssignment.findMany.mockResolvedValue([
-        { program: { id: 'prog-1', name: 'P' }, template: { semesters: [{ name: 'Missing Sem' }] } },
-      ]);
       db.semester.findMany.mockResolvedValue([]);
       expect(await service.getSemestersGroupedByProgram(orgId, 'sy-1')).toEqual([]);
     });

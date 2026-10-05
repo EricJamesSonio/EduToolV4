@@ -6,6 +6,7 @@ import type {
   SchoolYear,
   SchoolYearReadiness,
 } from "@/types/admin/school-year.types";
+import type { DeletionCheck } from "@/types/admin/deletion.types";
 
 export interface CreateSchoolYearRequest {
   name:                   string;
@@ -55,6 +56,13 @@ export const schoolYearApi = {
   remove: async (id: string): Promise<{ id: string; deleted: boolean }> => {
     const res = await client.delete<{ success: boolean; data: { id: string; deleted: boolean } }>(
       `/school-years/${id}`,
+    );
+    return res.data.data;
+  },
+
+  deletionCheck: async (id: string): Promise<DeletionCheck> => {
+    const res = await client.get<{ success: boolean; data: DeletionCheck }>(
+      `/school-years/${id}/deletion-check`,
     );
     return res.data.data;
   },

@@ -6,6 +6,7 @@ import type {
   SubjectSharing,
   SubjectType,
 } from "@/types/admin/subject.types";
+import type { DeletionCheck } from "@/types/admin/deletion.types";
 import type { PaginatedResponse } from "@/types/api.types";
 import type { AxiosResponse } from "axios";
 
@@ -61,6 +62,8 @@ export interface GetSubjectsQuery {
   courseId?:     string;
   strandId?:     string;
   subjectType?:  SubjectType;
+  /** When true, lists archived subjects instead of active ones. */
+  archived?:     boolean;
   page?:         number;
   limit?:        number;
 }
@@ -98,6 +101,9 @@ interface SubjectResponse {
   educatorName?: string | null;
 
   lockStatus: "locked" | "unlocked";
+
+  deletedAt?: string | null;
+  classCount?: number | null;
 
   yearLevel?: string | null;
   termLabel?: string | null;
@@ -168,6 +174,9 @@ function mapSubject(s: SubjectResponse): Subject {
     educatorName: s.educatorName ?? null,
 
     lockStatus: s.lockStatus,
+
+    deletedAt: s.deletedAt ?? null,
+    classCount: s.classCount ?? null,
 
     yearLevel: s.yearLevel ?? null,
     termLabel: s.termLabel ?? null,
@@ -288,5 +297,26 @@ export const subjectApi = {
       await client.get(`/subjects/${id}/sharings`);
 
     return res.data.data;
+  },
+
+  deletionCheck: async (id: string): Promise<DeletionCheck> => {
+    const res: AxiosResponse<ApiResponse<DeletionCheck>> =
+      await client.get(`/subjects/${id}/deletion-check`);
+
+    return res.data.data;
+  },
+
+  remove: async (id: string): Promise<{ id: string; outcome: "deleted" | "archived" }> => {
+    const res: AxiosResponse<ApiResponse<{ id: string; outcome: "deleted" | "archived" }>> =
+      await client.delete(`/subjects/${id}`);
+
+    return res.data.data;
+  },
+
+  restore: async (id: string): Promise<Subject> => {
+    const res: AxiosResponse<ApiResponse<SubjectResponse>> =
+      await client.patch(`/subjects/${id}/restore`);
+
+    return mapSubject(res.data.data);
   },
 };

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { UserPlus, Users, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useResetEducatorPassword } from "@/hooks/admin/useEducators";
+import { useResetEducatorPassword, useDeleteEducator } from "@/hooks/admin/useEducators";
+import { useEducatorDeletionCheck } from "@/hooks/admin/useEducatorDeletionCheck";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { educatorApi, DEFAULT_PAGE_SIZE } from "@/api/admin/educator.api";
@@ -17,6 +18,7 @@ import { SearchInput } from "@/components/shared/SearchInput";
 import { AsyncListState } from "@/components/shared/AsyncListState";
 import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DeleteEntityDialog } from "@/components/shared/DeleteEntityDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -34,6 +36,7 @@ export default function EducatorsPage(): React.JSX.Element {
   const [createOpen, setCreateOpen]           = useState(false);
   const [bulkOpen, setBulkOpen]               = useState(false);
   const [resetTarget, setResetTarget]         = useState<Educator | null>(null);
+  const [deleteTarget, setDeleteTarget]       = useState<Educator | null>(null);
   const [newCredentials, setNewCredentials]   = useState<{
     fullName: string; email: string; educatorCode: string; password: string;
   } | null>(null);
@@ -54,6 +57,10 @@ export default function EducatorsPage(): React.JSX.Element {
   const { ensureOrganization } = useOrganizationGuard();
   const hasEmailExtension = !!org?.emailExtension;
   const resetMutation = useResetEducatorPassword();
+  const deleteMutation = useDeleteEducator();
+
+  const deletionCheckQuery = useEducatorDeletionCheck(deleteTarget?.id, !!deleteTarget);
+  const deletionCheckError = deletionCheckQuery.error as AxiosError<{ message: string }> | null;
 
   useEffect(() => {
     if (page > totalEducatorPages) setPage(Math.max(1, totalEducatorPages));
@@ -175,6 +182,7 @@ export default function EducatorsPage(): React.JSX.Element {
           <EducatorTable
             data={educators}
             onResetPassword={setResetTarget}
+            onDelete={setDeleteTarget}
           />
           <Pagination
             page={page}
@@ -212,6 +220,31 @@ export default function EducatorsPage(): React.JSX.Element {
         isLoading={resetMutation.isPending}
         onConfirm={handleResetConfirm}
       />
+
+      {/* Delete educator (blocked when any history exists) */}
+      {deleteTarget && (
+        <DeleteEntityDialog
+          open
+          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          entityLabel="educator"
+          entityName={deleteTarget.fullName}
+          check={{
+            data: deletionCheckQuery.data,
+            isLoading: deletionCheckQuery.isLoading,
+            isError: deletionCheckQuery.isError,
+            errorMessage: deletionCheckError?.response?.data?.message,
+          }}
+          isDeleting={deleteMutation.isPending}
+          onConfirmDelete={() =>
+            deleteMutation.mutate(deleteTarget.id, {
+              onSuccess: () => setDeleteTarget(null),
+              onError: () => setDeleteTarget(null),
+            })
+          }
+          confirmLabel="Delete Educator"
+          willDeleteNote={`"${deleteTarget.fullName}" has no linked records and will be permanently removed.`}
+        />
+      )}
 
       {/* New credentials after reset */}
       {newCredentials && (

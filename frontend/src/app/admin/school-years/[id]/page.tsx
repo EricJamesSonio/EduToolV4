@@ -2,14 +2,20 @@
 
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
+import type { AxiosError } from "axios";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { programApi } from "@/api/admin/program.api";
+import { useProgramDeletionCheck } from "@/hooks/admin/useProgramDeletionCheck";
+import { useSchoolYearDeletionCheck } from "@/hooks/admin/useSchoolYearDeletionCheck";
+import type { Program } from "@/types/admin/program.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EditSchoolYearDialog } from "@/components/admin/school-years/EditSchoolYearDialog";
 import { ProgramCard } from "@/components/admin/program/ProgramCard";
+import { DeleteEntityDialog } from "@/components/shared/DeleteEntityDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -31,6 +37,8 @@ export default function SchoolYearDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
+  const [deleteYearOpen, setDeleteYearOpen] = useState(false);
 
   const { data: schoolYear, isLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.detail(id),
@@ -48,6 +56,53 @@ export default function SchoolYearDetailPage({
     () => schoolYearApi.getReadiness(id),
     { enabled: !!schoolYear },
   );
+
+  const deleteMutation = useMutationWithInvalidation(
+    (programId: string) => programApi.delete(programId),
+    {
+      invalidateKeys: [
+        queryKeys.admin.programs.all,
+        queryKeys.admin.schoolYears.readiness(),
+      ],
+      onSuccess: () => {
+        toast.success("Department deleted.");
+        setDeleteTarget(null);
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to delete department.");
+        setDeleteTarget(null);
+      },
+    },
+  );
+
+  const deletionCheckQuery = useProgramDeletionCheck(deleteTarget?.id, !!deleteTarget);
+  const deletionCheckError = deletionCheckQuery.error as AxiosError<{ message: string }> | null;
+
+  // Deleting the school year itself: the card on the list page handles that too,
+  // but the detail page needs its own entry point. The check is only fetched
+  // while the dialog is open, and DELETE re-runs it server-side in a tx.
+  const deleteYearMutation = useMutationWithInvalidation(
+    () => schoolYearApi.remove(id),
+    {
+      invalidateKeys: [
+        queryKeys.admin.schoolYears.all,
+        queryKeys.admin.programs.all,
+        queryKeys.admin.schoolYears.readiness(),
+      ],
+      onSuccess: () => {
+        toast.success("School year deleted.");
+        setDeleteYearOpen(false);
+        router.push("/admin/school-years");
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to delete school year.");
+        setDeleteYearOpen(false);
+      },
+    },
+  );
+
+  const yearDeletionCheckQuery = useSchoolYearDeletionCheck(id, deleteYearOpen);
+  const yearDeletionCheckError = yearDeletionCheckQuery.error as AxiosError<{ message: string }> | null;
 
   if (isLoading) {
     return (
@@ -81,10 +136,26 @@ export default function SchoolYearDetailPage({
           { label: schoolYear.name },
         ]}
         actions={
-          <Button size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+            {/* An active year can never be deleted (the server blocks it and asks
+                you to end it instead), so the entry point is hidden there. Every
+                other blocker is explained by the deletion-check dialog. */}
+            {schoolYear.status !== "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive border-destructive/20 hover:bg-destructive/10"
+                onClick={() => setDeleteYearOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -242,12 +313,52 @@ export default function SchoolYearDetailPage({
               <ProgramCard
                 key={program.id}
                 program={program}
-                onDelete={() => {}}
+                onDelete={setDeleteTarget}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* DELETE DIALOG */}
+      {deleteTarget && (
+        <DeleteEntityDialog
+          open
+          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          entityLabel="department"
+          entityName={deleteTarget.name}
+          check={{
+            data: deletionCheckQuery.data,
+            isLoading: deletionCheckQuery.isLoading,
+            isError: deletionCheckQuery.isError,
+            errorMessage: deletionCheckError?.response?.data?.message,
+          }}
+          isDeleting={deleteMutation.isPending}
+          onConfirmDelete={() => deleteMutation.mutate(deleteTarget.id)}
+          confirmLabel="Delete Department"
+          willDeleteNote={`"${deleteTarget.name}" and everything under it will be permanently deleted.`}
+        />
+      )}
+
+      {/* DELETE SCHOOL YEAR DIALOG */}
+      {deleteYearOpen && (
+        <DeleteEntityDialog
+          open
+          onOpenChange={(o) => { if (!o) setDeleteYearOpen(false); }}
+          entityLabel="school year"
+          entityName={schoolYear.name}
+          check={{
+            data: yearDeletionCheckQuery.data,
+            isLoading: yearDeletionCheckQuery.isLoading,
+            isError: yearDeletionCheckQuery.isError,
+            errorMessage: yearDeletionCheckError?.response?.data?.message,
+          }}
+          isDeleting={deleteYearMutation.isPending}
+          onConfirmDelete={() => deleteYearMutation.mutate()}
+          confirmLabel="Delete School Year"
+          willDeleteNote={`"${schoolYear.name}" and everything under it will be permanently deleted.`}
+        />
+      )}
 
       {/* EDIT DIALOG */}
       {editOpen && (

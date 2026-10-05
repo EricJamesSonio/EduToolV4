@@ -8,6 +8,7 @@ import type { GradingScaleService } from '../../grading-scale/grading-scale.serv
 import type { AuditLogService } from '../../audit-log/audit-log.service';
 import type { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
 import type { SchoolProfileService } from '@/modules/school-profile/school-profile.service';
+import type { ProgramService } from '@/modules/program/program.service';
 import type { DatabaseService } from '@/core/database/database.provider';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -60,6 +61,7 @@ describe('SchoolYearService overlap rules', () => {
       {} as unknown as SchoolYearReadinessService,
       {} as unknown as OrgSeederService,
       {} as unknown as SchoolProfileService,
+      {} as unknown as ProgramService,
       {} as unknown as DatabaseService,
     );
   });

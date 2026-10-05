@@ -5,9 +5,10 @@ import { EducatorRepository } from './educator.repository';
 import { ClassModule } from '../class/class.module';
 import { OrganizationModule } from '../organization/organization.module';
 import { EducatorPlanningModule } from './educator-planning.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
-  imports: [ClassModule, OrganizationModule, EducatorPlanningModule],
+  imports: [ClassModule, OrganizationModule, EducatorPlanningModule, AuditLogModule],
   controllers: [EducatorController],
   providers: [EducatorService, EducatorRepository],
   exports: [EducatorService],

@@ -1,12 +1,12 @@
 import { DataTable } from "@/components/shared/DataTable";
 import { useSubjectColumns } from "@/components/admin/subject/SubjectColumns";
 import type { Subject } from "@/types/admin/subject.types";
-import type { SubjectType } from "@/types/admin/subject.types";
+import type { SubjectTab } from "@/types/admin/subject.types";
 
 interface SubjectTableProps {
   isLoading: boolean;
   subjects: Subject[];
-  activeTab: SubjectType;
+  activeTab: SubjectTab;
   filterLevelId: string;
   selectedCourseId: string;
   selectedStrandId: string;
@@ -14,6 +14,7 @@ interface SubjectTableProps {
   onEditClick: (subject: Subject) => void;
   onLockClick: (subject: Subject) => void;
   onUnlockClick: (subject: Subject) => void;
+  onDeleteClick?: (subject: Subject) => void;
 }
 
 export function SubjectTable({
@@ -27,8 +28,9 @@ export function SubjectTable({
   onEditClick,
   onLockClick,
   onUnlockClick,
+  onDeleteClick,
 }: SubjectTableProps) {
-  const columns = useSubjectColumns(onEditClick, onLockClick, onUnlockClick);
+  const columns = useSubjectColumns(onEditClick, onLockClick, onUnlockClick, onDeleteClick);
 
   let emptyDescription = "";
   if (filterLevelId !== "all") {

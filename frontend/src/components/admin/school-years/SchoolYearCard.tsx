@@ -3,13 +3,17 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { isAxiosError } from "axios";
+import type { AxiosError } from "axios";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { useSchoolYearDeletionCheck } from "@/hooks/admin/useSchoolYearDeletionCheck";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DeleteEntityDialog } from "@/components/shared/DeleteEntityDialog";
 import { SchoolYearReadinessDialog } from "./SchoolYearReadinessDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
@@ -32,7 +36,7 @@ interface Props {
   readiness?: ReadinessSummary;
 }
 
-type ConfirmAction = "activate" | "end" | "delete";
+type ConfirmAction = "activate" | "end";
 
 interface ConfirmCopy {
   title: string;
@@ -54,12 +58,6 @@ const CONFIRM_COPY: Record<ConfirmAction, ConfirmCopy> = {
     confirmLabel: "End School Year",
     destructive: true,
   },
-  delete: {
-    title: "Delete this school year?",
-    message: "This will permanently remove this unused school year. This cannot be undone.",
-    confirmLabel: "Delete School Year",
-    destructive: true,
-  },
 };
 
 export function SchoolYearCard({ year, hasActive, readiness }: Props): React.JSX.Element {
@@ -67,6 +65,7 @@ export function SchoolYearCard({ year, hasActive, readiness }: Props): React.JSX
   const queryClient = useQueryClient();
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [preparedReadiness, setPreparedReadiness] =
     useState<SchoolYearReadiness | null>(null);
@@ -153,22 +152,28 @@ const invalidateSchoolYears = () => {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => schoolYearApi.remove(year.id),
-    onSuccess: () => {
-      toast.success("School year deleted.");
-      removeFromCache();
-      invalidateSchoolYears();
-      setConfirmAction(null);
+  const deleteMutation = useMutationWithInvalidation(
+    () => schoolYearApi.remove(year.id),
+    {
+      invalidateKeys: [
+        queryKeys.admin.schoolYears.all,
+        queryKeys.admin.programs.all,
+        queryKeys.admin.schoolYears.readiness(),
+      ],
+      onSuccess: () => {
+        toast.success("School year deleted.");
+        removeFromCache();
+        setDeleteOpen(false);
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to delete school year.");
+        setDeleteOpen(false);
+      },
     },
-    onError: (err: unknown) => {
-      const msg = isAxiosError(err)
-        ? (err.response?.data?.message ?? "Failed to delete school year.")
-        : "Failed to delete school year.";
-      toast.error(msg);
-      setConfirmAction(null);
-    },
-  });
+  );
+
+  const deletionCheckQuery = useSchoolYearDeletionCheck(year.id, deleteOpen);
+  const deletionCheckError = deletionCheckQuery.error as AxiosError<{ message: string }> | null;
 
   const isMutating =
     activateMutation.isPending || endMutation.isPending || deleteMutation.isPending;
@@ -192,7 +197,6 @@ const invalidateSchoolYears = () => {
   const handleConfirm = () => {
     if (confirmAction === "activate") activateMutation.mutate();
     else if (confirmAction === "end") endMutation.mutate();
-    else if (confirmAction === "delete") deleteMutation.mutate();
   };
 
   const getStatusIcon = () => {
@@ -280,7 +284,7 @@ const invalidateSchoolYears = () => {
               label="Delete"
               iconOnly
               className="text-destructive border-destructive/20 hover:bg-destructive/10"
-              onClick={() => setConfirmAction("delete")}
+              onClick={() => setDeleteOpen(true)}
               disabled={isMutating}
             />
           )}
@@ -299,6 +303,25 @@ const invalidateSchoolYears = () => {
           onOpenChange={(o) => {
             if (!o) setConfirmAction(null);
           }}
+        />
+      )}
+
+      {deleteOpen && (
+        <DeleteEntityDialog
+          open
+          onOpenChange={(o) => { if (!o) setDeleteOpen(false); }}
+          entityLabel="school year"
+          entityName={year.name}
+          check={{
+            data: deletionCheckQuery.data,
+            isLoading: deletionCheckQuery.isLoading,
+            isError: deletionCheckQuery.isError,
+            errorMessage: deletionCheckError?.response?.data?.message,
+          }}
+          isDeleting={deleteMutation.isPending}
+          onConfirmDelete={() => deleteMutation.mutate()}
+          confirmLabel="Delete School Year"
+          willDeleteNote={`"${year.name}" and everything under it will be permanently deleted.`}
         />
       )}
 

@@ -1049,7 +1049,7 @@ export class EducatorSubjectService {
     ): string | null => (id ? (rows.find((r) => r.id === id)?.name ?? null) : null);
 
     const subjects = await this.db.subject.findMany({
-      where: { org_id: orgId },
+      where: { org_id: orgId, deleted_at: null },
       select: {
         id: true,
         name: true,

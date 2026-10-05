@@ -19,6 +19,8 @@ export interface SubjectRecord {
   strand_id: string | null;
   strandName: string | null;
   is_locked: boolean;
+  /** Set when the subject is archived (soft-deleted). Null while active. */
+  deleted_at?: Date | string | null;
   year_level: number | string | null;
   term_label: string | null;
   sessions_per_week: number | null;
@@ -28,6 +30,8 @@ export interface SubjectRecord {
   prerequisites: unknown[];
   prereqFor: unknown[];
   sharings: unknown[];
+  /** Linked class count — attached only on archived listings. */
+  classCount?: number;
   created_at: Date | string | null;
   updated_at: Date | string | null;
 }
@@ -68,6 +72,8 @@ export interface SubjectResponse {
   strandId: string | null;
   strandName: string | null;
   lockStatus: 'locked' | 'unlocked';
+  /** ISO timestamp when archived; null while active. */
+  deletedAt?: Date | string | null;
   yearLevel: number | string | null;
   termLabel: string | null;
   /** Explicit weekly requirement, or null to mean "use the program default". */
@@ -85,6 +91,8 @@ export interface SubjectResponse {
   prerequisites: unknown[];
   prereqFor: unknown[];
   sharings: unknown[];
+  /** Linked class count — populated on archived listings, null otherwise. */
+  classCount: number | null;
   createdAt: Date | string | null;
   updatedAt: Date | string | null;
 }

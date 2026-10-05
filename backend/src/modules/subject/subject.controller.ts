@@ -75,6 +75,15 @@ export class SubjectController {
     return this.educatorSubjectService.listEducatorsForSubject(orgId, id);
   }
 
+  @Get(':id/deletion-check')
+  @Roles('admin')
+  async deletionCheck(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.subjectService.deletionCheck(id, orgId);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.subjectService.findById(id, orgId);
@@ -113,6 +122,28 @@ export class SubjectController {
     @Body() dto: ShareSubjectDto,
   ) {
     return this.subjectService.share(id, orgId, dto);
+  }
+
+  @Patch(':id/restore')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async restore(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.subjectService.restore(id, orgId, actorId);
+  }
+
+  @Delete(':id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.subjectService.remove(id, orgId, actorId);
   }
 
   @Delete(':id/share/:sharingId')

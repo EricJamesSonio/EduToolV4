@@ -70,7 +70,7 @@ describe('resolveSubjectAcademicStructures', () => {
     expect(db.subject.findMany).toHaveBeenCalledTimes(1);
     expect(db.subject.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: { in: ['s-direct', 's-course', 's-shared'] }, org_id: 'org-1' },
+        where: { id: { in: ['s-direct', 's-course', 's-shared'] }, org_id: 'org-1', deleted_at: null },
       }),
     );
     // Direct link wins.

@@ -500,7 +500,7 @@ export class EducatorSubjectRepository {
     >();
     if (subjectIds.length === 0) return out;
     const rows = await this.db.subject.findMany({
-      where: { org_id: orgId, id: { in: subjectIds } },
+      where: { org_id: orgId, deleted_at: null, id: { in: subjectIds } },
       select: {
         id: true,
         name: true,

@@ -13,16 +13,24 @@ import { Button }       from "@/components/ui/button";
 import { Plus, Network } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DeleteEntityDialog } from "@/components/shared/DeleteEntityDialog";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
 import { SubjectFilters }    from "@/components/admin/subject/SubjectFilters";
 import { SubjectTabs }       from "@/components/admin/subject/SubjectTabs";
 import { SubjectSearch }     from "@/components/admin/subject/SubjectSearch";
 import { SubjectTable }      from "@/components/admin/subject/SubjectTable";
+import { ArchivedSubjectTable } from "@/components/admin/subject/ArchivedSubjectTable";
 import { SubjectEmptyState } from "@/components/admin/subject/SubjectEmptyState";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import { useSubjectFilters } from "@/components/admin/subject/hooks/useSubjectFilters";
 import { useSubjectQueries } from "@/components/admin/subject/hooks/useSubjectQueries";
 import { useSubjectMutations } from "@/components/admin/subject/hooks/useSubjectMutations";
+import {
+  useSubjectDeletionCheck,
+  useDeleteSubject,
+  useRestoreSubject,
+} from "@/hooks/admin/useSubjectDeletion";
+import type { AxiosError } from "axios";
 import { DEFAULT_PAGE_SIZE } from "@/api/admin/subject.api";
 import { useSubjectPreset } from "@/hooks/admin/useSubjectPreset";
 import { SubjectPresetButton } from "@/components/admin/subject/SubjectPresetButton";
@@ -37,6 +45,8 @@ export default function SubjectsPage(): React.JSX.Element {
   const [editTarget,    setEditTarget]    = useState<Subject | null>(null);
   const [lockTarget,    setLockTarget]    = useState<Subject | null>(null);
   const [unlockTarget,  setUnlockTarget]  = useState<Subject | null>(null);
+  const [deleteTarget,  setDeleteTarget]  = useState<Subject | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<Subject | null>(null);
   const [searchQuery,   setSearchQuery]   = useState("");
   const [page,          setPage]          = useState(1);
   const [limit,         setLimit]         = useState(DEFAULT_PAGE_SIZE);
@@ -54,6 +64,12 @@ export default function SubjectsPage(): React.JSX.Element {
     setLockTarget,
     setUnlockTarget,
   );
+  const deleteMutation = useDeleteSubject();
+  const restoreMutation = useRestoreSubject();
+
+  const deletionCheckQuery = useSubjectDeletionCheck(deleteTarget?.id, !!deleteTarget);
+  const deletionCheckError = deletionCheckQuery.error as AxiosError<{ message: string }> | null;
+  const isArchivedTab = filters.activeTab === "archived";
   const { preset, savePreset, setEnabled, clearPreset } = useSubjectPreset(
     filters.selectedSchoolYearId,
   );
@@ -147,18 +163,27 @@ export default function SubjectsPage(): React.JSX.Element {
 
       {/* Table or empty state */}
       {filters.selectedSchoolYearId ? (
-        <SubjectTable
-          isLoading={isLoading}
-          subjects={subjects}
-          activeTab={filters.activeTab}
-          filterLevelId={filters.filterLevelId}
-          selectedCourseId={filters.selectedCourseId}
-          selectedStrandId={filters.selectedStrandId}
-          selectedProgramId={filters.selectedProgramId}
-          onEditClick={setEditTarget}
-          onLockClick={setLockTarget}
-          onUnlockClick={setUnlockTarget}
-        />
+        isArchivedTab ? (
+          <ArchivedSubjectTable
+            isLoading={isLoading}
+            subjects={subjects}
+            onRestoreClick={setRestoreTarget}
+          />
+        ) : (
+          <SubjectTable
+            isLoading={isLoading}
+            subjects={subjects}
+            activeTab={filters.activeTab}
+            filterLevelId={filters.filterLevelId}
+            selectedCourseId={filters.selectedCourseId}
+            selectedStrandId={filters.selectedStrandId}
+            selectedProgramId={filters.selectedProgramId}
+            onEditClick={setEditTarget}
+            onLockClick={setLockTarget}
+            onUnlockClick={setUnlockTarget}
+            onDeleteClick={setDeleteTarget}
+          />
+        )
       ) : (
         <SubjectEmptyState
           showNoSchoolYear
@@ -182,7 +207,7 @@ export default function SubjectsPage(): React.JSX.Element {
   <SubjectDialog
     levels={levels}
     schoolYearId={filters.selectedSchoolYearId ?? undefined}
-    defaultSubjectType={filters.activeTab}
+    defaultSubjectType={filters.activeTab === "minor" ? "minor" : "major"}
     defaultProgramId={
       presetActive
         ? preset!.programId
@@ -253,6 +278,67 @@ export default function SubjectsPage(): React.JSX.Element {
           isLoading={unlockMutation.isPending}
           onConfirm={() => unlockMutation.mutate(unlockTarget.id)}
           onOpenChange={(o) => { if (!o) setUnlockTarget(null); }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteEntityDialog
+          open
+          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          entityLabel="subject"
+          entityName={deleteTarget.title}
+          check={{
+            data: deletionCheckQuery.data,
+            isLoading: deletionCheckQuery.isLoading,
+            isError: deletionCheckQuery.isError,
+            errorMessage: deletionCheckError?.response?.data?.message,
+          }}
+          isDeleting={deleteMutation.isPending}
+          onConfirmDelete={() =>
+            deleteMutation.mutate(deleteTarget.id, {
+              onSuccess: (result) => {
+                toast.success(
+                  result.outcome === "archived"
+                    ? "Subject archived."
+                    : "Subject deleted.",
+                );
+                setDeleteTarget(null);
+              },
+              onError: (err) => {
+                const message = (err as AxiosError<{ message: string }>)?.response?.data?.message;
+                toast.error(message ?? "Failed to delete subject.");
+                setDeleteTarget(null);
+              },
+            })
+          }
+          confirmLabel="Delete Subject"
+          archiveTitle="Archive this subject?"
+          archiveConfirmLabel="Archive Subject"
+        />
+      )}
+
+      {restoreTarget && (
+        <ConfirmDialog
+          open
+          title="Restore this subject?"
+          message={`Restore "${restoreTarget.title}"? It will become selectable for new classes again.`}
+          confirmLabel="Restore Subject"
+          destructive={false}
+          isLoading={restoreMutation.isPending}
+          onConfirm={() =>
+            restoreMutation.mutate(restoreTarget.id, {
+              onSuccess: () => {
+                toast.success("Subject restored.");
+                setRestoreTarget(null);
+              },
+              onError: (err) => {
+                const message = (err as AxiosError<{ message: string }>)?.response?.data?.message;
+                toast.error(message ?? "Failed to restore subject.");
+                setRestoreTarget(null);
+              },
+            })
+          }
+          onOpenChange={(o) => { if (!o) setRestoreTarget(null); }}
         />
       )}
     </div>

@@ -102,7 +102,8 @@ export function useSubjectQueries(
       filters.selectedStrandId !== "all"
         ? filters.selectedStrandId
         : undefined,
-    subjectType: filters.activeTab,
+    subjectType: filters.activeTab === "archived" ? undefined : filters.activeTab,
+    archived: filters.activeTab === "archived" ? true : undefined,
     search: search || undefined,
   };
 
