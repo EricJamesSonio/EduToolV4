@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AssessmentRepository } from '../../core/assessment-core.repository';
 import { DatabaseService } from '@/core/database/database.provider';
+import { parseInstant } from '@/commons/utils/datetime.util';
 import {
   UpdateSubmissionStatusDto,
   AssignStudentsDto,
@@ -183,7 +184,8 @@ export class AssessmentSubmissionHelper {
   }
 
   async reopen(assessment: any, orgId: string, dto: ReopenAssessmentDto) {
-    const reopenedUntil = new Date(dto.reopenedUntil);
+    // TICK-INFRA-017: DTO already guarantees Z/offset via @IsInstant.
+    const reopenedUntil = parseInstant(dto.reopenedUntil);
     for (const studentId of dto.studentIds) {
       const existing = await this.repo.findSubmissionByStudent(
         assessment.id,

@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { useUpdateAssessment } from "@/hooks/educator/useAssessments";
 import { assessmentApi } from "@/api/educator/assessment.api";
+import { localInputToIso } from "@/utils/datetime.util";
 import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api";
 import { gradeApi } from "@/api/educator/grade.api";
 import { Button } from "@/components/ui/button";
@@ -166,7 +167,9 @@ export default function NewAssessmentPage() {
       const assessment = await assessmentApi.confirmPreview(classId, state.previewId);
       const assessmentId = assessment.id;
       queryClient.setQueryData(queryKeys.educator.assessments.detail(assessmentId), assessment);
-      await updateAssessment({ assessmentId, data: { releaseDate: state.releaseDate, endDate: state.endDate, showBreakdown: state.showBreakdown, weekNumber: state.weekNumber || undefined } });
+      // TICK-INFRA-017: convert once at the edge — picker values are Manila
+      // wall-clock; the API only accepts UTC ISO with Z.
+      await updateAssessment({ assessmentId, data: { releaseDate: state.releaseDate ? localInputToIso(state.releaseDate) : undefined, endDate: state.endDate ? localInputToIso(state.endDate) : undefined, showBreakdown: state.showBreakdown, weekNumber: state.weekNumber || undefined } });
       const published = await assessmentApi.publish(classId, assessmentId, state.selectedStudentIds.length > 0 ? { studentIds: state.selectedStudentIds } : undefined);
       if (published) queryClient.setQueryData(queryKeys.educator.assessments.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
       queryClient.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
@@ -191,8 +194,8 @@ export default function NewAssessmentPage() {
         gradingMode: "manual",
         showBreakdown: state.showBreakdown,
         manualInstructions: state.manualInstructions,
-        releaseDate: state.releaseDate || undefined,
-        endDate: state.endDate || undefined,
+        releaseDate: state.releaseDate ? localInputToIso(state.releaseDate) : undefined,
+        endDate: state.endDate ? localInputToIso(state.endDate) : undefined,
         weekNumber: state.weekNumber,
         ranges: [],
       });

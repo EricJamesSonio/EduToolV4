@@ -11,6 +11,7 @@ import { AttendanceService } from '@/modules/attendance/attendance.service';
 import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { DatabaseService } from '@/core/database/database.provider';
+import { parseInstant } from '@/commons/utils/datetime.util';
 import { AssessmentCreationHelper } from './helpers/assessment-creation.helper';
 import { AssessmentSubmissionHelper } from './helpers/assessment-submission.helper';
 import { AssessmentGenerationHelper } from './assessment-generation.helper';
@@ -308,9 +309,15 @@ export class AssessmentEducatorService {
   ) {
     const assessment = await this.core.findAssessmentOrThrow(id, orgId);
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
+    // TICK-INFRA-017: undefined = untouched, null = clear (sets NULL),
+    // otherwise the DTO guarantees Z/offset via @IsInstant.
+    const toInstantOrClear = (
+      value: string | null | undefined,
+    ): Date | null | undefined =>
+      value === undefined || value === null ? value : parseInstant(value);
     const updated = await this.repo.update(id, {
-      releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
-      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      releaseDate: toInstantOrClear(dto.releaseDate),
+      endDate: toInstantOrClear(dto.endDate),
       type: dto.type,
       showBreakdown: dto.showBreakdown,
       gradingMode: dto.gradingMode,

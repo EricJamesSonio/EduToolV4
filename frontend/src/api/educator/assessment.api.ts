@@ -33,8 +33,9 @@ export interface UpdateAssessmentRequest {
   gradingMode?: GradingMode;
   showBreakdown?: boolean;
   manualMaxScore?: number;
-  releaseDate?: string;
-  endDate?: string;
+  // TICK-INFRA-017: undefined = untouched, null = clear (mirrors the backend).
+  releaseDate?: string | null;
+  endDate?: string | null;
   weekNumber?: number;
 }
 

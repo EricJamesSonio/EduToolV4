@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { AssessmentRepository } from '../../core/assessment-core.repository';
 import { LessonRepository } from '@/modules/lesson/lesson.repository';
 import { DatabaseService } from '@/core/database/database.provider';
+import { parseInstant } from '@/commons/utils/datetime.util';
 import { CreateAssessmentDto, GradingMode } from '../../dto/assessment.dto';
 import {
   MANUAL_ONLY_TYPES,
@@ -109,8 +110,10 @@ export class AssessmentCreationHelper {
       type: dto.type,
       title: dto.title,
       totalItems: dto.totalItems,
-      releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
-      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      // TICK-INFRA-017: DTO already guarantees Z/offset via @IsInstant.
+      // parseInstant re-validates defensively and never guesses a zone.
+      releaseDate: dto.releaseDate ? parseInstant(dto.releaseDate) : undefined,
+      endDate: dto.endDate ? parseInstant(dto.endDate) : undefined,
       weekNumber: dto.weekNumber,
       gradingMode: effectiveGradingMode,
       manualMaxScore: dto.manualMaxScore,
