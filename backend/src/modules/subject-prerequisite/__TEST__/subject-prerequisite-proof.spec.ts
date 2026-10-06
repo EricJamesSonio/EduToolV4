@@ -32,6 +32,11 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
         findOne: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
         findBySubject: jest.fn().mockResolvedValue([]),
+        findSubjectsForLevelCheck: jest.fn().mockResolvedValue([
+          { id: 's1', name: 'Subject 1', year_level: 'Grade 2' },
+          { id: 'p-new-1', name: 'Prereq 1', year_level: 'Grade 1' },
+          { id: 'p-new-2', name: 'Prereq 2', year_level: 'Grade 1' },
+        ]),
         delete: jest.fn(),
       };
 
