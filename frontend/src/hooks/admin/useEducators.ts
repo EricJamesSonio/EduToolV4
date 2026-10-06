@@ -302,10 +302,11 @@ export const useResetEducatorPassword =
 
 export const useTeachableSubjects = (
   educatorId: string | undefined,
+  schoolYearId?: string | undefined,
 ): UseQueryResult<TeachableSubject[], Error> => {
   return useAsyncQuery<TeachableSubject[]>(
-    queryKeys.admin.educators.teachableSubjects(educatorId ?? ""),
-    () => educatorApi.getTeachableSubjects(educatorId!),
+    queryKeys.admin.educators.teachableSubjects(educatorId ?? "", schoolYearId),
+    () => educatorApi.getTeachableSubjects(educatorId!, schoolYearId),
     { enabled: !!educatorId },
   );
 };
@@ -323,6 +324,10 @@ export const useSetTeachableSubjects = () => {
       invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
       onSuccess: (result, variables) => {
         void qc.invalidateQueries({ queryKey: queryKeys.admin.educators.all });
+        void qc.invalidateQueries({
+          queryKey:
+            queryKeys.admin.educators.teachableSubjects(variables.educatorId),
+        });
         toast.success(
           variables.subjectIds.length === 0
             ? "Cleared teachable subjects."
@@ -379,6 +384,7 @@ export const useEducatorCapacity = (
   );
 
 export const useSetSubjectSlots = () => {
+  const qc = useQueryClient();
   return useMutationWithInvalidation<
     SetSubjectSlotsResponse,
     Error,
@@ -392,7 +398,12 @@ export const useSetSubjectSlots = () => {
       educatorApi.setSubjectSlots(educatorId, schoolYearId, assignments),
     {
       invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
-      onSuccess: (result) => {
+      onSuccess: (result, variables) => {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.educators.teachableSubjects(
+            variables.educatorId,
+          ),
+        });
         toast.success(
           `Saved slots for ${result.updated} subject${result.updated === 1 ? "" : "s"}.`,
         );
@@ -423,6 +434,10 @@ export const useSetTeachableBundle = () => {
     {
       invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
       onSuccess: (result, variables) => {
+        void qc.invalidateQueries({
+          queryKey:
+            queryKeys.admin.educators.teachableSubjects(variables.educatorId),
+        });
         void qc.invalidateQueries({
           queryKey: queryKeys.admin.educators.slots(variables.educatorId),
         });

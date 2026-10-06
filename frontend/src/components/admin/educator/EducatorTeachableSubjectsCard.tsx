@@ -20,7 +20,7 @@ import { useGeneratorRoster } from "@/hooks/admin/useClassGenerator";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { sectionApi } from "@/api/admin/section.api";
+import { classApi } from "@/api/admin/class.api";
 import type { TeachableSubject } from "@/api/admin/educator.api";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import type { AxiosError } from "axios";
 interface EducatorTeachableSubjectsCardProps {
   educatorId: string;
   schoolYearId?: string;
+  semesterId?: string;
 }
 
 interface UnmatchedLink {
@@ -45,8 +46,19 @@ const MAX_SECTION_BADGES = 3;
 export function EducatorTeachableSubjectsCard({
   educatorId,
   schoolYearId,
+  semesterId,
 }: EducatorTeachableSubjectsCardProps): React.JSX.Element {
-  const { data: assigned, isLoading } = useTeachableSubjects(educatorId);
+  // Year-filtered rows for display and counts: sections arrive resolved
+  // server-side, so there is no client-side section lookup and no raw-id
+  // fallback anywhere in this card.
+  const { data: assigned, isLoading } = useTeachableSubjects(
+    educatorId,
+    schoolYearId,
+  );
+  // Unfiltered links for the modal seed and remove: the bundle/modal write
+  // paths replace the whole link set, so they must keep seeing links from
+  // other years until teachability becomes global (Part B).
+  const { data: assignedAll } = useTeachableSubjects(educatorId);
   const { data: schoolYears = [] } = useSchoolYears();
   const saveMutation = useSetTeachableSubjects();
   const carryMutation = useCarryOverTeachableSubjects();
@@ -55,12 +67,6 @@ export function EducatorTeachableSubjectsCard({
   const [unmatched, setUnmatched] = useState<UnmatchedLink[]>([]);
   const [showUnmatched, setShowUnmatched] = useState(false);
 
-  // Section names for the badges. One query for the year, mapped by id.
-  const { data: sectionsRaw } = useAsyncQuery(
-    queryKeys.admin.sections.list({ schoolYearId }),
-    () => sectionApi.getAll(schoolYearId!),
-    { enabled: !!schoolYearId },
-  );
   // Every educator's holds (including this one, from saved state) for the
   // slot picker: subject -> section -> holder + slot positions. The modal
   // tells its own live picks apart from these saved claims itself.
@@ -89,11 +95,34 @@ export function EducatorTeachableSubjectsCard({
     }
     return map;
   }, [roster]);
-  const sectionNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of sectionsRaw ?? []) map.set(s.id, s.name);
+
+  // Classes in the same scope (shared cache entry with the Classes tab) for
+  // the per-row Generated indicator. Only fetched while a semester is
+  // selected — without one the indicator has nothing to compare against.
+  const { data: scopedClasses = [] } = useAsyncQuery(
+    queryKeys.admin.classes.list({
+      educatorId,
+      schoolYearId,
+      semesterId,
+    }),
+    () =>
+      classApi.getAll({
+        educatorId,
+        schoolYearId,
+        semesterId,
+      }),
+    { enabled: !!schoolYearId && !!semesterId },
+  );
+  const generatedSectionIdsBySubject = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const c of scopedClasses) {
+      if (!c.sectionId) continue;
+      const set = map.get(c.subjectId) ?? new Set<string>();
+      set.add(c.sectionId);
+      map.set(c.subjectId, set);
+    }
     return map;
-  }, [sectionsRaw]);
+  }, [scopedClasses]);
 
   const errMessage = (err: unknown, fallback: string) => {
     const ax = err as AxiosError<{ message?: string }>;
@@ -124,7 +153,9 @@ export function EducatorTeachableSubjectsCard({
 
   const removeSubject = (subjectId: string, subjectName: string) => {
     // Dropping the link deletes the row, so its section picks go with it.
-    const next = (assigned ?? []).map((s) => s.id).filter((x) => x !== subjectId);
+    // Built from the UNFILTERED set: removing one subject must not drop this
+    // educator's links from other years as a side effect.
+    const next = (assignedAll ?? []).map((s) => s.id).filter((x) => x !== subjectId);
     saveMutation.mutate(
       { educatorId, subjectIds: next },
       {
@@ -171,9 +202,7 @@ export function EducatorTeachableSubjectsCard({
       id: "sections",
       header: "Sections",
       cell: ({ row }) => {
-        const names = row.original.sectionIds.map(
-          (id) => sectionNameById.get(id) ?? id.slice(0, 8),
-        );
+        const names = row.original.sections.map((s) => s.name);
         if (names.length === 0) {
           return (
             <span className="text-xs text-muted-foreground not-interactive">
@@ -184,8 +213,8 @@ export function EducatorTeachableSubjectsCard({
         const extra = names.length - MAX_SECTION_BADGES;
         return (
           <div className="flex flex-wrap gap-1" title={names.join(", ")}>
-            {names.slice(0, MAX_SECTION_BADGES).map((n) => (
-              <Badge key={n} variant="secondary" className="text-[11px] font-normal">
+            {names.slice(0, MAX_SECTION_BADGES).map((n, i) => (
+              <Badge key={`${row.original.sections[i].sectionId}-${n}`} variant="secondary" className="text-[11px] font-normal">
                 {n}
               </Badge>
             ))}
@@ -195,6 +224,53 @@ export function EducatorTeachableSubjectsCard({
               </Badge>
             ) : null}
           </div>
+        );
+      },
+    },
+    {
+      id: "generated",
+      header: "Generated",
+      cell: ({ row }) => {
+        if (!semesterId) {
+          return (
+            <span className="text-xs text-muted-foreground not-interactive">
+              —
+            </span>
+          );
+        }
+        const handled = row.original.sections.map((s) => s.sectionId);
+        if (handled.length === 0) {
+          return (
+            <span className="text-xs text-muted-foreground not-interactive">
+              No sections
+            </span>
+          );
+        }
+        const generated =
+          generatedSectionIdsBySubject.get(row.original.id) ?? new Set<string>();
+        const covered = handled.filter((secId) => generated.has(secId)).length;
+        if (covered === handled.length) {
+          return (
+            <Badge variant="default" className="text-[11px] font-normal">
+              Generated
+            </Badge>
+          );
+        }
+        if (covered === 0) {
+          return (
+            <Badge variant="outline" className="text-[11px] font-normal">
+              Not generated
+            </Badge>
+          );
+        }
+        return (
+          <Badge
+            variant="outline"
+            className="border-amber-500/40 text-amber-700 dark:text-amber-400 text-[11px] font-normal"
+            title={`${covered} of ${handled.length} sections have a class`}
+          >
+            Partial
+          </Badge>
         );
       },
     },
@@ -296,7 +372,7 @@ export function EducatorTeachableSubjectsCard({
           onClose={() => setModalOpen(false)}
           educatorId={educatorId}
           schoolYearId={schoolYearId}
-          assigned={assigned ?? []}
+          assigned={assignedAll ?? []}
           claims={claims}
         />
       ) : null}

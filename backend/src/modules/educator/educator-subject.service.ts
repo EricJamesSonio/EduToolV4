@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -81,16 +82,76 @@ export class EducatorSubjectService {
         strandName: s.strand?.deleted_at ? null : (s.strand?.name ?? null),
         sectionIds: Array.isArray(r.section_ids) ? [...r.section_ids] : [],
         sectionSlots: parseSectionSlots(r.section_slots),
+        sections: [],
       };
     });
   }
 
-  /** GET /educators/:id/subjects */
-  async listForEducator(orgId: string, educatorId: string) {
+  private readonly logger = new Logger(EducatorSubjectService.name);
+
+  /**
+   * GET /educators/:id/subjects
+   *
+   * Without a year this returns the full link set (sections left empty —
+   * there is no year context to resolve them against). With a year, rows
+   * whose subject is not in that year are dropped, and each row's section
+   * ids are resolved to names server-side. A section id with no in-year
+   * section is omitted (and counted in the log), never surfaced to the
+   * client — this is what killed the truncated-uuid fallback badges.
+   */
+  async listForEducator(
+    orgId: string,
+    educatorId: string,
+    schoolYearId?: string,
+  ) {
     await this.repo.assertEducator(orgId, educatorId);
-    return EducatorSubjectService.map(
+    const rows = EducatorSubjectService.map(
       await this.repo.findByEducator(orgId, educatorId),
     );
+    if (!schoolYearId) return rows;
+
+    const [yearSubjects, yearSections] = await Promise.all([
+      this.subjectsInYear(orgId, schoolYearId),
+      this.sectionsInYear(orgId, schoolYearId),
+    ]);
+
+    let droppedSections = 0;
+    const scoped: TeachableSubjectRow[] = [];
+    for (const row of rows) {
+      if (!yearSubjects.has(row.id)) continue;
+      const slotsBySection = new Map(
+        row.sectionSlots.map((s) => [s.sectionId, s.slots]),
+      );
+      const sections: TeachableSubjectRow['sections'] = [];
+      for (const sectionId of row.sectionIds) {
+        const info = yearSections.get(sectionId);
+        if (!info) {
+          droppedSections += 1;
+          continue;
+        }
+        sections.push({
+          sectionId,
+          name: info.name,
+          levelName: info.levelName,
+          slots: slotsBySection.get(sectionId) ?? [],
+        });
+      }
+      scoped.push({
+        ...row,
+        sectionIds: sections.map((s) => s.sectionId),
+        sectionSlots: row.sectionSlots.filter((s) =>
+          yearSections.has(s.sectionId),
+        ),
+        sections,
+      });
+    }
+    if (droppedSections > 0) {
+      this.logger.warn(
+        `listForEducator omitted ${droppedSections} unresolvable section(s) ` +
+          `for educator ${educatorId} in school year ${schoolYearId}`,
+      );
+    }
+    return scoped;
   }
 
   /** PUT /educators/:id/subjects — replaces the whole set. */

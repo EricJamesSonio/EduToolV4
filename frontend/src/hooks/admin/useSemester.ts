@@ -22,6 +22,18 @@ export const useSemesters = () => {
   );
 };
 
+// ── GET semesters of one school year (filtered server-side) ─────────
+// Prefer this over fetching everything and filtering on the client: the
+// API accepts schoolYearId and semesters are program-scoped since the
+// program-scope migration, so a year can hold many rows.
+export const useSemestersByYear = (schoolYearId: string | undefined) => {
+  return useAsyncQuery<Semester[]>(
+    queryKeys.admin.semesters.list({ schoolYearId }),
+    () => semesterApi.getAll(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
+};
+
 
 // ── CREATE semester ──────────────────────────────
 

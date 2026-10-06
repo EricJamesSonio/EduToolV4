@@ -179,6 +179,19 @@ export class EducatorCapacityQueryDto {
   schoolYearId!: string;
 }
 
+// ── GET /educators/:id/subjects ─────────────────────────────────────────────
+
+export class ListEducatorSubjectsQueryDto {
+  /**
+   * When present, only subjects of this school year are returned, with their
+   * sections resolved server-side. Without it the full link set is returned
+   * (sections left empty — the caller has no year context to resolve them).
+   */
+  @IsOptional()
+  @IsUUID()
+  schoolYearId?: string;
+}
+
 export class SetEducatorScheduleProfileDto {
   /** false = available on every school day (the default, no setup needed). */
   @IsBoolean()

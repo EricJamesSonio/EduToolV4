@@ -53,3 +53,25 @@ export function getDefaultSemesterId(
   );
   return past[0]?.id ?? null;
 }
+
+/**
+ * Id of the semester whose date range contains today, or null when none
+ * does. Unlike getDefaultSemesterId there is deliberately NO upcoming/past
+ * fallback: callers that offer an "All semesters" option use null for it.
+ *
+ * TICK-INFRA-017: same kind-B day semantics as getDefaultSemesterId.
+ */
+export function getCurrentSemesterId(
+  semesters: SemesterLike[] | undefined,
+): string | null {
+  if (!semesters || semesters.length === 0) return null;
+
+  const today = todayInZone();
+  return (
+    semesters.find((s) => {
+      const start = calendarDateOf(s.startDate);
+      const end = calendarDateOf(s.endDate);
+      return start <= today && today <= end;
+    })?.id ?? null
+  );
+}

@@ -95,6 +95,111 @@ describe('EducatorSubjectService', () => {
     });
   });
 
+  describe('listForEducator', () => {
+    /** One in-year link (with a ghost section) plus one out-of-year link. */
+    const yearLinks = () => [
+      {
+        section_ids: ['sec-1', 'sec-ghost'],
+        section_slots: [
+          { sectionId: 'sec-1', slots: [1, 2] },
+          { sectionId: 'sec-ghost', slots: [1] },
+        ],
+        subject: {
+          id: 'sub-1',
+          name: 'Math',
+          program_id: null,
+          level_id: 'lvl-to',
+          course_id: null,
+          strand_id: null,
+          program: null,
+          level: { name: 'Grade 7', deleted_at: null },
+          course: null,
+          strand: null,
+        },
+      },
+      {
+        section_ids: [],
+        section_slots: [],
+        subject: {
+          id: 'sub-old',
+          name: 'Old',
+          program_id: null,
+          level_id: 'lvl-other',
+          course_id: null,
+          strand_id: null,
+          program: null,
+          level: { name: 'Grade 7', deleted_at: null },
+          course: null,
+          strand: null,
+        },
+      },
+    ];
+    const yearDb = () => ({
+      program: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'prog-1', type: 'jhs' }]),
+      },
+      level: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'lvl-to', name: 'Grade 7', program_id: 'prog-1' },
+        ]),
+      },
+      course: { findMany: jest.fn().mockResolvedValue([]) },
+      strand: { findMany: jest.fn().mockResolvedValue([]) },
+      subject: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'sub-1',
+            name: 'Math',
+            program_id: null,
+            level_id: 'lvl-to',
+            course_id: null,
+            strand_id: null,
+          },
+        ]),
+      },
+      section: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'sec-1', name: 'A', level_id: 'lvl-to' },
+        ]),
+      },
+    });
+
+    it('returns the full set with empty sections when no year is given', async () => {
+      const { service, repo } = makeService(yearDb());
+      repo.findByEducator.mockResolvedValue(yearLinks());
+      const rows = await service.listForEducator('org-1', 'ed-1');
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toMatchObject({ id: 'sub-1', sections: [] });
+    });
+
+    it('scopes rows to the year and resolves sections server-side', async () => {
+      const { service, repo } = makeService(yearDb());
+      repo.findByEducator.mockResolvedValue(yearLinks());
+      const rows = await service.listForEducator('org-1', 'ed-1', 'year-1');
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        id: 'sub-1',
+        sectionIds: ['sec-1'],
+        sectionSlots: [{ sectionId: 'sec-1', slots: [1, 2] }],
+        sections: [
+          {
+            sectionId: 'sec-1',
+            name: 'A',
+            levelName: 'Grade 7',
+            slots: [1, 2],
+          },
+        ],
+      });
+    });
+
+    it('omits unresolvable sections instead of leaking raw ids', async () => {
+      const { service, repo } = makeService(yearDb());
+      repo.findByEducator.mockResolvedValue(yearLinks());
+      const rows = await service.listForEducator('org-1', 'ed-1', 'year-1');
+      expect(JSON.stringify(rows)).not.toContain('sec-ghost');
+    });
+  });
+
   describe('carryOver', () => {
     /** db whose "from" year has `from` and "to" year has `to`. */
     const carryDb = (

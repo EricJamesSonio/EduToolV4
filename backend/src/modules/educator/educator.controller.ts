@@ -26,6 +26,7 @@ import {
   SetEducatorSubjectSlotsDto,
   SetEducatorSubjectBundleDto,
   EducatorCapacityQueryDto,
+  ListEducatorSubjectsQueryDto,
   CarryOverEducatorSubjectsDto,
   SetEducatorScheduleProfileDto,
 } from './dto/educator.dto';
@@ -75,15 +76,22 @@ export class EducatorController {
   /**
    * GET /educators/:id/subjects
    * Subjects this educator is able to teach, with display context. The
-   * generator assigns only from this set.
+   * generator assigns only from this set. With ?schoolYearId= the rows are
+   * scoped to that year and their sections are resolved server-side, so the
+   * client never renders a raw section id.
    */
   @Get(':id/subjects')
   @Roles('admin')
   async listSubjects(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @Query() query: ListEducatorSubjectsQueryDto,
   ) {
-    return this.educatorSubjectService.listForEducator(orgId, id);
+    return this.educatorSubjectService.listForEducator(
+      orgId,
+      id,
+      query.schoolYearId,
+    );
   }
 
   /**

@@ -11,6 +11,14 @@ export type PrismaTx = Parameters<
   Parameters<PrismaClient['$transaction']>[0]
 >[0];
 
+export interface TeachableSubjectSection {
+  sectionId: string;
+  name: string;
+  levelName: string | null;
+  /** Weekly slot positions picked for this section ([] = legacy whole-pair hold). */
+  slots: number[];
+}
+
 export interface TeachableSubjectRow {
   id: string;
   name: string;
@@ -27,6 +35,12 @@ export interface TeachableSubjectRow {
   sectionIds: string[];
   /** Weekly slot positions picked per section. */
   sectionSlots: SubjectSlotPick[];
+  /**
+   * Server-resolved sections for the requested school year. Empty when the
+   * caller did not scope to a year — a section id that cannot be resolved is
+   * omitted here, never rendered as a truncated id on the client.
+   */
+  sections: TeachableSubjectSection[];
 }
 
 export interface SubjectSectionAssignment {

@@ -43,6 +43,13 @@ export interface UpdateEducatorRequest {
 // ── Teachable subjects (Phase 3) ────────────────────────────────────────────
 
 /** A subject an educator is able to teach, with the context needed to group it. */
+export interface TeachableSubjectSection {
+  sectionId: string;
+  name: string;
+  levelName: string | null;
+  slots: number[];
+}
+
 export interface TeachableSubject {
   id: string;
   name: string;
@@ -59,6 +66,11 @@ export interface TeachableSubject {
   sectionIds: string[];
   /** Weekly slot positions picked per section. */
   sectionSlots: Array<{ sectionId: string; slots: number[] }>;
+  /**
+   * Server-resolved sections for the requested school year. Empty when the
+   * request did not scope to a year — render these, never a raw id.
+   */
+  sections: TeachableSubjectSection[];
 }
 
 export interface SubjectSlotPick {
@@ -221,9 +233,13 @@ export const educatorApi = {
 
   // ── Teachable subjects (Phase 3) ──────────────────────────────────────────
 
-  getTeachableSubjects: async (educatorId: string): Promise<TeachableSubject[]> => {
+  getTeachableSubjects: async (
+    educatorId: string,
+    schoolYearId?: string,
+  ): Promise<TeachableSubject[]> => {
     const res = await client.get<ApiResponse<TeachableSubject[]>>(
-      `/educators/${educatorId}/subjects`
+      `/educators/${educatorId}/subjects`,
+      schoolYearId ? { params: { schoolYearId } } : undefined,
     );
     return res.data.data ?? [];
   },
