@@ -69,6 +69,11 @@ counting script deferred until cutoff provided.
   datetime.util.test 10/10 x4 TZs, byte-identical; assessment+submission
   regression suites 81/81 x4 TZs. tsc --noEmit clean both apps; eslint
   clean on all 13 touched files.
+- 4.2 targeted: PASS — backend assessment+grade-lock+submission+utils
+  154/154 x4 TZs (incl. new assessment-instant-boundary 8 tests and
+  grade-lock-auto-calendar 8 tests); frontend datetime 10/10 x4 TZs;
+  tsc clean both apps; eslint 0 errors (1 pre-existing
+  unused-disable warning in GradeLockSettingModal, untouched line).
 - Full suite: not run (deferred to pre-merge per Level 3 scope)
 - Development integration: not run
 
@@ -86,12 +91,20 @@ Step 1 row-distribution query.
 - 2026-10-06: Step 3 + 4.1 implemented on
   agent/TICK-INFRA-017-tz-independent. STOPPED after 4.1 per instruction;
   diff + 4-TZ results shown to user, awaiting approval for 4.2+.
+- 2026-10-06: User approved 4.1 and scoped 4.2 + hardening (items 1-5).
+  Implemented, verified 154/154 x4 TZs backend + 10/10 x4 frontend.
+  STOPPED after 4.2 per instruction; extended Step-2 audit posted in
+  chat, awaiting approval for 4.3+.
 
 ## Commits
 
 - 5786b6cc feat(time): shared datetime layer plus assessment instant
   boundary (13 files: 4 new, 9 edited). No schema change; no kind-C files
   touched.
+- f060f9dd feat(time): assessment boundary tests, zone-less caller fix,
+  grade-lock instants (10 files: 2 new specs, 8 edited). Includes
+  grade-lock-proof.spec expectation update (string -> same-instant Date;
+  proven property unchanged, see ticket Notes).
 
 ## Notes
 
