@@ -64,8 +64,12 @@ counting script deferred until cutoff provided.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
+- Targeted: PASS — backend datetime.util.spec 18/18 x4 TZs
+  (UTC, Asia/Manila, America/Los_Angeles, Pacific/Kiritimati); frontend
+  datetime.util.test 10/10 x4 TZs, byte-identical; assessment+submission
+  regression suites 81/81 x4 TZs. tsc --noEmit clean both apps; eslint
+  clean on all 13 touched files.
+- Full suite: not run (deferred to pre-merge per Level 3 scope)
 - Development integration: not run
 
 ## Blocker
@@ -79,10 +83,15 @@ Step 1 row-distribution query.
   reported read-only; user approved Step 3 + 4.1.
 - 2026-10-06: Confidence: 79/100 (see Confidence section). User explicitly
   approved proceeding with Step 3 + 4.1 despite prod-data gap.
+- 2026-10-06: Step 3 + 4.1 implemented on
+  agent/TICK-INFRA-017-tz-independent. STOPPED after 4.1 per instruction;
+  diff + 4-TZ results shown to user, awaiting approval for 4.2+.
 
 ## Commits
 
-None yet.
+- 5786b6cc feat(time): shared datetime layer plus assessment instant
+  boundary (13 files: 4 new, 9 edited). No schema change; no kind-C files
+  touched.
 
 ## Notes
 
