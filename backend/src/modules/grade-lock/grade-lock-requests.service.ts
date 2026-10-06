@@ -8,6 +8,7 @@ import {
 import { GradeLockRepository } from './grade-lock.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { resolveDeadline } from './grade-lock.utils';
+import { parseInstant } from '@/commons/utils/datetime.util';
 import type { RequestUnlockDto, GrantUnlockDto } from './dto/grade-lock.dto';
 
 @Injectable()
@@ -109,8 +110,9 @@ export class GradeLockRequestsService {
     const updated = await this.repo.setUnlocked(classId);
 
     if (dto.newDeadline) {
+      // TICK-INFRA-017: DTO guarantees Z/offset via @IsInstant.
       await this.repo.updateSetting(gradeLock.setting.id, {
-        lock_deadline: dto.newDeadline as unknown as Date,
+        lock_deadline: parseInstant(dto.newDeadline),
       });
     }
 

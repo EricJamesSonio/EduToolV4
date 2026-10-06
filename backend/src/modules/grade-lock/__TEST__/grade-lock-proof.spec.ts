@@ -156,9 +156,11 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
       // Correct behavior: a granted newDeadline must be written to the SETTING
       // (keyed by the setting's id, not the class id) so the auto-lock sweep
       // does not re-lock the class within the hour.
+      // TICK-INFRA-017: the service parses the ISO string to a Date (same
+      // instant) instead of passing the raw string to the DateTime column.
       expect(repo.updateSetting).toHaveBeenCalledWith(
         's1',
-        expect.objectContaining({ lock_deadline: future }),
+        expect.objectContaining({ lock_deadline: new Date(future) }),
       );
     });
   });

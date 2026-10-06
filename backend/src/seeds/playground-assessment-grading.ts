@@ -403,8 +403,10 @@ async function main() {
         showBreakdown: true,
         manualInstructions:
           'Perform and describe the activity. Show your work clearly.',
-        releaseDate: SY_START, // released Aug 1 (past)
-        endDate: '2026-12-31', // still open so the student can submit "now"
+        // TICK-INFRA-017: assessment instants require an explicit zone.
+        // These are Manila wall-clock intentions, so carry +08:00.
+        releaseDate: `${SY_START}T00:00:00+08:00`, // released Aug 1 (past)
+        endDate: '2026-12-31T23:59:59+08:00', // still open so the student can submit "now"
       };
       const assessment = await assessmentService.create(
         classId,

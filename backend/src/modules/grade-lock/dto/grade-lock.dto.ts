@@ -1,6 +1,5 @@
 import {
   IsUUID,
-  IsDateString,
   IsOptional,
   IsString,
   IsBoolean,
@@ -12,6 +11,7 @@ import {
   ArrayNotEmpty,
   ArrayMaxSize,
 } from 'class-validator';
+import { IsInstant } from '@/commons/utils/datetime.util';
 
 export const LOCK_TYPES = ['hard', 'soft', 'flexible'] as const;
 export type LockType = (typeof LOCK_TYPES)[number];
@@ -30,8 +30,9 @@ export class CreateGradeLockSettingDto {
   @IsIn(LOCK_TYPES)
   lockType: LockType;
 
+  // TICK-INFRA-017: kind-A instant. Zone-less values rejected with 400.
   @IsOptional()
-  @IsDateString()
+  @IsInstant()
   lock_deadline?: string;
 
   @IsOptional()
@@ -63,9 +64,10 @@ export class UpdateGradeLockSettingDto {
   @IsIn(LOCK_TYPES)
   lockType?: LockType;
 
+  // TICK-INFRA-017: undefined = untouched, null = clear.
   @IsOptional()
-  @IsDateString()
-  lock_deadline?: string;
+  @IsInstant()
+  lock_deadline?: string | null;
 
   @IsOptional()
   @IsInt()
@@ -142,7 +144,7 @@ export class GrantUnlockDto {
   reason: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsInstant()
   newDeadline?: string;
 }
 

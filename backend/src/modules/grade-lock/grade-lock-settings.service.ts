@@ -4,6 +4,7 @@ import {
   NotFoundException, BadRequestException
 } from '@nestjs/common';
 import { GradeLockRepository } from './grade-lock.repository';
+import { parseInstant } from '@/commons/utils/datetime.util';
 import type {
   CreateGradeLockSettingDto,
   UpdateGradeLockSettingDto,
@@ -17,8 +18,10 @@ export class GradeLockSettingsService {
     deadline?: string | null,
   ): Promise<void> {
     if (!deadline) return;
+    // TICK-INFRA-017: DTO guarantees Z/offset via @IsInstant; floor is a
+    // stored Date (already a true instant) — direct comparison, no parsing.
     const floor = await this.repo.findDeadlineFloor(orgId);
-    if (floor && new Date(deadline) < floor) {
+    if (floor && parseInstant(deadline) < floor) {
       throw new BadRequestException(
         `Lock deadline cannot be before the end of the school year (${floor.toISOString()})`,
       );
@@ -78,7 +81,8 @@ export class GradeLockSettingsService {
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.lockType !== undefined && { lockType: dto.lockType }),
       ...(dto.lock_deadline !== undefined && {
-        lock_deadline: dto.lock_deadline ? new Date(dto.lock_deadline) : null,
+        // TICK-INFRA-017: undefined skipped above; null clears, else parse.
+        lock_deadline: dto.lock_deadline ? parseInstant(dto.lock_deadline) : null,
       }),
       ...(dto.deadlineDays !== undefined && { deadlineDays: dto.deadlineDays }),
       ...(dto.allowOverride !== undefined && {
