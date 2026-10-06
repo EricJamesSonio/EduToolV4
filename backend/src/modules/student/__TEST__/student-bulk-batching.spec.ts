@@ -24,6 +24,7 @@ describe('StudentService.bulkCreate — batched org lookup', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
       orgService as any,
       {} as any,
     );
