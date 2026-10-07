@@ -24,7 +24,11 @@ describe('AuditLogRepository pagination', () => {
     });
 
     expect(res).toEqual({
-      data: [{ id: 'log-1' }],
+      // enrich() always attaches the name fields (null when unresolvable) —
+      // the old expectation predates the enrichment feature.
+      data: [
+        { id: 'log-1', actor_name: null, actor_role: null, entity_name: null },
+      ],
       meta: { total: 95, page: 3, limit: 20, totalPages: 5 },
     });
     expect(db.auditLog.findMany).toHaveBeenCalledWith(
