@@ -1,6 +1,6 @@
-# TICK-EDUCATOR-003 — Educator detail filters + global teachable subjects + assessment edit
+# TICK-EDUCATOR-003 — Educator detail filters + global teachable subjects
 
-Status: ready-for-review
+Status: in-progress (review round 2)
 Priority: high
 Created: 2026-10-06
 Created by: agent
@@ -55,12 +55,13 @@ None. Reviewer note: rebase onto development at merge — TICK-INFRA-017 Step 4.
 
 2026-10-06 — Claimed (counter EDUCATOR 2->3). Plan approved by owner in plan mode; proceeding in build mode, part A first.
 2026-10-07 — A committed f5f77b15; B committed ff0bec6d (migration 20261006120000_educator_teachable_subject_global, unapplied); C committed bffc80d7. All validation green (see Tests). Ticket to ready-for-review.
+2026-10-07 — Review round 2: assessment edit (bffc80d7) split to TICK-ASSESS-006 (cherry-pick ee826c3e on its own branch) and removed from this branch (reset to ff0bec6d). This ticket now covers educator A+B plus review items 1 (global subjects tab) and 5 (migration verification). Student detail (item 2) goes to TICK-STUDENT-002.
 
 ## Commits
 
 - f5f77b15 — feat(educator): year and semester filters on educator detail page plus UUID fix
 - ff0bec6d — feat(educator): global teachable subjects with per-year picks
-- bffc80d7 — feat(assessment): editable assessments with type-change gates
+- (bffc80d7 moved to TICK-ASSESS-006 as ee826c3e; no longer on this branch)
 
 ## Notes
 

@@ -50,7 +50,7 @@ None. Awaiting TZ Step 4.1 merge before this merges (rebase + helper swap).
 
 ## Commits
 
-None yet (cherry-pick next).
+- ee826c3e — feat(assessment): editable assessments with type-change gates (cherry-pick of bffc80d7 onto origin/development; branch agent/TICK-ASSESS-006-assessment-edit)
 
 ## Notes
 
