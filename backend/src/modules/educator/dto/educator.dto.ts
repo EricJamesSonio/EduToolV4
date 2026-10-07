@@ -96,6 +96,19 @@ export class EducatorSubjectUsageQueryDto {
   schoolYearId!: string;
 }
 
+export class RemoveTeachableKeysDto {
+  /**
+   * Global subject keys (not subject ids) to remove for the educator.
+   * Removing a key removes teachability in every year, plus the picks rows
+   * whose subject carries a removed key.
+   */
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  keys!: string[];
+}
+
 export class SubjectSlotPickDto {
   @IsUUID()
   sectionId!: string;

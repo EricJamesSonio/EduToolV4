@@ -27,6 +27,7 @@ import {
   SetEducatorSubjectBundleDto,
   EducatorCapacityQueryDto,
   EducatorSubjectUsageQueryDto,
+  RemoveTeachableKeysDto,
   ListEducatorSubjectsQueryDto,
   SetEducatorScheduleProfileDto,
 } from './dto/educator.dto';
@@ -204,6 +205,28 @@ export class EducatorController {
     @Body() dto: BulkCreateEducatorDto,
   ) {
     return this.educatorService.bulkCreate(orgId, dto.entries);
+  }
+
+  /**
+   * POST /educators/:id/subject-keys/remove
+   * Removes global teachable keys (every year at once) plus the picks rows
+   * whose subject carries a removed key. POST-with-body by codebase
+   * convention for scoped removals (assign-students, reopen, carry-over).
+   */
+  @Post(':id/subject-keys/remove')
+  @Roles('admin')
+  async removeSubjectKeys(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: RemoveTeachableKeysDto,
+  ) {
+    return this.educatorSubjectService.removeKeys(
+      orgId,
+      id,
+      dto.keys,
+      actorId,
+    );
   }
 
   /**

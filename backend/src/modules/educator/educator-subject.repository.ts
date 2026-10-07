@@ -45,6 +45,12 @@ export interface TeachableSubjectRow {
    * omitted here, never rendered as a truncated id on the client.
    */
   sections: TeachableSubjectSection[];
+  /**
+   * Global subject key. The row id is a year subject id in the year-scoped
+   * view and the key itself in the global view — this field lets the client
+   * match the two views (offered-in-year badge, Generated indicator).
+   */
+  subjectKey: string;
 }
 
 export interface SubjectSectionAssignment {
@@ -71,6 +77,8 @@ export interface SubjectSlotAssignment {
  */
 export interface SubjectKeyInfo extends SubjectKeyParts {
   programId: string | null;
+  /** Program display name for global rows (null when unknown). */
+  programName: string | null;
   levelId: string | null;
   courseId: string | null;
   strandId: string | null;
@@ -249,7 +257,7 @@ export class EducatorSubjectRepository {
       programIds.length > 0
         ? await client.program.findMany({
             where: { id: { in: programIds } },
-            select: { id: true, type: true, school_year_id: true },
+            select: { id: true, type: true, name: true, school_year_id: true },
           })
         : [];
     const programById = new Map<string, any>(
@@ -281,6 +289,7 @@ export class EducatorSubjectRepository {
         courseName: liveName(course),
         strandName: liveName(strand),
         programId,
+        programName: programById.get(programId)?.name ?? null,
         levelId: s.level_id,
         courseId: s.course_id,
         strandId: s.strand_id,
@@ -744,6 +753,43 @@ export class EducatorSubjectRepository {
       select: { id: true },
     });
     if (!acc) throw new NotFoundException('Educator not found.');
+  }
+
+  /**
+   * Sections by id across ALL school years, with level names. Unlike the
+   * year-scoped resolution, soft-deleted rows are INCLUDED (their names are
+   * still displayable) — only physically-missing ids are absent from the
+   * map, so the global subjects tab never loses a section to year scoping.
+   * Batched: one sections query plus one levels query, never one per row.
+   */
+  async sectionsByIds(
+    orgId: string,
+    sectionIds: string[],
+  ): Promise<Map<string, { name: string; levelName: string | null }>> {
+    const out = new Map<string, { name: string; levelName: string | null }>();
+    const unique = [...new Set(sectionIds)];
+    if (unique.length === 0) return out;
+    const sections = await this.db.section.findMany({
+      where: { org_id: orgId, id: { in: unique } },
+      select: { id: true, name: true, level_id: true },
+    });
+    const levelIds = [...new Set(sections.map((s) => s.level_id))];
+    const levels =
+      levelIds.length > 0
+        ? await this.db.level.findMany({
+            where: { id: { in: levelIds } },
+            select: { id: true, name: true, deleted_at: true },
+          })
+        : [];
+    const levelById = new Map(levels.map((l) => [l.id, l]));
+    for (const s of sections) {
+      const level = levelById.get(s.level_id);
+      out.set(s.id, {
+        name: s.name,
+        levelName: !level || level.deleted_at ? null : (level.name ?? null),
+      });
+    }
+    return out;
   }
 
   /**

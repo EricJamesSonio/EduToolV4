@@ -336,6 +336,43 @@ export const useTeachableSubjectUsage = (
 };
 
 /**
+ * Removes global teachable keys (every year at once). Used by the Subjects
+ * tab's Remove button, which must work whether or not the key has a subject
+ * in the selected year.
+ */
+export const useRemoveTeachableKeys = () => {
+  const qc = useQueryClient();
+  return useMutationWithInvalidation<
+    { removed: number },
+    Error,
+    { educatorId: string; keys: string[] }
+  >(
+    ({ educatorId, keys }) => educatorApi.removeTeachableKeys(educatorId, keys),
+    {
+      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
+      onSuccess: (result, variables) => {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.educators.teachableSubjects(
+            variables.educatorId,
+          ),
+        });
+        void qc.invalidateQueries({ queryKey: queryKeys.admin.educators.all });
+        toast.success(
+          result.removed === 1
+            ? "Removed teachable subject."
+            : `Removed ${result.removed} teachable subjects.`,
+        );
+      },
+      onError: (error: any) => {
+        toast.error(
+          error?.response?.data?.message || "Failed to remove subject.",
+        );
+      },
+    },
+  );
+};
+
+/**
  * One atomic teachable save for the slot-picker modal: replaces the link
  * set AND the slot picks in a single transaction. Any failure leaves the
  * existing links untouched, so there is no half-saved state to reconcile.

@@ -68,6 +68,13 @@ export class EducatorSubjectService {
   private static map(rows: any[]): TeachableSubjectRow[] {
     return rows.map((r) => {
       const s = r.subject;
+      const levelName = s.level?.deleted_at ? null : (s.level?.name ?? null);
+      const courseName = s.course?.deleted_at
+        ? null
+        : (s.course?.name ?? null);
+      const strandName = s.strand?.deleted_at
+        ? null
+        : (s.strand?.name ?? null);
       return {
         id: s.id,
         name: s.name,
@@ -76,14 +83,21 @@ export class EducatorSubjectService {
         programType: s.program?.type ?? null,
         levelId: s.level_id,
         // An archived parent renders as no context rather than as a live one.
-        levelName: s.level?.deleted_at ? null : (s.level?.name ?? null),
+        levelName,
         courseId: s.course_id,
-        courseName: s.course?.deleted_at ? null : (s.course?.name ?? null),
+        courseName,
         strandId: s.strand_id,
-        strandName: s.strand?.deleted_at ? null : (s.strand?.name ?? null),
+        strandName,
         sectionIds: Array.isArray(r.section_ids) ? [...r.section_ids] : [],
         sectionSlots: parseSectionSlots(r.section_slots),
         sections: [],
+        subjectKey: buildSubjectKey({
+          name: s.name,
+          programType: s.program?.type ?? null,
+          levelName,
+          courseName,
+          strandName,
+        }),
       };
     });
   }
@@ -93,16 +107,17 @@ export class EducatorSubjectService {
   /**
    * GET /educators/:id/subjects
    *
-   * Teachability is GLOBAL: the educator's keys resolve against the year's
-   * subjects, joined with that year's picks. Keys with no matching subject
-   * in the year are dropped from the response — a subject missing from the
-   * year needs no cleanup and breaks nothing.
+   * The Subjects tab is GLOBAL: without a year this returns one row per
+   * teachable key — same rows, same count, same sections, same ordering no
+   * matter which school year is selected. Sections are the UNION of the
+   * educator's picks across all years (resolved org-wide, so nothing ever
+   * disappears to year scoping); only physically-missing section rows are
+   * omitted, never surfaced as ids.
    *
-   * Without a year there is no section context, so this returns the pure
-   * eligibility view (display fields only, keyed by subject key).
-   *
-   * Section ids that resolve to no in-year section are omitted (and counted
-   * in the log), never surfaced to the client.
+   * With a year this returns the year-scoped picks view instead (one row per
+   * year subject with that year's picks) that seeds the modal, the remove
+   * flow and the Generated indicator. The client matches the two views with
+   * `subjectKey`.
    */
   async listForEducator(
     orgId: string,
@@ -110,25 +125,7 @@ export class EducatorSubjectService {
     schoolYearId?: string,
   ) {
     await this.repo.assertEducator(orgId, educatorId);
-    if (!schoolYearId) {
-      const keys = await this.repo.findGlobalKeys(orgId, educatorId);
-      return keys.map((k) => ({
-        id: k.subject_key,
-        name: k.display_name,
-        programId: null,
-        programName: null,
-        programType: k.program_type || null,
-        levelId: null,
-        levelName: k.level_name || null,
-        courseId: null,
-        courseName: k.course_name || null,
-        strandId: null,
-        strandName: k.strand_name || null,
-        sectionIds: [],
-        sectionSlots: [],
-        sections: [],
-      }));
-    }
+    if (!schoolYearId) return this.listGlobalForEducator(orgId, educatorId);
 
     const [keys, yearSubjects, yearSections] = await Promise.all([
       this.repo.findGlobalKeys(orgId, educatorId),
@@ -173,6 +170,15 @@ export class EducatorSubjectService {
           sectionIds: [],
           sectionSlots: [],
           sections: [],
+          subjectKey: buildSubjectKey(
+            parts.get(id) ?? {
+              name: yearSubjects.get(id)?.name ?? id,
+              programType: yearSubjects.get(id)?.programType ?? null,
+              levelName: yearSubjects.get(id)?.levelName ?? null,
+              courseName: yearSubjects.get(id)?.courseName ?? null,
+              strandName: yearSubjects.get(id)?.strandName ?? null,
+            },
+          ),
         },
     );
     const scoped = this.resolveSections(rows, yearSections);
@@ -183,6 +189,106 @@ export class EducatorSubjectService {
       );
     }
     return scoped.rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Global Subjects-tab view: one row per teachable key, stable across every
+   * selected year (same rows, same count, same sections, same ordering).
+   *
+   * Display context comes from a deterministic representative — the smallest
+   * live subject id carrying the key — falling back to the key's stored
+   * display fields when nothing live carries it (true orphans, pruned on the
+   * next subject hard-delete). Sections are the UNION of the educator's picks
+   * across all years: same name at two years renders once.
+   */
+  private async listGlobalForEducator(orgId: string, educatorId: string) {
+    const [keys, pickRows, parts] = await Promise.all([
+      this.repo.findGlobalKeys(orgId, educatorId),
+      this.repo.findByEducator(orgId, educatorId),
+      this.repo.subjectKeyParts(orgId),
+    ]);
+    if (keys.length === 0) return [];
+    const keySet = new Set(keys.map((k) => k.subject_key));
+    const storedByKey = new Map(keys.map((k) => [k.subject_key, k]));
+
+    // Live subjects per key for the representative display context.
+    const liveIdsByKey = new Map<string, string[]>();
+    for (const [id, info] of parts) {
+      if (info.deletedAt !== null) continue;
+      const key = buildSubjectKey(info);
+      if (!keySet.has(key)) continue;
+      const list = liveIdsByKey.get(key) ?? [];
+      list.push(id);
+      liveIdsByKey.set(key, list);
+    }
+
+    // Picks section ids per key, across all years.
+    const sectionIdsByKey = new Map<string, string[]>();
+    for (const r of pickRows) {
+      const info = parts.get(r.subject.id);
+      if (!info) continue;
+      const key = buildSubjectKey(info);
+      if (!keySet.has(key)) continue;
+      const list = sectionIdsByKey.get(key) ?? [];
+      list.push(...(r.section_ids ?? []));
+      sectionIdsByKey.set(key, list);
+    }
+    const sectionMap = await this.repo.sectionsByIds(
+      orgId,
+      [...sectionIdsByKey.values()].flat(),
+    );
+
+    const rows: TeachableSubjectRow[] = [];
+    for (const key of [...keySet].sort()) {
+      const repId = (liveIdsByKey.get(key) ?? []).sort()[0];
+      const rep = repId !== undefined ? parts.get(repId) : undefined;
+      const stored = storedByKey.get(key);
+      const seen = new Set<string>();
+      const sections: TeachableSubjectRow['sections'] = [];
+      const sectionIds: string[] = [];
+      const candidates = (sectionIdsByKey.get(key) ?? [])
+        .map((sectionId) => ({ sectionId, info: sectionMap.get(sectionId) }))
+        .filter(
+          (c): c is { sectionId: string; info: { name: string; levelName: string | null } } =>
+            !!c.info,
+        )
+        .sort(
+          (a, b) =>
+            a.info.name.localeCompare(b.info.name) ||
+            (a.info.levelName ?? '').localeCompare(b.info.levelName ?? '') ||
+            a.sectionId.localeCompare(b.sectionId),
+        );
+      for (const c of candidates) {
+        const dedupe = `${c.info.name}|${c.info.levelName ?? ''}`;
+        if (seen.has(dedupe)) continue;
+        seen.add(dedupe);
+        sectionIds.push(c.sectionId);
+        sections.push({
+          sectionId: c.sectionId,
+          name: c.info.name,
+          levelName: c.info.levelName,
+          slots: [],
+        });
+      }
+      rows.push({
+        id: key,
+        name: rep?.name ?? stored?.display_name ?? key,
+        programId: rep?.programId ?? null,
+        programName: rep?.programName ?? null,
+        programType: rep?.programType ?? stored?.program_type ?? null,
+        levelId: rep?.levelId ?? null,
+        levelName: rep?.levelName ?? stored?.level_name ?? null,
+        courseId: rep?.courseId ?? null,
+        courseName: rep?.courseName ?? stored?.course_name ?? null,
+        strandId: rep?.strandId ?? null,
+        strandName: rep?.strandName ?? stored?.strand_name ?? null,
+        sectionIds,
+        sectionSlots: [],
+        sections,
+        subjectKey: key,
+      });
+    }
+    return rows;
   }
 
   /**
@@ -1060,6 +1166,63 @@ export class EducatorSubjectService {
    */
   async keyPartsFor(orgId: string, subjectIds: string[], tx?: PrismaTx) {
     return this.repo.subjectKeyParts(orgId, subjectIds, tx);
+  }
+
+  /**
+   * POST /educators/:id/subject-keys/remove — removes GLOBAL teachable keys,
+   * in every year at once. Picks rows whose subject carries a removed key go
+   * with them (same orphan rule as replaceSet); other years' unrelated picks
+   * are untouched. This is what the Subjects tab's Remove button calls: the
+   * year-scoped bundle cannot remove a key that has no subject in its year.
+   */
+  async removeKeys(
+    orgId: string,
+    educatorId: string,
+    keys: string[],
+    actorId: string,
+  ) {
+    await this.repo.assertEducator(orgId, educatorId);
+    const unique = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
+
+    await this.db.$transaction(async (tx) => {
+      await this.repo.deleteGlobalKeys(orgId, educatorId, unique, tx);
+      const rows = await this.repo.findByEducator(orgId, educatorId, tx);
+      if (rows.length === 0) return;
+      const parts = await this.repo.subjectKeyParts(
+        orgId,
+        rows.map((r) => r.subject.id),
+        tx,
+      );
+      const removed = new Set(unique);
+      const dropIds = rows
+        .filter((r) => {
+          const p = parts.get(r.subject.id);
+          return !!p && removed.has(buildSubjectKey(p));
+        })
+        .map((r) => r.subject.id);
+      if (dropIds.length > 0) {
+        await tx.educatorSubject.deleteMany({
+          where: {
+            org_id: orgId,
+            educator_id: educatorId,
+            subject_id: { in: dropIds },
+          },
+        });
+      }
+    });
+
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'educator_subject_keys_removed',
+        entityType: 'educator',
+        entityId: educatorId,
+        metadata: { count: unique.length },
+      })
+      .catch(() => {});
+
+    return { removed: unique.length };
   }
 
   /**

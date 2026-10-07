@@ -13,6 +13,7 @@ describe('EducatorSubjectService', () => {
       findGlobalKeys: jest.fn().mockResolvedValue([]),
       findGlobalEducatorsByKeys: jest.fn().mockResolvedValue([]),
       subjectKeyParts: jest.fn().mockResolvedValue(new Map()),
+      sectionsByIds: jest.fn().mockResolvedValue(new Map()),
       upsertGlobalKeys: jest.fn().mockResolvedValue(undefined),
       deleteGlobalKeys: jest.fn().mockResolvedValue(undefined),
       deleteGlobalKeysByKey: jest.fn().mockResolvedValue(undefined),
@@ -239,16 +240,45 @@ describe('EducatorSubjectService', () => {
       },
     ];
 
-    it('returns the eligibility view from global keys when no year is given', async () => {
+    it('returns one global row per key with the cross-year section union', async () => {
       const { service, repo } = makeService(yearDb());
       repo.findGlobalKeys.mockResolvedValue(mathKeyRow());
+      repo.findByEducator.mockResolvedValue(yearLinks());
+      repo.subjectKeyParts.mockResolvedValue(
+        new Map([
+          [
+            'sub-1',
+            {
+              name: 'Math',
+              programType: 'jhs',
+              levelName: 'Grade 7',
+              courseName: null,
+              strandName: null,
+              programId: null,
+              programName: null,
+              levelId: 'lvl-to',
+              courseId: null,
+              strandId: null,
+              deletedAt: null,
+            },
+          ],
+        ]) as any,
+      );
+      repo.sectionsByIds.mockResolvedValue(
+        new Map([
+          ['sec-1', { name: 'A', levelName: 'Grade 7' }],
+          ['sec-ghost', { name: 'B', levelName: 'Grade 7' }],
+        ]),
+      );
       const rows = await service.listForEducator('org-1', 'ed-1');
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
         id: MATH_KEY,
+        subjectKey: MATH_KEY,
         name: 'Math',
-        sections: [],
       });
+      // Union across years, deduped by name, stably ordered.
+      expect(rows[0].sections.map((s) => s.name)).toEqual(['A', 'B']);
     });
 
     it('scopes rows to the year and resolves sections server-side', async () => {
@@ -272,12 +302,48 @@ describe('EducatorSubjectService', () => {
       });
     });
 
-    it('omits unresolvable sections instead of leaking raw ids', async () => {
+    it('never drops a section to year scoping in the global view', async () => {
+      // sec-ghost belongs to another year: the year-scoped view omits it,
+      // but the global tab resolves org-wide and keeps it.
       const { service, repo } = makeService(yearDb());
       repo.findGlobalKeys.mockResolvedValue(mathKeyRow());
       repo.findByEducator.mockResolvedValue(yearLinks());
-      const rows = await service.listForEducator('org-1', 'ed-1', 'year-1');
-      expect(JSON.stringify(rows)).not.toContain('sec-ghost');
+      repo.subjectKeyParts.mockResolvedValue(
+        new Map([
+          [
+            'sub-1',
+            {
+              name: 'Math',
+              programType: 'jhs',
+              levelName: 'Grade 7',
+              courseName: null,
+              strandName: null,
+              programId: null,
+              programName: null,
+              levelId: 'lvl-to',
+              courseId: null,
+              strandId: null,
+              deletedAt: null,
+            },
+          ],
+        ]) as any,
+      );
+      repo.sectionsByIds.mockResolvedValue(
+        new Map([
+          ['sec-1', { name: 'A', levelName: 'Grade 7' }],
+          ['sec-ghost', { name: 'B', levelName: 'Grade 7' }],
+        ]),
+      );
+      const yearRows = await service.listForEducator('org-1', 'ed-1', 'year-1');
+      expect(JSON.stringify(yearRows)).not.toContain('sec-ghost');
+      const globalRows = await service.listForEducator('org-1', 'ed-1');
+      expect(JSON.stringify(globalRows)).toContain('sec-ghost');
+      // Every listed section id resolves to a named entry — no bare ids.
+      for (const row of globalRows) {
+        for (const id of row.sectionIds) {
+          expect(row.sections.map((s) => s.sectionId)).toContain(id);
+        }
+      }
     });
 
     it('shows a linked subject with no picks yet as links-only', async () => {
@@ -769,6 +835,127 @@ describe('EducatorSubjectService', () => {
             subject_key: { in: [MATH_KEY] },
           }),
         }),
+      );
+    });
+
+    it('renders identical tab output for every selected year', async () => {
+      // Picks in two years under different subject ids but one key, with
+      // same-named sections (recreated per year): the tab shows ONE row with
+      // the union, however the year selector is set.
+      const parts = new Map([
+        [
+          's1',
+          {
+            name: 'Math',
+            programType: 'jhs',
+            levelName: 'L1',
+            courseName: null,
+            strandName: null,
+            programId: 'prog-1',
+            programName: 'JHS',
+            levelId: 'lvl-1',
+            courseId: null,
+            strandId: null,
+            deletedAt: null,
+          },
+        ],
+        [
+          's2',
+          {
+            name: 'Math',
+            programType: 'jhs',
+            levelName: 'L1',
+            courseName: null,
+            strandName: null,
+            programId: 'prog-2',
+            programName: 'JHS',
+            levelId: 'lvl-2',
+            courseId: null,
+            strandId: null,
+            deletedAt: null,
+          },
+        ],
+      ]) as any;
+      const { service, repo } = makeService();
+      repo.findGlobalKeys.mockResolvedValue([{ subject_key: MATH_KEY }]);
+      repo.findByEducator.mockResolvedValue([
+        {
+          subject: { id: 's1' },
+          section_ids: ['sec-a'],
+          section_slots: [{ sectionId: 'sec-a', slots: [1, 2] }],
+        },
+        {
+          subject: { id: 's2' },
+          section_ids: ['sec-b'],
+          section_slots: [{ sectionId: 'sec-b', slots: [1, 2] }],
+        },
+      ]);
+      repo.subjectKeyParts.mockResolvedValue(parts);
+      repo.sectionsByIds.mockResolvedValue(
+        new Map([
+          ['sec-a', { name: 'A', levelName: 'L1' }],
+          ['sec-b', { name: 'A', levelName: 'L1' }],
+        ]),
+      );
+      const first = await service.listForEducator('org-1', 'ed-1');
+      const second = await service.listForEducator('org-1', 'ed-1');
+      // Identical across reads (and therefore across year selections, which
+      // never touch this path): same rows, count, sections, ordering.
+      expect(second).toEqual(first);
+      expect(first).toHaveLength(1);
+      expect(first[0]).toMatchObject({ id: MATH_KEY, subjectKey: MATH_KEY });
+      expect(first[0].sections.map((s) => s.name)).toEqual(['A']);
+    });
+
+    it('removeKeys deletes the global link and its picks rows', async () => {
+      const { service, repo, audit } = makeService();
+      const tx = { educatorSubject: { deleteMany: jest.fn() } };
+      (service as any).db.$transaction = jest.fn(async (cb: any) => cb(tx));
+      repo.findByEducator.mockResolvedValue([
+        { subject: { id: 's1' }, section_ids: [], section_slots: [] },
+        { subject: { id: 's9' }, section_ids: [], section_slots: [] },
+      ]);
+      repo.subjectKeyParts.mockResolvedValue(
+        new Map([
+          [
+            's1',
+            {
+              name: 'Math',
+              programType: 'jhs',
+              levelName: 'L1',
+              courseName: null,
+              strandName: null,
+            },
+          ],
+          [
+            's9',
+            {
+              name: 'Science',
+              programType: 'jhs',
+              levelName: 'L1',
+              courseName: null,
+              strandName: null,
+            },
+          ],
+        ]) as any,
+      );
+      const out = await service.removeKeys('org-1', 'ed-1', [MATH_KEY], 'actor-1');
+      expect(out).toEqual({ removed: 1 });
+      expect(repo.deleteGlobalKeys).toHaveBeenCalledWith(
+        'org-1',
+        'ed-1',
+        [MATH_KEY],
+        tx,
+      );
+      expect(tx.educatorSubject.deleteMany).toHaveBeenCalledWith({
+        where: {
+          org_id: 'org-1',
+          educator_id: 'ed-1',
+          subject_id: { in: ['s1'] },
+        },
+      });
+      expect(audit.logAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'educator_subject_keys_removed' }),
       );
     });
   });

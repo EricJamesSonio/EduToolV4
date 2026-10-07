@@ -130,7 +130,8 @@ function EducatorDetailPageInner(): React.JSX.Element {
 
   const { data: educator, isLoading } = useEducator(id);
     const [tab, setTab] = useState<"subjects" | "classes">("classes");
-  const { data: teachableSubjects } = useTeachableSubjects(id, schoolYearId);
+  // Global tab count: the Subjects tab never changes with the selectors.
+  const { data: teachableSubjects } = useTeachableSubjects(id);
   const { data: assignedClasses } = useAsyncQuery(
     queryKeys.admin.classes.list({
       educatorId: id,

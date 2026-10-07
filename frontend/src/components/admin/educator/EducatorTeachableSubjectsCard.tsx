@@ -10,16 +10,13 @@ import {
 
 import {
   useTeachableSubjects,
-  useSetTeachableBundle,
+  useRemoveTeachableKeys,
 } from "@/hooks/admin/useEducators";
 import { useGeneratorRoster } from "@/hooks/admin/useClassGenerator";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { classApi } from "@/api/admin/class.api";
-import type {
-  TeachableSubject,
-  SubjectSlotAssignment,
-} from "@/api/admin/educator.api";
+import type { TeachableSubject } from "@/api/admin/educator.api";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,19 +37,21 @@ export function EducatorTeachableSubjectsCard({
   schoolYearId,
   semesterId,
 }: EducatorTeachableSubjectsCardProps): React.JSX.Element {
-  // Year-filtered rows for display and counts: sections arrive resolved
-  // server-side, so there is no client-side section lookup and no raw-id
-  // fallback anywhere in this card. Teachability itself is global — the
-  // bundle write preserves other years server-side, so one filtered query
-  // safely seeds both the table and the modal.
-  const { data: assigned, isLoading } = useTeachableSubjects(
-    educatorId,
-    schoolYearId,
-  );
-  const bundleMutation = useSetTeachableBundle();
+  // GLOBAL display rows: same rows, count, sections and ordering for every
+  // selected year. The year-scoped rows below only seed the modal, drive the
+  // remove flow and the Generated indicator (matched by subjectKey).
+  const { data: assigned, isLoading } = useTeachableSubjects(educatorId);
+  const { data: yearRows } = useTeachableSubjects(educatorId, schoolYearId);
+  const removeKeysMutation = useRemoveTeachableKeys();
 
   const [modalOpen, setModalOpen] = useState(false);
 
+  // Year-scoped lookup for the offered badge and Generated indicator.
+  const yearRowByKey = useMemo(() => {
+    const map = new Map<string, TeachableSubject>();
+    for (const r of yearRows ?? []) map.set(r.subjectKey, r);
+    return map;
+  }, [yearRows]);
   // Every educator's holds (including this one, from saved state) for the
   // slot picker: subject -> section -> holder + slot positions. The modal
   // tells its own live picks apart from these saved claims itself.
@@ -115,29 +114,12 @@ export function EducatorTeachableSubjectsCard({
     return ax.response?.data?.message ?? fallback;
   };
 
-  const removeSubject = (subjectId: string, subjectName: string) => {
-    if (!schoolYearId) {
-      toast.error("Pick a school year first.");
-      return;
-    }
-    // Unticking removes the GLOBAL link (it applies to all school years).
-    // The bundle replaces this year's picks only, so other years are
-    // preserved server-side; retained subjects keep their picks as-is.
-    const remaining = (assigned ?? []).filter((s) => s.id !== subjectId);
-    const assignments: SubjectSlotAssignment[] = remaining.map((s) => ({
-      subjectId: s.id,
-      sections: s.sectionSlots.map((p) => ({
-        sectionId: p.sectionId,
-        slots: [...p.slots],
-      })),
-    }));
-    bundleMutation.mutate(
-      {
-        educatorId,
-        schoolYearId,
-        subjectIds: remaining.map((s) => s.id),
-        assignments,
-      },
+  const removeSubject = (subjectKey: string, subjectName: string) => {
+    // Removes the GLOBAL link (every year at once), plus the picks rows
+    // whose subject carries it. Unlike the modal's bundle save, this works
+    // whether or not the key has a subject in the selected year.
+    removeKeysMutation.mutate(
+      { educatorId, keys: [subjectKey] },
       {
         onError: (err: unknown) =>
           toast.error(errMessage(err, `Failed to remove ${subjectName}.`)),
@@ -149,9 +131,20 @@ export function EducatorTeachableSubjectsCard({
     {
       id: "subject",
       header: "Subject",
-      cell: ({ row }) => (
-        <span className="font-medium not-interactive">{row.original.name}</span>
-      ),
+      cell: ({ row }) => {
+        const offered =
+          !schoolYearId || yearRowByKey.has(row.original.id);
+        return (
+          <div className="not-interactive">
+            <span className="font-medium">{row.original.name}</span>
+            {!offered ? (
+              <p className="text-[11px] text-muted-foreground">
+                Not offered in this year
+              </p>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       id: "department",
@@ -218,7 +211,18 @@ export function EducatorTeachableSubjectsCard({
             </span>
           );
         }
-        const handled = row.original.sections.map((s) => s.sectionId);
+        // Scoped to the selected year/semester: this year's handled sections
+        // come from the year-scoped row (matched by key), not the global
+        // union shown in the Sections column.
+        const yearRow = yearRowByKey.get(row.original.id);
+        if (!yearRow) {
+          return (
+            <span className="text-xs text-muted-foreground not-interactive">
+              —
+            </span>
+          );
+        }
+        const handled = yearRow.sections.map((s) => s.sectionId);
         if (handled.length === 0) {
           return (
             <span className="text-xs text-muted-foreground not-interactive">
@@ -227,7 +231,7 @@ export function EducatorTeachableSubjectsCard({
           );
         }
         const generated =
-          generatedSectionIdsBySubject.get(row.original.id) ?? new Set<string>();
+          generatedSectionIdsBySubject.get(yearRow.id) ?? new Set<string>();
         const covered = handled.filter((secId) => generated.has(secId)).length;
         if (covered === handled.length) {
           return (
@@ -262,7 +266,7 @@ export function EducatorTeachableSubjectsCard({
           size="sm"
           variant="ghost"
           className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          disabled={bundleMutation.isPending}
+          disabled={removeKeysMutation.isPending}
           aria-label={`Remove ${row.original.name}`}
           onClick={() => removeSubject(row.original.id, row.original.name)}
         >
@@ -309,7 +313,7 @@ export function EducatorTeachableSubjectsCard({
           onClose={() => setModalOpen(false)}
           educatorId={educatorId}
           schoolYearId={schoolYearId}
-          assigned={assigned ?? []}
+          assigned={yearRows ?? []}
           claims={claims}
         />
       ) : null}

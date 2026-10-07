@@ -67,10 +67,17 @@ export interface TeachableSubject {
   /** Weekly slot positions picked per section. */
   sectionSlots: Array<{ sectionId: string; slots: number[] }>;
   /**
-   * Server-resolved sections for the requested school year. Empty when the
-   * request did not scope to a year — render these, never a raw id.
+   * Server-resolved sections. Year-scoped view: this year's handled
+   * sections. Global view: the UNION of handled sections across all years.
+   * Render these, never a raw id.
    */
   sections: TeachableSubjectSection[];
+  /**
+   * Global subject key. The row id is a year subject id in the year-scoped
+   * view and the key itself in the global view — this field matches the two
+   * views (offered-in-year badge, Generated indicator).
+   */
+  subjectKey: string;
 }
 
 export interface SubjectSlotPick {
@@ -270,6 +277,23 @@ export const educatorApi = {
     const res = await client.put<ApiResponse<SetTeachableBundleResponse>>(
       `/educators/${educatorId}/subject-bundle`,
       body,
+    );
+    return res.data.data;
+  },
+
+  /**
+   * Removes global teachable keys (every year at once) plus the picks rows
+   * whose subject carries a removed key. This is what the Subjects tab's
+   * Remove button calls — the year-scoped bundle cannot remove a key that
+   * has no subject in its year.
+   */
+  removeTeachableKeys: async (
+    educatorId: string,
+    keys: string[],
+  ): Promise<{ removed: number }> => {
+    const res = await client.post<ApiResponse<{ removed: number }>>(
+      `/educators/${educatorId}/subject-keys/remove`,
+      { keys },
     );
     return res.data.data;
   },
