@@ -120,6 +120,13 @@ Step 1 row-distribution query.
 - e1adffce feat(time): crons in school time plus calendar-date kind-B
   (34 files: 7 new specs, 27 edited). STOPPED after 4.4 per instruction;
   diff + 4-TZ results shown to user, awaiting approval for 4.5+.
+- 91879d7c feat(time): edit-form round-trip normalization plus stale spec
+  repair (12 files). normalizeDateInput shared helper; all kind-B edit
+  forms load legacy ISO tolerantly; semester create specs + school-year
+  db mock repaired (were failing on development too).
+  Verification: backend 241/241 x4 TZs, frontend 31/31 x4 TZs, tsc +
+  eslint clean both apps. STOPPED before 4.5 per instruction; extended
+  Step-2 audit + conditions report posted in chat, awaiting approval.
 
 ## Notes
 
