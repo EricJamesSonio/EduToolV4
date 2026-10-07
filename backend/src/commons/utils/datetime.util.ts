@@ -377,3 +377,89 @@ export function formatCalendarDate(ymd: string): string {
   ];
   return `${months[Number(match[2]) - 1]} ${Number(match[3])}, ${match[1]}`;
 }
+
+const WEEKDAY_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+
+function weekdayFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = WEEKDAY_FORMATTERS.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      weekday: 'short',
+    });
+    WEEKDAY_FORMATTERS.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+const SHORT_WEEKDAY_TO_NUM: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+/**
+ * JS-convention weekday (0 = Sunday) of a calendar day or instant, read in
+ * `timeZone` — never in the process zone. For "YYYY-MM-DD" input the noon
+ * instant of that day in the zone is used, so the answer is exact for every
+ * IANA zone (a UTC-midnight probe would land on the previous day west of
+ * UTC). Used by attendance/lesson generation.
+ */
+export function weekdayInZone(
+  input: Date | string,
+  timeZone: string = ORG_TIMEZONE,
+): number {
+  let instant: Date;
+  if (input instanceof Date) {
+    instant = input;
+  } else if (CALENDAR_DATE_RE.test(input)) {
+    instant = zonedTimeToUtc(input, '12:00', timeZone);
+  } else {
+    instant = parseInstant(input);
+  }
+  if (!isRealDate(instant.getTime())) {
+    throw new BadRequestException('Invalid date value.');
+  }
+  const label = weekdayFormatter(timeZone).format(instant);
+  const day = SHORT_WEEKDAY_TO_NUM[label];
+  if (day === undefined) {
+    throw new BadRequestException(`Unrecognized weekday "${label}".`);
+  }
+  return day;
+}
+
+/**
+ * Every "YYYY-MM-DD" in [startDay, endDay] falling on `weekday`
+ * (JS convention, read in `timeZone`). Pure day-string arithmetic —
+ * identical on every server. Replaces the getDay/setDate occurrence loops
+ * in attendance and lesson generation.
+ */
+export function weekdayOccurrencesInZone(
+  startDay: string,
+  endDay: string,
+  weekday: number,
+  timeZone: string = ORG_TIMEZONE,
+): string[] {
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    throw new BadRequestException(
+      `Invalid weekday "${weekday}". Expected 0 (Sunday) to 6 (Saturday).`,
+    );
+  }
+  // calendarDateToUtc validates both days really exist.
+  calendarDateToUtc(startDay);
+  calendarDateToUtc(endDay);
+  if (endDay < startDay) return [];
+
+  const diff = (weekday - weekdayInZone(startDay, timeZone) + 7) % 7;
+  const days: string[] = [];
+  let cursor = addDaysToCalendarDate(startDay, diff);
+  while (cursor <= endDay) {
+    days.push(cursor);
+    cursor = addDaysToCalendarDate(cursor, 7);
+  }
+  return days;
+}

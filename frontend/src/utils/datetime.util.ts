@@ -256,3 +256,77 @@ export function formatCalendarDate(ymd: string): string {
   ];
   return `${months[Number(match[2]) - 1]} ${Number(match[3])}, ${match[1]}`;
 }
+
+const WEEKDAY_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+
+function weekdayFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = WEEKDAY_FORMATTERS.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "short",
+    });
+    WEEKDAY_FORMATTERS.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+const SHORT_WEEKDAY_TO_NUM: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+/**
+ * JS-convention weekday (0 = Sunday) of a calendar day or instant, read in
+ * `timeZone` — never in the process/browser zone. Mirrors the backend
+ * helper exactly (same name, same semantics).
+ */
+export function weekdayInZone(input: Date | string, timeZone: string = ORG_TIMEZONE): number {
+  let instant: Date;
+  if (input instanceof Date) {
+    instant = input;
+  } else if (CALENDAR_DATE_RE.test(input)) {
+    instant = zonedTimeToUtc(input, "12:00", timeZone);
+  } else {
+    if (typeof input !== "string" || Number.isNaN(new Date(input).getTime())) {
+      fail("Invalid date value.");
+    }
+    instant = new Date(input);
+  }
+  const label = weekdayFormatter(timeZone).format(instant);
+  const day = SHORT_WEEKDAY_TO_NUM[label];
+  if (day === undefined) fail(`Unrecognized weekday "${label}".`);
+  return day;
+}
+
+/**
+ * Every "YYYY-MM-DD" in [startDay, endDay] falling on `weekday`
+ * (JS convention, read in `timeZone`). Pure day-string arithmetic.
+ */
+export function weekdayOccurrencesInZone(
+  startDay: string,
+  endDay: string,
+  weekday: number,
+  timeZone: string = ORG_TIMEZONE
+): string[] {
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    fail(`Invalid weekday "${weekday}". Expected 0 (Sunday) to 6 (Saturday).`);
+  }
+  calendarDateToUtc(startDay);
+  calendarDateToUtc(endDay);
+  if (endDay < startDay) return [];
+
+  const diff = (weekday - weekdayInZone(startDay, timeZone) + 7) % 7;
+  const days: string[] = [];
+  let cursor = addDaysToCalendarDate(startDay, diff);
+  while (cursor <= endDay) {
+    days.push(cursor);
+    cursor = addDaysToCalendarDate(cursor, 7);
+  }
+  return days;
+}

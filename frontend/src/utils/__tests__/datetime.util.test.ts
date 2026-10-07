@@ -11,6 +11,8 @@ import {
   localInputToIso,
   isoToLocalInput,
   normalizeDateInput,
+  weekdayInZone,
+  weekdayOccurrencesInZone,
 } from "../datetime.util";
 
 /**
@@ -104,5 +106,15 @@ describe("datetime.util (timezone-invariant)", () => {
     expect(calendarDateToUtc(loaded).toISOString()).toBe(
       "2026-10-06T00:00:00.000Z",
     );
+  });
+
+  it("reads Manila weekdays and lists occurrences identically everywhere", () => {
+    expect(weekdayInZone("2026-10-06")).toBe(2);
+    expect(weekdayOccurrencesInZone("2026-10-01", "2026-10-31", 1)).toEqual([
+      "2026-10-05",
+      "2026-10-12",
+      "2026-10-19",
+      "2026-10-26",
+    ]);
   });
 });

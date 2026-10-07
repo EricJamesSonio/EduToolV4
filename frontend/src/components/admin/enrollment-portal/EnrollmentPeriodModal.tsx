@@ -32,7 +32,7 @@ import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { todayInZone, normalizeDateInput } from "@/utils/datetime.util";
+import { todayInZone, normalizeDateInput, formatCalendarDate } from "@/utils/datetime.util";
 import type {
   EnrollmentPeriod,
   SectionOverflowAction,
@@ -259,6 +259,13 @@ export function EnrollmentPeriodModal({
               }
             />
             {lockError && <p className="text-xs text-destructive">{lockError}</p>}
+            {!lockError && lockDate && (
+              <p className="text-xs text-muted-foreground">
+                The portal stays open through the end of{" "}
+                {formatCalendarDate(lockDate)} (Manila time) and locks after
+                midnight.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

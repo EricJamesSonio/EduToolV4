@@ -23,6 +23,10 @@ import {
   VerifyEnrollmentOtpDto,
   UpsertEnrollmentApplicationDto,
 } from './dto/enrollment-portal.dto';
+import {
+  calendarDateOf,
+  todayInZone,
+} from '@/commons/utils/datetime.util';
 
 const APPLICATION_CODE_LENGTH = 4;
 const MAX_CODE_ATTEMPTS = 12;
@@ -58,8 +62,10 @@ export class EnrollmentPortalService {
       period.school_year_id,
     );
 
-    const now = new Date();
-    const isOpen = now >= period.start_date && now <= period.end_date;
+    const now = todayInZone();
+    const isOpen =
+      calendarDateOf(period.start_date) <= now &&
+      now <= calendarDateOf(period.end_date);
 
     return {
       org: { id: org.id, name: org.name, slug: org.slug as string },
@@ -336,19 +342,32 @@ export class EnrollmentPortalService {
     }
   }
 
+  /**
+   * TICK-INFRA-017: real-time calendar-day enforcement in school time.
+   * The hourly sweep flips rows, but the submit path never relies on it:
+   * once todayInZone() passes the lock day, creates AND edits are rejected
+   * here, at most one Manila-midnight after close — never an hour later.
+   * The lock day itself stays fully usable.
+   */
   private assertAcceptingApplications(period: {
     start_date: Date;
     end_date: Date;
+    lock_date: Date;
   }) {
-    const now = new Date();
-    if (now < period.start_date) {
+    const today = todayInZone();
+    if (today < calendarDateOf(period.start_date)) {
       throw new BadRequestException(
         'This enrollment period has not started yet.',
       );
     }
-    if (now > period.end_date) {
+    if (today > calendarDateOf(period.end_date)) {
       throw new BadRequestException(
         'This enrollment period has already closed.',
+      );
+    }
+    if (today > calendarDateOf(period.lock_date)) {
+      throw new BadRequestException(
+        'This enrollment period is locked for review and is no longer accepting applications.',
       );
     }
   }

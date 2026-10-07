@@ -13,6 +13,8 @@ import {
   formatInZone,
   localInputToIso,
   isoToLocalInput,
+  weekdayInZone,
+  weekdayOccurrencesInZone,
 } from '../datetime.util';
 import { ORG_TIMEZONE as FRONTEND_ORG_TIMEZONE } from '../../../../../frontend/src/utils/datetime.util';
 
@@ -194,6 +196,31 @@ describe('datetime.util (timezone-invariant)', () => {
       expect(rendered).toContain('5:00 PM');
       expect(rendered).toContain('Oct 6, 2026');
       expect(formatInZone(new Date('2026-10-06T09:00:00.000Z'))).toBe(rendered);
+    });
+  });
+
+  describe('weekdayInZone / weekdayOccurrencesInZone', () => {
+    it('reads the Manila weekday of a calendar day (2026-10-06 is a Tuesday)', () => {
+      expect(weekdayInZone('2026-10-06')).toBe(2);
+      expect(weekdayInZone('2026-10-04')).toBe(0);
+      expect(weekdayInZone(new Date('2026-10-06T09:00:00.000Z'))).toBe(2);
+    });
+
+    it('lists every matching day in a range, Monday-first check', () => {
+      // October 2026 Mondays: 5, 12, 19, 26.
+      expect(weekdayOccurrencesInZone('2026-10-01', '2026-10-31', 1)).toEqual([
+        '2026-10-05',
+        '2026-10-12',
+        '2026-10-19',
+        '2026-10-26',
+      ]);
+    });
+
+    it('returns [] for an inverted range and rejects bad weekdays', () => {
+      expect(weekdayOccurrencesInZone('2026-10-31', '2026-10-01', 1)).toEqual(
+        [],
+      );
+      expect(() => weekdayOccurrencesInZone('2026-10-01', '2026-10-31', 7)).toThrow();
     });
   });
 });
