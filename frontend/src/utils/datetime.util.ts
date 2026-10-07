@@ -223,6 +223,26 @@ export function endOfDayInZone(input: Date | string, timeZone: string = ORG_TIME
 }
 
 /**
+ * Normalise any date value an edit form loads into a "YYYY-MM-DD" string
+ * for <input type="date"> / DatePicker state.
+ *
+ * Date-only strings pass through untouched. Full ISO values (what the API
+ * returns for kind-B columns) are read via calendarDateOf, so legacy
+ * 16:00Z rows (Manila-midnight) load as their INTENDED day — a blind
+ * slice(0, 10) or toISOString() would mislabel those by a day and the form
+ * would then submit the wrong date back. Garbage returns "".
+ */
+export function normalizeDateInput(value: string | null | undefined): string {
+  if (!value) return "";
+  if (CALENDAR_DATE_RE.test(value)) return value;
+  try {
+    return calendarDateOf(value);
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Render a kind-B "YYYY-MM-DD" with no zone shift at all (pure string math,
  * never passed through new Date for display).
  */

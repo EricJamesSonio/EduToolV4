@@ -32,6 +32,7 @@ import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { todayInZone, normalizeDateInput } from "@/utils/datetime.util";
 import type {
   EnrollmentPeriod,
   SectionOverflowAction,
@@ -55,17 +56,16 @@ interface EnrollmentPeriodModalProps {
   existing?: EnrollmentPeriod | null;
 }
 
-function startOfDay(value: string): Date {
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, m - 1, d);
+function toDateOnly(d?: string | null): string {
+  // TICK-INFRA-017: normalize (legacy-ISO tolerant) — a blind slice or local
+  // getters would load the wrong day for 16:00Z rows and submit it back.
+  return normalizeDateInput(d);
 }
 
-function toDateOnly(d?: string | null): string {
-  if (!d) return "";
-  const dt = new Date(d);
-  if (Number.isNaN(dt.getTime())) return "";
+/** "YYYY-MM-DD" label of a picker-local Date (wall-clock read). */
+function toYmd(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 export function EnrollmentPeriodModal({
@@ -107,24 +107,22 @@ export function EnrollmentPeriodModal({
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  const startMs = startDate ? new Date(startDate).getTime() : null;
-  const lockMs = lockDate ? new Date(lockDate).getTime() : null;
-  const endMs = endDate ? new Date(endDate).getTime() : null;
-
+  // TICK-INFRA-017: state holds same-shape "YYYY-MM-DD" strings, so plain
+  // string order is chronological in every TZ. "Today" is the school day.
   const datesUnavailable = !selectedYear || readiness?.ready !== true;
-  const today = startOfDay(new Date().toISOString().slice(0, 10));
-  const startDay = startDate ? startOfDay(startDate.slice(0, 10)) : null;
-  const endDay = endDate ? startOfDay(endDate.slice(0, 10)) : null;
+  const today = todayInZone();
+  const startDay = startDate ? startDate.slice(0, 10) : null;
+  const endDay = endDate ? endDate.slice(0, 10) : null;
 
   const lockError =
-    startMs !== null && lockMs !== null && lockMs < startMs
+    startDay !== null && lockDate && lockDate < startDay
       ? "Lock date must be after the opening date."
-      : lockMs !== null && endMs !== null && lockMs >= endMs
+      : lockDate && endDay !== null && lockDate >= endDay
         ? "Lock date must be before the closing date."
         : "";
 
   const endError =
-    startMs !== null && endMs !== null && endMs <= startMs
+    startDay !== null && endDay !== null && endDay <= startDay
       ? "Closing date must be after the opening date."
       : "";
 
@@ -244,7 +242,7 @@ export function EnrollmentPeriodModal({
             <DatePicker
               value={startDate}
               onChange={setStartDate}
-              disabled={(date) => datesUnavailable || date < today}
+              disabled={(date) => datesUnavailable || toYmd(date) < today}
             />
           </div>
 
@@ -256,8 +254,8 @@ export function EnrollmentPeriodModal({
               disabled={(date) =>
                 datesUnavailable ||
                 !startDay ||
-                date < startDay ||
-                (endDay ? date >= endDay : false)
+                toYmd(date) < startDay ||
+                (endDay ? toYmd(date) >= endDay : false)
               }
             />
             {lockError && <p className="text-xs text-destructive">{lockError}</p>}
@@ -270,8 +268,8 @@ export function EnrollmentPeriodModal({
               onChange={setEndDate}
               disabled={(date) => {
                 if (datesUnavailable) return true;
-                const lockDay = lockDate ? startOfDay(lockDate.slice(0, 10)) : null;
-                return lockDay ? date < lockDay : startDay ? date <= startDay : true;
+                const day = toYmd(date);
+                return lockDate ? day < lockDate : startDay ? day <= startDay : true;
               }}
             />
             {endError && <p className="text-xs text-destructive">{endError}</p>}

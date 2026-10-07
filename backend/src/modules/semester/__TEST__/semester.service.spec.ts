@@ -12,6 +12,8 @@ describe('SemesterService', () => {
   function semDto(overrides: any = {}) {
     return {
       schoolYearId: 'sy-1',
+      programId: 'prog-1',
+      templateSemesterId: 'tslot-1',
       name: '1st Semester',
       startDate: '2024-06-01',
       endDate: '2024-10-31',
@@ -25,7 +27,7 @@ describe('SemesterService', () => {
 
   beforeEach(() => {
     repo = {
-      countBySchoolYear: jest.fn(),
+      countByProgramAndSchoolYear: jest.fn(),
       findSiblingsInSchoolYear: jest.fn(),
       create: jest.fn(),
       upsertTerms: jest.fn(),
@@ -37,8 +39,16 @@ describe('SemesterService', () => {
       delete: jest.fn(),
     };
     service = new SemesterService(repo, {
-      program: { findFirst: jest.fn() },
-      programSemesterAssignment: { findFirst: jest.fn() },
+      program: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'prog-1', school_year_id: 'sy-1' }),
+      },
+      programSemesterAssignment: {
+        findFirst: jest.fn().mockResolvedValue({
+          template: { semesters: [{ id: 'tslot-1' }] },
+        }),
+      },
     } as unknown as DatabaseService);
     jest.clearAllMocks();
   });
@@ -53,21 +63,21 @@ describe('SemesterService', () => {
       await expect(service.create(orgId, semDto({ startDate: '2024-06-01', endDate: '2024-06-01' }) as any)).rejects.toBeInstanceOf(BadRequestException);
     });
     it('throws Conflict when max 3 semesters reached', async () => {
-      repo.countBySchoolYear.mockResolvedValue(3);
+      repo.countByProgramAndSchoolYear.mockResolvedValue(3);
       await expect(service.create(orgId, semDto() as any)).rejects.toBeInstanceOf(ConflictException);
     });
     it('throws Conflict when overlapping sibling', async () => {
-      repo.countBySchoolYear.mockResolvedValue(1);
+      repo.countByProgramAndSchoolYear.mockResolvedValue(1);
       repo.findSiblingsInSchoolYear.mockResolvedValue([{ name: 'Existing', start_date: new Date('2024-06-01'), end_date: new Date('2024-10-31') }]);
       await expect(service.create(orgId, semDto() as any)).rejects.toBeInstanceOf(ConflictException);
     });
     it('throws BadRequest when term dates outside semester', async () => {
-      repo.countBySchoolYear.mockResolvedValue(0);
+      repo.countByProgramAndSchoolYear.mockResolvedValue(0);
       repo.findSiblingsInSchoolYear.mockResolvedValue([]);
       await expect(service.create(orgId, semDto({ terms: [{ name: 'Term 1', orderIndex: 0, startDate: '2024-05-01', endDate: '2024-06-15' }] }) as any)).rejects.toBeInstanceOf(BadRequestException);
     });
     it('throws Conflict when terms overlap each other', async () => {
-      repo.countBySchoolYear.mockResolvedValue(0);
+      repo.countByProgramAndSchoolYear.mockResolvedValue(0);
       repo.findSiblingsInSchoolYear.mockResolvedValue([]);
       await expect(service.create(orgId, semDto({ terms: [
         { name: 'Term 1', orderIndex: 0, startDate: '2024-06-01', endDate: '2024-07-15' },
@@ -75,7 +85,7 @@ describe('SemesterService', () => {
       ] }) as any)).rejects.toBeInstanceOf(ConflictException);
     });
     it('creates semester and upserts terms', async () => {
-      repo.countBySchoolYear.mockResolvedValue(0);
+      repo.countByProgramAndSchoolYear.mockResolvedValue(0);
       repo.findSiblingsInSchoolYear.mockResolvedValue([]);
       repo.create.mockResolvedValue({ id: 'sem-1' });
       repo.findById.mockResolvedValue({ id: 'sem-1', name: '1st Semester' });

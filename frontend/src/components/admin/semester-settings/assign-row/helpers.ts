@@ -2,7 +2,7 @@
 import type { AxiosError } from "axios"
 import {
   addDaysToCalendarDate,
-  calendarDateOf,
+  normalizeDateInput,
 } from "@/utils/datetime.util"
 
 export const errMsg = (e: unknown): string =>
@@ -10,19 +10,11 @@ export const errMsg = (e: unknown): string =>
   "Something went wrong."
 
 /**
- * TICK-INFRA-017: normalise any date the backend returns into YYYY-MM-DD.
- * Tolerant of legacy 16:00Z rows (which a plain slice(0, 10) mislabels by a
- * day); date-only strings pass through untouched.
+ * TICK-INFRA-017: normalise any date the backend returns into YYYY-MM-DD
+ * (tolerant of legacy 16:00Z rows — see normalizeDateInput).
  */
-export const toDateInput = (iso?: string | null): string => {
-  if (!iso) return ""
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso
-  try {
-    return calendarDateOf(iso)
-  } catch {
-    return ""
-  }
-}
+export const toDateInput = (iso?: string | null): string =>
+  normalizeDateInput(iso)
 
 export const fmtLocalDate = (d: Date): string => {
   const y = String(d.getFullYear())

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CalendarEvent, CalendarEventType } from "@/types/admin/calendar.types";
+import { normalizeDateInput } from "@/utils/datetime.util";
 import { EVENT_TYPE_LABELS } from "./constants";
 
 export interface CalendarEventForm {
@@ -53,8 +54,10 @@ export function EventFormDialog({
     defaultValues: {
       title:       event?.title ?? "",
       type:        event?.type  ?? "holiday",
-      startDate:   event?.start_date?.slice(0, 10) ?? "",
-      endDate:     event?.end_date?.slice(0, 10)   ?? "",
+      // TICK-INFRA-017: normalize (legacy-ISO tolerant) — a blind slice
+      // would load the wrong day for 16:00Z rows and submit it back.
+      startDate:   normalizeDateInput(event?.start_date),
+      endDate:     normalizeDateInput(event?.end_date),
       description: event?.description ?? "",
     },
   });

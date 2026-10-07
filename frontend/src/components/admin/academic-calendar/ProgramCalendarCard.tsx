@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { programCalendarApi } from "@/api/admin/program-calendar.api";
 import type { CalendarBreak } from "@/api/admin/program-calendar.api";
+import { calendarDateOf, normalizeDateInput, todayInZone } from "@/utils/datetime.util";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,9 +33,10 @@ function weeksBetween(start: string, end: string) {
 }
 
 function getStatus(start: string, end: string): { label: string; className: string } {
-  const now = Date.now();
-  if (now < new Date(start).getTime()) return { label: "Upcoming", className: "bg-muted text-muted-foreground" };
-  if (now > new Date(end).getTime())   return { label: "Ended",    className: "bg-muted text-muted-foreground" };
+  // TICK-INFRA-017: kind-B day compare (a calendar ending today is ongoing).
+  const today = todayInZone();
+  if (today < calendarDateOf(start)) return { label: "Upcoming", className: "bg-muted text-muted-foreground" };
+  if (today > calendarDateOf(end))   return { label: "Ended",    className: "bg-muted text-muted-foreground" };
   return { label: "Ongoing", className: "badge-success" };
 }
 
@@ -109,19 +111,21 @@ export function ProgramCalendarCard({
 
   function startEdit() {
     if (calendar) {
-      setStartDate(calendar.startDate.slice(0, 10));
-      setEndDate(calendar.endDate.slice(0, 10));
+      // TICK-INFRA-017: normalize (legacy-ISO tolerant) — a blind slice
+      // would load the wrong day for 16:00Z rows and submit it back.
+      setStartDate(normalizeDateInput(calendar.startDate));
+      setEndDate(normalizeDateInput(calendar.endDate));
       setBreaks([
         ...calendar.breaks.map((b) => ({
           label: b.label,
-          startDate: (b.startDate as string).slice(0, 10),
-          endDate: (b.endDate as string).slice(0, 10),
+          startDate: normalizeDateInput(b.startDate as string),
+          endDate: normalizeDateInput(b.endDate as string),
         })),
       ]);
     } else {
-      const initialStart = schoolYearStart?.slice(0, 10) ?? "";
+      const initialStart = normalizeDateInput(schoolYearStart);
       setStartDate(initialStart);
-      setEndDate(schoolYearEnd?.slice(0, 10) ?? "");
+      setEndDate(normalizeDateInput(schoolYearEnd));
       setBreaks(seedDefaultBreaks(initialStart));
     }
     setBreaks((prev) =>
@@ -230,8 +234,8 @@ export function ProgramCalendarCard({
                 <Input
                   type="date"
                   value={startDate}
-                  min={schoolYearStart?.slice(0, 10)}
-                  max={schoolYearEnd?.slice(0, 10)}
+                  min={normalizeDateInput(schoolYearStart) || undefined}
+                  max={normalizeDateInput(schoolYearEnd) || undefined}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="h-8 text-sm"
                 />
@@ -241,8 +245,8 @@ export function ProgramCalendarCard({
                 <Input
                   type="date"
                   value={endDate}
-                  min={schoolYearStart?.slice(0, 10)}
-                  max={schoolYearEnd?.slice(0, 10)}
+                  min={normalizeDateInput(schoolYearStart) || undefined}
+                  max={normalizeDateInput(schoolYearEnd) || undefined}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="h-8 text-sm"
                 />

@@ -10,6 +10,7 @@ import {
   formatCalendarDate,
   localInputToIso,
   isoToLocalInput,
+  normalizeDateInput,
 } from "../datetime.util";
 
 /**
@@ -80,5 +81,28 @@ describe("datetime.util (timezone-invariant)", () => {
   it("formatCalendarDate never shifts a date-only value", () => {
     expect(formatCalendarDate("2026-10-06")).toBe("Oct 6, 2026");
     expect(formatCalendarDate("2026-01-01")).toBe("Jan 1, 2026");
+  });
+
+  it("normalizeDateInput loads a legacy 16:00Z row as its intended day", () => {
+    // What the API returns for kind-B columns in both row conventions.
+    expect(normalizeDateInput("2026-10-06T00:00:00.000Z")).toBe("2026-10-06");
+    expect(normalizeDateInput("2026-10-05T16:00:00.000Z")).toBe("2026-10-06");
+    // Date-only strings (native date inputs) pass through untouched.
+    expect(normalizeDateInput("2026-10-06")).toBe("2026-10-06");
+    expect(normalizeDateInput(null)).toBe("");
+    expect(normalizeDateInput("")).toBe("");
+    expect(normalizeDateInput("not-a-date")).toBe("");
+  });
+
+  it("round-trips a legacy row through an edit form back to the same stored day", () => {
+    // Simulates every kind-B edit form: load legacy ISO -> normalize for
+    // <input type="date"> -> submit the YYYY-MM-DD string -> stored UTC
+    // midnight. A blind slice(0, 10) would have submitted 2026-10-05.
+    const loaded = normalizeDateInput("2026-10-05T16:00:00.000Z");
+    expect(loaded).toBe("2026-10-06");
+    expect(/^\d{4}-\d{2}-\d{2}$/.test(loaded)).toBe(true);
+    expect(calendarDateToUtc(loaded).toISOString()).toBe(
+      "2026-10-06T00:00:00.000Z",
+    );
   });
 });

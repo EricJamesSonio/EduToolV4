@@ -8,9 +8,9 @@ import {
   ValidateNested,
   IsObject,
   IsBoolean,
-  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCalendarDate } from '@/commons/utils/datetime.util';
 
 export class SectionItemDto {
   @IsString()
@@ -51,18 +51,20 @@ export class ProgramCalendarBreakSeedDto {
   @IsString()
   label!: string;
 
-  @IsDateString()
+  // TICK-INFRA-017: kind-B days — these flow straight into
+  // programCalendarService.create(), which requires "YYYY-MM-DD".
+  @IsCalendarDate()
   startDate!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate!: string;
 }
 
 export class ProgramCalendarSeedDto {
-  @IsDateString()
+  @IsCalendarDate()
   startDate!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate!: string;
 
   @IsOptional()

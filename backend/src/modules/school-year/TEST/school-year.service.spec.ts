@@ -62,7 +62,9 @@ describe('SchoolYearService overlap rules', () => {
       {} as unknown as OrgSeederService,
       {} as unknown as SchoolProfileService,
       {} as unknown as ProgramService,
-      {} as unknown as DatabaseService,
+      {
+        organization: { findUnique: jest.fn().mockResolvedValue(null) },
+      } as unknown as DatabaseService,
     );
   });
 
