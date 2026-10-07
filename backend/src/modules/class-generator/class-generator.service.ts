@@ -1073,8 +1073,9 @@ export class ClassGeneratorService {
    *
    * Everything in a few batched queries: year subjects, active educators,
    * schedule profiles, and the subject -> educator eligibility map, inverted
-   * here into educator -> subjects. Teachable links are scoped to the school
-   * year so a previous year's subjects never show up.
+   * here into educator -> subjects. Eligibility is GLOBAL (subject keys
+   * resolved to this year's subject ids); section/slot picks stay per year,
+   * so a previous year's subjects and picks never show up.
    */
   async roster(orgId: string, schoolYearId: string): Promise<RosterResult> {
     const cfg = await this.orgScheduleConfig.getByOrg(orgId);

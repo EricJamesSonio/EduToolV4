@@ -5,23 +5,21 @@ import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   BookOpen,
-  CopyCheck,
-  Loader2,
-  TriangleAlert,
   X,
 } from "lucide-react";
 
 import {
   useTeachableSubjects,
-  useSetTeachableSubjects,
-  useCarryOverTeachableSubjects,
+  useSetTeachableBundle,
 } from "@/hooks/admin/useEducators";
 import { useGeneratorRoster } from "@/hooks/admin/useClassGenerator";
-import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { classApi } from "@/api/admin/class.api";
-import type { TeachableSubject } from "@/api/admin/educator.api";
+import type {
+  TeachableSubject,
+  SubjectSlotAssignment,
+} from "@/api/admin/educator.api";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,12 +33,6 @@ interface EducatorTeachableSubjectsCardProps {
   semesterId?: string;
 }
 
-interface UnmatchedLink {
-  educatorId: string;
-  subjectName: string;
-  reason: string;
-}
-
 const MAX_SECTION_BADGES = 3;
 
 export function EducatorTeachableSubjectsCard({
@@ -50,22 +42,16 @@ export function EducatorTeachableSubjectsCard({
 }: EducatorTeachableSubjectsCardProps): React.JSX.Element {
   // Year-filtered rows for display and counts: sections arrive resolved
   // server-side, so there is no client-side section lookup and no raw-id
-  // fallback anywhere in this card.
+  // fallback anywhere in this card. Teachability itself is global — the
+  // bundle write preserves other years server-side, so one filtered query
+  // safely seeds both the table and the modal.
   const { data: assigned, isLoading } = useTeachableSubjects(
     educatorId,
     schoolYearId,
   );
-  // Unfiltered links for the modal seed and remove: the bundle/modal write
-  // paths replace the whole link set, so they must keep seeing links from
-  // other years until teachability becomes global (Part B).
-  const { data: assignedAll } = useTeachableSubjects(educatorId);
-  const { data: schoolYears = [] } = useSchoolYears();
-  const saveMutation = useSetTeachableSubjects();
-  const carryMutation = useCarryOverTeachableSubjects();
+  const bundleMutation = useSetTeachableBundle();
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [unmatched, setUnmatched] = useState<UnmatchedLink[]>([]);
-  const [showUnmatched, setShowUnmatched] = useState(false);
 
   // Every educator's holds (including this one, from saved state) for the
   // slot picker: subject -> section -> holder + slot positions. The modal
@@ -129,35 +115,29 @@ export function EducatorTeachableSubjectsCard({
     return ax.response?.data?.message ?? fallback;
   };
 
-  const runCarryOver = () => {
-    // Copy from the year immediately AFTER the one being viewed: schoolYears
-    // is newest-first, so the previous year is the next entry.
-    const index = schoolYears.findIndex((y: { id: string }) => y.id === schoolYearId);
-    const from = schoolYears[index + 1];
-    if (!from) {
-      toast.error("There is no earlier school year to copy from.");
+  const removeSubject = (subjectId: string, subjectName: string) => {
+    if (!schoolYearId) {
+      toast.error("Pick a school year first.");
       return;
     }
-    carryMutation.mutate(
-      { fromSchoolYearId: from.id, toSchoolYearId: schoolYearId! },
+    // Unticking removes the GLOBAL link (it applies to all school years).
+    // The bundle replaces this year's picks only, so other years are
+    // preserved server-side; retained subjects keep their picks as-is.
+    const remaining = (assigned ?? []).filter((s) => s.id !== subjectId);
+    const assignments: SubjectSlotAssignment[] = remaining.map((s) => ({
+      subjectId: s.id,
+      sections: s.sectionSlots.map((p) => ({
+        sectionId: p.sectionId,
+        slots: [...p.slots],
+      })),
+    }));
+    bundleMutation.mutate(
       {
-        onSuccess: (result) => {
-          setUnmatched(result.unmatched);
-          setShowUnmatched(result.unmatched.length > 0);
-        },
-        onError: (err: unknown) =>
-          toast.error(errMessage(err, "Failed to copy subjects.")),
+        educatorId,
+        schoolYearId,
+        subjectIds: remaining.map((s) => s.id),
+        assignments,
       },
-    );
-  };
-
-  const removeSubject = (subjectId: string, subjectName: string) => {
-    // Dropping the link deletes the row, so its section picks go with it.
-    // Built from the UNFILTERED set: removing one subject must not drop this
-    // educator's links from other years as a side effect.
-    const next = (assignedAll ?? []).map((s) => s.id).filter((x) => x !== subjectId);
-    saveMutation.mutate(
-      { educatorId, subjectIds: next },
       {
         onError: (err: unknown) =>
           toast.error(errMessage(err, `Failed to remove ${subjectName}.`)),
@@ -282,7 +262,7 @@ export function EducatorTeachableSubjectsCard({
           size="sm"
           variant="ghost"
           className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          disabled={saveMutation.isPending}
+          disabled={bundleMutation.isPending}
           aria-label={`Remove ${row.original.name}`}
           onClick={() => removeSubject(row.original.id, row.original.name)}
         >
@@ -298,28 +278,13 @@ export function EducatorTeachableSubjectsCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-xl text-xs text-muted-foreground">
           Subjects this educator is able to teach, and which sections they
-          handle. The class generator places only assigned pairs.
+          handle. Teachability applies to all school years; sections and slots
+          are picked per year. The class generator places only assigned pairs.
         </p>
         {isLoading ? (
           <Skeleton className="h-9 w-40" />
         ) : (
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={runCarryOver}
-              disabled={
-                carryMutation.isPending || !schoolYearId || schoolYears.length < 2
-              }
-              title="Copy teachable subjects from the previous school year"
-            >
-              {carryMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <CopyCheck className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              Copy from previous year
-            </Button>
             <Button size="sm" onClick={() => setModalOpen(true)}>
               <BookOpen className="h-3.5 w-3.5 mr-1.5" />
               {(assigned ?? []).length === 0 ? "Select subjects" : "Edit subjects"}
@@ -338,41 +303,13 @@ export function EducatorTeachableSubjectsCard({
         />
       </div>
 
-      {unmatched.length > 0 && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-              <TriangleAlert className="h-3.5 w-3.5" />
-              {unmatched.length} subject link(s) could not be matched
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowUnmatched((v) => !v)}
-              className="text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              {showUnmatched ? "Hide" : "Show"}
-            </button>
-          </div>
-          {showUnmatched ? (
-            <ul className="mt-2 space-y-1">
-              {unmatched.map((u, i) => (
-                <li key={i} className="text-[11px] text-muted-foreground">
-                  <span className="font-medium text-foreground">{u.subjectName}</span>
-                  {" "}— {u.reason}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      )}
-
       {modalOpen ? (
         <TeachableSubjectsModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           educatorId={educatorId}
           schoolYearId={schoolYearId}
-          assigned={assignedAll ?? []}
+          assigned={assigned ?? []}
           claims={claims}
         />
       ) : null}

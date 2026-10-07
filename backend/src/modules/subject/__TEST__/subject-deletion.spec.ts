@@ -19,6 +19,10 @@ describe('SubjectService safe delete / archive / restore', () => {
   let db: { $transaction: jest.Mock };
   let audit: { logAdminAction: jest.Mock };
   let cfg: { getByOrg: jest.Mock };
+  let educatorSubjects: {
+    keyPartsFor: jest.Mock;
+    pruneOrphanedSubjectKey: jest.Mock;
+  };
 
   beforeEach(() => {
     repo = {
@@ -35,7 +39,11 @@ describe('SubjectService safe delete / archive / restore', () => {
     db = { $transaction: jest.fn((fn: (txArg: unknown) => unknown) => fn(tx)) };
     audit = { logAdminAction: jest.fn().mockResolvedValue(undefined) };
     cfg = { getByOrg: jest.fn().mockResolvedValue({ slotDuration: 30 }) };
-    service = new SubjectService(repo as any, db as any, cfg as any, audit as any);
+    educatorSubjects = {
+      keyPartsFor: jest.fn().mockResolvedValue(new Map()),
+      pruneOrphanedSubjectKey: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new SubjectService(repo as any, db as any, cfg as any, audit as any, educatorSubjects as any);
     jest.clearAllMocks();
   });
 
@@ -130,6 +138,44 @@ describe('SubjectService safe delete / archive / restore', () => {
       expect(audit.logAdminAction).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'subject_deleted' }),
       );
+    });
+
+    it('prunes the orphaned global teachable key on hard delete', async () => {
+      tx.subject.findFirst.mockResolvedValue({
+        id: 'sub-1',
+        name: 'Math',
+        deleted_at: null,
+      });
+      repo.getClassCount.mockResolvedValue(0);
+      const parts = new Map([['sub-1', { name: 'Math' }]]);
+      educatorSubjects.keyPartsFor.mockResolvedValue(parts);
+
+      await service.remove('sub-1', orgId, actorId);
+
+      expect(educatorSubjects.keyPartsFor).toHaveBeenCalledWith(
+        orgId,
+        ['sub-1'],
+        tx,
+      );
+      expect(repo.hardDeleteCascade).toHaveBeenCalledWith(tx, orgId, 'sub-1');
+      expect(educatorSubjects.pruneOrphanedSubjectKey).toHaveBeenCalledWith(
+        tx,
+        orgId,
+        { name: 'Math' },
+      );
+    });
+
+    it('never prunes on archive, so restore keeps working', async () => {
+      tx.subject.findFirst.mockResolvedValue({
+        id: 'sub-1',
+        name: 'Math',
+        deleted_at: null,
+      });
+      repo.getClassCount.mockResolvedValue(1);
+
+      await service.remove('sub-1', orgId, actorId);
+
+      expect(educatorSubjects.pruneOrphanedSubjectKey).not.toHaveBeenCalled();
     });
   });
 

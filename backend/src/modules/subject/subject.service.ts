@@ -29,6 +29,7 @@ import { resolveSessionRequirement } from './subject-session-defaults';
 import { validateSubjectScope } from './subject.validator';
 import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { EducatorSubjectService } from '../educator/educator-subject.service';
 import { SubjectDeletionCheckDto } from './dto/subject-deletion.dto';
 import { runInTx } from '@/commons/utils/prisma-transaction.util';
 import {
@@ -53,6 +54,13 @@ export class SubjectService {
      */
     private readonly orgScheduleConfigService: OrgScheduleConfigProvider,
     private readonly auditLogService: AuditLogService,
+    /**
+     * Global teachable keys live in the educator domain. The subject delete
+     * path prunes orphaned keys through this explicit service interface —
+     * never by reaching into the educator tables directly. Wiring is
+     * acyclic: SubjectModule already imports EducatorPlanningModule.
+     */
+    private readonly educatorSubjectService: EducatorSubjectService,
   ) {}
 
   /** Slot length used for the alignment rule. Falls back to 30 if unavailable. */
@@ -732,7 +740,23 @@ export class SubjectService {
         return { outcome: 'archived' as const, name: subject.name };
       }
 
+      // Per-year picks for this subject go with it (repository cascade).
+      // The GLOBAL key survives unless no live subject carries it anymore —
+      // archiving never prunes, so restore keeps working.
+      const parts = await this.educatorSubjectService.keyPartsFor(
+        orgId,
+        [id],
+        tx,
+      );
       await this.subjectRepository.hardDeleteCascade(tx, orgId, id);
+      const part = parts.get(id);
+      if (part) {
+        await this.educatorSubjectService.pruneOrphanedSubjectKey(
+          tx,
+          orgId,
+          part,
+        );
+      }
       return { outcome: 'deleted' as const, name: subject.name };
     });
 

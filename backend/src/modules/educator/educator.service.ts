@@ -383,8 +383,9 @@ export class EducatorService {
   /**
    * Safe-delete pre-check: what blocks the delete. Educators with ANY history
    * are strictly blocked (no deactivate alternative) — only educators with
-   * zero linked records can be deleted. DELETE re-runs this inside the
-   * transaction to close the race.
+   * zero linked records can be deleted. Teachable configuration (per-year
+   * picks and global keys) is not history: it cascades instead of blocking.
+   * DELETE re-runs this inside the transaction to close the race.
    */
   async deletionCheck(
     id: string,
@@ -393,22 +394,23 @@ export class EducatorService {
     const account = await this.educatorRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Educator not found.');
 
-    const blockers = await this.educatorRepository.getBlockerCounts(
-      this.db,
-      orgId,
-      id,
-    );
+    const [blockers, teachable] = await Promise.all([
+      this.educatorRepository.getBlockerCounts(this.db, orgId, id),
+      this.educatorRepository.getTeachableCleanupCounts(this.db, orgId, id),
+    ]);
     return buildDeletionReport(
       [
         item('classes', 'classes', blockers.classes),
-        item('teachable-links', 'teachable subject links', blockers.teachableLinks),
         item('owned-subjects', 'directly assigned subjects', blockers.ownedSubjects),
         item('meetings', 'meetings', blockers.meetings),
         item('ownership-logs', 'class ownership records', blockers.ownershipLogs),
         item('grade-locks', 'grade locks', blockers.gradeLocks),
         item('grade-lock-events', 'grade lock events', blockers.gradeLockEvents),
       ],
-      [],
+      [
+        item('teachable-links', 'teachable subject links', teachable.picks),
+        item('teachable-keys', 'global teachable subject links', teachable.keys),
+      ],
     );
   }
 
@@ -430,17 +432,24 @@ export class EducatorService {
         orgId,
         id,
       );
+      const teachable = await this.educatorRepository.getTeachableCleanupCounts(
+        tx,
+        orgId,
+        id,
+      );
       const report = buildDeletionReport(
         [
           item('classes', 'classes', blockers.classes),
-          item('teachable-links', 'teachable subject links', blockers.teachableLinks),
           item('owned-subjects', 'directly assigned subjects', blockers.ownedSubjects),
           item('meetings', 'meetings', blockers.meetings),
           item('ownership-logs', 'class ownership records', blockers.ownershipLogs),
           item('grade-locks', 'grade locks', blockers.gradeLocks),
           item('grade-lock-events', 'grade lock events', blockers.gradeLockEvents),
         ],
-        [],
+        [
+          item('teachable-links', 'teachable subject links', teachable.picks),
+          item('teachable-keys', 'global teachable subject links', teachable.keys),
+        ],
       );
       if (!report.canDelete) {
         throw new ConflictException(

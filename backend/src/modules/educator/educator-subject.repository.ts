@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import type { PrismaClient } from '@prisma/client';
+import {
+  buildSubjectKey,
+  type SubjectKeyParts,
+} from './subject-key.util';
 
 /**
  * Interactive-transaction client. Repository methods that must run inside
@@ -57,6 +61,22 @@ export interface SubjectSlotPick {
 export interface SubjectSlotAssignment {
   subjectId: string;
   sections: SubjectSlotPick[];
+}
+
+/**
+ * Year-independent identity of one subject for the global teachable table,
+ * plus the display context. `deletedAt` lets callers tell archived/pruned
+ * subjects apart from live ones (pruning only fires when NO live subject
+ * carries the key).
+ */
+export interface SubjectKeyInfo extends SubjectKeyParts {
+  programId: string | null;
+  levelId: string | null;
+  courseId: string | null;
+  strandId: string | null;
+  deletedAt: Date | null;
+  /** The school year the subject belongs to, via its lineage. */
+  schoolYearId: string | null;
 }
 
 export interface SubjectSectionClaim {
@@ -131,14 +151,268 @@ export class EducatorSubjectRepository {
     });
   }
 
-  /** Raw subject ids for one educator. Used by the eligibility assertions. */
-  findSubjectIds(orgId: string, educatorId: string): Promise<string[]> {
-    return this.db.educatorSubject
-      .findMany({
-        where: { org_id: orgId, educator_id: educatorId },
-        select: { subject_id: true },
-      })
-      .then((rows) => rows.map((r) => r.subject_id));
+  /**
+   * Year-independent identity of subjects: normalized key parts with parent
+   * ids and deletion state. Batched (subjects + parents in a few queries),
+   * never one per subject. Subjects with no program lineage are SKIPPED (no
+   * entry) — exactly like subjectsInYear skips them, so keys computed here
+   * and keys computed for a year always agree.
+   *
+   * Archived parents render as no context rather than as a live one (same
+   * rule as the teachable-row mapper). Deleted subjects are INCLUDED but
+   * flagged, so pruning can tell "no live subject carries this key" apart
+   * from "no subject at all".
+   */
+  async subjectKeyParts(
+    orgId: string,
+    subjectIds?: string[],
+    tx?: PrismaTx,
+  ): Promise<Map<string, SubjectKeyInfo>> {
+    const out = new Map<string, SubjectKeyInfo>();
+    const client: any = tx ?? this.db;
+    const subjects = await client.subject.findMany({
+      where: {
+        org_id: orgId,
+        ...(subjectIds ? { id: { in: subjectIds } } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        program_id: true,
+        level_id: true,
+        course_id: true,
+        strand_id: true,
+        deleted_at: true,
+      },
+    });
+    if (subjects.length === 0) return out;
+
+    const levelIds = [...new Set(subjects.map((s: any) => s.level_id).filter(Boolean))];
+    const courseIds = [...new Set(subjects.map((s: any) => s.course_id).filter(Boolean))];
+    const strandIds = [...new Set(subjects.map((s: any) => s.strand_id).filter(Boolean))];
+    const [levels, courses, strands] = await Promise.all([
+      levelIds.length > 0
+        ? client.level.findMany({
+            where: { id: { in: levelIds } },
+            select: {
+              id: true,
+              name: true,
+              program_id: true,
+              school_year_id: true,
+              deleted_at: true,
+            },
+          })
+        : [],
+      courseIds.length > 0
+        ? client.course.findMany({
+            where: { id: { in: courseIds } },
+            select: {
+              id: true,
+              name: true,
+              program_id: true,
+              school_year_id: true,
+              deleted_at: true,
+            },
+          })
+        : [],
+      strandIds.length > 0
+        ? client.strand.findMany({
+            where: { id: { in: strandIds } },
+            select: {
+              id: true,
+              name: true,
+              program_id: true,
+              school_year_id: true,
+              deleted_at: true,
+            },
+          })
+        : [],
+    ]);
+    const levelById = new Map<string, any>(
+      levels.map((l: any): [string, any] => [l.id, l]),
+    );
+    const courseById = new Map<string, any>(
+      courses.map((c: any): [string, any] => [c.id, c]),
+    );
+    const strandById = new Map<string, any>(
+      strands.map((s: any): [string, any] => [s.id, s]),
+    );
+    const programIds = [
+      ...new Set([
+        ...subjects.map((s: any) => s.program_id).filter(Boolean),
+        ...levels.map((l: any) => l.program_id).filter(Boolean),
+        ...courses.map((c: any) => c.program_id).filter(Boolean),
+        ...strands.map((s: any) => s.program_id).filter(Boolean),
+      ]),
+    ];
+    const programs =
+      programIds.length > 0
+        ? await client.program.findMany({
+            where: { id: { in: programIds } },
+            select: { id: true, type: true, school_year_id: true },
+          })
+        : [];
+    const programById = new Map<string, any>(
+      programs.map((p: any): [string, any] => [p.id, p]),
+    );
+    const programTypeById = new Map<string, string>(
+      programs.map((p: any): [string, string] => [p.id, p.type]),
+    );
+    const liveName = (row: any): string | null =>
+      !row || row.deleted_at ? null : (row.name ?? null);
+
+    for (const s of subjects) {
+      const level = s.level_id ? levelById.get(s.level_id) : undefined;
+      const course = s.course_id ? courseById.get(s.course_id) : undefined;
+      const strand = s.strand_id ? strandById.get(s.strand_id) : undefined;
+      const programId =
+        s.program_id ??
+        level?.program_id ??
+        course?.program_id ??
+        strand?.program_id ??
+        null;
+      if (!programId) continue;
+      const programType = programTypeById.get(programId) ?? null;
+      if (!programType) continue;
+      out.set(s.id, {
+        name: s.name,
+        programType,
+        levelName: liveName(level),
+        courseName: liveName(course),
+        strandName: liveName(strand),
+        programId,
+        levelId: s.level_id,
+        courseId: s.course_id,
+        strandId: s.strand_id,
+        deletedAt: s.deleted_at,
+        schoolYearId:
+          level?.school_year_id ??
+          course?.school_year_id ??
+          strand?.school_year_id ??
+          programById.get(programId)?.school_year_id ??
+          null,
+      });
+    }
+    return out;
+  }
+
+  /** Global teachable keys held by one educator. */
+  findGlobalKeys(orgId: string, educatorId: string, tx?: PrismaTx) {
+    return (tx ?? this.db).educatorTeachableSubject.findMany({
+      where: { org_id: orgId, educator_id: educatorId },
+      select: {
+        subject_key: true,
+        display_name: true,
+        program_type: true,
+        level_name: true,
+        course_name: true,
+        strand_name: true,
+      },
+      orderBy: { display_name: 'asc' },
+    });
+  }
+
+  /**
+   * Educators holding any of the given global keys, with profile context.
+   * ONE query for the whole key set. `activeOnly` mirrors the two existing
+   * consumers: the generator excludes non-active educators, the manual
+   * "who can teach" lookup keeps every non-deleted educator.
+   */
+  findGlobalEducatorsByKeys(
+    orgId: string,
+    keys: string[],
+    opts?: { activeOnly?: boolean },
+  ) {
+    if (keys.length === 0) return Promise.resolve([]);
+    return this.db.educatorTeachableSubject.findMany({
+      where: {
+        org_id: orgId,
+        subject_key: { in: keys },
+        educator: {
+          is: {
+            role: 'educator',
+            deleted_at: null,
+            ...(opts?.activeOnly ? { status: 'active' } : {}),
+          },
+        },
+      },
+      select: {
+        subject_key: true,
+        educator_id: true,
+        educator: {
+          select: {
+            id: true,
+            status: true,
+            profile: { select: { full_name: true, metadata: true } },
+          },
+        },
+      },
+    });
+  }
+
+  /** Upserts global keys (first write wins on labels; keys are stable). */
+  async upsertGlobalKeys(
+    orgId: string,
+    educatorId: string,
+    entries: Array<{ key: string } & SubjectKeyParts & { displayName: string }>,
+    tx: PrismaTx,
+  ): Promise<void> {
+    for (const e of entries) {
+      await tx.educatorTeachableSubject.upsert({
+        where: {
+          org_id_educator_id_subject_key: {
+            org_id: orgId,
+            educator_id: educatorId,
+            subject_key: e.key,
+          },
+        },
+        update: {
+          display_name: e.displayName,
+          program_type: e.programType ?? '',
+          level_name: e.levelName ?? '',
+          course_name: e.courseName ?? '',
+          strand_name: e.strandName ?? '',
+        },
+        create: {
+          org_id: orgId,
+          educator_id: educatorId,
+          subject_key: e.key,
+          display_name: e.displayName,
+          program_type: e.programType ?? '',
+          level_name: e.levelName ?? '',
+          course_name: e.courseName ?? '',
+          strand_name: e.strandName ?? '',
+        },
+      });
+    }
+  }
+
+  /** Deletes global keys of one educator (untick semantics). */
+  async deleteGlobalKeys(
+    orgId: string,
+    educatorId: string,
+    keys: string[],
+    tx: PrismaTx,
+  ): Promise<void> {
+    if (keys.length === 0) return;
+    await tx.educatorTeachableSubject.deleteMany({
+      where: { org_id: orgId, educator_id: educatorId, subject_key: { in: keys } },
+    });
+  }
+
+  /**
+   * Deletes global keys across ALL educators (orphan pruning on subject
+   * hard-delete). The caller verifies no live subject carries the key first.
+   */
+  async deleteGlobalKeysByKey(
+    orgId: string,
+    keys: string[],
+    tx: PrismaTx,
+  ): Promise<void> {
+    if (keys.length === 0) return;
+    await tx.educatorTeachableSubject.deleteMany({
+      where: { org_id: orgId, subject_key: { in: keys } },
+    });
   }
 
   /**
@@ -180,28 +454,13 @@ export class EducatorSubjectRepository {
     });
   }
 
-  /** Adds links without clearing existing ones (carry-over). */
-  addMany(
-    orgId: string,
-    educatorId: string,
-    subjectIds: string[],
-  ): Promise<{ count: number }> {
-    return this.db.educatorSubject.createMany({
-      data: subjectIds.map((subject_id) => ({
-        org_id: orgId,
-        educator_id: educatorId,
-        subject_id,
-      })),
-      skipDuplicates: true,
-    });
-  }
-
   /**
    * Replaces the slot picks for the given subjects (one row per subject).
    * Every subject must already be linked to the educator — the caller
    * validates that, so a section can never dangle off an unlinked subject.
    * `section_ids` is derived as the sections with >= 1 pick, so the legacy
-   * "handles" column can never drift from the slots JSON.
+   * "handles" column can never drift from the slots JSON. Upsert: picks are
+   * created when they are saved, so a key with no picks row yet gets one.
    */
   async setSlots(
     orgId: string,
@@ -215,17 +474,25 @@ export class EducatorSubjectRepository {
           sectionId: s.sectionId,
           slots: [...new Set(s.slots)].sort((x, y) => x - y),
         }));
-        return this.db.educatorSubject.updateMany({
+        const data = {
+          section_ids: clean
+            .filter((s) => s.slots.length > 0)
+            .map((s) => s.sectionId),
+          section_slots: clean,
+        };
+        return this.db.educatorSubject.upsert({
           where: {
+            educator_id_subject_id: {
+              educator_id: educatorId,
+              subject_id: a.subjectId,
+            },
+          },
+          update: { ...data, org_id: orgId },
+          create: {
             org_id: orgId,
             educator_id: educatorId,
             subject_id: a.subjectId,
-          },
-          data: {
-            section_ids: clean
-              .filter((s) => s.slots.length > 0)
-              .map((s) => s.sectionId),
-            section_slots: clean,
+            ...data,
           },
         });
       }),
@@ -233,19 +500,25 @@ export class EducatorSubjectRepository {
   }
 
   /**
-   * Replaces the educator's whole link set AND their slot picks in one call,
-   * for the atomic bundle write. Subjects in `rows` get rows (with slots or
-   * empty); every other existing link is dropped — the same replacement
-   * semantics as `replaceSet`. Must run inside the bundle transaction.
+   * Replaces the educator's slot picks for ONE school year's subjects, for
+   * the atomic bundle write. Subjects in `rows` get rows (with slots or
+   * empty); every other link OF THAT YEAR is dropped — other years are
+   * untouched, because eligibility is global now and picks are per year.
+   * Must run inside the bundle transaction.
    */
-  async replaceAllWithSlots(
+  async replaceYearPicks(
     orgId: string,
     educatorId: string,
+    yearSubjectIds: string[],
     rows: SubjectSlotAssignment[],
     tx: PrismaTx,
   ): Promise<void> {
     await tx.educatorSubject.deleteMany({
-      where: { org_id: orgId, educator_id: educatorId },
+      where: {
+        org_id: orgId,
+        educator_id: educatorId,
+        subject_id: { in: yearSubjectIds },
+      },
     });
     if (rows.length === 0) return;
     await tx.educatorSubject.createMany({
@@ -397,10 +670,14 @@ export class EducatorSubjectRepository {
 
   /**
    * Bulk lookup for the generator: which educators may teach each subject.
-   * ONE query for the whole scope — the alternative is an N+1 per subject.
+   * ONE query for the whole scope (plus one batched key-part load) — the
+   * alternative is an N+1 per subject.
    *
-   * Suspended/dropped/soft-deleted educators are excluded here so they can
-   * never be auto-assigned, even though their links are retained.
+   * Eligibility is GLOBAL: each subject id resolves to its normalized key
+   * and educators holding that key are eligible for every same-keyed subject
+   * id in the year. Suspended/dropped/soft-deleted educators are excluded
+   * here so they can never be auto-assigned, even though their links are
+   * retained.
    */
   async getEligibleEducatorsBySubject(
     orgId: string,
@@ -409,22 +686,28 @@ export class EducatorSubjectRepository {
     const out = new Map<string, string[]>();
     if (subjectIds.length === 0) return out;
 
-    const rows = await this.db.educatorSubject.findMany({
-      where: {
-        org_id: orgId,
-        subject_id: { in: subjectIds },
-        // Prisma 5 relation filters use the `is:` form for to-one relations.
-        educator: {
-          is: { role: 'educator', status: 'active', deleted_at: null },
-        },
-      },
-      select: { subject_id: true, educator_id: true },
-    });
+    const parts = await this.subjectKeyParts(orgId, subjectIds);
+    const keyById = new Map<string, string>();
+    for (const id of subjectIds) {
+      const p = parts.get(id);
+      if (p) keyById.set(id, buildSubjectKey(p));
+    }
+    if (keyById.size === 0) return out;
 
+    const rows = await this.findGlobalEducatorsByKeys(
+      orgId,
+      [...new Set(keyById.values())],
+      { activeOnly: true },
+    );
+    const educatorsByKey = new Map<string, string[]>();
     for (const r of rows) {
-      const list = out.get(r.subject_id);
-      if (list) list.push(r.educator_id);
-      else out.set(r.subject_id, [r.educator_id]);
+      const list = educatorsByKey.get(r.subject_key) ?? [];
+      list.push(r.educator_id);
+      educatorsByKey.set(r.subject_key, list);
+    }
+    for (const [id, key] of keyById) {
+      const list = educatorsByKey.get(key);
+      if (list) out.set(id, list);
     }
     return out;
   }
@@ -432,26 +715,26 @@ export class EducatorSubjectRepository {
   /**
    * Educators who can teach one subject. Used by manual class create.
    *
+   * Resolved through the global key: any educator holding the subject's key
+   * can teach it, in any year the subject exists.
+   *
    * The public educator code (EDU-XXXX) lives in `Profile.metadata`, a JSON
    * blob, so it is read defensively rather than selected as a column.
    */
-  findEducatorsForSubject(orgId: string, subjectId: string) {
-    return this.db.educatorSubject.findMany({
-      where: {
-        org_id: orgId,
-        subject_id: subjectId,
-        educator: { is: { role: 'educator', deleted_at: null } },
+  async findEducatorsForSubject(orgId: string, subjectId: string) {
+    const parts = await this.subjectKeyParts(orgId, [subjectId]);
+    const p = parts.get(subjectId);
+    if (!p) return [];
+    const rows = await this.findGlobalEducatorsByKeys(orgId, [
+      buildSubjectKey(p),
+    ]);
+    return rows.map((r) => ({
+      educator: {
+        id: r.educator.id,
+        status: r.educator.status,
+        profile: r.educator.profile,
       },
-      select: {
-        educator: {
-          select: {
-            id: true,
-            status: true,
-            profile: { select: { full_name: true, metadata: true } },
-          },
-        },
-      },
-    });
+    }));
   }
 
   /** Confirms the educator is a live educator account in this org. */

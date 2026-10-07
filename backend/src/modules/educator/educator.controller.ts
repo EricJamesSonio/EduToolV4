@@ -26,8 +26,8 @@ import {
   SetEducatorSubjectSlotsDto,
   SetEducatorSubjectBundleDto,
   EducatorCapacityQueryDto,
+  EducatorSubjectUsageQueryDto,
   ListEducatorSubjectsQueryDto,
-  CarryOverEducatorSubjectsDto,
   SetEducatorScheduleProfileDto,
 } from './dto/educator.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
@@ -207,27 +207,22 @@ export class EducatorController {
   }
 
   /**
-   * POST /educators/carry-over-subjects
-   * Copies teachable subjects from one school year to another, matching on
-   * name + program type + parent names. Unmatched links are reported, never
-   * guessed.
-   *
-   * Declared alongside the other static routes on purpose: Nest matches in
-   * declaration order, so a route nested after `@Get(':id')` would never fire.
+   * GET /educators/:id/subjects/usage?schoolYearId=
+   * Per year-linked subject, where else (other years) the educator's classes
+   * or slot picks use it. Drives the modal's untick confirm — unticking
+   * removes the GLOBAL link, so other-year usage must be visible first.
    */
-  @Post('carry-over-subjects')
+  @Get(':id/subjects/usage')
   @Roles('admin')
-  async carryOverSubjects(
+  async subjectUsage(
+    @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
-    @CurrentUser('id') actorId: string,
-    @Body() dto: CarryOverEducatorSubjectsDto,
+    @Query() query: EducatorSubjectUsageQueryDto,
   ) {
-    return this.educatorSubjectService.carryOver(
+    return this.educatorSubjectService.subjectUsage(
       orgId,
-      dto.fromSchoolYearId,
-      dto.toSchoolYearId,
-      dto.educatorIds,
-      actorId,
+      id,
+      query.schoolYearId,
     );
   }
 

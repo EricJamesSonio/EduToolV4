@@ -91,20 +91,9 @@ export class SetEducatorSubjectsDto {
   subjectIds!: string[];
 }
 
-export class CarryOverEducatorSubjectsDto {
+export class EducatorSubjectUsageQueryDto {
   @IsUUID()
-  fromSchoolYearId!: string;
-
-  @IsUUID()
-  toSchoolYearId!: string;
-
-  /** Optional: limit the carry-over to specific educators. */
-  @IsOptional()
-  @IsArray()
-  // Any UUID version (see SetEducatorSubjectsDto).
-  @IsUUID(undefined, { each: true })
-  @ArrayMaxSize(500)
-  educatorIds?: string[];
+  schoolYearId!: string;
 }
 
 export class SubjectSlotPickDto {

@@ -16,15 +16,13 @@ import type {
   CreateEducatorRequest,
   CreateEducatorResponse,
   UpdateEducatorRequest,
-  CarryOverEducatorSubjectsRequest,
-  CarryOverEducatorSubjectsResponse,
   SetEducatorScheduleProfileRequest,
   EducatorScheduleProfile,
   EducatorCapacity,
   TeachableSubject,
+  TeachableSubjectUsage,
   SubjectEducator,
   SubjectSlotAssignment,
-  SetSubjectSlotsResponse,
   SetTeachableBundleRequest,
   SetTeachableBundleResponse,
 } from "@/api/admin/educator.api";
@@ -311,68 +309,6 @@ export const useTeachableSubjects = (
   );
 };
 
-export const useSetTeachableSubjects = () => {
-  const qc = useQueryClient();
-  return useMutationWithInvalidation<
-    { count: number },
-    Error,
-    { educatorId: string; subjectIds: string[] }
-  >(
-    ({ educatorId, subjectIds }) =>
-      educatorApi.setTeachableSubjects(educatorId, subjectIds),
-    {
-      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
-      onSuccess: (result, variables) => {
-        void qc.invalidateQueries({ queryKey: queryKeys.admin.educators.all });
-        void qc.invalidateQueries({
-          queryKey:
-            queryKeys.admin.educators.teachableSubjects(variables.educatorId),
-        });
-        toast.success(
-          variables.subjectIds.length === 0
-            ? "Cleared teachable subjects."
-            : `Saved ${result.count} teachable subject${result.count === 1 ? "" : "s"}.`,
-        );
-      },
-      onError: (error: any) => {
-        toast.error(
-          error?.response?.data?.message ||
-            "Failed to save teachable subjects.",
-        );
-      },
-    },
-  );
-};
-
-export const useCarryOverTeachableSubjects = () => {
-  return useMutationWithInvalidation<
-    CarryOverEducatorSubjectsResponse,
-    Error,
-    CarryOverEducatorSubjectsRequest
-  >(
-    (body) => educatorApi.carryOverTeachableSubjects(body),
-    {
-      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
-      onSuccess: (result) => {
-        toast.success(
-          `Copied ${result.created} subject link${result.created === 1 ? "" : "s"}` +
-            (result.sectionsCarried > 0
-              ? ` with ${result.sectionsCarried} section assignment${result.sectionsCarried === 1 ? "" : "s"}.`
-              : ".") +
-            (result.unmatched.length > 0
-              ? ` ${result.unmatched.length} could not be matched.`
-              : ""),
-        );
-      },
-      onError: (error: any) => {
-        toast.error(
-          error?.response?.data?.message || "Failed to copy subjects.",
-        );
-      },
-    },
-  );
-};
-
 export const useEducatorCapacity = (
   educatorId: string | undefined,
   schoolYearId: string | undefined,
@@ -383,37 +319,19 @@ export const useEducatorCapacity = (
     { enabled: !!educatorId && !!schoolYearId, staleTime: 30_000 },
   );
 
-export const useSetSubjectSlots = () => {
-  const qc = useQueryClient();
-  return useMutationWithInvalidation<
-    SetSubjectSlotsResponse,
-    Error,
-    {
-      educatorId: string;
-      schoolYearId: string;
-      assignments: SubjectSlotAssignment[];
-    }
-  >(
-    ({ educatorId, schoolYearId, assignments }) =>
-      educatorApi.setSubjectSlots(educatorId, schoolYearId, assignments),
-    {
-      invalidateKeys: [queryKeys.admin.educators.teachableSubjects("")],
-      onSuccess: (result, variables) => {
-        void qc.invalidateQueries({
-          queryKey: queryKeys.admin.educators.teachableSubjects(
-            variables.educatorId,
-          ),
-        });
-        toast.success(
-          `Saved slots for ${result.updated} subject${result.updated === 1 ? "" : "s"}.`,
-        );
-      },
-      onError: (error: any) => {
-        toast.error(
-          error?.response?.data?.message || "Failed to save slots.",
-        );
-      },
-    },
+/**
+ * Other-year usage of this year's linked subjects. Drives the teachable
+ * modal's untick confirm — unticking removes the GLOBAL link, so other-year
+ * classes/slots must be visible before saving.
+ */
+export const useTeachableSubjectUsage = (
+  educatorId: string | undefined,
+  schoolYearId: string | undefined,
+): UseQueryResult<TeachableSubjectUsage[], Error> => {
+  return useAsyncQuery<TeachableSubjectUsage[]>(
+    [...queryKeys.admin.educators.teachableSubjects(educatorId ?? ""), 'usage', schoolYearId ?? ''],
+    () => educatorApi.getSubjectUsage(educatorId!, schoolYearId!),
+    { enabled: !!educatorId && !!schoolYearId },
   );
 };
 

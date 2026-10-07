@@ -84,10 +84,6 @@ export interface SubjectSlotAssignment {
   sections: SubjectSlotPick[];
 }
 
-export interface SetSubjectSlotsResponse {
-  updated: number;
-}
-
 export interface SetTeachableBundleRequest {
   schoolYearId: string;
   subjectIds: string[];
@@ -115,23 +111,18 @@ export interface SetEducatorSubjectsRequest {
   subjectIds: string[];
 }
 
-export interface CarryOverEducatorSubjectsRequest {
-  fromSchoolYearId: string;
-  toSchoolYearId: string;
-  educatorIds?: string[];
+/** Other-year usage of one year-linked subject (untick confirm). */
+export interface SubjectYearUsage {
+  schoolYearId: string;
+  schoolYearName: string;
+  classCount: number;
+  hasPicks: boolean;
 }
 
-export interface CarryOverUnmatched {
-  educatorId: string;
+export interface TeachableSubjectUsage {
+  subjectId: string;
   subjectName: string;
-  reason: string;
-}
-
-export interface CarryOverEducatorSubjectsResponse {
-  created: number;
-  sectionsCarried: number;
-  educatorsProcessed: number;
-  unmatched: CarryOverUnmatched[];
+  otherYears: SubjectYearUsage[];
 }
 
 /** An educator who can teach a given subject. */
@@ -244,16 +235,16 @@ export const educatorApi = {
     return res.data.data ?? [];
   },
 
-  /** Replaces the whole set. Unknown/cross-org ids are rejected, not dropped. */
-  setTeachableSubjects: async (
+  /** Other-year usage of this year's linked subjects (untick confirm). */
+  getSubjectUsage: async (
     educatorId: string,
-    subjectIds: string[]
-  ): Promise<{ count: number }> => {
-    const res = await client.put<ApiResponse<{ count: number }>>(
-      `/educators/${educatorId}/subjects`,
-      { subjectIds }
+    schoolYearId: string,
+  ): Promise<TeachableSubjectUsage[]> => {
+    const res = await client.get<ApiResponse<TeachableSubjectUsage[]>>(
+      `/educators/${educatorId}/subjects/usage`,
+      { params: { schoolYearId } },
     );
-    return res.data.data;
+    return res.data.data ?? [];
   },
 
   /** Weekly capacity breakdown for the assignment UI. */
@@ -264,19 +255,6 @@ export const educatorApi = {
     const res = await client.get<ApiResponse<EducatorCapacity>>(
       `/educators/${educatorId}/capacity`,
       { params: { schoolYearId } },
-    );
-    return res.data.data;
-  },
-
-  /** Replaces which weekly slot positions the educator handles per subject. */
-  setSubjectSlots: async (
-    educatorId: string,
-    schoolYearId: string,
-    assignments: SubjectSlotAssignment[],
-  ): Promise<SetSubjectSlotsResponse> => {
-    const res = await client.put<ApiResponse<SetSubjectSlotsResponse>>(
-      `/educators/${educatorId}/subject-slots`,
-      { schoolYearId, assignments },
     );
     return res.data.data;
   },
@@ -293,16 +271,6 @@ export const educatorApi = {
       `/educators/${educatorId}/subject-bundle`,
       body,
     );
-    return res.data.data;
-  },
-
-  /** Copies teachable subjects from one school year to another. */
-  carryOverTeachableSubjects: async (
-    body: CarryOverEducatorSubjectsRequest
-  ): Promise<CarryOverEducatorSubjectsResponse> => {
-    const res = await client.post<
-      ApiResponse<CarryOverEducatorSubjectsResponse>
-    >("/educators/carry-over-subjects", body);
     return res.data.data;
   },
 

@@ -21,9 +21,10 @@ import { intersectWeekdays } from './educator-schedule-profile.repository';
 import { OrgScheduleConfigProvider } from '../org-schedule-config/schedule-window.provider';
 import { getFreeMinuteRanges } from '../org-schedule-config/schedule-window.util';
 import { ClassOccupancyService } from '../class/class-occupancy.service';
-
-/** Case/whitespace-insensitive comparison key. */
-const norm = (s: string): string => s.trim().toLowerCase();
+import {
+  buildSubjectKey,
+  type SubjectKeyParts,
+} from './subject-key.util';
 
 /** 90 -> "1.5h". Capacity messages read in hours, not raw minutes. */
 function formatHours(min: number): string {
@@ -92,12 +93,16 @@ export class EducatorSubjectService {
   /**
    * GET /educators/:id/subjects
    *
-   * Without a year this returns the full link set (sections left empty —
-   * there is no year context to resolve them against). With a year, rows
-   * whose subject is not in that year are dropped, and each row's section
-   * ids are resolved to names server-side. A section id with no in-year
-   * section is omitted (and counted in the log), never surfaced to the
-   * client — this is what killed the truncated-uuid fallback badges.
+   * Teachability is GLOBAL: the educator's keys resolve against the year's
+   * subjects, joined with that year's picks. Keys with no matching subject
+   * in the year are dropped from the response — a subject missing from the
+   * year needs no cleanup and breaks nothing.
+   *
+   * Without a year there is no section context, so this returns the pure
+   * eligibility view (display fields only, keyed by subject key).
+   *
+   * Section ids that resolve to no in-year section are omitted (and counted
+   * in the log), never surfaced to the client.
    */
   async listForEducator(
     orgId: string,
@@ -105,20 +110,93 @@ export class EducatorSubjectService {
     schoolYearId?: string,
   ) {
     await this.repo.assertEducator(orgId, educatorId);
-    const rows = EducatorSubjectService.map(
-      await this.repo.findByEducator(orgId, educatorId),
-    );
-    if (!schoolYearId) return rows;
+    if (!schoolYearId) {
+      const keys = await this.repo.findGlobalKeys(orgId, educatorId);
+      return keys.map((k) => ({
+        id: k.subject_key,
+        name: k.display_name,
+        programId: null,
+        programName: null,
+        programType: k.program_type || null,
+        levelId: null,
+        levelName: k.level_name || null,
+        courseId: null,
+        courseName: k.course_name || null,
+        strandId: null,
+        strandName: k.strand_name || null,
+        sectionIds: [],
+        sectionSlots: [],
+        sections: [],
+      }));
+    }
 
-    const [yearSubjects, yearSections] = await Promise.all([
+    const [keys, yearSubjects, yearSections] = await Promise.all([
+      this.repo.findGlobalKeys(orgId, educatorId),
       this.subjectsInYear(orgId, schoolYearId),
       this.sectionsInYear(orgId, schoolYearId),
     ]);
+    const keySet = new Set(keys.map((k) => k.subject_key));
+    const matchedIds = [...yearSubjects.entries()]
+      .filter(([, s]) => keySet.has(buildSubjectKey(s)))
+      .map(([id]) => id);
+    if (matchedIds.length === 0) return [];
 
+    const matched = new Set(matchedIds);
+    const picks = new Map(
+      EducatorSubjectService.map(
+        (await this.repo.findByEducator(orgId, educatorId)).filter((r) =>
+          matched.has(r.subject.id),
+        ),
+      ).map((r) => [r.id, r]),
+    );
+    // Keys with picks rows render from the row; linked subjects without picks
+    // yet render from the subject's display context (links-only state).
+    const missingIds = matchedIds.filter((id) => !picks.has(id));
+    const parts =
+      missingIds.length > 0
+        ? await this.repo.subjectKeyParts(orgId, missingIds)
+        : new Map();
+    const rows: TeachableSubjectRow[] = matchedIds.map(
+      (id) =>
+        picks.get(id) ?? {
+          id,
+          name: parts.get(id)?.name ?? yearSubjects.get(id)?.name ?? id,
+          programId: parts.get(id)?.programId ?? null,
+          programName: null,
+          programType: parts.get(id)?.programType ?? null,
+          levelId: parts.get(id)?.levelId ?? null,
+          levelName: parts.get(id)?.levelName ?? null,
+          courseId: parts.get(id)?.courseId ?? null,
+          courseName: parts.get(id)?.courseName ?? null,
+          strandId: parts.get(id)?.strandId ?? null,
+          strandName: parts.get(id)?.strandName ?? null,
+          sectionIds: [],
+          sectionSlots: [],
+          sections: [],
+        },
+    );
+    const scoped = this.resolveSections(rows, yearSections);
+    if (scoped.droppedSections > 0) {
+      this.logger.warn(
+        `listForEducator omitted ${scoped.droppedSections} unresolvable section(s) ` +
+          `for educator ${educatorId} in school year ${schoolYearId}`,
+      );
+    }
+    return scoped.rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Resolves each row's section ids against one year's sections, for the
+   * year-scoped read. Unresolvable ids are omitted (counted for the log),
+   * and slot picks pointing outside the year are dropped with them.
+   */
+  private resolveSections(
+    rows: TeachableSubjectRow[],
+    yearSections: Map<string, { name: string; levelName: string | null }>,
+  ): { rows: TeachableSubjectRow[]; droppedSections: number } {
     let droppedSections = 0;
     const scoped: TeachableSubjectRow[] = [];
     for (const row of rows) {
-      if (!yearSubjects.has(row.id)) continue;
       const slotsBySection = new Map(
         row.sectionSlots.map((s) => [s.sectionId, s.slots]),
       );
@@ -145,16 +223,34 @@ export class EducatorSubjectService {
         sections,
       });
     }
-    if (droppedSections > 0) {
-      this.logger.warn(
-        `listForEducator omitted ${droppedSections} unresolvable section(s) ` +
-          `for educator ${educatorId} in school year ${schoolYearId}`,
-      );
-    }
-    return scoped;
+    return { rows: scoped, droppedSections };
   }
 
-  /** PUT /educators/:id/subjects — replaces the whole set. */
+  /** Year subjects of one educator that are currently linked (by global key). */
+  private async linkedSubjectIdsInYear(
+    orgId: string,
+    educatorId: string,
+    yearSubjects: Map<string, CarrySubject>,
+    tx?: PrismaTx,
+  ): Promise<string[]> {
+    const keySet = new Set(
+      (await this.repo.findGlobalKeys(orgId, educatorId, tx)).map(
+        (k) => k.subject_key,
+      ),
+    );
+    return [...yearSubjects.entries()]
+      .filter(([, s]) => keySet.has(buildSubjectKey(s)))
+      .map(([id]) => id);
+  }
+
+  /**
+   * PUT /educators/:id/subjects — replaces the GLOBAL teachable set.
+   *
+   * The given subject ids resolve to global keys (upserted); keys not in the
+   * new set are deleted, along with picks rows whose subject's key was
+   * removed — otherwise an unlinked subject would keep invisible picks that
+   * resurrect if the key is ever re-added.
+   */
   async replaceSet(
     orgId: string,
     educatorId: string,
@@ -166,8 +262,56 @@ export class EducatorSubjectService {
     const unique = [...new Set(subjectIds)];
     // Tenant isolation: every subject must belong to THIS org.
     await this.repo.assertSubjectsInOrg(orgId, unique);
+    const parts = await this.repo.subjectKeyParts(orgId, unique);
+    const unkeyable = unique.filter((id) => !parts.has(id));
+    if (unkeyable.length > 0) {
+      throw new BadRequestException(
+        'One or more selected subjects cannot be matched to a school year lineage.',
+      );
+    }
+    const newKeys = new Set(unique.map((id) => buildSubjectKey(parts.get(id)!)));
 
-    const count = await this.repo.replaceSet(orgId, educatorId, unique);
+    await this.db.$transaction(async (tx) => {
+      const prevKeys = new Set(
+        (await this.repo.findGlobalKeys(orgId, educatorId, tx)).map(
+          (k) => k.subject_key,
+        ),
+      );
+      await this.repo.upsertGlobalKeys(
+        orgId,
+        educatorId,
+        unique.map((id) => {
+          const p = parts.get(id)!;
+          return { key: buildSubjectKey(p), displayName: p.name, ...p };
+        }),
+        tx,
+      );
+      const removed = [...prevKeys].filter((k) => !newKeys.has(k));
+      if (removed.length > 0) {
+        await this.repo.deleteGlobalKeys(orgId, educatorId, removed, tx);
+        const rows = await this.repo.findByEducator(orgId, educatorId, tx);
+        const rowParts = await this.repo.subjectKeyParts(
+          orgId,
+          rows.map((r) => r.subject.id),
+          tx,
+        );
+        const dropIds = rows
+          .filter((r) => {
+            const p = rowParts.get(r.subject.id);
+            return !p || !newKeys.has(buildSubjectKey(p));
+          })
+          .map((r) => r.subject.id);
+        if (dropIds.length > 0) {
+          await tx.educatorSubject.deleteMany({
+            where: {
+              org_id: orgId,
+              educator_id: educatorId,
+              subject_id: { in: dropIds },
+            },
+          });
+        }
+      }
+    });
 
     this.auditLogService
       .logAdminAction({
@@ -176,11 +320,11 @@ export class EducatorSubjectService {
         action: 'educator_subjects_replaced',
         entityType: 'educator',
         entityId: educatorId,
-        metadata: { count },
+        metadata: { count: unique.length },
       })
       .catch(() => {});
 
-    return { count };
+    return { count: unique.length };
   }
 
   /**
@@ -235,12 +379,18 @@ export class EducatorSubjectService {
 
   /**
    * PUT /educators/:id/subject-bundle — one atomic save for the teachable
-   * modal: replaces the link set AND the slot picks in a single transaction.
+   * modal: upserts the GLOBAL keys for the ticked subjects AND replaces the
+   * slot picks for the given school year in a single transaction.
+   *
+   * Unticking a subject removes its GLOBAL link (it applies to all years),
+   * so the modal warns when the subject is used by classes/slots in other
+   * years. Picks of other years are never touched: only this year's subject
+   * rows are replaced.
    *
    * Runs the union of the link-path and slot-path validations (the shared
    * validator below, plus the link membership rule), then locks, re-verifies
    * the concurrency-sensitive reads inside the transaction, and writes. Any
-   * failure leaves the link table untouched.
+   * failure leaves both tables untouched.
    */
   async setBundle(
     orgId: string,
@@ -280,6 +430,16 @@ export class EducatorSubjectService {
       assignments,
       { requireLinked: false },
     );
+
+    // Ticked subjects must live in the saved year: their global key is
+    // computed from the year's subject. (Assignments are year-checked inside
+    // the shared validator; links-only ticks need the same rule here.)
+    const outsideYear = uniqueSubjects.filter((id) => !v.yearSubjects.has(id));
+    if (outsideYear.length > 0) {
+      throw new BadRequestException(
+        'One or more selected subjects do not belong to this school year.',
+      );
+    }
 
     const pairs = v.clean.flatMap((a) =>
       a.sections
@@ -343,9 +503,46 @@ export class EducatorSubjectService {
         );
       }
 
-      await this.repo.replaceAllWithSlots(
+      // Global keys: upsert ticked, delete keys that were linked in this
+      // year but are now unticked. Keys of other years are invisible to this
+      // modal and therefore never touched here.
+      const tickedKeys = new Map(
+        uniqueSubjects.map((id) => [id, buildSubjectKey(v.yearSubjects.get(id)!)]),
+      );
+      await this.repo.upsertGlobalKeys(
         orgId,
         educatorId,
+        uniqueSubjects.map((id) => {
+          const carry = v.yearSubjects.get(id)!;
+          return {
+            key: tickedKeys.get(id)!,
+            displayName: carry.name,
+            ...carry,
+          };
+        }),
+        tx,
+      );
+      const prevLinked = await this.linkedSubjectIdsInYear(
+        orgId,
+        educatorId,
+        v.yearSubjects,
+        tx,
+      );
+      // Two same-keyed subjects in one year share one link: an unticked
+      // subject must not delete a key a ticked subject still needs.
+      const tickedKeySet = new Set(tickedKeys.values());
+      const removedKeys = prevLinked
+        .filter((id) => !listed.has(id))
+        .map((id) => buildSubjectKey(v.yearSubjects.get(id)!))
+        .filter((k) => !tickedKeySet.has(k));
+      if (removedKeys.length > 0) {
+        await this.repo.deleteGlobalKeys(orgId, educatorId, removedKeys, tx);
+      }
+
+      await this.repo.replaceYearPicks(
+        orgId,
+        educatorId,
+        [...v.yearSubjects.keys()],
         uniqueSubjects.map((subjectId) => ({
           subjectId,
           sections:
@@ -413,17 +610,29 @@ export class EducatorSubjectService {
       );
     }
 
+    const yearSubjects = await this.subjectsInYear(orgId, schoolYearId);
+
     if (opts.requireLinked) {
-      const linked = new Set(await this.repo.findSubjectIds(orgId, educatorId));
-      const unlinked = subjectIds.filter((id) => !linked.has(id));
+      // Linked means holding the GLOBAL key (picks rows alone don't grant
+      // teachability anymore). Resolved without year scoping: a linked
+      // subject saved for the wrong year must report the YEAR problem, not
+      // a missing link.
+      const [parts, keySet] = await Promise.all([
+        this.repo.subjectKeyParts(orgId, subjectIds),
+        this.repo
+          .findGlobalKeys(orgId, educatorId)
+          .then((keys) => new Set(keys.map((k) => k.subject_key))),
+      ]);
+      const unlinked = subjectIds.filter((id) => {
+        const p = parts.get(id);
+        return !p || !keySet.has(buildSubjectKey(p));
+      });
       if (unlinked.length > 0) {
         throw new BadRequestException(
           'Add the subject to teachable subjects before assigning slots to it.',
         );
       }
     }
-
-    const yearSubjects = await this.subjectsInYear(orgId, schoolYearId);
     const outsideYear = subjectIds.filter((id) => !yearSubjects.has(id));
     if (outsideYear.length > 0) {
       throw new BadRequestException(
@@ -713,322 +922,166 @@ export class EducatorSubjectService {
     }));
   }
 
-  /** True when the educator may teach the subject (has a link). */
+  /** True when the educator may teach the subject (holds its global key). */
   async canTeach(orgId: string, educatorId: string, subjectId: string) {
-    const ids = await this.repo.findSubjectIds(orgId, educatorId);
-    return ids.includes(subjectId);
+    const parts = await this.repo.subjectKeyParts(orgId, [subjectId]);
+    const p = parts.get(subjectId);
+    if (!p) return false;
+    const key = buildSubjectKey(p);
+    const keys = await this.repo.findGlobalKeys(orgId, educatorId);
+    return keys.some((k) => k.subject_key === key);
   }
 
   /**
-   * Copies teachable subjects from one school year to another.
-   *
-   * Subjects are recreated per year, so ids never carry over. Each link is
-   * matched on normalized name + program type + parent names (level, then
-   * course/strand). Anything unmatched is REPORTED, never guessed.
+   * GET /educators/:id/subjects/usage?schoolYearId=
+   * For the teachable modal's untick confirm: per year-linked subject, where
+   * ELSE (other years) it is used by this educator's classes or slot picks.
+   * Only subjects with other-year usage are returned.
    */
-  async carryOver(
+  async subjectUsage(orgId: string, educatorId: string, schoolYearId: string) {
+    await this.repo.assertEducator(orgId, educatorId);
+    const yearSubjects = await this.subjectsInYear(orgId, schoolYearId);
+    const linkedIds = await this.linkedSubjectIdsInYear(
+      orgId,
+      educatorId,
+      yearSubjects,
+    );
+    if (linkedIds.length === 0) return [];
+    const yearSubjectIds = new Set(yearSubjects.keys());
+
+    const [years, rows, otherClasses] = await Promise.all([
+      this.db.schoolYear.findMany({
+        where: { org_id: orgId, id: { not: schoolYearId } },
+        select: { id: true, name: true },
+      }),
+      this.repo.findByEducator(orgId, educatorId),
+      // Other years use different subject ids, so classes are matched by key
+      // below — not by subject id.
+      this.db.class.groupBy({
+        by: ['subject_id', 'school_year_id'],
+        where: {
+          org_id: orgId,
+          educator_id: educatorId,
+          school_year_id: { not: schoolYearId },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+    const yearNameById = new Map(years.map((y) => [y.id, y.name]));
+
+    const linkedKeyById = new Map<string, string>();
+    for (const id of linkedIds) {
+      const s = yearSubjects.get(id);
+      if (s) linkedKeyById.set(id, buildSubjectKey(s));
+    }
+    const linkedIdsByKey = new Map<string, string[]>();
+    for (const [id, key] of linkedKeyById) {
+      const list = linkedIdsByKey.get(key) ?? [];
+      list.push(id);
+      linkedIdsByKey.set(key, list);
+    }
+    // Keys of everything that could carry other-year usage: other-year class
+    // subjects plus picks rows from outside this year.
+    const otherSubjectIds = [
+      ...new Set([
+        ...otherClasses.map((c) => c.subject_id),
+        ...rows
+          .map((r) => r.subject.id)
+          .filter((id) => !yearSubjectIds.has(id)),
+      ]),
+    ];
+    const otherParts =
+      otherSubjectIds.length > 0
+        ? await this.repo.subjectKeyParts(orgId, otherSubjectIds)
+        : new Map();
+    const otherKeyOf = (subjectId: string): string | null => {
+      const p = otherParts.get(subjectId);
+      return p ? buildSubjectKey(p) : null;
+    };
+
+    type YearUse = {
+      schoolYearId: string;
+      schoolYearName: string;
+      classCount: number;
+      hasPicks: boolean;
+    };
+    const useBySubject = new Map<string, Map<string, YearUse>>();
+    const useOf = (subjectId: string, yearId: string): YearUse => {
+      let perSubject = useBySubject.get(subjectId);
+      if (!perSubject) {
+        perSubject = new Map();
+        useBySubject.set(subjectId, perSubject);
+      }
+      let use = perSubject.get(yearId);
+      if (!use) {
+        use = {
+          schoolYearId: yearId,
+          schoolYearName: yearNameById.get(yearId) ?? yearId,
+          classCount: 0,
+          hasPicks: false,
+        };
+        perSubject.set(yearId, use);
+      }
+      return use;
+    };
+    for (const c of otherClasses) {
+      const key = otherKeyOf(c.subject_id);
+      if (!key) continue;
+      for (const linkedId of linkedIdsByKey.get(key) ?? []) {
+        useOf(linkedId, c.school_year_id).classCount += c._count._all;
+      }
+    }
+    for (const r of rows) {
+      if (yearSubjectIds.has(r.subject.id)) continue;
+      const info = otherParts.get(r.subject.id);
+      const key = info ? buildSubjectKey(info) : null;
+      // Links-only rows (no sections/slots picked) are not usage — but the
+      // row's year still identifies where the shared link reaches.
+      const hasPicks =
+        (r.section_ids ?? []).length > 0 ||
+        parseSectionSlots(r.section_slots).some((s) => s.slots.length > 0);
+      if (!key || !hasPicks || !info?.schoolYearId) continue;
+      if (info.schoolYearId === schoolYearId) continue;
+      for (const linkedId of linkedIdsByKey.get(key) ?? []) {
+        useOf(linkedId, info.schoolYearId).hasPicks = true;
+      }
+    }
+
+    return [...useBySubject.entries()].map(([subjectId, perYear]) => ({
+      subjectId,
+      subjectName: yearSubjects.get(subjectId)?.name ?? subjectId,
+      otherYears: [...perYear.values()],
+    }));
+  }
+
+  /**
+   * Year-independent key parts for subjects, for cross-domain callers (the
+   * subject delete path) that must not reach into the educator tables.
+   */
+  async keyPartsFor(orgId: string, subjectIds: string[], tx?: PrismaTx) {
+    return this.repo.subjectKeyParts(orgId, subjectIds, tx);
+  }
+
+  /**
+   * Prunes a global key after its subject was hard-deleted: when NO
+   * non-deleted subject anywhere in the org still carries the key, every
+   * educator's row for it is deleted in the same transaction. A subject that
+   * merely lacks the key's subject in ONE year keeps its link — nothing to
+   * clean up, nothing breaks. Archiving never prunes (restore must work).
+   */
+  async pruneOrphanedSubjectKey(
+    tx: PrismaTx,
     orgId: string,
-    fromSchoolYearId: string,
-    toSchoolYearId: string,
-    educatorIds: string[] | undefined,
-    actorId: string,
-  ) {
-    if (fromSchoolYearId === toSchoolYearId) {
-      throw new BadRequestException(
-        'Choose a different school year to copy into.',
-      );
+    parts: SubjectKeyParts,
+  ): Promise<void> {
+    const key = buildSubjectKey(parts);
+    const all = await this.repo.subjectKeyParts(orgId, undefined, tx);
+    const alive = [...all.values()].some(
+      (p) => p.deletedAt === null && buildSubjectKey(p) === key,
+    );
+    if (!alive) {
+      await this.repo.deleteGlobalKeysByKey(orgId, [key], tx);
     }
-
-    const educatorWhere = {
-      org_id: orgId,
-      role: 'educator' as const,
-      deleted_at: null,
-      ...(educatorIds?.length ? { id: { in: educatorIds } } : {}),
-    };
-
-    // Everything for the scope is loaded up front. Doing it per educator or per
-    // subject would be an N+1 across a whole school year's faculty.
-    const [links, educators, fromSubjects, toSubjects, fromSections, toSections] =
-      await Promise.all([
-        // Prisma 5 relation filters use the `is:` form for to-one relations.
-        this.db.educatorSubject.findMany({
-          where: { org_id: orgId, educator: { is: educatorWhere } },
-          select: {
-            educator_id: true,
-            subject_id: true,
-            section_ids: true,
-            section_slots: true,
-          },
-        }),
-        this.db.account.findMany({
-          where: educatorWhere,
-          select: { id: true },
-        }),
-        this.subjectsInYear(orgId, fromSchoolYearId),
-        this.subjectsInYear(orgId, toSchoolYearId),
-        this.sectionsInYear(orgId, fromSchoolYearId),
-        this.sectionsInYear(orgId, toSchoolYearId),
-      ]);
-
-    // Build the match index for the TARGET year once.
-    const targetIndex = new Map<string, string>();
-    for (const s of toSubjects.values()) {
-      targetIndex.set(EducatorSubjectService.subjectKey(s), s.id);
-    }
-    const targetSectionIndex = new Map<string, string>();
-    for (const [id, s] of toSections) {
-      targetSectionIndex.set(EducatorSubjectService.sectionKey(s), id);
-    }
-
-    const unmatched: Array<{
-      educatorId: string;
-      subjectName: string;
-      reason: string;
-    }> = [];
-    const byEducator = new Map<string, Set<string>>();
-    // educator -> target subject -> target section -> carried slot positions
-    const carriedSlots = new Map<
-      string,
-      Map<string, Map<string, Set<number>>>
-    >();
-
-    // Legacy rows (section_ids with no slots JSON) expand to every position
-    // of the SOURCE subject's weekly count, so the carry is still exact.
-    const legacySubjectIds = [
-      ...new Set(
-        links
-          .filter(
-            (l) =>
-              (l.section_ids?.length ?? 0) > 0 &&
-              parseSectionSlots(l.section_slots).length === 0,
-          )
-          .map((l) => l.subject_id),
-      ),
-    ];
-    const cfg = await this.orgScheduleConfig.getByOrg(orgId);
-    const slot = cfg.slotDuration || 30;
-    const fromLevels =
-      legacySubjectIds.length > 0
-        ? await this.repo.subjectLevels(orgId, legacySubjectIds)
-        : new Map();
-    const legacyPositions = new Map<string, number[]>();
-    for (const [id, info] of fromLevels) {
-      const resolved = resolveSessionRequirement(
-        {
-          sessionsPerWeek: info.sessionsPerWeek,
-          sessionMinutes: info.sessionMinutes,
-          sessionDurations: info.sessionDurations,
-        },
-        info.programType,
-        slot,
-      );
-      legacyPositions.set(
-        id,
-        Array.from({ length: resolved.sessionsPerWeek }, (_, i) => i + 1),
-      );
-    }
-
-    for (const link of links) {
-      const source = fromSubjects.get(link.subject_id);
-      if (!source) continue; // link points outside the "from" year
-
-      const targetId = targetIndex.get(
-        EducatorSubjectService.subjectKey(source),
-      );
-      if (!targetId) {
-        unmatched.push({
-          educatorId: link.educator_id,
-          subjectName: source.name,
-          reason: 'No equivalent subject in the target year',
-        });
-        continue;
-      }
-
-      const set = byEducator.get(link.educator_id) ?? new Set<string>();
-      set.add(targetId);
-      byEducator.set(link.educator_id, set);
-
-      // Explicit picks, plus legacy whole-pair rows expanded above.
-      const sourcePicks = new Map<string, number[]>();
-      for (const p of parseSectionSlots(link.section_slots)) {
-        sourcePicks.set(p.sectionId, p.slots);
-      }
-      for (const sectionId of link.section_ids ?? []) {
-        if (!sourcePicks.has(sectionId)) {
-          sourcePicks.set(
-            sectionId,
-            legacyPositions.get(link.subject_id) ?? [],
-          );
-        }
-      }
-
-      for (const [sectionId, slots] of sourcePicks) {
-        if (slots.length === 0) continue;
-        const fromSection = fromSections.get(sectionId);
-        if (!fromSection) continue; // section deleted since
-        const targetSectionId = targetSectionIndex.get(
-          EducatorSubjectService.sectionKey(fromSection),
-        );
-        if (!targetSectionId) {
-          unmatched.push({
-            educatorId: link.educator_id,
-            subjectName: source.name,
-            reason: `Section "${fromSection.name}" has no equivalent section in the target year`,
-          });
-          continue;
-        }
-        let perSubject = carriedSlots.get(link.educator_id);
-        if (!perSubject) {
-          perSubject = new Map<string, Map<string, Set<number>>>();
-          carriedSlots.set(link.educator_id, perSubject);
-        }
-        const perSection =
-          perSubject.get(targetId) ?? new Map<string, Set<number>>();
-        const picked = perSection.get(targetSectionId) ?? new Set<number>();
-        for (const n of slots) picked.add(n);
-        perSection.set(targetSectionId, picked);
-        perSubject.set(targetId, perSection);
-      }
-    }
-
-    let created = 0;
-    for (const [educatorId, subjectIds] of byEducator) {
-      const res = await this.repo.addMany(orgId, educatorId, [...subjectIds]);
-      created += res.count;
-    }
-
-    // Slot picks merge (union) with whatever the target year already has —
-    // carry-over is additive, like addMany with skipDuplicates above. Pairs
-    // already held by someone else are skipped and reported, never taken.
-    const carriedTargetSubjects = [
-      ...new Set(
-        [...carriedSlots.values()].flatMap((perSubject) => [...perSubject.keys()]),
-      ),
-    ];
-    const holderIndex = new Map<
-      string,
-      { educatorId: string; educatorName: string | null }
-    >();
-    if (carriedTargetSubjects.length > 0) {
-      const held = await this.repo.getAssignmentsBySubject(
-        orgId,
-        carriedTargetSubjects,
-      );
-      for (const [subjectId, claims] of held) {
-        for (const c of claims) {
-          if (!(c.slots.length > 0 || c.wholePair)) continue;
-          holderIndex.set(`${subjectId}:${c.sectionId}`, {
-            educatorId: c.educatorId,
-            educatorName: c.educatorName,
-          });
-        }
-      }
-    }
-
-    // Own legacy rows (section_ids with no slots entry) expand to every
-    // position of the TARGET subject's count, or the replace below would
-    // silently wipe coverage the educator already had.
-    const targetLevels =
-      carriedTargetSubjects.length > 0
-        ? await this.repo.subjectLevels(orgId, carriedTargetSubjects)
-        : new Map();
-    const targetPositions = new Map<string, number>();
-    for (const [id, info] of targetLevels) {
-      const resolved = resolveSessionRequirement(
-        {
-          sessionsPerWeek: info.sessionsPerWeek,
-          sessionMinutes: info.sessionMinutes,
-          sessionDurations: info.sessionDurations,
-        },
-        info.programType,
-        slot,
-      );
-      targetPositions.set(id, resolved.sessionsPerWeek);
-    }
-
-    let sectionsCarried = 0;
-    for (const [educatorId, perSubject] of carriedSlots) {
-      const current = await this.repo.findByEducator(orgId, educatorId);
-      const currentBySubject = new Map(
-        current.map((r) => {
-          const picks = new Map(
-            parseSectionSlots(r.section_slots).map((p) => [
-              p.sectionId,
-              new Set(p.slots),
-            ]),
-          );
-          const positions = targetPositions.get(r.subject.id) ?? 0;
-          for (const sectionId of r.section_ids ?? []) {
-            if (!picks.has(sectionId) && positions > 0) {
-              picks.set(
-                sectionId,
-                new Set(
-                  Array.from({ length: positions }, (_, i) => i + 1),
-                ),
-              );
-            }
-          }
-          return [r.subject.id, picks] as const;
-        }),
-      );
-      const merged: Array<{
-        subjectId: string;
-        sections: Array<{ sectionId: string; slots: number[] }>;
-      }> = [];
-      for (const [subjectId, perSection] of perSubject) {
-        const existing = currentBySubject.get(subjectId) ?? new Map();
-        const sections: Array<{ sectionId: string; slots: number[] }> = [];
-        for (const [sectionId, picked] of perSection) {
-          const holder = holderIndex.get(`${subjectId}:${sectionId}`);
-          if (holder && holder.educatorId !== educatorId) {
-            unmatched.push({
-              educatorId,
-              subjectName: toSubjects.get(subjectId)?.name ?? subjectId,
-              reason: `Section is already handled by ${holder.educatorName ?? 'another educator'} in the target year`,
-            });
-            continue;
-          }
-          const union = new Set([...(existing.get(sectionId) ?? []), ...picked]);
-          if (union.size > 0) {
-            sections.push({
-              sectionId,
-              slots: [...union].sort((a, b) => a - b),
-            });
-            sectionsCarried += 1;
-          }
-        }
-        if (sections.length > 0) merged.push({ subjectId, sections });
-      }
-      // Nothing carried (everything skipped as held) means nothing to write —
-      // an empty replace would wipe nothing, but the call is pure noise.
-      if (merged.length > 0) {
-        await this.repo.setSlots(orgId, educatorId, merged);
-      }
-    }
-
-    this.auditLogService
-      .logAdminAction({
-        orgId,
-        actorId,
-        action: 'educator_subjects_carried_over',
-        entityType: 'educator',
-        entityId: fromSchoolYearId,
-        metadata: {
-          fromSchoolYearId,
-          toSchoolYearId,
-          created,
-          sectionsCarried,
-          unmatched: unmatched.length,
-        },
-      })
-      .catch(() => {});
-
-    return {
-      created,
-      sectionsCarried,
-      educatorsProcessed: educators.length,
-      unmatched,
-    };
   }
 
   /**
@@ -1143,29 +1196,5 @@ export class EducatorSubjectService {
       });
     }
     return out;
-  }
-
-  /**
-   * Carry-over match key: name + program type + parent names.
-   *
-   * Level name is included deliberately — the same subject name exists at many
-   * levels, and matching on name alone would attach the wrong one.
-   */
-  private static subjectKey(s: CarrySubject): string {
-    return [
-      norm(s.name),
-      norm(s.programType),
-      norm(s.levelName ?? ''),
-      norm(s.courseName ?? ''),
-      norm(s.strandName ?? ''),
-    ].join('|');
-  }
-
-  /**
-   * Section match key: name + level name. Same section name exists at many
-   * levels, so the level disambiguates.
-   */
-  private static sectionKey(s: { name: string; levelName: string | null }): string {
-    return [norm(s.name), norm(s.levelName ?? '')].join('|');
   }
 }
