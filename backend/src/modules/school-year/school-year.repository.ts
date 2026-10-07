@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
+import {
+  calendarDateToUtc,
+  startOfDayInZone,
+} from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class SchoolYearRepository {
@@ -17,8 +21,9 @@ export class SchoolYearRepository {
         org_id: data.orgId,
         name: data.name,
         status: 'pending',
-        start_date: data.start_date ? new Date(data.start_date) : null,
-        end_date: data.end_date ? new Date(data.end_date) : null,
+        // TICK-INFRA-017: kind-B calendar dates stored as UTC midnight.
+        start_date: data.start_date ? calendarDateToUtc(data.start_date) : null,
+        end_date: data.end_date ? calendarDateToUtc(data.end_date) : null,
       },
     });
   }
@@ -98,10 +103,12 @@ export class SchoolYearRepository {
       data: {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.start_date !== undefined && {
-          start_date: data.start_date ? new Date(data.start_date) : null,
+          start_date: data.start_date
+            ? calendarDateToUtc(data.start_date)
+            : null,
         }),
         ...(data.end_date !== undefined && {
-          end_date: data.end_date ? new Date(data.end_date) : null,
+          end_date: data.end_date ? calendarDateToUtc(data.end_date) : null,
         }),
       },
     });
@@ -317,12 +324,16 @@ export class SchoolYearRepository {
     await client.schoolYear.delete({ where: { id: schoolYearId } });
   }
 
-  /** Find all school years whose end_date has passed and are still active */
+  /**
+   * Find all school years whose end DAY has passed and are still active.
+   * R6: a year ending today stays active — `end_date < <Manila midnight
+   * starting today>` is exactly `endDay < today` as a single query.
+   */
   async findExpiredActive(): Promise<{ id: string; org_id: string }[]> {
     return this.db.schoolYear.findMany({
       where: {
         status: 'active',
-        end_date: { lt: new Date() },
+        end_date: { lt: startOfDayInZone(new Date()) },
       },
       select: { id: true, org_id: true },
     });

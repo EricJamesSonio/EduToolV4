@@ -4,12 +4,12 @@ import {
   IsString,
   IsOptional,
   IsUUID,
-  IsDateString,
   IsArray,
   ValidateNested,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCalendarDate } from '@/commons/utils/datetime.util';
 
 // ── Break ─────────────────────────────────────────────────────────────────────
 
@@ -18,10 +18,10 @@ export class BreakDto {
   @MaxLength(100)
   label!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   startDate!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate!: string;
 }
 
@@ -34,10 +34,10 @@ export class CreateProgramCalendarDto {
   @IsUUID()
   programId!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   startDate!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate!: string;
 
   @IsOptional()
@@ -56,11 +56,11 @@ export class CreateProgramCalendarDto {
 
 export class UpdateProgramCalendarDto {
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   endDate?: string;
 
   @IsOptional()
@@ -94,7 +94,7 @@ export class CustomHolidayDto {
   @MaxLength(150)
   title!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   date!: string;
 
   @IsOptional()

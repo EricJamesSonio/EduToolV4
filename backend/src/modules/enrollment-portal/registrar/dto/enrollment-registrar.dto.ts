@@ -1,6 +1,5 @@
 // src/modules/enrollment-portal/registrar/dto/enrollment-registrar.dto.ts
 import {
-  IsDateString,
   IsEmail,
   IsEnum,
   IsInt,
@@ -12,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCalendarDate } from '@/commons/utils/datetime.util';
 import {
   EnrollmentApplicationStatus,
   SectionOverflowAction,
@@ -27,13 +27,13 @@ export class CreateEnrollmentPeriodDto {
   @IsNotEmpty()
   school_year_id!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   start_date!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   end_date!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   lock_date!: string;
 
   @IsOptional()
@@ -49,15 +49,15 @@ export class UpdateEnrollmentPeriodDto {
   name?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   start_date?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   end_date?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   lock_date?: string;
 
   @IsOptional()

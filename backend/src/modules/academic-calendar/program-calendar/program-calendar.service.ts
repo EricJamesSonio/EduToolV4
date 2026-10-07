@@ -19,6 +19,11 @@ import {
   resolveHolidays,
   buildHolidayDates,
 } from '../data/holidays.data';
+import {
+  calendarDateOf,
+  calendarDateToUtc,
+  formatCalendarDate,
+} from '@/commons/utils/datetime.util';
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
@@ -79,7 +84,9 @@ export class ProgramCalendarService {
     const custom = customHolidays.map((ch: any) => ({
       holidayKey: null,
       title: ch.title,
-      date: new Date(ch.date),
+      // TICK-INFRA-017: normalize to the intended calendar day at UTC
+      // midnight (tolerant of legacy rows), never local-midnight.
+      date: calendarDateToUtc(calendarDateOf(new Date(ch.date))),
       description: ch.description ?? null,
       type: 'custom' as const,
     }));
@@ -92,10 +99,12 @@ export class ProgramCalendarService {
     calendarStart: Date,
     calendarEnd: Date,
   ) {
+    // TICK-INFRA-017: DTOs guarantee "YYYY-MM-DD" — normalize every bound
+    // to UTC midnight so overlap/range checks are day-exact on any server.
     const parsed = rawBreaks.map((b) => ({
       label: b.label,
-      startDate: new Date(b.startDate),
-      endDate: new Date(b.endDate),
+      startDate: calendarDateToUtc(b.startDate),
+      endDate: calendarDateToUtc(b.endDate),
     }));
 
     for (const b of parsed) {
@@ -104,10 +113,17 @@ export class ProgramCalendarService {
           `Break "${b.label}": start date must be before or equal to end date.`,
         );
       }
-      if (b.startDate < calendarStart || b.endDate > calendarEnd) {
+      // Day-string compare both sides: tolerant of legacy 16:00Z rows on
+      // either side, identical outcome on every server TZ.
+      const rangeStart = calendarDateOf(calendarStart);
+      const rangeEnd = calendarDateOf(calendarEnd);
+      if (
+        calendarDateOf(b.startDate) < rangeStart ||
+        calendarDateOf(b.endDate) > rangeEnd
+      ) {
         throw new BadRequestException(
           `Break "${b.label}" falls outside the calendar range ` +
-            `(${calendarStart.toDateString()} – ${calendarEnd.toDateString()}).`,
+            `(${formatCalendarDate(rangeStart)} – ${formatCalendarDate(rangeEnd)}).`,
         );
       }
     }
@@ -130,8 +146,9 @@ export class ProgramCalendarService {
   // ── Create (idempotent — redirects to update if exists) ────────────────────
 
   async create(orgId: string, dto: CreateProgramCalendarDto) {
-    const startDate = new Date(dto.startDate);
-    const endDate = new Date(dto.endDate);
+    // TICK-INFRA-017: kind-B days (DTO-guaranteed "YYYY-MM-DD").
+    const startDate = calendarDateToUtc(dto.startDate);
+    const endDate = calendarDateToUtc(dto.endDate);
 
     if (startDate >= endDate) {
       throw new BadRequestException(
@@ -181,7 +198,9 @@ export class ProgramCalendarService {
     const holidayRows = this.buildHolidayRows(
       enabledKeys,
       customHols,
-      startDate.getFullYear(),
+      // TICK-INFRA-017: intended calendar year (tolerant of legacy rows;
+      // getFullYear reads the process zone and flips at Jan 1 west of UTC).
+      Number(calendarDateOf(startDate).slice(0, 4)),
     );
     await this.repo.replaceHolidays(calendar.id, orgId, holidayRows);
 
@@ -234,9 +253,9 @@ export class ProgramCalendarService {
     if (!existing) throw new NotFoundException('Program calendar not found.');
 
     const startDate = dto.startDate
-      ? new Date(dto.startDate)
+      ? calendarDateToUtc(dto.startDate)
       : existing.start_date;
-    const endDate = dto.endDate ? new Date(dto.endDate) : existing.end_date;
+    const endDate = dto.endDate ? calendarDateToUtc(dto.endDate) : existing.end_date;
 
     if (startDate >= endDate) {
       throw new BadRequestException(
@@ -307,7 +326,8 @@ export class ProgramCalendarService {
 
     for (const cal of allFull) {
       if (!cal) continue;
-      const year = new Date(cal.start_date).getFullYear();
+      // TICK-INFRA-017: intended calendar year (see create()).
+      const year = Number(calendarDateOf(cal.start_date).slice(0, 4));
       const holidayRows = this.buildHolidayRows(
         config.enabled_keys,
         config.custom_holidays as any[],
@@ -349,7 +369,8 @@ export class ProgramCalendarService {
 
     for (const cal of allFull) {
       if (!cal) continue;
-      const year = new Date(cal.start_date).getFullYear();
+      // TICK-INFRA-017: intended calendar year (see create()).
+      const year = Number(calendarDateOf(cal.start_date).slice(0, 4));
       const holidayRows = this.buildHolidayRows(
         config.enabled_keys,
         config.custom_holidays as any[],

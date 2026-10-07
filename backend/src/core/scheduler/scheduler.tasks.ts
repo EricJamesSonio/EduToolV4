@@ -7,6 +7,10 @@ import { OrgEnrollmentSettingService } from '@/modules/org-enrollment-setting/or
 import { EnrollmentAutoLockService } from '@/modules/enrollment-portal/registrar/enrollment-auto-lock.service';
 import { DatabaseService } from '@/core/database/database.provider';
 import { ConcernDigestService } from '@/modules/concern/digest/concern-digest.service';
+import {
+  ORG_TIMEZONE,
+  startOfDayInZone,
+} from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class SchedulerTasks {
@@ -83,7 +87,8 @@ export class SchedulerTasks {
     }
   }
 
-  @Cron('0 2 * * *')
+  // TICK-INFRA-017: fixed clock time runs in school time, not server time.
+  @Cron('0 2 * * *', { timeZone: ORG_TIMEZONE })
   async handleNotificationArchiving() {
     this.logger.log('Archiving old notifications...');
     try {
@@ -94,18 +99,25 @@ export class SchedulerTasks {
   }
 
   /**
-   * Runs nightly at 03:00.
+   * Runs nightly at 03:00 Manila time (19:00Z the previous day).
+   * R6: a school year is over only when todayInZone() > its end day, so a
+   * year ending today stays active. `end_date < <Manila midnight starting
+   * today>` is exactly that calendar comparison as a single query.
    * For each active school year whose end_date has passed:
    *   - If org has auto_unenroll_on_year_end = true → remove all active
    *     class-level Enrollment rows for that school year's classes.
    *   - Then marks the school year as ended.
    */
-  @Cron('0 3 * * *')
+  // TICK-INFRA-017: fixed clock time runs in school time, not server time.
+  @Cron('0 3 * * *', { timeZone: ORG_TIMEZONE })
   async handleAutoUnenrollOnYearEnd() {
     this.logger.log('Running auto unenroll on school year end...');
     try {
       const expiredYears = await this.db.schoolYear.findMany({
-        where: { status: 'active', end_date: { lt: new Date() } },
+        where: {
+          status: 'active',
+          end_date: { lt: startOfDayInZone(new Date()) },
+        },
         select: { id: true, org_id: true },
       });
 

@@ -28,6 +28,11 @@ import {
   formatBlockerMessage,
   item,
 } from '@/commons/utils/deletion-report.util';
+import {
+  calendarDateOf,
+  calendarDateToUtc,
+  todayInZone,
+} from '@/commons/utils/datetime.util';
 
 const TEN_MONTHS_MS = 10 * 30 * 24 * 60 * 60 * 1000;
 const MAX_CONFLICT_NAMES_IN_MESSAGE = 3;
@@ -53,8 +58,10 @@ export class SchoolYearService {
         'Both start_date and end_date are required to generate the school year name.',
       );
     }
-    const startYear = new Date(start_date).getFullYear();
-    const endYear = new Date(end_date).getFullYear();
+    // TICK-INFRA-017: year from the string itself. new Date("2026-01-01")
+    // .getFullYear() reads the process zone and returns 2025 west of UTC.
+    const startYear = start_date.slice(0, 4);
+    const endYear = end_date.slice(0, 4);
     return `SY ${startYear}-${endYear}`;
   }
 
@@ -65,12 +72,9 @@ export class SchoolYearService {
   private validateDateRange(start_date?: string, end_date?: string): void {
     if (!start_date || !end_date) return;
 
-    const start = new Date(start_date);
-    const end = new Date(end_date);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return; // class-validator already catches this
-
-    if (end <= start) {
+    // TICK-INFRA-017: kind-B "YYYY-MM-DD" strings (DTO-guaranteed shape)
+    // compare chronologically as plain strings in every TZ.
+    if (end_date <= start_date) {
       throw new BadRequestException('end_date must be after start_date.');
     }
   }
@@ -82,9 +86,11 @@ export class SchoolYearService {
   private isShortDuration(start_date?: string, end_date?: string): boolean {
     if (!start_date || !end_date) return false;
 
-    const start = new Date(start_date);
-    const end = new Date(end_date);
-    return end.getTime() - start.getTime() < TEN_MONTHS_MS;
+    // TICK-INFRA-017: explicit UTC-midnight endpoints — same ms math as
+    // before, but independent of the process zone.
+    const start = calendarDateToUtc(start_date).getTime();
+    const end = calendarDateToUtc(end_date).getTime();
+    return end - start < TEN_MONTHS_MS;
   }
 
   /**
@@ -101,10 +107,9 @@ export class SchoolYearService {
   ): Promise<void> {
     if (!start_date || !end_date) return;
 
-    const start = new Date(start_date);
-    const end = new Date(end_date);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+    // TICK-INFRA-017: normalize to UTC-midnight calendar days.
+    const start = calendarDateToUtc(start_date);
+    const end = calendarDateToUtc(end_date);
 
     const conflicts = await this.schoolYearRepository.findOverlapping(
       orgId,
@@ -116,7 +121,7 @@ export class SchoolYearService {
     if (conflicts.length === 0) return;
 
     const formatDay = (value: Date | null): string =>
-      value ? value.toISOString().slice(0, 10) : 'unset';
+      value ? calendarDateOf(value) : 'unset';
 
     const described = conflicts
       .slice(0, MAX_CONFLICT_NAMES_IN_MESSAGE)
@@ -318,21 +323,29 @@ export class SchoolYearService {
       );
     }
 
+    // TICK-INFRA-017: effective dates stay "YYYY-MM-DD" so every validator
+    // below compares day strings (never mixed ISO/day formats).
     const effectiveStart =
-      dto.start_date ?? schoolYear.start_date?.toISOString();
-    const effectiveEnd = dto.end_date ?? schoolYear.end_date?.toISOString();
+      dto.start_date ??
+      (schoolYear.start_date ? calendarDateOf(schoolYear.start_date) : undefined);
+    const effectiveEnd =
+      dto.end_date ??
+      (schoolYear.end_date ? calendarDateOf(schoolYear.end_date) : undefined);
 
     this.validateDateRange(effectiveStart, effectiveEnd);
     this.validateNotInPast(effectiveStart, effectiveEnd);
 
     // Only re-check overlaps when a date really changes, so renaming a school
-    // year that already overlaps legacy data is not blocked.
+    // year that already overlaps legacy data is not blocked. Compared as
+    // calendar days so legacy 16:00Z rows don't read as "changed".
     const startChanged =
       !!dto.start_date &&
-      new Date(dto.start_date).getTime() !== schoolYear.start_date?.getTime();
+      calendarDateOf(dto.start_date) !==
+        (schoolYear.start_date ? calendarDateOf(schoolYear.start_date) : undefined);
     const endChanged =
       !!dto.end_date &&
-      new Date(dto.end_date).getTime() !== schoolYear.end_date?.getTime();
+      calendarDateOf(dto.end_date) !==
+        (schoolYear.end_date ? calendarDateOf(schoolYear.end_date) : undefined);
 
     if (startChanged || endChanged) {
       await this.assertNoOverlap(orgId, effectiveStart, effectiveEnd, id);
@@ -405,14 +418,9 @@ export class SchoolYearService {
       );
     }
 
-    // 🔥 Prevent early activation, allow late activation
-    const today = new Date();
-    const start = new Date(schoolYear.start_date);
-
-    today.setHours(0, 0, 0, 0);
-    start.setHours(0, 0, 0, 0);
-
-    if (start > today) {
+    // 🔥 Prevent early activation, allow late activation.
+    // TICK-INFRA-017: calendar-day compare in school time — no setHours.
+    if (calendarDateOf(schoolYear.start_date) > todayInZone()) {
       throw new BadRequestException(
         'Cannot activate a school year before its start date.',
       );
@@ -577,20 +585,15 @@ export class SchoolYearService {
   private validateNotInPast(start_date?: string, end_date?: string): void {
     if (!start_date || !end_date) return;
 
-    const now = new Date();
-    const start = new Date(start_date);
-    const end = new Date(end_date);
+    // TICK-INFRA-017: "YYYY-MM-DD" string compare against the school day.
+    // Today is allowed (a year ending today is still active — R6).
+    const today = todayInZone();
 
-    // normalize to ignore time (important!)
-    now.setHours(0, 0, 0, 0);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-
-    if (start < now) {
+    if (start_date < today) {
       throw new BadRequestException('start_date cannot be in the past.');
     }
 
-    if (end < now) {
+    if (end_date < today) {
       throw new BadRequestException('end_date cannot be in the past.');
     }
   }

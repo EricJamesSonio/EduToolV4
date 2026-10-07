@@ -1,6 +1,7 @@
 // ===== File: backend\src\modules\semester-template\semester-template.repository.ts =====
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import { calendarDateToUtc } from '@/commons/utils/datetime.util';
 
 const TEMPLATE_INCLUDE = {
   semesters: {
@@ -249,15 +250,16 @@ export class SemesterTemplateRepository {
             },
           },
           update: {
-            start_date: new Date(td.startDate),
-            end_date: new Date(td.endDate),
+            // TICK-INFRA-017: kind-B days at UTC midnight (input "YYYY-MM-DD").
+            start_date: calendarDateToUtc(td.startDate),
+            end_date: calendarDateToUtc(td.endDate),
           },
           create: {
             org_id: orgId,
             assignment_id: assignmentId,
             term_id: td.termId,
-            start_date: new Date(td.startDate),
-            end_date: new Date(td.endDate),
+            start_date: calendarDateToUtc(td.startDate),
+            end_date: calendarDateToUtc(td.endDate),
           },
         }),
       ),

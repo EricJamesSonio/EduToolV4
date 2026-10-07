@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { calendarDateOf } from "@/utils/datetime.util";
 import type { AxiosError } from "axios";
 
 interface SemesterFormDialogProps {
@@ -52,15 +53,20 @@ const EMPTY_DRAFT: SemesterDraft = {
  *   "2024-08-01T00:00:00.000Z"  → "2024-08-01"
  *   "2024-08-01"                → "2024-08-01"  (no-op)
  *   ""  | null | undefined      → ""
+ *
+ * TICK-INFRA-017: tolerant of legacy 16:00Z rows (a plain slice/toISOString
+ * mislabels those by a day); date-only strings pass through untouched.
  */
 function toDateInput(value: string | null | undefined): string {
   if (!value) return "";
   // Already YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  // ISO datetime — slice the date part
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
+  // ISO datetime — read the intended calendar day, never slice blindly
+  try {
+    return calendarDateOf(value);
+  } catch {
+    return "";
+  }
 }
 
 export function SemesterFormDialog({

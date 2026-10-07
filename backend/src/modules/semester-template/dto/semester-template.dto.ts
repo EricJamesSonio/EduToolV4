@@ -12,9 +12,9 @@ import {
   ValidateNested,
   ArrayMinSize,
   IsIn,
-  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCalendarDate } from '@/commons/utils/datetime.util';
 
 // Mirrors backend ProgramType enum exactly
 export type ProgramType =
@@ -89,10 +89,10 @@ export class TermDateDto {
   @IsUUID()
   termId!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   startDate!: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate!: string;
 }
 

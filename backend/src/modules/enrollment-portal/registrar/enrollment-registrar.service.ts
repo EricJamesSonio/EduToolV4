@@ -18,6 +18,11 @@ import {
   RejectApplicationDto,
   UnlockApplicationDto,
 } from './dto/enrollment-registrar.dto';
+import {
+  calendarDateOf,
+  calendarDateToUtc,
+  todayInZone,
+} from '@/commons/utils/datetime.util';
 
 const PERIOD_TOKEN_LENGTH = 7;
 const MAX_TOKEN_ATTEMPTS = 10;
@@ -69,9 +74,10 @@ export class EnrollmentRegistrarService {
       schoolYearId: dto.school_year_id,
       name: dto.name,
       token,
-      startDate: new Date(dto.start_date),
-      endDate: new Date(dto.end_date),
-      lockDate: new Date(dto.lock_date),
+      // TICK-INFRA-017: kind-B days at UTC midnight.
+      startDate: calendarDateToUtc(dto.start_date),
+      endDate: calendarDateToUtc(dto.end_date),
+      lockDate: calendarDateToUtc(dto.lock_date),
       createdBy: actorId,
       sectionOverflowAction: dto.section_overflow_action,
     });
@@ -161,7 +167,7 @@ const countsByPeriod = groupedByPeriod.reduce<
       return acc;
     }, {});
 
-    const now = new Date();
+    const today = todayInZone();
     const availablePeriods = periods.map((p) => {
       const counts = countsByPeriod[p.id] ?? {
         pending: 0,
@@ -177,7 +183,7 @@ const countsByPeriod = groupedByPeriod.reduce<
         end_date: p.end_date,
         lock_date: p.lock_date,
         school_year: p.schoolYear,
-        status: this.periodStatus(p, now),
+        status: this.periodStatus(p),
         counts,
         total:
           counts.pending + counts.locked + counts.approved + counts.rejected,
@@ -189,7 +195,7 @@ const countsByPeriod = groupedByPeriod.reduce<
       : undefined;
     if (!selected) {
       selected =
-        periods.find((p) => new Date(p.start_date) <= now) ??
+        periods.find((p) => calendarDateOf(p.start_date) <= today) ??
         periods.find((p) => p.created_at != null) ??
         periods[0];
     }
@@ -312,7 +318,7 @@ const countsByPeriod = groupedByPeriod.reduce<
           end_date: selected.end_date,
           lock_date: selected.lock_date,
           school_year: selected.schoolYear,
-          status: this.periodStatus(selected, now),
+          status: this.periodStatus(selected),
         },
         summary,
         total:
@@ -336,16 +342,18 @@ const countsByPeriod = groupedByPeriod.reduce<
 
     const next = {
       name: dto.name ?? period.name,
-      start_date: dto.start_date ? new Date(dto.start_date) : period.start_date,
-      end_date: dto.end_date ? new Date(dto.end_date) : period.end_date,
-      lock_date: dto.lock_date ? new Date(dto.lock_date) : period.lock_date,
+      // TICK-INFRA-017: kind-B days at UTC midnight; stored Dates pass
+      // through untouched.
+      start_date: dto.start_date
+        ? calendarDateToUtc(dto.start_date)
+        : period.start_date,
+      end_date: dto.end_date ? calendarDateToUtc(dto.end_date) : period.end_date,
+      lock_date: dto.lock_date
+        ? calendarDateToUtc(dto.lock_date)
+        : period.lock_date,
       section_overflow_action: dto.section_overflow_action,
     };
-    this.assertPeriodDates(
-      next.start_date.toISOString(),
-      next.end_date.toISOString(),
-      next.lock_date.toISOString(),
-    );
+    this.assertPeriodDates(next.start_date, next.end_date, next.lock_date);
 
     const updated = await this.repo.updatePeriod(id, next);
     await this.logAdmin(
@@ -521,21 +529,24 @@ const countsByPeriod = groupedByPeriod.reduce<
     );
   }
 
-  private assertPeriodDates(start: string, end: string, lock: string) {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const lockDate = new Date(lock);
+  private assertPeriodDates(
+    start: Date | string,
+    end: Date | string,
+    lock: Date | string,
+  ) {
+    // TICK-INFRA-017: normalize (tolerant of legacy rows) then compare day
+    // strings. Same ordering rules as before: start < lock < end.
+    const startDay = calendarDateOf(start);
+    const endDay = calendarDateOf(end);
+    const lockDay = calendarDateOf(lock);
 
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException('Invalid period dates.');
-    }
-    if (endDate <= startDate) {
+    if (endDay <= startDay) {
       throw new BadRequestException('End date must be after the start date.');
     }
-    if (lockDate <= startDate) {
+    if (lockDay <= startDay) {
       throw new BadRequestException('Lock date must be after the start date.');
     }
-    if (lockDate >= endDate) {
+    if (lockDay >= endDay) {
       throw new BadRequestException('Lock date must be before the end date.');
     }
   }
@@ -554,13 +565,20 @@ const countsByPeriod = groupedByPeriod.reduce<
     };
   }
 
-  private periodStatus(
-    period: { start_date: Date; end_date: Date; lock_date: Date },
-    now: Date,
-  ): 'upcoming' | 'open' | 'locked' | 'ended' {
-    if (now < period.start_date) return 'upcoming';
-    if (now > period.end_date) return 'ended';
-    if (now >= period.lock_date) return 'locked';
+  /**
+   * TICK-INFRA-017: calendar-day status in school time. The named lock/end
+   * day is still fully usable (locked/ended only once todayInZone() passes
+   * it) — the R6 rule applied to periods.
+   */
+  private periodStatus(period: {
+    start_date: Date;
+    end_date: Date;
+    lock_date: Date;
+  }): 'upcoming' | 'open' | 'locked' | 'ended' {
+    const today = todayInZone();
+    if (today < calendarDateOf(period.start_date)) return 'upcoming';
+    if (today > calendarDateOf(period.end_date)) return 'ended';
+    if (today > calendarDateOf(period.lock_date)) return 'locked';
     return 'open';
   }
 

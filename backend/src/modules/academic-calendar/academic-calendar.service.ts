@@ -14,6 +14,11 @@ import {
   AppCacheService,
   APP_CACHE_TTL,
 } from '@/core/cache/app-cache.service';
+import {
+  calendarDateOf,
+  calendarDateToUtc,
+  todayInZone,
+} from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class AcademicCalendarService {
@@ -29,8 +34,9 @@ export class AcademicCalendarService {
   // ── POST /academic-calendar ─────────────────────────────────────────────────
 
   async create(orgId: string, dto: CreateCalendarEventDto) {
-    const startDate = new Date(dto.startDate);
-    const endDate = new Date(dto.endDate);
+    // TICK-INFRA-017: kind-B days (DTO-guaranteed "YYYY-MM-DD").
+    const startDate = calendarDateToUtc(dto.startDate);
+    const endDate = calendarDateToUtc(dto.endDate);
 
     if (startDate > endDate) {
       throw new BadRequestException(
@@ -38,10 +44,8 @@ export class AcademicCalendarService {
       );
     }
 
-    // Check if event is retroactive (start date is in the past)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const isRetroactive = startDate < today;
+    // Check if event is retroactive (start day is before today in Manila).
+    const isRetroactive = dto.startDate < todayInZone();
 
     const event = await this.calendarRepository.create({
       orgId,
@@ -87,9 +91,9 @@ export class AcademicCalendarService {
     }
 
     const startDate = dto.startDate
-      ? new Date(dto.startDate)
+      ? calendarDateToUtc(dto.startDate)
       : event.start_date;
-    const endDate = dto.endDate ? new Date(dto.endDate) : event.end_date;
+    const endDate = dto.endDate ? calendarDateToUtc(dto.endDate) : event.end_date;
 
     if (startDate > endDate) {
       throw new BadRequestException(
@@ -97,10 +101,9 @@ export class AcademicCalendarService {
       );
     }
 
-    // Warn again if the updated dates are retroactive
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const isRetroactive = startDate < today;
+    // Warn again if the updated dates are retroactive (day compare).
+    const isRetroactive =
+      calendarDateOf(startDate) < todayInZone();
 
     const updated = await this.calendarRepository.update(id, {
       title: dto.title,
@@ -151,6 +154,8 @@ export class AcademicCalendarService {
   /**
    * Check if a specific date falls on a blocking calendar event.
    * Used by attendance and session generation in Phase 3.
+   * TICK-INFRA-017: day-window compare — tolerant of legacy 16:00Z rows,
+   * identical outcome on every server TZ.
    */
   async isBlockedDate(
     orgId: string,
@@ -162,15 +167,13 @@ export class AcademicCalendarService {
       schoolYearId,
     );
 
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
+    const day = calendarDateOf(date);
 
     return events.some((event) => {
-      const start = new Date(event.start_date);
-      const end = new Date(event.end_date);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      return checkDate >= start && checkDate <= end;
+      return (
+        day >= calendarDateOf(event.start_date) &&
+        day <= calendarDateOf(event.end_date)
+      );
     });
   }
 }

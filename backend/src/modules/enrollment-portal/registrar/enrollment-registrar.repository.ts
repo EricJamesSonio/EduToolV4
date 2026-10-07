@@ -5,6 +5,7 @@ import {
   EnrollmentApplicationStatus,
   SectionOverflowAction,
 } from '@prisma/client';
+import { startOfDayInZone } from '@/commons/utils/datetime.util';
 
 export interface CreatePeriodData {
   orgId: string;
@@ -264,11 +265,16 @@ export class EnrollmentRegistrarRepository {
 
   // ── Auto-lock sweep (Phase 5) ────────────────────────────────────────────
 
-  findExpiredPendingApplications(now: Date) {
+  /**
+   * TICK-INFRA-017: the lock day itself stays fully open (R6-for-periods);
+   * applications lock once todayInZone() passes the period's lock day.
+   * `lock_date < <Manila midnight starting today>` is exactly that.
+   */
+  findExpiredPendingApplications() {
     return this.db.enrollmentApplication.findMany({
       where: {
         status: EnrollmentApplicationStatus.pending,
-        enrollmentPeriod: { lock_date: { lte: now } },
+        enrollmentPeriod: { lock_date: { lt: startOfDayInZone(new Date()) } },
       },
       select: {
         id: true,

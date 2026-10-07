@@ -12,14 +12,11 @@ import {
   AssignTemplateDto,
 } from './dto/semester-template.dto';
 import { DatabaseService } from '@/core/database/database.provider';
-
-/** Format a Date as YYYY-MM-DD using LOCAL date parts (avoids UTC off-by-one). */
-function fmtLocalDate(d: Date): string {
-  const y = String(d.getFullYear());
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+import {
+  addDaysToCalendarDate,
+  calendarDateOf,
+  calendarDateToUtc,
+} from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class SemesterTemplateService {
@@ -74,11 +71,15 @@ export class SemesterTemplateService {
     const program = await this.programRepo.findById(programId, orgId);
     if (!program) throw new NotFoundException('Program not found.');
 
-    // Build a map of termId → dates for quick lookup
+    // Build a map of termId → dates for quick lookup.
+    // TICK-INFRA-017: kind-B days at UTC midnight (input is "YYYY-MM-DD").
     const dateMap = new Map(
       termDates.map((td) => [
         td.termId,
-        { start: new Date(td.startDate), end: new Date(td.endDate) },
+        {
+          start: calendarDateToUtc(td.startDate),
+          end: calendarDateToUtc(td.endDate),
+        },
       ]),
     );
 
@@ -366,11 +367,13 @@ export class SemesterTemplateService {
 
     // Build semester periods from calendar breaks.
     // Each break IS a semester period. The gaps between breaks are no-class periods.
-    const semPeriods: Array<{ start: Date; end: Date }> = [];
+    // TICK-INFRA-017: normalize stored Dates to their intended calendar days
+    // (tolerant of legacy 16:00Z rows) before any arithmetic.
+    const semPeriods: Array<{ start: string; end: string }> = [];
 
     for (let i = 0; i < breaks.length; i++) {
-      const semStart = new Date(breaks[i].start_date);
-      const semEnd = new Date(breaks[i].end_date);
+      const semStart = calendarDateOf(breaks[i].start_date);
+      const semEnd = calendarDateOf(breaks[i].end_date);
 
       if (semStart > semEnd) {
         throw new BadRequestException(
@@ -393,9 +396,13 @@ export class SemesterTemplateService {
       const termCount = sem.terms.length;
       if (termCount === 0) continue;
 
+      // TICK-INFRA-017: pure day arithmetic — identical on every server TZ.
+      // (The old setDate/getDate version shifted defaults by the process
+      // zone; the old ms-split sibling in date-calculator.util.ts did too.)
       const totalDays =
         Math.round(
-          (period.end.getTime() - period.start.getTime()) /
+          (calendarDateToUtc(period.end).getTime() -
+            calendarDateToUtc(period.start).getTime()) /
             (1000 * 60 * 60 * 24),
         ) + 1;
       // Ensure each term gets at least 1 day (never 0 / negative durations).
@@ -403,23 +410,24 @@ export class SemesterTemplateService {
 
       for (let ti = 0; ti < termCount; ti++) {
         const term = sem.terms[ti];
-        const tStart = new Date(period.start);
-        tStart.setDate(tStart.getDate() + ti * daysPerTerm);
+        const tStart = addDaysToCalendarDate(period.start, ti * daysPerTerm);
 
-        let tEnd: Date;
+        let tEnd: string;
         if (ti === termCount - 1) {
-          tEnd = new Date(period.end);
+          tEnd = period.end;
         } else {
-          tEnd = new Date(period.start);
-          tEnd.setDate(tEnd.getDate() + (ti + 1) * daysPerTerm - 1);
+          tEnd = addDaysToCalendarDate(
+            period.start,
+            (ti + 1) * daysPerTerm - 1,
+          );
         }
 
-        if (tEnd < tStart) tEnd = new Date(tStart);
+        if (tEnd < tStart) tEnd = tStart;
 
         result.push({
           termId: term.id ?? '',
-          startDate: fmtLocalDate(tStart),
-          endDate: fmtLocalDate(tEnd),
+          startDate: tStart,
+          endDate: tEnd,
         });
       }
     }

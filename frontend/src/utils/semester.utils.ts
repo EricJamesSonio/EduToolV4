@@ -4,7 +4,14 @@
  * Previously duplicated per page; extracted so the schedule page and the class
  * list always agree on which semester is "current" (a student switching tabs
  * should not see two different answers).
+ *
+ * TICK-INFRA-017: semesters are kind-B calendar days. "Current" means the
+ * school day (todayInZone, Asia/Manila) falls within [startDay, endDay] —
+ * never an instant-vs-now comparison, so SSR and browser always agree and a
+ * semester ending today still counts as current (R6).
  */
+
+import { calendarDateOf, todayInZone } from "./datetime.util";
 
 export interface SemesterLike {
   id: string;
@@ -26,22 +33,23 @@ export function getDefaultSemesterId(
 ): string | null {
   if (!semesters || semesters.length === 0) return null;
 
-  const now = Date.now();
+  const today = todayInZone();
+  const days = semesters.map((s) => ({
+    id: s.id,
+    start: calendarDateOf(s.startDate),
+    end: calendarDateOf(s.endDate),
+  }));
 
-  const current = semesters.find((s) => {
-    const start = new Date(s.startDate).getTime();
-    const end = new Date(s.endDate).getTime();
-    return start <= now && now <= end;
-  });
+  const current = days.find((s) => s.start <= today && today <= s.end);
   if (current) return current.id;
 
-  const upcoming = semesters
-    .filter((s) => new Date(s.startDate).getTime() > now)
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  const upcoming = days
+    .filter((s) => s.start > today)
+    .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
   if (upcoming.length > 0) return upcoming[0].id;
 
-  const past = [...semesters].sort(
-    (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime(),
+  const past = [...days].sort((a, b) =>
+    a.end < b.end ? 1 : a.end > b.end ? -1 : 0,
   );
   return past[0]?.id ?? null;
 }

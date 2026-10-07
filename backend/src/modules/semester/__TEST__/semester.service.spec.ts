@@ -1,5 +1,7 @@
 import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { validate } from 'class-validator';
 import { SemesterService } from '../semester.service';
+import { CreateSemesterDto, CreateTermDto } from '../dto/semester.dto';
 import type { DatabaseService } from '@/core/database/database.provider';
 
 describe('SemesterService', () => {
@@ -118,8 +120,7 @@ describe('SemesterService', () => {
     });
   });
 
-  describe('remove / find', () => {
-    it('remove throws NotFound when missing', async () => {
+  describe('remove / find', () => {    it('remove throws NotFound when missing', async () => {
       repo.findById.mockResolvedValue(null);
       await expect(service.remove('nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -136,6 +137,55 @@ describe('SemesterService', () => {
     it('findAll delegates', async () => {
       repo.findAll.mockResolvedValue([{ id: 'sem-1' }]);
       expect(await service.findAll(orgId)).toEqual([{ id: 'sem-1' }]);
+    });
+  });
+
+  // TICK-INFRA-017: semester/term dates are kind-B — "YYYY-MM-DD" only.
+  describe('DTO calendar-date boundary', () => {
+    async function errorsFor(dto: object): Promise<string[]> {
+      // Nested (@ValidateNested) violations surface in `children`, not in
+      // top-level constraints — collect recursively.
+      const errors = await validate(dto);
+      const messages: string[] = [];
+      const walk = (list: typeof errors): void => {
+        for (const e of list) {
+          messages.push(...Object.values(e.constraints ?? {}));
+          if (e.children?.length) walk(e.children);
+        }
+      };
+      walk(errors);
+      return messages;
+    }
+
+    function validDto(): CreateSemesterDto {
+      const term = new CreateTermDto();
+      term.name = 'Prelim';
+      term.orderIndex = 1;
+      term.startDate = '2024-06-01';
+      term.endDate = '2024-07-15';
+      const dto = new CreateSemesterDto();
+      dto.schoolYearId = '11111111-1111-4111-8111-111111111111';
+      dto.programId = '22222222-2222-4222-8222-222222222222';
+      dto.templateSemesterId = '33333333-3333-4333-8333-333333333333';
+      dto.name = '1st Semester';
+      dto.startDate = '2024-06-01';
+      dto.endDate = '2024-10-31';
+      dto.terms = [term];
+      return dto;
+    }
+
+    it('accepts YYYY-MM-DD throughout', async () => {
+      expect(await errorsFor(validDto())).toHaveLength(0);
+    });
+
+    it('rejects full datetimes for semester and term dates', async () => {
+      const zoned = validDto();
+      zoned.startDate = '2024-06-01T00:00:00.000Z';
+      expect(await errorsFor(zoned)).not.toHaveLength(0);
+
+      const termZoned = validDto();
+      termZoned.terms[0].endDate = '2024-07-15T16:00:00.000Z';
+      expect(await errorsFor(termZoned)).not.toHaveLength(0);
     });
   });
 });

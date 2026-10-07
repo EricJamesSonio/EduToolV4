@@ -8,6 +8,7 @@ import {
 import { DatabaseService } from '@/core/database/database.provider';
 import { SemesterRepository } from './semester.repository';
 import { CreateSemesterDto, UpdateSemesterDto } from './dto/semester.dto';
+import { calendarDateToUtc } from '@/commons/utils/datetime.util';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -21,16 +22,20 @@ function toDate(value: string | undefined, field: string): Date {
     throw new BadRequestException(`${field} is required.`);
   }
 
-  const date = new Date(value);
-
-  if (isNaN(date.getTime())) {
+  // TICK-INFRA-017: kind-B days stored as UTC midnight. DTOs guarantee
+  // "YYYY-MM-DD" via @IsCalendarDate; calendarDateToUtc also rejects
+  // impossible days (e.g. 2026-02-30) that @IsDateString used to accept.
+  try {
+    return calendarDateToUtc(value);
+  } catch {
     throw new BadRequestException(`${field} is invalid.`);
   }
-
-  return date;
 }
 
 function isOverlapping(a: DateRange, b: DateRange): boolean {
+  // Inputs are day-normalized (UTC midnight for new rows). Legacy 16:00Z
+  // rows sit 8h earlier, which only affects sub-day precision — day-level
+  // overlap outcomes are unchanged, and back-to-back days still pass.
   return a.startDate < b.endDate && a.endDate > b.startDate;
 }
 
