@@ -12,6 +12,11 @@ import {
   UpdateAttendanceRecordDto,
 } from './dto/attendance.dto';
 import { LessonService } from '../lesson/lesson.service';
+import {
+  calendarDateOf,
+  calendarDateToUtc,
+  weekdayOccurrencesInZone,
+} from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class AttendanceService {
@@ -87,15 +92,13 @@ export class AttendanceService {
       },
     });
 
-    const isBlockedDate = (date: Date): boolean => {
+    const isBlockedDate = (day: string): boolean => {
+      // TICK-INFRA-017: day-window compare, tolerant of legacy rows.
       return calendarEvents.some((event) => {
-        const start = new Date(event.start_date);
-        const end = new Date(event.end_date);
-
-        start.setHours(0, 0, 0, 0);
-        end.setHours(23, 59, 59, 999);
-
-        return date >= start && date <= end;
+        return (
+          day >= calendarDateOf(event.start_date) &&
+          day <= calendarDateOf(event.end_date)
+        );
       });
     };
 
@@ -131,31 +134,46 @@ export class AttendanceService {
       }
     }
 
+    // TICK-INFRA-017: idempotency guard. Sessions have no unique key on
+    // (class, date), so createMany(skipDuplicates) cannot dedupe — a rerun
+    // (or the old weekday math) would insert a second row for the same day.
+    // Skip any (day, sub_index) that already has a session, whatever instant
+    // the existing row carries.
+    const existingDays = new Set(
+      (await this.attendanceRepo.findSessionsByClass(classId)).map(
+        (s) => `${calendarDateOf(s.date)}:${s.sub_index}`,
+      ),
+    );
+
     // =========================================================
     // 🔥 CORE LOOP (SYNCED WITH LESSON SYSTEM)
     // =========================================================
     for (const sem of semesters) {
       // Skip semesters whose term date ranges don't overlap with the
-      // class's actual semester date range
+      // class's actual semester date range (day compare, legacy-tolerant).
       if (classSemesterStart && classSemesterEnd) {
         const semTermDates = (sem.terms ?? [])
           .map((t: any) => termDatesMap.get(t.id))
           .filter(Boolean) as Array<{ start: Date; end: Date }>;
 
-        const semStart =
+        const semStartDay =
           semTermDates.length > 0
-            ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
+            ? semTermDates
+                .map((d) => calendarDateOf(d.start))
+                .reduce((a, b) => (a < b ? a : b))
             : null;
-        const semEnd =
+        const semEndDay =
           semTermDates.length > 0
-            ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
+            ? semTermDates
+                .map((d) => calendarDateOf(d.end))
+                .reduce((a, b) => (a > b ? a : b))
             : null;
 
         if (
-          !semStart ||
-          !semEnd ||
-          semEnd < classSemesterStart ||
-          semStart > classSemesterEnd
+          !semStartDay ||
+          !semEndDay ||
+          semEndDay < calendarDateOf(classSemesterStart) ||
+          semStartDay > calendarDateOf(classSemesterEnd)
         )
           continue;
       }
@@ -167,23 +185,30 @@ export class AttendanceService {
         if (!dates) continue;
 
         for (const weekday of scheduleWeekdays) {
-          const occurrences = this.getWeekdayOccurrences(
-            dates.start,
-            dates.end,
+          const subIndex = scheduleWeekdays.indexOf(weekday) + 1;
+          // TICK-INFRA-017: Manila calendar-day occurrences as UTC-midnight
+          // instants — identical on every server. week_number counts every
+          // occurrence (even skipped ones) so reruns never renumber weeks.
+          const occurrenceDays = weekdayOccurrencesInZone(
+            calendarDateOf(dates.start),
+            calendarDateOf(dates.end),
             weekday,
           );
 
-          for (const date of occurrences) {
-            if (isBlockedDate(date)) continue;
+          for (const day of occurrenceDays) {
+            // Blocked days consume no week number (as before); already-born
+            // days consume one so reruns never renumber later weeks.
+            if (isBlockedDate(day)) continue;
 
-            sessions.push({
-              org_id: orgId,
-              class_id: classId,
-              date,
-              week_number: globalWeek,
-              sub_index: scheduleWeekdays.indexOf(weekday) + 1,
-            });
-
+            if (!existingDays.has(`${day}:${subIndex}`)) {
+              sessions.push({
+                org_id: orgId,
+                class_id: classId,
+                date: calendarDateToUtc(day),
+                week_number: globalWeek,
+                sub_index: subIndex,
+              });
+            }
             globalWeek++;
           }
         }
@@ -452,25 +477,5 @@ export class AttendanceService {
 
     if (!cls) throw new NotFoundException('Class not found.');
     return cls;
-  }
-
-  private getWeekdayOccurrences(
-    start: Date,
-    end: Date,
-    weekday: number,
-  ): Date[] {
-    const dates: Date[] = [];
-
-    const current = new Date(start);
-
-    const diff = (weekday - current.getDay() + 7) % 7;
-    current.setDate(current.getDate() + diff);
-
-    while (current <= end) {
-      dates.push(new Date(current));
-      current.setDate(current.getDate() + 7);
-    }
-
-    return dates;
   }
 }

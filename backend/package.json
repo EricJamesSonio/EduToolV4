@@ -25,6 +25,7 @@
     "check:orphans": "ts-node -r tsconfig-paths/register src/seeds/orphan-health-check.ts",
     "check:class-duplicates": "ts-node -r tsconfig-paths/register src/scripts/class-duplicate-check.ts",
     "check:catb-midnight": "ts-node -r tsconfig-paths/register src/scripts/category-b-midnight-audit.ts",
+    "check:attendance-drift": "ts-node -r tsconfig-paths/register src/scripts/attendance-lesson-drift-report.ts",
     "test:play": "ts-node -r tsconfig-paths/register src/seeds/playground-assessment-grading.ts",
     "drop_db": "ts-node -r tsconfig-paths/register src/seeds/drop-database.ts"
   },

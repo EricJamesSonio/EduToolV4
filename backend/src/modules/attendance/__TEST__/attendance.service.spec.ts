@@ -37,6 +37,10 @@ describe('AttendanceService (High-Value Tests)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // TICK-INFRA-017: generation skips (day, sub_index) pairs that already
+    // have sessions — default to "none exist" unless a test says otherwise.
+    attendanceRepo.findSessionsByClass.mockResolvedValue([]);
+
     service = new AttendanceService(
       db as any,
       attendanceRepo as any,
