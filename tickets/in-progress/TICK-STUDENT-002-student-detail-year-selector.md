@@ -1,6 +1,6 @@
 # TICK-STUDENT-002 — Student detail school-year selector
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-10-07
 Created by: agent
@@ -38,8 +38,8 @@ School year selector via the shared `useSelectedSchoolYear` hook (new), URL-sync
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
+- Targeted: PASS — frontend tsc clean; useSelectedSchoolYear 4/4; eslint clean on all 8 touched files
+- Full suite: not run (covered by the review's frontend-chunks run on the educator branch)
 - Development integration: not run
 
 ## Blocker
@@ -49,10 +49,11 @@ None.
 ## Activity Log
 
 2026-10-07 — Claimed (counter STUDENT 1->2) as review item 2 of TICK-EDUCATOR-003. Step 0 recon approved by owner.
+2026-10-07 — Committed dde36d0e. Ticket to ready-for-review.
 
 ## Commits
 
-None yet.
+- dde36d0e — feat(student): school-year selector on student detail page (branch agent/TICK-STUDENT-002-student-detail-year-selector)
 
 ## Notes
 
