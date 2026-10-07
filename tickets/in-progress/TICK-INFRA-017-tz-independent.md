@@ -81,11 +81,15 @@ counting script deferred until cutoff provided.
   incl. 7 new spec files (46 new tests); frontend datetime 10/10 x4 +
   studentSchedule (semester selection) 19/19 x4; tsc clean both apps;
   eslint 0 errors both apps.
-  Known pre-existing failures, identical on development (verified):
-  semester.service.spec create x5 (mock stubs countBySchoolYear, service
-  requires program/template assignment) and school-year TEST spec x2
-  (db.organization mock missing for maybeAutoSeed). Untouched by this
-  ticket; separate fix recommended.
+- 4.5 targeted: PASS — backend 332/332 x4 TZs (38 suites, incl.
+  enrollment-portal-lock, attendance-generation, lesson-week-structure,
+  sweep-boundaries, audit-log-range, enrollment-period-calendar;
+  the 7 pre-existing reds from 4.4 — semester create x5,
+  school-year TEST x2 — repaired: stale mocks updated, plus 2 more
+  stale specs found in 4.5 areas and repaired: audit-log-pagination
+  enrich expectation, meeting-gateway broadcast assertions); frontend
+  datetime + studentSchedule 32/32 x4 TZs; tsc + eslint clean both
+  apps (0 errors).
 - Full suite: not run (deferred to pre-merge per Level 3 scope)
 - Development integration: not run
 
@@ -127,6 +131,26 @@ Step 1 row-distribution query.
   Verification: backend 241/241 x4 TZs, frontend 31/31 x4 TZs, tsc +
   eslint clean both apps. STOPPED before 4.5 per instruction; extended
   Step-2 audit + conditions report posted in chat, awaiting approval.
+- 4.5 done, one commit per area (branch-local, not pushed):
+  73738fa6 enrollment lock enforced in real time (submit path
+  calendar-day check incl. lock, portal isOpen calendar, lock spec,
+  modal end-of-day copy, weekdayInZone helpers both sides);
+  8bcd02b5 attendance Manila-day generation + (day,sub) idempotency
+  guard + markPresent Manila window + read-only drift script
+  (npm run check:attendance-drift) + spec + stale mock default;
+  7bb1cb41 lesson Manila-day week slots + spec;
+  2ceab688 meeting startTime @IsInstant + service parse + frontend
+  localInputToIso + spec (+ repaired 2 stale broadcast assertions);
+  af9aa74d audit-log Manila-day range covers whole Manila day + boundary spec
+  (+ repaired 1 stale enrich expectation).
+  Verification: backend 332/332 x4 TZs (38 suites), frontend 32/32 x4
+  TZs, tsc + eslint clean both apps (0 errors).
+  Zone source: SINGLE Manila constant (ORG_TIMEZONE = 'Asia/Manila' in
+  backend + frontend datetime.util.ts, equality-tested) — not per-org.
+  Drift-script numbers: NOT run (no populated DB reachable from here;
+  script is read-only, run `npm run check:attendance-drift` with
+  DATABASE_URL of a populated copy).
+  STOPPED after 4.5 per instruction.
 
 ## Notes
 
