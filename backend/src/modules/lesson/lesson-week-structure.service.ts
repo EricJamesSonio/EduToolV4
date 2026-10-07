@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { ClassRepository } from '../class/class.repository';
 import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
+import {
+  calendarDateOf,
+  weekdayOccurrencesInZone,
+} from '@/commons/utils/datetime.util';
 
 type WeekSlot = {
   label: string;
@@ -96,20 +100,24 @@ export class LessonWeekStructureService {
           .map((t: any) => termDatesMap.get(t.id))
           .filter(Boolean) as Array<{ start: Date; end: Date }>;
 
-        const semStart =
+        const semStartDay =
           semTermDates.length > 0
-            ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
+            ? semTermDates
+                .map((d) => calendarDateOf(d.start))
+                .reduce((a, b) => (a < b ? a : b))
             : null;
-        const semEnd =
+        const semEndDay =
           semTermDates.length > 0
-            ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
+            ? semTermDates
+                .map((d) => calendarDateOf(d.end))
+                .reduce((a, b) => (a > b ? a : b))
             : null;
 
         if (
-          !semStart ||
-          !semEnd ||
-          semEnd < classSemesterStart ||
-          semStart > classSemesterEnd
+          !semStartDay ||
+          !semEndDay ||
+          semEndDay < calendarDateOf(classSemesterStart) ||
+          semStartDay > calendarDateOf(classSemesterEnd)
         )
           continue;
       }
@@ -129,15 +137,17 @@ export class LessonWeekStructureService {
           );
         }
 
-        const occurrences = this.getWeekdayOccurrences(
-          dates.start,
-          dates.end,
+        // TICK-INFRA-017: Manila calendar-day occurrences — identical on
+        // every server. WeekSlot.date stays an ISO string (UTC midnight).
+        const occurrences = weekdayOccurrencesInZone(
+          calendarDateOf(dates.start),
+          calendarDateOf(dates.end),
           classWeekday,
         );
 
         let termWeek = 1;
 
-        for (const date of occurrences) {
+        for (const day of occurrences) {
           result.push({
             label: String(globalWeek),
             value: globalWeek,
@@ -148,7 +158,7 @@ export class LessonWeekStructureService {
             termId: term.id,
             semesterName: sem.name,
             semesterIndex: si + 1,
-            date: date.toISOString(),
+            date: `${day}T00:00:00.000Z`,
           });
 
           globalWeek++;
@@ -159,24 +169,5 @@ export class LessonWeekStructureService {
     }
 
     return result;
-  }
-
-  private getWeekdayOccurrences(
-    start: Date,
-    end: Date,
-    weekday: number,
-  ): Date[] {
-    const dates: Date[] = [];
-    const current = new Date(start);
-
-    const diff = (weekday - current.getDay() + 7) % 7;
-    current.setDate(current.getDate() + diff);
-
-    while (current <= end) {
-      dates.push(new Date(current));
-      current.setDate(current.getDate() + 7);
-    }
-
-    return dates;
   }
 }
