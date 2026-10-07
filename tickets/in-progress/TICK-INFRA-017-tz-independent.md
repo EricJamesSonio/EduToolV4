@@ -74,6 +74,18 @@ counting script deferred until cutoff provided.
   grade-lock-auto-calendar 8 tests); frontend datetime 10/10 x4 TZs;
   tsc clean both apps; eslint 0 errors (1 pre-existing
   unused-disable warning in GradeLockSettingModal, untouched line).
+- 4.3+4.4 targeted: PASS — backend 221/221 (own) x4 TZs
+  (UTC, Asia/Manila, America/Los_Angeles, Pacific/Kiritimati) across
+  scheduler/school-year/semester/semester-template/academic-calendar/
+  enrollment-portal/org-seeder/assessment/grade-lock/submission/utils,
+  incl. 7 new spec files (46 new tests); frontend datetime 10/10 x4 +
+  studentSchedule (semester selection) 19/19 x4; tsc clean both apps;
+  eslint 0 errors both apps.
+  Known pre-existing failures, identical on development (verified):
+  semester.service.spec create x5 (mock stubs countBySchoolYear, service
+  requires program/template assignment) and school-year TEST spec x2
+  (db.organization mock missing for maybeAutoSeed). Untouched by this
+  ticket; separate fix recommended.
 - Full suite: not run (deferred to pre-merge per Level 3 scope)
 - Development integration: not run
 
@@ -105,6 +117,9 @@ Step 1 row-distribution query.
   grade-lock instants (10 files: 2 new specs, 8 edited). Includes
   grade-lock-proof.spec expectation update (string -> same-instant Date;
   proven property unchanged, see ticket Notes).
+- e1adffce feat(time): crons in school time plus calendar-date kind-B
+  (34 files: 7 new specs, 27 edited). STOPPED after 4.4 per instruction;
+  diff + 4-TZ results shown to user, awaiting approval for 4.5+.
 
 ## Notes
 
