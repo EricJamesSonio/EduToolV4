@@ -1,11 +1,21 @@
 # Current Project State
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 <!--
 One section per major domain/module. Keep status labels consistent:
 implemented / partially implemented / not implemented / needs investigation
 -->
+
+## Timezone Step 5 enforcement (2026-10-08)
+
+Status: implemented (TICK-INFRA-018 fast-forwarded to development, `01e1c21c..7a99ca5b`)
+
+Implemented:
+
+- ESLint timezone bans (both `eslint.config.mjs`): error in the 54 migrated files, warn elsewhere (23 backend + 66 frontend allowlist files, documented in-config to shrink). `datetime.util` implements (exempt), kind-C schedule files exempt by design, specs out of scope. Every disable carries a reason.
+- CI `backend-tz-matrix` + `frontend-tz-matrix` (4 TZs each, in `ci-gate`); `test:tz-invariant` scripts (single TZ) + `test:tz` loops; dev scripts `TZ=UTC`; Dockerfile `ENV TZ=UTC`; HTTP boundary e2e (no DB).
+- Merge gate: tz loops green x4 both apps, eslint 0 errors, tsc clean, both builds green; full suites at documented baselines.
 
 ## Timezone independence (2026-10-07)
 

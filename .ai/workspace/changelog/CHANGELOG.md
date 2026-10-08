@@ -2,6 +2,16 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-10-08
+
+### Fixed
+
+- Timezone Step 5 enforcement (TICK-INFRA-018, fast-forward `01e1c21c..7a99ca5b`): the unsafe set (`new Date(string)`, `Date.parse`, local date getters/setters, `toLocale*String`, `date-fns format()`, `toISOString().split`) is now an **error in the 54 migrated files** and a **warning everywhere else** (explicit allowlist: 23 backend + 66 frontend files, shrinking as files migrate). The new bans caught 6 real issues on first run (a missed `parseInstant` in grade-lock `createSetting`, raw-string event sorting, `new Date()` copies, legacy-unsafe labels). New `time-boundary.e2e-spec.ts` proves the HTTP boundary (zone-less → 400, Z ≡ +08:00, datetime-for-calendar-field → 400). CI `backend-tz-matrix` + `frontend-tz-matrix` jobs run the invariant suites under all four TZs and gate; dev scripts run `TZ=UTC`; backend Dockerfile sets `ENV TZ=UTC` (intent only).
+
+### Merge validation
+
+- Backend `test:tz` loop 474x4 identical, frontend `test:tz` loop 60x4 identical, boundary e2e 5x4, eslint 0 errors, `tsc` clean, both builds green. Full suites unchanged from baseline (11 pre-existing backend failures in level/registrar/educator; 1 pre-existing frontend lint error + 1 OOM suite).
+
 ## 2026-10-07
 
 ### Fixed
