@@ -1,6 +1,6 @@
 # TICK-EDUCATOR-003 — Educator detail filters + global teachable subjects
 
-Status: ready-for-review (round 2)
+Status: merged (merge 01e1c21c on origin/development)
 Priority: high
 Created: 2026-10-06
 Created by: agent
@@ -57,6 +57,7 @@ None. Reviewer note: rebase onto development at merge — TICK-INFRA-017 Step 4.
 2026-10-07 — A committed f5f77b15; B committed ff0bec6d (migration 20261006120000_educator_teachable_subject_global, unapplied); C committed bffc80d7. All validation green (see Tests). Ticket to ready-for-review.
 2026-10-07 — Review round 2: assessment edit (bffc80d7) split to TICK-ASSESS-006 (cherry-pick ee826c3e on its own branch) and removed from this branch (reset to ff0bec6d). This ticket now covers educator A+B plus review items 1 (global subjects tab) and 5 (migration verification). Student detail (item 2) goes to TICK-STUDENT-002.
 2026-10-07 — Item 1 committed 651edeb4 (global subjects tab + POST subject-keys/remove). Item 5 verified via PGlite PG 18.3 (7 rows -> 3 keys, rerun 0 inserts). Item 6 frontend chunks: 351 passed, 0 failed (1 suite env-blocked, see Tests). Ticket to ready-for-review.
+2026-10-08 — Merged to development as 01e1c21c (reviewer: merge agent branch, no-ff). Branch had been rebased onto 2c141233 by the TZ side first (content verified identical); merge auto-resolved clean, incl. semester.utils.ts (TZ day-semantics + getCurrentSemesterId coexist). Validation on the merge result: backend tsc + frontend tsc clean; backend full suite 1309/1320 (11 failed = all pre-existing: 4 educator bulkCreate + registrar/level pre-existing); educator frontend suites green. Pushed: origin/development 01e1c21c.
 2026-10-07 — TZ rebase by TICK-INFRA-017 agent per owner instruction: branch rebased onto development 2c141233 (post TICK-INFRA-017 merge; TZ Step 5 enforcement still pending per owner order). One conflict (frontend semester.utils.ts) resolved to merged day-semantics + getCurrentSemesterId ported (TZ NOTE removed); semester.utils.test fixtures converted to day-anchored + R6 case added (commit e1ed2a77). Verified: backend educator/subject/class-generator/grade-lock/assessment suites pass (only the 4 pre-existing educator.service email/bulkCreate failures, documented in this ticket); frontend semester/studentSchedule/datetime 37/37 x2 TZs; tsc clean both apps. Branch pushed (new remote ref, was local-only). No merge performed — reviewer flow continues. NOTE to owner agent: your worktree at ../EduToolV4-worktrees/TICK-EDUCATOR-003-... now sits on the rebased tip; `git status` was clean before and after.
 
 ## Commits
