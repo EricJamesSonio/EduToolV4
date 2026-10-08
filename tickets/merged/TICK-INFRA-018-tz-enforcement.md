@@ -1,6 +1,6 @@
 # TICK-INFRA-018 — Timezone Step 5 enforcement (lint bans, CI matrix, TZ defaults)
 
-Status: ready-for-review
+Status: merged
 Priority: high
 Created: 2026-10-08
 Created by: agent
@@ -74,6 +74,10 @@ None.
 - 2026-10-08: Confidence: 92/100 (see Confidence section). Implemented +
   verified (see Tests). Commit 7a99ca5b (22 files) on
   agent/TICK-INFRA-018-tz-enforcement. Ticket to ready-for-review.
+- 2026-10-08: Merged to development as fast-forward 01e1c21c..7a99ca5b.
+  Post-merge validation on development: backend test:tz 474x4, frontend
+  test:tz 60x4, tsc clean both, eslint 0 errors both (1 pre-existing
+  frontend error in untouched test). Ticket to merged.
 
 ## Commits
 
