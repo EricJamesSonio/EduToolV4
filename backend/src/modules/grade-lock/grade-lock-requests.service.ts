@@ -190,8 +190,10 @@ export class GradeLockRequestsService {
     events: Array<{ type: string; created_at?: Date | string }>,
   ): boolean {
     const sorted = [...events].sort((a, b) => {
-      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      // TICK-INFRA-018: stored event instants (Date or zoned ISO) sort by
+      // absolute time — parseInstant copies Dates and rejects zone-less.
+      const ta = a.created_at ? parseInstant(a.created_at).getTime() : 0;
+      const tb = b.created_at ? parseInstant(b.created_at).getTime() : 0;
       return tb - ta;
     });
     for (const e of sorted) {

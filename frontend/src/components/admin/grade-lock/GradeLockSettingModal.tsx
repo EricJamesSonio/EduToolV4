@@ -65,6 +65,12 @@ export function GradeLockSettingModal({
   // chronological in every TZ. Never wrap these in new Date() here.
   const belowMin = !!deadline && !!minInput && deadline < minInput
 
+  // Display helper for the school-year-end hint below. Deferred to the
+  // formatInZone display pass with the rest of server-rendered instants.
+  const formatMinDeadline = (iso: string): string =>
+    // eslint-disable-next-line no-restricted-syntax -- display formatting of a stored instant; the formatInZone migration (display pass) owns this line.
+    format(new Date(iso), "MMM d, yyyy h:mm a")
+
   const handleSubmit = async (): Promise<void> => {
     if (!name.trim() || !deadline || belowMin) return
 
@@ -133,12 +139,12 @@ export function GradeLockSettingModal({
             {belowMin ? (
               <p className="text-xs text-destructive">
                 Deadline cannot be before the end of the school year (
-                {format(new Date(minDeadline as string), "MMM d, yyyy h:mm a")}).
+                {formatMinDeadline(minDeadline as string)}).
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
                 {minInput
-                  ? `Must be on or after the school year end (${format(new Date(minDeadline as string), "MMM d, yyyy h:mm a")}).`
+                  ? `Must be on or after the school year end (${formatMinDeadline(minDeadline as string)}).`
                   : "This will be used when applying the template to school years."}
               </p>
             )}

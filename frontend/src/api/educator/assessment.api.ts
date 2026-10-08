@@ -129,14 +129,20 @@ reopenedUntil: (raw.reopened_until ?? raw.reopenedUntil ?? null) as string | nul
 }
 
 // In assessment.api.ts, replace deriveStatus:
+// TICK-INFRA-018: reads of true instants from our own API compared to now
+// are TZ-safe (R3) — these must never be wrapped in parseInstant or fed
+// through a zone conversion.
 function deriveStatus(raw: Record<string, unknown>): Assessment["status"] {
   const now = new Date();
   const release = raw.release_date ?? raw.releaseDate;
   const end = raw.end_date ?? raw.endDate;
   const reopenedUntil = raw.reopened_until ?? raw.reopenedUntil;
 
+  // eslint-disable-next-line no-restricted-syntax -- R3 instant reads, TZ-safe by design.
   if (release && now < new Date(release as string)) return "upcoming";
+  // eslint-disable-next-line no-restricted-syntax -- R3 instant reads, TZ-safe by design.
   if (reopenedUntil && now <= new Date(reopenedUntil as string)) return "open";
+  // eslint-disable-next-line no-restricted-syntax -- R3 instant reads, TZ-safe by design.
   if (end && now > new Date(end as string)) return "closed";
   return "open";
 }

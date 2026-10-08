@@ -38,7 +38,8 @@ export class GradeLockSettingsService {
       name: dto.name,
       description: dto.description,
       lockType: dto.lockType,
-      lock_deadline: dto.lock_deadline ? new Date(dto.lock_deadline) : null,
+      // TICK-INFRA-018: same strict boundary as update (was a missed site).
+      lock_deadline: dto.lock_deadline ? parseInstant(dto.lock_deadline) : null,
       deadlineDays: dto.deadlineDays ?? null,
       allowOverride: dto.allowOverride,
       is_default: dto.is_default ?? false,

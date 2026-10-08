@@ -16,13 +16,6 @@ export const errMsg = (e: unknown): string =>
 export const toDateInput = (iso?: string | null): string =>
   normalizeDateInput(iso)
 
-export const fmtLocalDate = (d: Date): string => {
-  const y = String(d.getFullYear())
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
-}
-
 /**
  * TICK-INFRA-017: the day after a "YYYY-MM-DD" string. Pure calendar math —
  * the old new Date()/setDate()/toISOString() version returned the WRONG day

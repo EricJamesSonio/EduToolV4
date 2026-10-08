@@ -64,10 +64,12 @@ export class LessonWeekStructureService {
 
     const termDatesMap = new Map<string, { start: Date; end: Date }>();
 
+    // TICK-INFRA-018: stored Dates pass through by reference — every read
+    // below goes through calendarDateOf (lint-enforced, no `new Date` here).
     for (const td of (assignment as any).termDates ?? []) {
       termDatesMap.set(td.term_id, {
-        start: new Date(td.start_date),
-        end: new Date(td.end_date),
+        start: td.start_date,
+        end: td.end_date,
       });
     }
 

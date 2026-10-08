@@ -72,12 +72,15 @@ export class AttendanceService {
     // -------------------------------
     // term date map (source of truth)
     // -------------------------------
+    // TICK-INFRA-018: stored Dates pass through by reference — every read
+    // below goes through calendarDateOf, so no local copy is needed and no
+    // `new Date(string)` parse may appear here (lint-enforced).
     const termDatesMap = new Map<string, { start: Date; end: Date }>();
 
     for (const td of assignment.termDates ?? []) {
       termDatesMap.set(td.term_id, {
-        start: new Date(td.start_date),
-        end: new Date(td.end_date),
+        start: td.start_date,
+        end: td.end_date,
       });
     }
 

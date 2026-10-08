@@ -67,6 +67,7 @@ export class AssessmentEducatorService {
     if (!assessment) throw new NotFoundException('Assessment not found.');
     if (
       assessment.release_date &&
+      // eslint-disable-next-line no-restricted-syntax -- R3: stored true instant vs now is TZ-safe; never parseInstant here.
       new Date() >= new Date(assessment.release_date)
     ) {
       throw new ForbiddenException(

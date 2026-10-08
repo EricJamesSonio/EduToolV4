@@ -27,6 +27,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 
 import { AppModule } from '@/app.module';
+import { calendarDateOf } from '@/commons/utils/datetime.util';
 import { DatabaseService } from '@/core/database/database.provider';
 import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
 import { SemesterTemplateService } from '@/modules/semester-template/semester-template.service';
@@ -86,7 +87,13 @@ async function step(
 
 function fmt(d: unknown): string {
   if (!d) return '-';
-  return new Date(String(d)).toISOString().slice(0, 10);
+  // TICK-INFRA-018: log label via the shared tolerant reader (never a
+  // local-midnight parse + slice, which mislabels legacy rows).
+  try {
+    return calendarDateOf(d instanceof Date ? d : String(d));
+  } catch {
+    return '-';
+  }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -158,7 +165,9 @@ async function main() {
           org_id: orgId,
           name: SY_NAME,
           status: 'active',
+          // eslint-disable-next-line no-restricted-syntax -- explicit Z suffix: absolute UTC-midnight kind-B rows, identical on every host.
           start_date: new Date(`${SY_START}T00:00:00.000Z`),
+          // eslint-disable-next-line no-restricted-syntax -- explicit Z suffix: absolute UTC-midnight kind-B rows, identical on every host.
           end_date: new Date(`${SY_END}T00:00:00.000Z`),
         },
       });

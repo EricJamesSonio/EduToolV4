@@ -9,7 +9,12 @@ import {
 } from "lucide-react";
 import { programCalendarApi } from "@/api/admin/program-calendar.api";
 import type { CalendarBreak } from "@/api/admin/program-calendar.api";
-import { calendarDateOf, normalizeDateInput, todayInZone } from "@/utils/datetime.util";
+import {
+  calendarDateOf,
+  calendarDateToUtc,
+  normalizeDateInput,
+  todayInZone,
+} from "@/utils/datetime.util";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,17 +23,24 @@ import { Input } from "@/components/ui/input";
 import { BreakEditor } from "./BreakEditor";
 
 function formatDate(iso: string) {
+  // eslint-disable-next-line no-restricted-syntax -- display formatting of a stored instant; the formatInZone migration (display pass) owns this line.
   return new Date(iso).toLocaleDateString("en-PH", {
     year: "numeric", month: "short", day: "numeric",
   });
 }
 
 function formatShort(iso: string) {
+  // eslint-disable-next-line no-restricted-syntax -- display formatting of a stored instant; the formatInZone migration (display pass) owns this line.
   return new Date(iso).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
 }
 
 function weeksBetween(start: string, end: string) {
-  const days = (new Date(end).getTime() - new Date(start).getTime()) / 86_400_000;
+  // TICK-INFRA-018: day-count on intended calendar days (tolerant of legacy
+  // rows) — never an instant subtraction that shifts with the viewer zone.
+  const days =
+    (calendarDateToUtc(calendarDateOf(end)).getTime() -
+      calendarDateToUtc(calendarDateOf(start)).getTime()) /
+    86_400_000;
   return Math.max(1, Math.round(days / 7));
 }
 

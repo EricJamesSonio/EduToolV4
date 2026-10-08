@@ -93,6 +93,9 @@ export default function AssessmentDetailPage(): React.JSX.Element {
     );
   }
 
+  // TICK-INFRA-018 (R3): releaseDate from our own API is a true instant;
+  // comparing it to now is TZ-safe and must stay a direct read.
+  // eslint-disable-next-line no-restricted-syntax -- R3 instant read, TZ-safe by design.
   const isBeforeRelease = !assessment.releaseDate || new Date() < new Date(assessment.releaseDate);
   const isClosed = assessment.status === "closed";
 

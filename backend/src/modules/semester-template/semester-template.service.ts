@@ -98,9 +98,11 @@ export class SemesterTemplateService {
 
       if (termDateEntries.length === 0) continue;
 
+      // eslint-disable-next-line no-restricted-syntax -- epoch-ms min/max over UTC-midnight Dates is zone-free arithmetic.
       const semStart = new Date(
         Math.min(...termDateEntries.map((d) => d.start.getTime())),
       );
+      // eslint-disable-next-line no-restricted-syntax -- epoch-ms min/max over UTC-midnight Dates is zone-free arithmetic.
       const semEnd = new Date(
         Math.max(...termDateEntries.map((d) => d.end.getTime())),
       );

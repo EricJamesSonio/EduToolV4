@@ -8,39 +8,20 @@
 
 import { todayInZone } from "@/utils/datetime.util";
 
-/** Convert "YYYY-MM-DD" to a local Date (midnight) for the DatePicker. */
-export function parseLocalDate(value: string): Date {
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
-/** Local Date for "today" (midnight), for date-only comparisons. */
-export function todayLocal(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-/** Format a Date to "YYYY-MM-DD" for a native date input. */
-export function toDateInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 /**
  * "YYYY-MM-DD" label of a picker-local Date. The DatePicker hands us
  * wall-clock Dates (local midnight), so reading the wall-clock parts back is
  * the correct interpretation — never toISOString() here (that shifts the day
  * for every zone east of UTC).
  */
+/* eslint-disable no-restricted-syntax -- wall-clock reads of a picker-local Date below (kind-B UI values, not instants). */
 function toYmd(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+/* eslint-enable no-restricted-syntax */
 
 /**
  * Predicate for the calendar DatePicker `disabled` prop on the **start** date:

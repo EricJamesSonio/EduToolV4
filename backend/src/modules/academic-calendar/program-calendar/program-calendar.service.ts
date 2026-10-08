@@ -84,9 +84,9 @@ export class ProgramCalendarService {
     const custom = customHolidays.map((ch: any) => ({
       holidayKey: null,
       title: ch.title,
-      // TICK-INFRA-017: normalize to the intended calendar day at UTC
+      // TICK-INFRA-018: normalize to the intended calendar day at UTC
       // midnight (tolerant of legacy rows), never local-midnight.
-      date: calendarDateToUtc(calendarDateOf(new Date(ch.date))),
+      date: calendarDateToUtc(calendarDateOf(ch.date)),
       description: ch.description ?? null,
       type: 'custom' as const,
     }));

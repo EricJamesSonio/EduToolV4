@@ -63,10 +63,12 @@ function toDateOnly(d?: string | null): string {
 }
 
 /** "YYYY-MM-DD" label of a picker-local Date (wall-clock read). */
+/* eslint-disable no-restricted-syntax -- wall-clock reads of picker-local Dates below (kind-B UI values, not instants). */
 function toYmd(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+/* eslint-enable no-restricted-syntax */
 
 export function EnrollmentPeriodModal({
   open,
