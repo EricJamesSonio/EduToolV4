@@ -1,6 +1,6 @@
 # TICK-INFRA-018 — Timezone Step 5 enforcement (lint bans, CI matrix, TZ defaults)
 
-Status: in-progress
+Status: ready-for-review
 Priority: high
 Created: 2026-10-08
 Created by: agent
@@ -55,9 +55,12 @@ will be read before editing.
 
 ## Tests
 
-- Targeted: not run
-- Full suite: not run
-- Development integration: not run
+- Targeted: PASS — backend `test:tz` loop 474x4 identical; frontend
+  `test:tz` loop 60x4 identical; boundary e2e 5x4; eslint 0 errors both
+  apps (1 pre-existing frontend error in untouched test); tsc clean both.
+- Full suite: backend full unit 1290/1301 (11 pre-existing, documented);
+  frontend full 356/356 + 1 pre-existing OOM suite; both builds green.
+- Development integration: not run (reviewer merges + re-runs).
 
 ## Blocker
 
@@ -68,10 +71,15 @@ None.
 - 2026-10-08: Claimed as TICK-INFRA-018 (counter 17 -> 18) per owner
   instruction (TZ Step 5 now, approved scope: bans as errors in migrated
   files + visible allowlist, CI matrix, dev/Docker TZ).
+- 2026-10-08: Confidence: 92/100 (see Confidence section). Implemented +
+  verified (see Tests). Commit 7a99ca5b (22 files) on
+  agent/TICK-INFRA-018-tz-enforcement. Ticket to ready-for-review.
 
 ## Commits
 
-None yet.
+- 7a99ca5b feat(time): step 5 enforcement - lint bans, CI TZ matrix, TZ
+  defaults (22 files: 2 configs, boundary e2e, CI, Docker, scripts,
+  6 justified code fixes the new bans caught).
 
 ## Notes
 
