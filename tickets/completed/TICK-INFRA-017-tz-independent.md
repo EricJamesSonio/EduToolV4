@@ -1,6 +1,6 @@
 # TICK-INFRA-017 — Timezone-independent time layer + assessment fix
 
-Status: merged
+Status: completed
 Priority: high
 Created: 2026-10-06
 Created by: agent
