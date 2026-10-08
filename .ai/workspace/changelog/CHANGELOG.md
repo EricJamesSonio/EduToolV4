@@ -2,6 +2,17 @@
 
 <!-- Newest entries at the top. -->
 
+## 2026-10-07
+
+### Fixed
+
+- Codebase is now timezone-independent (TICK-INFRA-017, fast-forward `af9aa74d`): the same result whether the process runs in UTC (Render, Vercel SSR), Asia/Manila (dev), America/Los_Angeles, or Pacific/Kiritimati. One school-timezone constant per side (`ORG_TIMEZONE = 'Asia/Manila'`, equality-tested, not per-org). Three time kinds enforced: **instants** (assessment release/end, reopenedUntil, grade-lock deadlines, meeting startTime, submission stamps) accept only ISO with Z/offset — zone-less values 400, never guessed; **calendar dates** (school year/semester/term/holiday/program-calendar/enrollment periods) accept only `YYYY-MM-DD` and store UTC midnight, read tolerantly so legacy Manila-midnight rows (16:00Z) resolve to the intended day; **floating times** (`HH:mm` schedules) untouched. Frontend converts picker → UTC ISO once at the edge in school time; backend only validates/stores; all display uses an explicit timeZone. Fixed-clock crons carry `{ timeZone: 'Asia/Manila' }`; year-end unenroll and all period/lock sweeps use calendar-day comparison (a period ending today stays active). Attendance/lesson generation is Manila-day based with (day, sub_index) idempotency; audit-log range bounds cover whole Manila days; enrollment submit path enforces the lock boundary in real time. 8 commits, +3709/−485, 82 files. **No migration, no backfill** — existing rows untouched (Step 6 held for a cutoff date; read-only drift script at `npm run check:attendance-drift`).
+- Stale specs repaired along the way (same drift class, spec-only): semester create ×5, school-year db mock ×2, audit-log enrich expectation, meeting-gateway broadcast assertions.
+
+### Merge validation
+
+- Merged to `development` as fast-forward `5b7efce5..af9aa74d` (development had not moved). Backend: eslint 0 errors, `tsc` clean, unit suite 1290/1301 with the **same pre-existing failures as the documented baseline** (level ×4, registrar ×3, educator ×4 — email-format/level-naming drift in untouched domains; cf. TICK-EDUCATOR-003's "21 failed on clean base" note), `nest build` green. Frontend: `tsc` clean, jest 356/356 green (`useTeachableSeed` suite OOMs the worker even solo at 8GB heap — pre-existing environmental, documented in TICK-EDUCATOR-003), `next build` green. Backend e2e + Playwright not run here (need DB/browsers) — CI covers. Full-TZ matrix on the ticket's scope before merge: backend 332/332 ×4 TZs, frontend 32/32 ×4 TZs, byte-identical.
+
 ## 2026-09-30
 
 ### Fixed

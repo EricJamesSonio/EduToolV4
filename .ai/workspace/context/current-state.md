@@ -1,11 +1,21 @@
 # Current Project State
 
-Last updated: 2026-09-30
+Last updated: 2026-10-07
 
 <!--
 One section per major domain/module. Keep status labels consistent:
 implemented / partially implemented / not implemented / needs investigation
 -->
+
+## Timezone independence (2026-10-07)
+
+Status: implemented (TICK-INFRA-017 fast-forwarded to development, `5b7efce5..af9aa74d`)
+
+Implemented:
+
+- Single time layer per side (`backend/src/commons/utils/datetime.util.ts`, `frontend/src/utils/datetime.util.ts`): `ORG_TIMEZONE = 'Asia/Manila'` (equality-tested), `parseInstant`, `@IsInstant`, `@IsCalendarDate`, `localInputToIso`, `isoToLocalInput`, `formatInZone`, `todayInZone`, `calendarDateOf` (+12h legacy tolerance), `calendarDateToUtc`, `addDaysToCalendarDate`, day-bound helpers, `weekdayInZone`, `weekdayOccurrencesInZone`, `normalizeDateInput` (frontend). Intl only, no new deps.
+- Boundaries enforced per area in 8 commits (assessment → grade lock → crons + kind-B → edit-form round-trip → enrollment lock → attendance → lesson → meeting → audit-log). Remaining for later: Step 5 enforcement (eslint bans, CI matrix, dev/Docker TZ), Step 6 bad-data counting (held for cutoff date).
+- Merge gate: development unmoved since branch point, clean fast-forward; validation above in CHANGELOG. Pre-existing reds unchanged (level/registrar/educator suites, frontend lint error in untouched assessment-type-gradability test, useTeachableSeed OOM).
 
 ## Grading-scheme category naming (2026-09-29)
 
