@@ -25,7 +25,6 @@ describe('EducatorService', () => {
 
   const cleanBlockers = {
     classes: 0,
-    teachableLinks: 0,
     ownedSubjects: 0,
     meetings: 0,
     ownershipLogs: 0,
@@ -46,6 +45,9 @@ describe('EducatorService', () => {
       updatePassword: jest.fn(),
       findEmailsInBatch: jest.fn(),
       getBlockerCounts: jest.fn(),
+      getTeachableCleanupCounts: jest
+        .fn()
+        .mockResolvedValue({ picks: 0, keys: 0 }),
       deleteAccountCascade: jest.fn(),
     };
     classService = {
@@ -168,13 +170,33 @@ describe('EducatorService', () => {
         expect.objectContaining({ action: 'educator_deleted' }),
       );
     });
+    it('remove succeeds with only teachable configuration rows (cascaded)', async () => {
+      tx.account.findFirst.mockResolvedValue({ id: '1', email: 'a@e.edu' });
+      repo.getBlockerCounts.mockResolvedValue(cleanBlockers);
+      repo.getTeachableCleanupCounts.mockResolvedValue({ picks: 2, keys: 1 });
+      await service.remove('1', orgId, actorId);
+      expect(repo.deleteAccountCascade).toHaveBeenCalledWith(tx, '1');
+    });
     it('deletionCheck reports blockers without deleting', async () => {
       repo.findById.mockResolvedValue({ id: '1' });
-      repo.getBlockerCounts.mockResolvedValue({ ...cleanBlockers, teachableLinks: 3 });
+      repo.getBlockerCounts.mockResolvedValue({ ...cleanBlockers, classes: 1 });
       const report = await service.deletionCheck('1', orgId);
       expect(report.canDelete).toBe(false);
       expect(report.blockers).toEqual([
+        { key: 'classes', label: 'classes', count: 1 },
+      ]);
+      expect(repo.deleteAccountCascade).not.toHaveBeenCalled();
+    });
+    it('deletionCheck moves teachable configuration to willDelete', async () => {
+      repo.findById.mockResolvedValue({ id: '1' });
+      repo.getBlockerCounts.mockResolvedValue(cleanBlockers);
+      repo.getTeachableCleanupCounts.mockResolvedValue({ picks: 3, keys: 2 });
+      const report = await service.deletionCheck('1', orgId);
+      expect(report.canDelete).toBe(true);
+      expect(report.blockers).toEqual([]);
+      expect(report.willDelete).toEqual([
         { key: 'teachable-links', label: 'teachable subject links', count: 3 },
+        { key: 'teachable-keys', label: 'global teachable subject links', count: 2 },
       ]);
       expect(repo.deleteAccountCascade).not.toHaveBeenCalled();
     });

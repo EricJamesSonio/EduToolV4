@@ -94,9 +94,15 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'educators', 'list', filters] as const,
     detail: (id: string) =>
       [...adminKeys.all, 'educators', 'detail', id] as const,
-    /** Teachable subjects for one educator (Phase 3). */
-    teachableSubjects: (educatorId: string) =>
-      [...adminKeys.all, 'educators', 'teachable-subjects', educatorId] as const,
+    /** Teachable subjects for one educator, optionally scoped to a year. */
+    teachableSubjects: (educatorId: string, schoolYearId?: string) =>
+      [
+        ...adminKeys.all,
+        'educators',
+        'teachable-subjects',
+        educatorId,
+        schoolYearId ?? 'all',
+      ] as const,
     /** Weekly slot picks per subject section for one educator. */
     slots: (educatorId: string) =>
       [...adminKeys.all, 'educators', 'subject-slots', educatorId] as const,

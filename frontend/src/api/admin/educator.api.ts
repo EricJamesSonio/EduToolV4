@@ -43,6 +43,13 @@ export interface UpdateEducatorRequest {
 // ── Teachable subjects (Phase 3) ────────────────────────────────────────────
 
 /** A subject an educator is able to teach, with the context needed to group it. */
+export interface TeachableSubjectSection {
+  sectionId: string;
+  name: string;
+  levelName: string | null;
+  slots: number[];
+}
+
 export interface TeachableSubject {
   id: string;
   name: string;
@@ -59,6 +66,18 @@ export interface TeachableSubject {
   sectionIds: string[];
   /** Weekly slot positions picked per section. */
   sectionSlots: Array<{ sectionId: string; slots: number[] }>;
+  /**
+   * Server-resolved sections. Year-scoped view: this year's handled
+   * sections. Global view: the UNION of handled sections across all years.
+   * Render these, never a raw id.
+   */
+  sections: TeachableSubjectSection[];
+  /**
+   * Global subject key. The row id is a year subject id in the year-scoped
+   * view and the key itself in the global view — this field matches the two
+   * views (offered-in-year badge, Generated indicator).
+   */
+  subjectKey: string;
 }
 
 export interface SubjectSlotPick {
@@ -70,10 +89,6 @@ export interface SubjectSlotPick {
 export interface SubjectSlotAssignment {
   subjectId: string;
   sections: SubjectSlotPick[];
-}
-
-export interface SetSubjectSlotsResponse {
-  updated: number;
 }
 
 export interface SetTeachableBundleRequest {
@@ -103,23 +118,18 @@ export interface SetEducatorSubjectsRequest {
   subjectIds: string[];
 }
 
-export interface CarryOverEducatorSubjectsRequest {
-  fromSchoolYearId: string;
-  toSchoolYearId: string;
-  educatorIds?: string[];
+/** Other-year usage of one year-linked subject (untick confirm). */
+export interface SubjectYearUsage {
+  schoolYearId: string;
+  schoolYearName: string;
+  classCount: number;
+  hasPicks: boolean;
 }
 
-export interface CarryOverUnmatched {
-  educatorId: string;
+export interface TeachableSubjectUsage {
+  subjectId: string;
   subjectName: string;
-  reason: string;
-}
-
-export interface CarryOverEducatorSubjectsResponse {
-  created: number;
-  sectionsCarried: number;
-  educatorsProcessed: number;
-  unmatched: CarryOverUnmatched[];
+  otherYears: SubjectYearUsage[];
 }
 
 /** An educator who can teach a given subject. */
@@ -221,23 +231,27 @@ export const educatorApi = {
 
   // ── Teachable subjects (Phase 3) ──────────────────────────────────────────
 
-  getTeachableSubjects: async (educatorId: string): Promise<TeachableSubject[]> => {
+  getTeachableSubjects: async (
+    educatorId: string,
+    schoolYearId?: string,
+  ): Promise<TeachableSubject[]> => {
     const res = await client.get<ApiResponse<TeachableSubject[]>>(
-      `/educators/${educatorId}/subjects`
+      `/educators/${educatorId}/subjects`,
+      schoolYearId ? { params: { schoolYearId } } : undefined,
     );
     return res.data.data ?? [];
   },
 
-  /** Replaces the whole set. Unknown/cross-org ids are rejected, not dropped. */
-  setTeachableSubjects: async (
+  /** Other-year usage of this year's linked subjects (untick confirm). */
+  getSubjectUsage: async (
     educatorId: string,
-    subjectIds: string[]
-  ): Promise<{ count: number }> => {
-    const res = await client.put<ApiResponse<{ count: number }>>(
-      `/educators/${educatorId}/subjects`,
-      { subjectIds }
+    schoolYearId: string,
+  ): Promise<TeachableSubjectUsage[]> => {
+    const res = await client.get<ApiResponse<TeachableSubjectUsage[]>>(
+      `/educators/${educatorId}/subjects/usage`,
+      { params: { schoolYearId } },
     );
-    return res.data.data;
+    return res.data.data ?? [];
   },
 
   /** Weekly capacity breakdown for the assignment UI. */
@@ -248,19 +262,6 @@ export const educatorApi = {
     const res = await client.get<ApiResponse<EducatorCapacity>>(
       `/educators/${educatorId}/capacity`,
       { params: { schoolYearId } },
-    );
-    return res.data.data;
-  },
-
-  /** Replaces which weekly slot positions the educator handles per subject. */
-  setSubjectSlots: async (
-    educatorId: string,
-    schoolYearId: string,
-    assignments: SubjectSlotAssignment[],
-  ): Promise<SetSubjectSlotsResponse> => {
-    const res = await client.put<ApiResponse<SetSubjectSlotsResponse>>(
-      `/educators/${educatorId}/subject-slots`,
-      { schoolYearId, assignments },
     );
     return res.data.data;
   },
@@ -280,13 +281,20 @@ export const educatorApi = {
     return res.data.data;
   },
 
-  /** Copies teachable subjects from one school year to another. */
-  carryOverTeachableSubjects: async (
-    body: CarryOverEducatorSubjectsRequest
-  ): Promise<CarryOverEducatorSubjectsResponse> => {
-    const res = await client.post<
-      ApiResponse<CarryOverEducatorSubjectsResponse>
-    >("/educators/carry-over-subjects", body);
+  /**
+   * Removes global teachable keys (every year at once) plus the picks rows
+   * whose subject carries a removed key. This is what the Subjects tab's
+   * Remove button calls — the year-scoped bundle cannot remove a key that
+   * has no subject in its year.
+   */
+  removeTeachableKeys: async (
+    educatorId: string,
+    keys: string[],
+  ): Promise<{ removed: number }> => {
+    const res = await client.post<ApiResponse<{ removed: number }>>(
+      `/educators/${educatorId}/subject-keys/remove`,
+      { keys },
+    );
     return res.data.data;
   },
 

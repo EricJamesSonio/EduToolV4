@@ -210,6 +210,7 @@ model Account {
   // inferred from the classes they already hold. The generator assigns only
   // from this set.
   educatorSubjects EducatorSubject[]
+  teachableSubjects EducatorTeachableSubject[]
   scheduleProfile EducatorScheduleProfile?
 
   @@unique([org_id, email])
@@ -720,6 +721,37 @@ model EducatorSubject {
 
   @@unique([educator_id, subject_id])
   @@index([org_id, subject_id])
+  @@index([org_id, educator_id])
+}
+
+/// GLOBAL teachability: "subject X can be taught by educator E", applying to
+/// every school year automatically. Identity is the normalized subject key
+/// (see subject-key.util.ts), not a subject id, because subjects are
+/// recreated per year.
+///
+/// Per-year data (WHICH sections/slots the educator handles) stays on
+/// EducatorSubject, created when slot picks are saved — not when teachability
+/// is granted. A key with no matching subject in a given year is simply not
+/// shown or used for that year; it is pruned only when NO non-deleted subject
+/// with that key exists anywhere in the org (subject hard-delete path).
+///
+/// Display columns are best-effort labels for keys that currently match
+/// nothing (debugging/admin); live reads always use the year's real subjects.
+model EducatorTeachableSubject {
+  id           String   @id @default(uuid())
+  org_id       String
+  educator_id  String
+  subject_key  String
+  display_name String
+  program_type String   @default("")
+  level_name   String   @default("")
+  course_name  String   @default("")
+  strand_name  String   @default("")
+  created_at   DateTime @default(now())
+
+  educator Account @relation(fields: [educator_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, educator_id, subject_key])
   @@index([org_id, educator_id])
 }
 

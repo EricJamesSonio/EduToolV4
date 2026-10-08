@@ -38,7 +38,7 @@ describe('SubjectService', () => {
       program: { findMany: jest.fn() },
       subject: { findMany: jest.fn() },
       subjectPrerequisite: { findMany: jest.fn() },
-    } as unknown as DatabaseService, cfg, audit as never);
+    } as unknown as DatabaseService, cfg, audit as never, {} as never);
     jest.clearAllMocks();
   });
 

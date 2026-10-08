@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 
-import { useSetTeachableBundle, useEducatorCapacity } from "@/hooks/admin/useEducators";
+import { useSetTeachableBundle, useEducatorCapacity, useTeachableSubjectUsage } from "@/hooks/admin/useEducators";
 import { useTeachableSeed } from "@/hooks/admin/useTeachableSeed";
 import { useSubjects } from "@/hooks/admin/useSubject";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
@@ -25,6 +25,7 @@ import {
   type Picks,
 } from "@/utils/educatorSlotPicks";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -79,12 +80,23 @@ export function TeachableSubjectsModal({
   const [levelId, setLevelId] = useState(ALL);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [confirmUntickOpen, setConfirmUntickOpen] = useState(false);
 
   const saveBundle = useSetTeachableBundle();
   const saving = saveBundle.isPending;
   const capacityQuery = useEducatorCapacity(
     educatorId,
     open ? schoolYearId : undefined,
+  );
+  // Other-year usage of this year's linked subjects: unticking removes the
+  // GLOBAL link, so the save confirm names every affected year first.
+  const { data: subjectUsage = [] } = useTeachableSubjectUsage(
+    educatorId,
+    open ? schoolYearId : undefined,
+  );
+  const usageBySubjectId = useMemo(
+    () => new Map(subjectUsage.map((u) => [u.subjectId, u])),
+    [subjectUsage],
   );
 
   const { data: programs = [] } = useAsyncQuery(
@@ -145,9 +157,10 @@ export function TeachableSubjectsModal({
     subjectInfoById,
     infoLoading,
   });
-  // A reopened session starts with no section expanded.
+  // A reopened session starts with no section expanded and no pending confirm.
   useEffect(() => {
     setExpanded(null);
+    setConfirmUntickOpen(false);
   }, [seedKey]);
 
   const expandedSubject = useMemo(
@@ -382,12 +395,67 @@ export function TeachableSubjectsModal({
     );
   };
 
+  // Unticking removes the GLOBAL link (all years, not just this one). When an
+  // unticked subject still has classes or slot picks in other years, saving
+  // pauses on a confirm that names every affected year first.
+  const untickedWithUsage = useMemo(
+    () =>
+      assignedIds
+        .filter((id) => !selected.includes(id))
+        .map((id) => usageBySubjectId.get(id))
+        .filter(
+          (u): u is (typeof subjectUsage)[number] =>
+            !!u && u.otherYears.length > 0,
+        ),
+    [assignedIds, selected, usageBySubjectId, subjectUsage],
+  );
+
+  const requestSave = () => {
+    if (!schoolYearId || saveBlockReason) return;
+    if (untickedWithUsage.length > 0 && !confirmUntickOpen) {
+      setConfirmUntickOpen(true);
+      return;
+    }
+    setConfirmUntickOpen(false);
+    save();
+  };
+
+  const untickConfirmMessage = (
+    <div className="space-y-1.5">
+      <p>
+        Unticking removes teachability in <strong>all</strong> school years,
+        not just this one. These subjects are still used elsewhere:
+      </p>
+      <ul className="list-disc space-y-1 pl-5">
+        {untickedWithUsage.map((u) => (
+          <li key={u.subjectId}>
+            <span className="font-medium">{u.subjectName}</span> —{" "}
+            {u.otherYears
+              .map(
+                (y) =>
+                  `${y.schoolYearName} (${[
+                    y.classCount > 0
+                      ? `${y.classCount} class${y.classCount === 1 ? "" : "es"}`
+                      : null,
+                    y.hasPicks ? "slot picks" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")})`,
+              )
+              .join(", ")}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Select teachable subjects"
-      description="Tick subjects this educator can teach, then expand a subject to choose which sections and weekly slots they handle. The generator only places classes for assigned slots."
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="Select teachable subjects"
+      description="Tick subjects this educator can teach — teachability applies to all school years. Then expand a subject to choose which sections and weekly slots they handle this year. The generator only places classes for assigned slots."
       size="5xl"
     >
       <div className="space-y-3">
@@ -491,7 +559,7 @@ export function TeachableSubjectsModal({
                 Cancel
               </Button>
               <Button
-                onClick={save}
+                onClick={requestSave}
                 disabled={!dirty || saving || !!saveBlockReason}
                 title={saveBlockReason ?? undefined}
               >
@@ -503,8 +571,20 @@ export function TeachableSubjectsModal({
             </div>
           </div>
         </ModalFooter>
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={confirmUntickOpen}
+        onOpenChange={setConfirmUntickOpen}
+        title="Remove teachability in all years?"
+        message={untickConfirmMessage}
+        confirmLabel="Save anyway"
+        destructive
+        isLoading={saving}
+        onConfirm={save}
+      />
+    </>
   );
 
   /** Weekly load bar: used vs capacity with the availability context. */

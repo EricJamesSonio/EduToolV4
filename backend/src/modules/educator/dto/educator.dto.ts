@@ -91,20 +91,22 @@ export class SetEducatorSubjectsDto {
   subjectIds!: string[];
 }
 
-export class CarryOverEducatorSubjectsDto {
+export class EducatorSubjectUsageQueryDto {
   @IsUUID()
-  fromSchoolYearId!: string;
+  schoolYearId!: string;
+}
 
-  @IsUUID()
-  toSchoolYearId!: string;
-
-  /** Optional: limit the carry-over to specific educators. */
-  @IsOptional()
+export class RemoveTeachableKeysDto {
+  /**
+   * Global subject keys (not subject ids) to remove for the educator.
+   * Removing a key removes teachability in every year, plus the picks rows
+   * whose subject carries a removed key.
+   */
   @IsArray()
-  // Any UUID version (see SetEducatorSubjectsDto).
-  @IsUUID(undefined, { each: true })
   @ArrayMaxSize(500)
-  educatorIds?: string[];
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  keys!: string[];
 }
 
 export class SubjectSlotPickDto {
@@ -177,6 +179,19 @@ export class SetEducatorSubjectBundleDto {
 export class EducatorCapacityQueryDto {
   @IsUUID()
   schoolYearId!: string;
+}
+
+// ── GET /educators/:id/subjects ─────────────────────────────────────────────
+
+export class ListEducatorSubjectsQueryDto {
+  /**
+   * When present, only subjects of this school year are returned, with their
+   * sections resolved server-side. Without it the full link set is returned
+   * (sections left empty — the caller has no year context to resolve them).
+   */
+  @IsOptional()
+  @IsUUID()
+  schoolYearId?: string;
 }
 
 export class SetEducatorScheduleProfileDto {
