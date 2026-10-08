@@ -1,6 +1,6 @@
 # TICK-INFRA-018 — Timezone Step 5 enforcement (lint bans, CI matrix, TZ defaults)
 
-Status: merged
+Status: completed
 Priority: high
 Created: 2026-10-08
 Created by: agent
