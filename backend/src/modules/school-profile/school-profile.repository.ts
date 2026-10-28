@@ -50,6 +50,7 @@ function mapSubject(raw: any) {
     id: raw.id,
     name: raw.name,
     subjectType: raw.subject_type,
+    levelName: raw.level_name ?? null,
     sharings: raw.sharings?.map(mapSharing) ?? [],
   };
 }

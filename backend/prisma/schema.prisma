@@ -303,6 +303,7 @@ model SchoolProfileSubject {
   level_id      String?
   name          String
   subject_type  String  @default("major") // "major" | "minor"
+  level_name    String?
 
   department SchoolProfileDepartment?      @relation(fields: [department_id], references: [id], onDelete: Cascade)
   level      SchoolProfileLevel?           @relation(fields: [level_id], references: [id], onDelete: Cascade)

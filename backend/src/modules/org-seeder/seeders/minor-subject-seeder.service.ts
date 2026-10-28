@@ -44,6 +44,8 @@ export class MinorSubjectSeederService {
     const courseCodes = Object.keys(ctx.courseMap);
 
     for (const s of minors) {
+      const levelName = s.levelName ?? null;
+
       const excludedFromAll =
         courseCodes.length > 0 &&
         courseCodes.every((code) =>
@@ -54,12 +56,26 @@ export class MinorSubjectSeederService {
         continue;
       }
 
-      const firstCourse = profile.courses[0];
-      const levelId = firstCourse
-        ? ctx.levelMap[
-            `${firstCourse.code ?? firstCourse.name}|${firstCourse.levels[0]?.name}`
-          ]
-        : null;
+      // A level-scoped minor is shared only with the courses that actually
+      // have that level; an unscoped (legacy) minor is shared with every course.
+      const sharedCodes = courseCodes.filter((code) => {
+        if (ctx.excludedLevelSubjects[code]?.includes(s.name)) return false;
+        if (levelName && !ctx.levelMap[`${code}|${levelName}`]) return false;
+        return true;
+      });
+
+      let levelId: string | null | undefined = null;
+      if (levelName) {
+        const anchor = sharedCodes[0];
+        levelId = anchor ? ctx.levelMap[`${anchor}|${levelName}`] : null;
+      } else {
+        const firstCourse = profile.courses[0];
+        levelId = firstCourse
+          ? ctx.levelMap[
+              `${firstCourse.code ?? firstCourse.name}|${firstCourse.levels[0]?.name}`
+            ]
+          : null;
+      }
       if (!levelId) {
         ctx.result.subjects.skipped++;
         continue;
@@ -68,17 +84,19 @@ export class MinorSubjectSeederService {
       const id = seedId(
         'subject',
         'college_ge',
-        'minor',
+        levelName ? `minor:${levelName}` : 'minor',
         s.name,
         ctx.schoolYearId,
         ctx.orgId,
       );
-      const existing = await findExistingSubject(this.db, id, {
-        orgId: ctx.orgId,
-        subjectType: 'minor',
-        programId: ctx.programMap['college'],
-        name: s.name,
-      });
+      const existing = levelName
+        ? await this.db.subject.findFirst({ where: { id } })
+        : await findExistingSubject(this.db, id, {
+            orgId: ctx.orgId,
+            subjectType: 'minor',
+            programId: ctx.programMap['college'],
+            name: s.name,
+          });
 
       let subjectId: string;
       if (existing) {
@@ -93,7 +111,7 @@ export class MinorSubjectSeederService {
             program_id: ctx.programMap['college'],
             level_id: levelId,
             name: s.name,
-            year_level: null,
+            year_level: levelName,
             term_label: null,
             is_locked: false,
           },
@@ -102,11 +120,15 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      // Profile subjects carry no year level, so none is registered.
-      ctx.registerSubjectId(COLLEGE_MINOR_SCOPE, s.name, subjectId);
+      ctx.registerSubjectId(
+        COLLEGE_MINOR_SCOPE,
+        s.name,
+        subjectId,
+        levelName ?? undefined,
+      );
 
-      for (const [code, courseId] of Object.entries(ctx.courseMap)) {
-        if (ctx.excludedLevelSubjects[code]?.includes(s.name)) continue;
+      for (const code of sharedCodes) {
+        const courseId = ctx.courseMap[code];
         const sharingId = seedId('sharing', subjectId, courseId, ctx.orgId);
         await this.db.subjectSharing.upsert({
           where: { id: sharingId },
@@ -129,13 +151,33 @@ export class MinorSubjectSeederService {
     profile: NonNullable<SeedContext['profileDepartments'][string]>,
   ): Promise<void> {
     const minors = profile.subjects.filter((s) => s.subjectType === 'minor');
+    const strandNames = Object.keys(ctx.strandMap);
 
     for (const s of minors) {
-      const strandCodes = Object.keys(ctx.strandMap);
-      const firstStrand = profile.strands[0];
-      const levelId = firstStrand
-        ? ctx.levelMap[`${firstStrand.name}|${firstStrand.levels[0]?.name}`]
-        : null;
+      const levelName = s.levelName ?? null;
+
+      // A level-scoped minor is shared only with the strands that actually
+      // have that level; an unscoped (legacy) minor is shared with every strand.
+      const sharedStrands = strandNames.filter((strandName) => {
+        if (ctx.excludedLevelSubjects[strandName]?.includes(s.name)) {
+          return false;
+        }
+        if (levelName && !ctx.levelMap[`${strandName}|${levelName}`]) {
+          return false;
+        }
+        return true;
+      });
+
+      let levelId: string | null | undefined = null;
+      if (levelName) {
+        const anchor = sharedStrands[0];
+        levelId = anchor ? ctx.levelMap[`${anchor}|${levelName}`] : null;
+      } else {
+        const firstStrand = profile.strands[0];
+        levelId = firstStrand
+          ? ctx.levelMap[`${firstStrand.name}|${firstStrand.levels[0]?.name}`]
+          : null;
+      }
       if (!levelId) {
         ctx.result.subjects.skipped++;
         continue;
@@ -144,17 +186,19 @@ export class MinorSubjectSeederService {
       const id = seedId(
         'subject',
         'shs_minor',
-        'profile',
+        levelName ? `profile:${levelName}` : 'profile',
         s.name,
         ctx.schoolYearId,
         ctx.orgId,
       );
-      const existing = await findExistingSubject(this.db, id, {
-        orgId: ctx.orgId,
-        subjectType: 'minor',
-        programId: ctx.programMap['shs'],
-        name: s.name,
-      });
+      const existing = levelName
+        ? await this.db.subject.findFirst({ where: { id } })
+        : await findExistingSubject(this.db, id, {
+            orgId: ctx.orgId,
+            subjectType: 'minor',
+            programId: ctx.programMap['shs'],
+            name: s.name,
+          });
 
       let subjectId: string;
       if (existing) {
@@ -169,7 +213,7 @@ export class MinorSubjectSeederService {
             program_id: ctx.programMap['shs'],
             level_id: levelId,
             name: s.name,
-            year_level: null,
+            year_level: levelName,
             term_label: null,
             is_locked: false,
           },
@@ -178,11 +222,14 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.seeded++;
       }
 
-      // Profile subjects carry no year level, so none is registered.
-      ctx.registerSubjectId(SHS_MINOR_SCOPE, s.name, subjectId);
+      ctx.registerSubjectId(
+        SHS_MINOR_SCOPE,
+        s.name,
+        subjectId,
+        levelName ?? undefined,
+      );
 
-      for (const strandName of strandCodes) {
-        if (ctx.excludedLevelSubjects[strandName]?.includes(s.name)) continue;
+      for (const strandName of sharedStrands) {
         const strandId = ctx.strandMap[strandName];
         const sharingId = seedId(
           'sharing',
