@@ -16,6 +16,13 @@ interface UseAgoraRTCProps {
 
 type AgoraRTCModule = typeof import("agora-rtc-sdk-ng")["default"];
 
+type IScreenVideoTrack = ILocalVideoTrack & {
+  on(
+    event: "track-ended",
+    listener: () => void | Promise<void>,
+  ): IScreenVideoTrack;
+};
+
 const CAMERA_ENCODER_CONFIG = {
   width: 640,
   height: 480,
@@ -53,12 +60,17 @@ export const useAgoraRTC = ({
 
       agoraRTCRef.current = AgoraRTC;
 
-      client = AgoraRTC.createClient({ mode: "rtc", codec: "h264" });
-      clientRef.current = client;
+      const meetingClient = AgoraRTC.createClient({
+        mode: "rtc",
+        codec: "h264",
+      });
 
-      client.on("user-published", async (user, mediaType) => {
+      client = meetingClient;
+      clientRef.current = meetingClient;
+
+      meetingClient.on("user-published", async (user, mediaType) => {
         try {
-          await client?.subscribe(user, mediaType);
+          await meetingClient.subscribe(user, mediaType);
 
           if (cancelled) return;
 
@@ -84,7 +96,7 @@ export const useAgoraRTC = ({
         }
       });
 
-      client.on("user-unpublished", (user) => {
+      meetingClient.on("user-unpublished", (user) => {
         if (cancelled) return;
 
         setRemoteUsers((prev) =>
@@ -92,7 +104,7 @@ export const useAgoraRTC = ({
         );
       });
 
-      client.on("user-left", (user) => {
+      meetingClient.on("user-left", (user) => {
         if (cancelled) return;
 
         setRemoteUsers((prev) =>
@@ -100,10 +112,10 @@ export const useAgoraRTC = ({
         );
       });
 
-      await client.join(appId, channel, token, uid);
+      await meetingClient.join(appId, channel, token, uid);
 
       if (cancelled) {
-        await client.leave();
+        await meetingClient.leave();
         return;
       }
 
@@ -116,22 +128,22 @@ export const useAgoraRTC = ({
           },
         );
 
-      localAudioRef.current = micTrack;
-      localVideoRef.current = camTrack;
-
       if (cancelled) {
         micTrack.close();
         camTrack.close();
-        await client.leave();
+        await meetingClient.leave();
         return;
       }
 
-      await client.publish([micTrack, camTrack]);
+      localAudioRef.current = micTrack;
+      localVideoRef.current = camTrack;
+
+      await meetingClient.publish([micTrack, camTrack]);
 
       if (cancelled) {
         micTrack.close();
         camTrack.close();
-        await client.leave();
+        await meetingClient.leave();
         return;
       }
 
@@ -200,7 +212,7 @@ export const useAgoraRTC = ({
 
     if (!client || !AgoraRTC) return;
 
-    let screenTrack: ILocalVideoTrack | null = null;
+    let screenTrack: IScreenVideoTrack | null = null;
 
     try {
       const createdTrack = await AgoraRTC.createScreenVideoTrack(
@@ -208,9 +220,13 @@ export const useAgoraRTC = ({
         "disable",
       );
 
-      screenTrack = Array.isArray(createdTrack)
+      const createdScreenTrack = Array.isArray(createdTrack)
         ? createdTrack[0]
         : createdTrack;
+
+      if (!createdScreenTrack) return;
+
+      screenTrack = createdScreenTrack as IScreenVideoTrack;
 
       if (clientRef.current !== client) {
         screenTrack.close();
@@ -236,7 +252,9 @@ export const useAgoraRTC = ({
         return;
       }
 
-      screenTrack.on("track-ended", async () => {
+      const activeScreenTrack = screenTrack;
+
+      activeScreenTrack.on("track-ended", async () => {
         const currentClient = clientRef.current;
         const currentAgoraRTC = agoraRTCRef.current;
 
@@ -258,8 +276,8 @@ export const useAgoraRTC = ({
             return;
           }
 
-          await currentClient.unpublish(screenTrack!);
-          screenTrack!.close();
+          await currentClient.unpublish(activeScreenTrack);
+          activeScreenTrack.close();
 
           await currentClient.publish(cameraTrack);
 
@@ -271,12 +289,15 @@ export const useAgoraRTC = ({
           localVideoRef.current = cameraTrack;
           setLocalVideo(cameraTrack);
         } catch (error) {
-          console.error("Failed to restore camera after screen sharing:", error);
+          console.error(
+            "Failed to restore camera after screen sharing:",
+            error,
+          );
         }
       });
 
-      localVideoRef.current = screenTrack;
-      setLocalVideo(screenTrack);
+      localVideoRef.current = activeScreenTrack;
+      setLocalVideo(activeScreenTrack);
     } catch (error) {
       screenTrack?.close();
       console.error("Failed to share screen:", error);
