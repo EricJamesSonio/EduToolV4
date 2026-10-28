@@ -6,7 +6,10 @@ import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
-import { GradeAnalyticsQueryDto } from './dto/analytics.dto';
+import {
+  AnalyticsRangeQueryDto,
+  GradeAnalyticsQueryDto,
+} from './dto/analytics.dto';
 
 @Controller('analytics')
 @UseGuards(AuthGuard, RolesGuard)
@@ -43,6 +46,26 @@ export class AnalyticsController {
       parsedPage,
       parsedLimit,
     );
+  }
+
+  // ── Enrollment Timeline (line chart) ───────────────────────
+
+  @Get('enrollment-timeline')
+  async getEnrollmentTimeline(
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: AnalyticsRangeQueryDto,
+  ) {
+    return this.analyticsService.getEnrollmentTimeline(orgId, query);
+  }
+
+  // ── Enrollment Distribution (donuts) ───────────────────────
+
+  @Get('enrollment-distribution')
+  async getEnrollmentDistribution(
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: AnalyticsRangeQueryDto,
+  ) {
+    return this.analyticsService.getEnrollmentDistribution(orgId, query);
   }
 
   // ── Grade Analytics (LOCKED ONLY) ──────────────────────────
