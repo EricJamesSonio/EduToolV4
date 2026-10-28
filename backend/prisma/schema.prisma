@@ -591,6 +591,9 @@ model StudentProgramEnrollment {
   end_reason             ProgramEnrollmentEndReason?
   ended_at               DateTime?
   ended_by               String?
+  is_regular             Boolean                  @default(false)
+  regular_marked_at      DateTime?
+  regular_marked_by      String?
 
   studentSchoolYear       StudentSchoolYear        @relation(fields: [student_school_year_id], references: [id])
   program                 Program                  @relation(fields: [program_id], references: [id])
@@ -794,6 +797,7 @@ model SubjectCompletionOverride {
   status     String   @default("pending")
   reason     String?
   actor_id   String?
+  source     String   @default("manual")
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
