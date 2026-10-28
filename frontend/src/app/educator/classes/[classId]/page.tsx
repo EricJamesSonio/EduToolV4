@@ -3,14 +3,10 @@
 import { use, useMemo } from "react";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { useRouter } from "next/navigation";
 import {
   BookOpen, Users, CalendarCheck,
   Clock, Hash, GraduationCap, Layers,
-  BarChart2, ClipboardCheck, ClipboardList, FileText, Video,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
 import { formatSchedule } from "@/utils/classes.utils";
 
 import { classApi }     from "@/api/admin/class.api";
@@ -25,11 +21,15 @@ import { toArray } from "@/utils/classes.utils";
 import type { EnrollmentResponse } from "@/api/admin/class.api";
 import type { Subject } from "@/types/admin/subject.types";
 
+import { useAssessments } from "@/hooks/educator/useAssessments";
+import { useAttendanceGrid } from "@/hooks/educator/useAttendance";
+import { EducatorAttentionSection } from "@/components/educator/class-overview/EducatorAttentionSection";
+
 import { PageHeader } from "@/components/shared/PageHeader";
-import { CardGrid } from "@/components/shared/CardGrid";
 import { Skeleton }   from "@/components/ui/skeleton";
 import { Badge }      from "@/components/ui/badge";
 // HIDDEN: Groupy Class Chat - imports kept commented for easy restore
+// import { useRouter } from "next/navigation";
 // import { Button }     from "@/components/ui/button";
 // import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
 
@@ -66,8 +66,6 @@ export default function EducatorClassOverviewPage({
   params: Promise<{ classId: string }>;
 }): React.JSX.Element {
   const { classId: id } = use(params);
-  const router = useRouter();
-  const base   = `/educator/classes/${id}`;
 
   // HIDDEN: Groupy unread badge - hidden per request (Class Chat disabled)
   // const { data: groupyUnread } = useGroupyUnread(id);
@@ -86,6 +84,9 @@ export default function EducatorClassOverviewPage({
   const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw).filter(
     (e) => e.status === "active",
   );
+
+  const { data: assessments = [], isLoading: assessmentsLoading } = useAssessments(id);
+  const { data: attendanceGrid, isLoading: attendanceLoading } = useAttendanceGrid(id);
 
   const { data: subjectsRaw } = useAsyncQuery(
     queryKeys.admin.subjects.all,
@@ -184,15 +185,15 @@ export default function EducatorClassOverviewPage({
     };
   }, [cls, subjectsRaw, sectionsRaw, semestersRaw, schoolYearsRaw, courseMap, strandMap]);
 
-if (clsLoading) {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-8 w-64" />
-      <Skeleton className="h-52 w-full rounded-lg" />
-      <Skeleton className="h-44 w-full rounded-xl" />
-    </div>
-  );
-}
+  if (clsLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-52 w-full rounded-lg" />
+        <Skeleton className="h-44 w-full rounded-xl" />
+      </div>
+    );
+  }
 
   if (!enriched) {
     return (
@@ -206,130 +207,87 @@ if (clsLoading) {
   const activeCount = enrollmentsLoading ? null : enrollments.length;
   const capacityLabel = enriched.capacity === 0 ? "Unlimited" : String(enriched.capacity);
 
-  // Build the full class title: "BSCS · 1st Year – Section A · Mathematics"
-  // or "Elementary · Grade 3 – Section A · English"
-  const trackLabel  = enriched.courseName ?? enriched.strandName ?? null;
-  const contextLine = [trackLabel ?? enriched.programName, enriched.levelName]
-    .filter(Boolean)
-    .join(" · ");
-
-  const quickLinks = [
-    { icon: FileText,      label: "Lessons",     description: "Manage lesson plans and materials",      href: `${base}/lessons`     },
-    { icon: ClipboardCheck,label: "Assessments", description: "Quizzes, activities, and exams",         href: `${base}/assessments` },
-    { icon: CalendarCheck, label: "Attendance",  description: "Track student attendance per session",   href: `${base}/attendance`  },
-    { icon: BarChart2,     label: "Grades",      description: "View and compute term grades",           href: `${base}/grades`      },
-    { icon: ClipboardList, label: "Grading scheme",      description: "Grading scheme for this class",          href: `${base}/grading-scheme`      },
-    { icon: Video,         label: "Meetings",    description: "Schedule and manage video sessions",     href: `${base}/meetings`    },
-  ];
-
   return (
-  <div className="space-y-6">
-    <PageHeader
-      title={enriched.subjectName ?? "Unnamed Class"}
-      breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
-      actions={
-        <div className="flex items-center gap-2">
-          {/* HIDDEN: Class Chat (Groupy) button - hidden per request, original code preserved below */}
-          {/* <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            onClick={() => router.push(`${base}/groupy`)}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            Class Chat
-          </Button> */}
-          <Badge variant="secondary" className="shrink-0">
-            {enriched.semesterName ?? "—"}
-          </Badge>
-        </div>
-      }
-    />
-
     <div className="space-y-6">
-      {/* Class details — single card, 2 columns */}
-      <div className="rounded-lg border bg-card p-6">
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-          <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? "Unnamed Class"} />
+      <PageHeader
+        title={enriched.subjectName ?? "Unnamed Class"}
+        breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
+        actions={
+          <div className="flex items-center gap-2">
+            {/* HIDDEN: Class Chat (Groupy) button - hidden per request, original code preserved below */}
+            {/* <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => router.push(`/educator/classes/${id}/groupy`)}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Class Chat
+            </Button> */}
+            <Badge variant="secondary" className="shrink-0">
+              {enriched.semesterName ?? "—"}
+            </Badge>
+          </div>
+        }
+      />
 
-          {enriched.programName && (
-            <DetailItem icon={GraduationCap} label="Department" value={enriched.programName} />
-          )}
+      <div className="space-y-6">
+        {/* Class details — single card, 2 columns */}
+        <div className="rounded-lg border bg-card p-6">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+            <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? "Unnamed Class"} />
 
-          {enriched.courseName && (
-            <DetailItem icon={Layers} label="Course" value={enriched.courseName} />
-          )}
+            {enriched.programName && (
+              <DetailItem icon={GraduationCap} label="Department" value={enriched.programName} />
+            )}
 
-          {enriched.strandName && (
-            <DetailItem icon={Layers} label="Strand" value={enriched.strandName} />
-          )}
+            {enriched.courseName && (
+              <DetailItem icon={Layers} label="Course" value={enriched.courseName} />
+            )}
 
-          {enriched.levelName && (
-            <DetailItem icon={BookOpen} label="Level" value={enriched.levelName} />
-          )}
+            {enriched.strandName && (
+              <DetailItem icon={Layers} label="Strand" value={enriched.strandName} />
+            )}
 
-          <DetailItem
-            icon={Users}
-            label="Section"
-            value={enriched.sectionName ?? <span className="text-muted-foreground">—</span>}
-          />
+            {enriched.levelName && (
+              <DetailItem icon={BookOpen} label="Level" value={enriched.levelName} />
+            )}
 
-          <DetailItem icon={Clock} label="Schedule" value={schedule} />
+            <DetailItem
+              icon={Users}
+              label="Section"
+              value={enriched.sectionName ?? <span className="text-muted-foreground">—</span>}
+            />
 
-          <DetailItem
-            icon={Hash}
-            label="Capacity"
-            value={
-              activeCount !== null ? (
-                <span>
-                  <span className="text-foreground">{activeCount}</span>
-                  <span className="text-muted-foreground"> / {capacityLabel} enrolled</span>
-                </span>
-              ) : (
-                capacityLabel
-              )
-            }
-          />
+            <DetailItem icon={Clock} label="Schedule" value={schedule} />
 
-          <DetailItem icon={CalendarCheck} label="School Year" value={enriched.schoolYearName ?? "—"} />
-        </dl>
-      </div>
-
-      {/* Quick links — 3-column colored cards */}
-      <div>
-        <h2 className="text-sm font-semibold mb-3">Class Sections</h2>
-
-        <CardGrid>
-          {quickLinks.map((link, i) => {
-            const color = WEEK_COLORS[i % WEEK_COLORS.length];
-            const Icon = link.icon;
-            return (
-              <button
-                key={link.href}
-                onClick={() => router.push(link.href)}
-                className="relative rounded-xl border bg-card p-3 sm:p-5 space-y-2 sm:space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group text-left"
-              >
-                {/* HIDDEN: Groupy unread badge - hidden per request */}
-                {/* {link.href.endsWith("/groupy") && groupyUnread?.hasUnread && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-white ring-2 ring-background">
-                    !
+            <DetailItem
+              icon={Hash}
+              label="Capacity"
+              value={
+                activeCount !== null ? (
+                  <span>
+                    <span className="text-foreground">{activeCount}</span>
+                    <span className="text-muted-foreground"> / {capacityLabel} enrolled</span>
                   </span>
-                )} */}
-                <div className={cn("rounded-md p-2 w-fit", color)}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">{link.label}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {link.description}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </CardGrid>
+                ) : (
+                  capacityLabel
+                )
+              }
+            />
+
+            <DetailItem icon={CalendarCheck} label="School Year" value={enriched.schoolYearName ?? "—"} />
+          </dl>
+        </div>
+
+        <EducatorAttentionSection
+          classId={id}
+          assessments={assessments}
+          assessmentsLoading={assessmentsLoading}
+          attendanceGrid={attendanceGrid}
+          attendanceLoading={attendanceLoading}
+        />
       </div>
     </div>
-  </div>
-);
+  );
 }
