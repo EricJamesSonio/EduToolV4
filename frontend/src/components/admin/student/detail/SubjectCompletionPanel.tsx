@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { subjectCompletionApi } from "@/api/admin/subject-completion.api";
+import type { SubjectCompletionOverride } from "@/api/admin/subject-completion.api";
 import dynamic from "next/dynamic";
 const SubjectHierarchyModal = dynamic(
   () => import("@/components/admin/subject/hierarchy/SubjectHierarchyModal").then((m) => m.SubjectHierarchyModal),
@@ -26,6 +27,10 @@ interface Props {
 type PendingAction =
   | { kind: "toggle"; overrideId: string; subjectName: string; to: "completed" | "pending" }
   | { kind: "abort"; overrideId: string; subjectName: string };
+
+function isAutoCredit(record: SubjectCompletionOverride): boolean {
+  return record.source === "regular" && record.status === "completed";
+}
 
 export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
@@ -75,11 +80,17 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to abort record"),
   });
 
+  const manualOverrides = useMemo(
+    () => overrides.filter((o) => !isAutoCredit(o)),
+    [overrides],
+  );
+  const regularCount = overrides.length - manualOverrides.length;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return overrides;
-    return overrides.filter((o) => o.subject.name.toLowerCase().includes(q));
-  }, [overrides, search]);
+    if (!q) return manualOverrides;
+    return manualOverrides.filter((o) => o.subject.name.toLowerCase().includes(q));
+  }, [manualOverrides, search]);
 
   const confirmMessage = (a: PendingAction): string => {
     if (a.kind === "toggle" && a.to === "completed")
@@ -129,6 +140,13 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
         </div>
       </div>
 
+      {regularCount > 0 && (
+        <p className="mt-3 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          {regularCount} subject{regularCount === 1 ? "" : "s"} credited automatically because this student is marked{" "}
+          <span className="font-medium text-foreground">Regular</span>. They show as completed in the subject hierarchy and are not listed here.
+        </p>
+      )}
+
       <div className="mt-3 mb-3">
         <Input placeholder="Search records…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
@@ -136,7 +154,9 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No completion records yet.</p>
+        <p className="text-sm text-muted-foreground py-4 text-center">
+          {regularCount > 0 && !search ? "No manual records yet." : "No completion records yet."}
+        </p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {filtered.map((o) => (
@@ -169,7 +189,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
                   {[o.subject.year_level, o.subject.term_label].filter(Boolean).join(" · ")}
                 </p>
               ) : null}
-              {o.reason ? <p className="text-xs text-muted-foreground italic">“{o.reason}”</p> : null}
+              {o.reason ? <p className="text-xs text-muted-foreground italic">"{o.reason}"</p> : null}
               <div className="flex flex-wrap gap-1.5">
                 {o.status === "completed" ? (
                   <Button
@@ -261,7 +281,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
           open
           onClose={() => setHierarchy(null)}
           scope={hierarchy.scope}
-          scopeLabel={`Showing hierarchy around “${hierarchy.label}”. ✓ = completed (record or passing grade).`}
+          scopeLabel={`Showing hierarchy around "${hierarchy.label}". ✓ = completed (record or passing grade).`}
           studentId={studentId}
           focusSubjectId={hierarchy.focusId}
           title="Subject Hierarchy"

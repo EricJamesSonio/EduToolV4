@@ -9,6 +9,7 @@ import { Button }  from "@/components/ui/button";
 import { cn }      from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
 import { UserMinus, GraduationCap } from "lucide-react";
+import { RegularStudentToggle } from "@/components/admin/student/detail/RegularStudentToggle";
 import type { StudentSchoolYearEnrollment } from "@/types/admin/student-enrollment.types";
 import type { Student } from "@/types/admin/student.types";
 
@@ -93,6 +94,36 @@ export function EnrolledStudentTable({
                 {p.strand && ` · ${p.strand.name}`}
                 {p.level  && ` · ${p.level.name}`}
               </Badge>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      id: "standing",
+      header: "Standing",
+      cell: ({ row }) => {
+        const activePrograms = (row.original.programEnrollments ?? []).filter(
+          (p) => p.status === "active",
+        );
+        if (activePrograms.length === 0) {
+          return (
+            <span className="text-xs text-muted-foreground not-interactive">—</span>
+          );
+        }
+        const isUnenrolled = row.original.status === "unenrolled";
+        const studentName =
+          studentMap?.get(row.original.student_id)?.fullName ?? "this student";
+        return (
+          <div className="space-y-1">
+            {activePrograms.map((pe) => (
+              <RegularStudentToggle
+                key={pe.id}
+                programEnrollment={pe}
+                schoolYearId={row.original.school_year_id}
+                studentName={studentName}
+                disabled={isUnenrolled}
+              />
             ))}
           </div>
         );

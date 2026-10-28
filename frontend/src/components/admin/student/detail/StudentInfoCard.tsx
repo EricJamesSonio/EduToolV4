@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import { AssignSectionDialog } from "@/components/admin/school-years/program-view/AssignSectionDialog";
+import { RegularStudentToggle } from "./RegularStudentToggle";
 import type { Student } from "@/types/admin/student.types";
 import type {
   StudentSchoolYearEnrollment,
@@ -55,7 +56,7 @@ export function StudentInfoCard({
   schoolYearId,
   isEnded,
 }: Props): React.JSX.Element {
-const [moveTarget, setMoveTarget] = useState<{
+  const [moveTarget, setMoveTarget] = useState<{
     sye: StudentSchoolYearEnrollment;
     programEnrollment: ProgramEnrollmentSnapshot;
   } | null>(null);
@@ -189,6 +190,15 @@ const [moveTarget, setMoveTarget] = useState<{
                             {pe.section.name}
                           </span>
                         )}
+                      </div>
+
+                      <div className="pl-5">
+                        <RegularStudentToggle
+                          programEnrollment={pe}
+                          schoolYearId={schoolYearId}
+                          studentName={student.fullName}
+                          disabled={isEnded || pe.status === "ended"}
+                        />
                       </div>
                     </div>
                   ))}

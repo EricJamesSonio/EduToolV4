@@ -19,6 +19,8 @@ export interface ProgramEnrollmentSnapshot {
   end_reason?: string | null;
   ended_at?: string | null;
   ended_by?: string | null;
+  is_regular?: boolean;
+  regular_marked_at?: string | null;
 }
 
 export interface StudentSchoolYearEnrollment {
@@ -64,9 +66,21 @@ export interface UpdateProgramEnrollmentRequest {
   section_id?: string | null;
 }
 
+export interface SetRegularStudentRequest {
+  is_regular: boolean;
+}
+
 // ── Response shapes ───────────────────────────────────────────────────────────
 
 export interface BulkEnrollResult {
   enrolled: string[];
   failed:   { student_id: string; reason: string }[];
+}
+
+export interface SetRegularStudentResult {
+  is_regular:       boolean;
+  subjects_total:   number;
+  subjects_added:   number;
+  subjects_removed: number;
+  kept_manual:      number;
 }

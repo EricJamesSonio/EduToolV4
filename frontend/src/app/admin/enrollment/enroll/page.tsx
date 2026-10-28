@@ -524,6 +524,9 @@ export default function EnrollWorkspacePage() {
       cell: ({ row }) => {
         const r = row.original;
         const rowSectionId = sectionAssignments[r.peId] ?? "";
+        const rowSectionLabel = rowSectionId
+          ? (sections.find((sec) => sec.id === rowSectionId)?.name ?? "Selected section")
+          : null;
         if (r.sectionId) {
           return <span className="text-xs font-medium">{r.sectionName}</span>;
         }
@@ -536,7 +539,11 @@ export default function EnrollWorkspacePage() {
               }
             >
               <SelectTrigger className="h-8 text-xs flex-1">
-                <SelectValue placeholder="Select section" />
+                {rowSectionLabel ? (
+                  <span className="flex flex-1 truncate text-left">{rowSectionLabel}</span>
+                ) : (
+                  <SelectValue placeholder="Select section" />
+                )}
               </SelectTrigger>
               <SelectContent>
                 {sections.length === 0 ? (
