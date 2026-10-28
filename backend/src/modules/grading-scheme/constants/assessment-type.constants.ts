@@ -98,3 +98,17 @@ export const MANUAL_ONLY_TYPES: readonly AssessmentComponentType[] =
 export function isSystemGradable(type: string): boolean {
   return SYSTEM_GRADABLE_TYPES.includes(type as AssessmentComponentType);
 }
+export function normalizeComponentType(
+  type: string,
+  name?: string | null,
+): string {
+  if (type !== 'manual') return type;
+  const lowered = (name ?? '').toLowerCase();
+  if (lowered.includes('behavior') || lowered.includes('behaviour')) {
+    return ComponentType.BEHAVIOR;
+  }
+  if (lowered.includes('participation')) return ComponentType.PARTICIPATION;
+  if (lowered.includes('attendance')) return ComponentType.ATTENDANCE;
+  return ComponentType.PERFORMANCE_TASK;
+}
+

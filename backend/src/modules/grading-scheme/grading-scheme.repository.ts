@@ -3,6 +3,8 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradingSchemeComponentDto } from './dto/grading-scheme.dto';
+import { normalizeComponentType } from './constants/assessment-type.constants';
+
 
 const COMPONENTS_INCLUDE = {
   components: { orderBy: { created_at: 'asc' as const } },
@@ -14,7 +16,7 @@ function mapComponent(c: any) {
     orgId: c.org_id,
     gradingSchemeId: c.grading_scheme_id,
     name: c.name,
-    type: c.type,
+    type: normalizeComponentType(c.type, c.name),
     weight: c.weight,
     maxScore: c.max_score,
     isOptional: c.is_optional,
