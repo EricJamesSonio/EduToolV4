@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { StudentEnrollmentService } from './student-enrollment.service';
+import { RegularStudentService } from './regular-student.service';
 import {
   EnrollStudentDto,
   BulkEnrollStudentsDto,
@@ -19,6 +20,7 @@ import {
   RemoveProgramEnrollmentDto,
   PaginatedEnrollmentQueryDto,
 } from './dto/student-enrollment.dto';
+import { SetRegularStudentDto } from './dto/regular-student.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
@@ -28,9 +30,10 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
 export class StudentEnrollmentController {
-  constructor(private readonly service: StudentEnrollmentService) {}
-
-  // ── School-Year Enrollment ────────────────────────────────────────────────
+  constructor(
+    private readonly service: StudentEnrollmentService,
+    private readonly regularStudentService: RegularStudentService,
+  ) {}
 
   @Get()
   getAll(
@@ -104,6 +107,20 @@ export class StudentEnrollmentController {
       user.org_id,
       dto,
       user.id,
+    );
+  }
+
+  @Patch('programs/:programEnrollmentId/regular')
+  setRegular(
+    @Param('programEnrollmentId') programEnrollmentId: string,
+    @CurrentUser() user: { org_id: string; id: string },
+    @Body() dto: SetRegularStudentDto,
+  ) {
+    return this.regularStudentService.setRegular(
+      programEnrollmentId,
+      user.org_id,
+      user.id,
+      dto.is_regular,
     );
   }
 
