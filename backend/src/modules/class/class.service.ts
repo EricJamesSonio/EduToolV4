@@ -22,6 +22,7 @@ import {
   resolveSubjectAcademicStructures,
   isEligibleForClassStructure,
 } from '../enrollment/enrollment-eligibility.util';
+import { parseLevelRank } from '../subject-prerequisite/subject-prerequisite.utils';
 import {
   CreateClassDto,
   UpdateClassDto,
@@ -616,13 +617,13 @@ export class ClassService {
     const ssyRows = await this.db.studentSchoolYear.findMany({
       where: { org_id: orgId, student_id: studentId },
       include: {
-        programEnrollments: { where: { status: 'active' } },
+        programEnrollments: { where: { status: 'active' }, include: { level: { select: { name: true } } } },
       },
     });
 
     const placementByYear = new Map<
       string,
-      { programId: string | null; levelId: string | null; courseId: string | null; strandId: string | null; sectionId: string | null }
+      { programId: string | null; levelId: string | null; courseId: string | null; strandId: string | null; sectionId: string | null; isIrregular: boolean; levelRank: number | null }
     >();
     for (const row of ssyRows) {
       const pe = row.programEnrollments[0];
@@ -633,6 +634,8 @@ export class ClassService {
         courseId: pe.course_id,
         strandId: pe.strand_id,
         sectionId: pe.section_id,
+        isIrregular: (pe as any).is_regular !== true,
+        levelRank: parseLevelRank((pe as any).level?.name ?? null),
       });
     }
 

@@ -8,12 +8,14 @@
 
 import { DatabaseService } from '@/core/database/database.provider';
 import { resolveProgramIdFromSubject } from '../program/program-type-resolver';
+import { parseLevelRank } from '../subject-prerequisite/subject-prerequisite.utils';
 
 export interface SubjectAcademicStructure {
   programId: string | null;
   courseIds: string[];
   strandIds: string[];
   levelIds: string[];
+  levelRanks: number[];
 }
 
 export interface StudentAcademicStructure {
@@ -22,6 +24,8 @@ export interface StudentAcademicStructure {
   courseId: string | null;
   strandId: string | null;
   sectionId: string | null;
+  isIrregular: boolean;
+  levelRank: number | null;
 }
 
 /**
@@ -40,8 +44,14 @@ export async function resolveSubjectAcademicStructure(
       course_id: true,
       strand_id: true,
       level_id: true,
+      level: { select: { name: true, program_id: true } },
       sharings: {
-        select: { course_id: true, strand_id: true, level_id: true },
+        select: {
+          course_id: true,
+          strand_id: true,
+          level_id: true,
+          level: { select: { name: true, program_id: true } },
+        },
       },
     },
   });
@@ -68,11 +78,20 @@ export async function resolveSubjectAcademicStructure(
 
   const programId = await resolveProgramIdFromSubject(db, subjectId, orgId);
 
+  const levelRanks = new Set<number>();
+  const ownRank = parseLevelRank((subject as { level?: { name?: string | null } | null })?.level?.name ?? null);
+  if (ownRank !== null) levelRanks.add(ownRank);
+  for (const sharing of subject?.sharings ?? []) {
+    const r = parseLevelRank((sharing as { level?: { name?: string | null } | null })?.level?.name ?? null);
+    if (r !== null) levelRanks.add(r);
+  }
+
   return {
     programId,
     courseIds: [...courseIds],
     strandIds: [...strandIds],
     levelIds: [...levelIds],
+    levelRanks: [...levelRanks],
   };
 }
 
@@ -104,7 +123,7 @@ export async function resolveSubjectAcademicStructures(
       level_id: true,
       course: { select: { program_id: true } },
       strand: { select: { program_id: true } },
-      level: { select: { program_id: true } },
+      level: { select: { program_id: true, name: true } },
       sharings: {
         select: {
           course_id: true,
@@ -112,7 +131,7 @@ export async function resolveSubjectAcademicStructures(
           level_id: true,
           course: { select: { program_id: true } },
           strand: { select: { program_id: true } },
-          level: { select: { program_id: true } },
+          level: { select: { program_id: true, name: true } },
         },
       },
     },
@@ -148,11 +167,20 @@ export async function resolveSubjectAcademicStructures(
       if (sharing.level_id) levelIds.add(sharing.level_id);
     }
 
+    const levelRanks = new Set<number>();
+    const ownRank = parseLevelRank((subject as { level?: { name?: string | null } | null })?.level?.name ?? null);
+    if (ownRank !== null) levelRanks.add(ownRank);
+    for (const sharing of subject.sharings) {
+      const r = parseLevelRank((sharing as { level?: { name?: string | null } | null })?.level?.name ?? null);
+      if (r !== null) levelRanks.add(r);
+    }
+
     result.set(subject.id, {
       programId,
       courseIds: [...courseIds],
       strandIds: [...strandIds],
       levelIds: [...levelIds],
+      levelRanks: [...levelRanks],
     });
   }
 
@@ -201,7 +229,13 @@ export function isEligibleForClassStructure(
     levelRequired &&
     (!student.levelId || !subject.levelIds.includes(student.levelId))
   ) {
-    return false;
+    // Irregular students may take lower (or equal) year-level subjects.
+    if (student.isIrregular && student.levelRank !== null && subject.levelRanks.length > 0) {
+      const allowed = subject.levelRanks.some((r) => r <= student.levelRank!);
+      if (!allowed) return false;
+    } else {
+      return false;
+    }
   }
 
   return true;
