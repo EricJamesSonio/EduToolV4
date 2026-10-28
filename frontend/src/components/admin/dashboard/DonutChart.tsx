@@ -32,8 +32,10 @@ export function DonutChart({
 }: DonutChartProps): React.JSX.Element {
   const [hoverKey, setHoverKey] = useState<string | null>(null);
 
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  const isEmpty = total === 0;
   const visible = data.filter((d) => d.value > 0);
-  const total = visible.reduce((sum, d) => sum + d.value, 0);
+  const legend = isEmpty ? data : visible;
   const hovered = visible.find((d) => d.key === hoverKey) ?? null;
 
   let cumulative = 0;
@@ -50,7 +52,7 @@ export function DonutChart({
   });
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="space-y-0.5">
         <h3 className="text-sm font-semibold text-foreground not-interactive">{title}</h3>
         {subtitle && (
@@ -59,17 +61,13 @@ export function DonutChart({
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col items-center gap-4">
-          <Skeleton className="h-40 w-40 rounded-full" />
+        <div className="flex flex-col items-center gap-3">
+          <Skeleton className="h-28 w-28 rounded-full" />
           <Skeleton className="h-4 w-full" />
-        </div>
-      ) : total === 0 ? (
-        <div className="flex h-56 items-center justify-center px-4 text-center text-sm text-muted-foreground">
-          {emptyText}
         </div>
       ) : (
         <>
-          <div className="mx-auto w-44 max-w-full">
+          <div className="mx-auto w-28 max-w-full">
             <svg
               viewBox="0 0 42 42"
               className="h-auto w-full"
@@ -123,26 +121,34 @@ export function DonutChart({
             </svg>
           </div>
 
-          <ul className="space-y-1.5">
-            {visible.map((d) => (
-              <li
-                key={d.key}
-                className="flex items-center gap-2 text-sm"
-                onMouseEnter={() => setHoverKey(d.key)}
-                onMouseLeave={() => setHoverKey(null)}
-              >
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: d.color }}
-                />
-                <span className="min-w-0 flex-1 truncate text-foreground">{d.label}</span>
-                <span className="font-semibold text-foreground">{d.value}</span>
-                <span className="w-10 text-right text-xs text-muted-foreground">
-                  {Math.round((d.value / total) * 100)}%
-                </span>
-              </li>
-            ))}
-          </ul>
+          {isEmpty && (
+            <p className="text-center text-xs text-muted-foreground not-interactive">
+              {emptyText}
+            </p>
+          )}
+
+          {legend.length > 0 && (
+            <ul className="space-y-1">
+              {legend.map((d) => (
+                <li
+                  key={d.key}
+                  className="flex items-center gap-2 text-xs"
+                  onMouseEnter={() => setHoverKey(d.key)}
+                  onMouseLeave={() => setHoverKey(null)}
+                >
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: d.color }}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-foreground">{d.label}</span>
+                  <span className="font-semibold text-foreground">{d.value}</span>
+                  <span className="w-9 text-right text-muted-foreground">
+                    {isEmpty ? 0 : Math.round((d.value / total) * 100)}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </div>

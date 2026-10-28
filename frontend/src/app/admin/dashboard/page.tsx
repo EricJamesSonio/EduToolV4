@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { organizationApi } from "@/api/admin/organization.api";
@@ -13,15 +14,12 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   Users,
   UserSquare2,
   GraduationCap,
   AlertTriangle,
   ArrowRight,
-  X,
 } from "lucide-react";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { cn } from "@/lib/utils";
@@ -31,6 +29,13 @@ import {
   DonutChart,
   type DonutDatum,
 } from "@/components/admin/dashboard/DonutChart";
+import {
+  DashboardPeriodFilter,
+  createDefaultPeriod,
+  describePeriod,
+  resolvePeriodBounds,
+  type PeriodFilterValue,
+} from "@/components/admin/dashboard/DashboardPeriodFilter";
 import {
   CATEGORY_COLORS,
   OTHERS_COLOR,
@@ -92,12 +97,10 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, act
   );
 }
 
-const EMPTY_RANGE = { startDate: "", endDate: "" };
-
 export default function AdminDashboardPage(): React.JSX.Element {
   const router = useRouter();
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
-  const [range, setRange] = useState(EMPTY_RANGE);
+  const [period, setPeriod] = useState<PeriodFilterValue>(createDefaultPeriod);
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
@@ -108,13 +111,15 @@ export default function AdminDashboardPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-  const handleSelectYear = useCallback((id: string) => {
-    setSelectedYearId(id);
-    setRange(EMPTY_RANGE);
-  }, []);
+  const bounds = useMemo(() => resolvePeriodBounds(period), [period]);
 
-  const activeRange =
-    range.startDate && range.endDate ? range : undefined;
+  const activeRange = useMemo(
+    () => ({
+      startDate: format(bounds.start, "yyyy-MM-dd"),
+      endDate: format(bounds.end, "yyyy-MM-dd"),
+    }),
+    [bounds],
+  );
 
   const { data: org } = useAsyncQuery(
     queryKeys.admin.organization.detail(),
@@ -179,7 +184,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         actions={
@@ -189,7 +194,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
               schoolYears={schoolYears}
               isLoading={syLoading}
               selectedId={selectedYearId}
-              onSelect={handleSelectYear}
+              onSelect={setSelectedYearId}
             />
           </div>
         }
@@ -231,42 +236,20 @@ export default function AdminDashboardPage(): React.JSX.Element {
         />
       </div>
 
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
             <h2 className="text-base font-semibold not-interactive">Enrollment Analytics</h2>
             <p className="text-sm text-muted-foreground not-interactive">
-              {activeRange
-                ? "Filtered by enrollment date."
-                : "Showing the whole school year. Pick a date range to narrow it down."}
+              Showing {describePeriod(period)}.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="w-full sm:w-72">
-              <DateRangePicker
-                startDate={range.startDate}
-                endDate={range.endDate}
-                onChange={setRange}
-                placeholder="Filter by date range"
-              />
-            </div>
-            {(range.startDate || range.endDate) && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setRange(EMPTY_RANGE)}
-              >
-                <X className="h-3.5 w-3.5" />
-                Clear
-              </Button>
-            )}
-          </div>
+          <DashboardPeriodFilter value={period} onChange={setPeriod} />
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <div className="mb-3 space-y-0.5">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="mb-2 space-y-0.5">
             <h3 className="text-sm font-semibold text-foreground not-interactive">
               Enrollments over time
             </h3>
@@ -274,10 +257,15 @@ export default function AdminDashboardPage(): React.JSX.Element {
               New student enrollments grouped by their current status.
             </p>
           </div>
-          <EnrollmentTrendChart data={timeline} isLoading={timelineLoading} />
+          <EnrollmentTrendChart
+            data={timeline}
+            isLoading={timelineLoading}
+            placeholderStart={bounds.start}
+            placeholderEnd={bounds.end}
+          />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <DonutChart
             title="Student status"
             subtitle="Enrolled students by status"
