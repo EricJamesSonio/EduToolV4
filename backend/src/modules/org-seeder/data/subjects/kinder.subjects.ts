@@ -16,7 +16,9 @@ export function kinderSubjects(): SubjectDef[] {
   }
   for (const area of KINDER_AREAS) {
     out.push(
-      subj('Kinder 2', null, null, area, 'Kinder 2', 'Whole Year', [area]),
+      subj('Kinder 2', null, null, area, 'Kinder 2', 'Whole Year', [
+        `${area} (Kinder 1)`,
+      ]),
     );
   }
   return out;
