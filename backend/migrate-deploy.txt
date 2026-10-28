@@ -1,0 +1,17 @@
+npm notice run backend@0.0.1 npx
+npm notice run prisma migrate deploy
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "edutool", schema "public" at "localhost:5432"
+
+98 migrations found in prisma/migrations
+
+Applying migration `20261006000000_add_regular_student_marking`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20261006000000_add_regular_student_marking/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
