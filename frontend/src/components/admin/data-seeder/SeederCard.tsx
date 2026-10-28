@@ -8,6 +8,7 @@ import { useNavigationGuard } from "@/context/NavigationGuardContext";
 import { useSchoolProfileData } from "@/hooks/admin/useSchoolProfile"
 import { useEffectiveSeedData } from "./hooks/useEffectiveSeedData"
 import { useSeededPrograms } from "./hooks/useSeededPrograms"
+import { useAutoSelectSubjects } from "./hooks/useAutoSelectSubjects"
 
 import { SchoolYearStep } from "./SchoolYearStep";
 import { ProgramStep } from "./ProgramStep";
@@ -70,6 +71,7 @@ export function SeederCard() {
     selectedCourses,
     selectedStrands,
     selectedSubjects,
+    setSelectedSubjects,
     allSelectableSubjects,
     levelConfigs,
     setLevelCount,
@@ -96,6 +98,8 @@ export function SeederCard() {
     seedOutcome,
     dismissSeedOutcome,
   } = useSeederCard(overrides);
+
+  useAutoSelectSubjects(allSelectableSubjects, setSelectedSubjects);
 
   const { lockedProgramTypes, topUpProgramTypes } = useSeededPrograms(
     selectedSchoolYearId,
