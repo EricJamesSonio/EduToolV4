@@ -10,6 +10,7 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto';
 import { ProgramDeletionCheckDto } from './dto/program-deletion.dto';
 import { runInTx } from '@/commons/utils/prisma-transaction.util';
+import { materializeSemestersFromAssignment } from '../semester-template/semester-materializer.util';
 import {
   buildDeletionReport,
   formatBlockerMessage,
@@ -129,16 +130,12 @@ export class ProgramService {
     return updated;
   }
 
-  /**
-   * Semesters actually belonging to this program in this school year.
-   *
-   * Resolved by the real `program_id` FK on Semester — no more resolving
-   * "this program's semesters" by matching Semester.name against a
-   * template's semester names. A single scoped query, not a two-step
-   * lookup-then-intersect.
-   */
-  async getSemesters(programId: string, schoolYearId: string, orgId: string) {
-    const semesters = await this.db.semester.findMany({
+  private findSemestersForProgram(
+    programId: string,
+    schoolYearId: string,
+    orgId: string,
+  ) {
+    return this.db.semester.findMany({
       where: {
         org_id: orgId,
         school_year_id: schoolYearId,
@@ -149,6 +146,44 @@ export class ProgramService {
       },
       orderBy: { start_date: 'asc' as const },
     });
+  }
+
+  /**
+   * Semesters actually belonging to this program in this school year.
+   *
+   * Resolved by the real `program_id` FK on Semester. If the program has a
+   * template assignment with term dates but no Semester rows yet (for example
+   * an assignment written by the seeder), the rows are created here so every
+   * consumer — class preset, New Class, class generation — sees them.
+   */
+  async getSemesters(programId: string, schoolYearId: string, orgId: string) {
+    let semesters = await this.findSemestersForProgram(
+      programId,
+      schoolYearId,
+      orgId,
+    );
+
+    if (semesters.length === 0) {
+      const program = await this.db.program.findFirst({
+        where: { id: programId, org_id: orgId, school_year_id: schoolYearId },
+        select: { id: true },
+      });
+
+      if (program) {
+        const created = await materializeSemestersFromAssignment(this.db, {
+          orgId,
+          programId,
+          schoolYearId,
+        });
+        if (created > 0) {
+          semesters = await this.findSemestersForProgram(
+            programId,
+            schoolYearId,
+            orgId,
+          );
+        }
+      }
+    }
 
     return semesters.map((s) => ({
       id: s.id,
