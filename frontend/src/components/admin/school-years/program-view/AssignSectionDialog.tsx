@@ -100,7 +100,7 @@ export function AssignSectionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LayoutGrid className="h-4 w-4" />
-            Assign Section
+            {programEnrollment.section ? "Change Section" : "Assign Section"}
           </DialogTitle>
         </DialogHeader>
 
@@ -164,7 +164,7 @@ export function AssignSectionDialog({
               onClick={handleSave}
               disabled={!selectedSectionId || sections.length === 0 || updateMutation.isPending || isEnded}
             >
-              {updateMutation.isPending ? "Saving..." : "Assign"}
+              {updateMutation.isPending ? "Saving..." : programEnrollment.section ? "Change" : "Assign"}
             </Button>
           </div>
         </div>

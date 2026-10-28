@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, AtSign, Hash, Calendar, GraduationCap, BookOpen, Users, Layers, ArrowRightLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Mail, AtSign, Hash, Calendar, GraduationCap, BookOpen, Users, Layers, ArrowRightLeft, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import { AssignSectionDialog } from "@/components/admin/school-years/program-view/AssignSectionDialog";
@@ -56,6 +58,7 @@ export function StudentInfoCard({
   schoolYearId,
   isEnded,
 }: Props): React.JSX.Element {
+  const router = useRouter();
   const [moveTarget, setMoveTarget] = useState<{
     sye: StudentSchoolYearEnrollment;
     programEnrollment: ProgramEnrollmentSnapshot;
@@ -120,9 +123,24 @@ export function StudentInfoCard({
             label="Enrollments"
             value={
               allProgramEnrollments.length === 0 ? (
-                <span className="text-muted-foreground font-normal not-interactive">
-                  Not enrolled in any department yet.
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-normal not-interactive">
+                    Not enrolled in any department yet.
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() =>
+                      router.push(
+                        `/admin/enrollment/enroll?schoolYearId=${schoolYearId}`,
+                      )
+                    }
+                  >
+                    <UserPlus className="h-3.5 w-3.5 mr-1" />
+                    Enroll now
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-3 mt-1 min-w-0">
                   {allProgramEnrollments.map((pe) => (
