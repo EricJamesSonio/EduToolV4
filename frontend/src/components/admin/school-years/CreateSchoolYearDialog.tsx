@@ -22,6 +22,7 @@ import {
 } from "@/components/admin/data-seeder/SeedProgressDialog";
 import { buildSeedStages } from "@/components/admin/data-seeder/seed-stages";
 
+import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { CreateForm, ShortDurationWarning } from "./types/types";
 import { isShortDurationError, getSchoolYearOverlapMessage } from "./utils/helpers";
 import {
@@ -32,6 +33,12 @@ import {
 interface Props {
   open: boolean;
   onClose: () => void;
+  /**
+   * When provided, the caller handles what happens after creation (for example
+   * the Data Seeder selecting the new year), so the "Seed this school year?"
+   * prompt is skipped.
+   */
+  onCreated?: (schoolYear: SchoolYear) => void;
 }
 
 function previewName(start: string, end: string): string | null {
@@ -47,7 +54,7 @@ interface PendingSeedPrompt {
   schoolYearName: string;
 }
 
-export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Element {
+export function CreateSchoolYearDialog({ open, onClose, onCreated }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
 
   const [shortDurationWarning, setShortDurationWarning] =
@@ -95,6 +102,12 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
 
       reset();
       setShortDurationWarning(null);
+
+      if (onCreated && createdSchoolYear?.id) {
+        onCreated(createdSchoolYear as SchoolYear);
+        onClose();
+        return;
+      }
 
       if (!alreadySeeded && hasProfile && createdSchoolYear?.id) {
         setPendingSeedPrompt({

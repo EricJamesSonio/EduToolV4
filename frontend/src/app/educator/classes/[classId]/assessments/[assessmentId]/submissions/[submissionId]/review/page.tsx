@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import {
   useAssessment,
@@ -35,6 +34,9 @@ export default function SubmissionReviewPage() {
   const assessmentId = params.assessmentId as string;
   const submissionId = params.submissionId as string;
 
+  const submissionsHref = `/educator/classes/${classId}/assessments/${assessmentId}/submissions`;
+  const goToSubmissions = () => router.push(submissionsHref);
+
   const { data: assessment } = useAssessment(classId, assessmentId);
   const { data: submissions } = useAssessmentSubmissions(classId, assessmentId);
   const { data: answers, isLoading: answersLoading } = useSubmissionAnswers(assessmentId, submissionId);
@@ -54,7 +56,7 @@ export default function SubmissionReviewPage() {
     try {
       await gradeEssay({ submissionId: submission.id, score: manualScore });
       toast.success("Manual score saved.");
-      router.back();
+      goToSubmissions();
     } catch {
       toast.error("Failed to save score.");
     }
@@ -66,7 +68,7 @@ export default function SubmissionReviewPage() {
         <PageHeader title="Submission Review" breadcrumbs={[
           { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
           { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
-          { label: "Submissions", href: `/educator/classes/${classId}/assessments/${assessmentId}/submissions` },
+          { label: "Submissions", href: submissionsHref },
           { label: "Review" },
         ]} />
         <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
@@ -83,17 +85,16 @@ export default function SubmissionReviewPage() {
         breadcrumbs={[
           { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
           { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
-          { label: "Submissions", href: `/educator/classes/${classId}/assessments/${assessmentId}/submissions` },
+          { label: "Submissions", href: submissionsHref },
           { label: "Review" },
         ]}
         actions={
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <Button variant="ghost" size="sm" onClick={goToSubmissions}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
         }
       />
 
-      {/* Student info + score summary card */}
       <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -130,7 +131,6 @@ export default function SubmissionReviewPage() {
         </div>
       </div>
 
-      {/* Q&A card */}
       <div className="w-full rounded-lg border border-border bg-card">
         <div className="border-b border-border px-6 py-3">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -154,10 +154,9 @@ export default function SubmissionReviewPage() {
         )}
       </div>
 
-      {/* Save button */}
       {hasManualQuestions && (
         <div className="flex items-center justify-end gap-3">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={goToSubmissions}>Cancel</Button>
           <Button size="sm" onClick={handleSave} disabled={isGrading || answersLoading}>
             {isGrading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Manual Score
@@ -165,7 +164,6 @@ export default function SubmissionReviewPage() {
         </div>
       )}
 
-      {/* Lock notice dialog */}
       <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -214,10 +212,8 @@ function AnswerCard({
         </div>
       </div>
 
-      {/* Question text */}
       <p className="text-sm font-medium">{answer.question.questionText}</p>
 
-      {/* Choices (for MC / T/F) */}
       {answer.question.choices && answer.question.choices.length > 0 && (
         <div className="space-y-1">
           {answer.question.choices.map((choice, ci) => {
@@ -240,7 +236,6 @@ function AnswerCard({
         </div>
       )}
 
-      {/* Student answer */}
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground font-medium">Student answer:</p>
         <div className={cn(
@@ -251,7 +246,6 @@ function AnswerCard({
         </div>
       </div>
 
-      {/* Manual score input */}
       {isManual && (
         <div className="flex items-center gap-3 pt-1">
           <label className="text-sm font-medium">Score:</label>
@@ -265,5 +259,3 @@ function AnswerCard({
     </div>
   );
 }
-
-

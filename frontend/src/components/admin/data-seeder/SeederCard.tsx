@@ -1,10 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, Calendar, Database, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useNavigationGuard } from "@/context/NavigationGuardContext";
 import { useSchoolProfileData } from "@/hooks/admin/useSchoolProfile"
 import { useEffectiveSeedData } from "./hooks/useEffectiveSeedData"
@@ -54,11 +53,6 @@ export function SeederCard() {
     syLoading,
     selectedSchoolYearId,
     setSelectedSchoolYearId,
-    handleCreateSchoolYear,
-    handleConfirmShortDuration,
-    pendingSchoolYear,
-    setPendingSchoolYear,
-    createSchoolYearMutation,
     seedMutation,
     handleSeed,
     handleSelectAll,
@@ -156,8 +150,6 @@ export function SeederCard() {
             isLoading={syLoading}
             selectedId={selectedSchoolYearId}
             onSelect={setSelectedSchoolYearId}
-            onCreate={handleCreateSchoolYear}
-            isCreating={createSchoolYearMutation.isPending}
           />
         </Card>
 
@@ -380,19 +372,6 @@ export function SeederCard() {
       </div>
 
       <SeedProgressDialog outcome={seedOutcome} onClose={dismissSeedOutcome} />
-
-      <ConfirmDialog
-        open={!!pendingSchoolYear}
-        title="School year looks short"
-        message="This school year doesn't span a full year. This might be a mistake. Are you sure you want to proceed?"
-        confirmLabel="Yes, create it"
-        destructive={false}
-        isLoading={createSchoolYearMutation.isPending}
-        onConfirm={handleConfirmShortDuration}
-        onOpenChange={(o) => {
-          if (!o) setPendingSchoolYear(null);
-        }}
-      />
     </>
   );
 }

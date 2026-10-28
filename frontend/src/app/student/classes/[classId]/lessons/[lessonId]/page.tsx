@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { LessonContent } from "@/components/shared/LessonContent";
 import { useStudentLesson, useStudentLessons } from "@/hooks/student/usestudentLessons";
 import type { StudentLesson } from "@/api/student/lesson.api";
 
@@ -58,16 +59,9 @@ export default function StudentLessonDetailPage(): React.JSX.Element {
           <span className="w-24 text-sm text-muted-foreground shrink-0">Week</span>
           <span className="text-sm">Week {lesson.weekNumber}</span>
         </div>
-        <div className="px-6 py-4 space-y-1.5">
+        <div className="px-6 py-4 space-y-3">
           <span className="text-sm text-muted-foreground">Lesson Detail</span>
-          {lesson.detail ? (
-            <div
-              className="text-sm prose prose-sm max-w-none text-foreground"
-              dangerouslySetInnerHTML={{ __html: lesson.detail }}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">No content available.</p>
-          )}
+          <LessonContent content={lesson.detail} />
         </div>
       </div>
 

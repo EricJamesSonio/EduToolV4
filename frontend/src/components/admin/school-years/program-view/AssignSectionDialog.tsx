@@ -54,6 +54,17 @@ export function AssignSectionDialog({
 
   const updateMutation = useUpdateProgramEnrollment(schoolYearId);
 
+  // Resolve the label ourselves instead of relying on SelectValue, which can
+  // fall back to rendering the raw value (a UUID) when the matching item is
+  // not mounted. Falls back to the student's current section name so the id
+  // can never leak through before the sections list has loaded.
+  const currentSection = programEnrollment.section;
+  const selectedSectionLabel: string | null =
+    (sections as Section[]).find((s) => s.id === selectedSectionId)?.name ??
+    (selectedSectionId && currentSection && selectedSectionId === currentSection.id
+      ? currentSection.name
+      : null);
+
   const handleSave = () => {
     if (!selectedSectionId) return;
     setFormError(null);
@@ -109,9 +120,11 @@ export function AssignSectionDialog({
           ) : (
             <Select value={selectedSectionId} onValueChange={(v) => { if (v !== null) setSelectedSectionId(v); }}>
               <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder="Select a section">
-                  {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select a section"}
-                </SelectValue>
+                {selectedSectionLabel ? (
+                  <span className="flex flex-1 truncate text-left">{selectedSectionLabel}</span>
+                ) : (
+                  <SelectValue placeholder="Select a section" />
+                )}
               </SelectTrigger>
               <SelectContent>
                 {sections.map((sec) => (
