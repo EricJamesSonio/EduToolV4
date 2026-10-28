@@ -2,39 +2,50 @@
 
 **Priority:** High after baseline  
 **Risk:** Low  
-**Goal:** Keep development-only tools out of production's initial client bundle and remove avoidable eager imports.
+**Goal:** Verify that development-only tooling is already excluded from production, without introducing speculative provider refactors.
 
-## Known candidate
+## Current state
 
-### `src/app/providers.tsx`
+The review confirmed that `frontend/src/app/providers.tsx` already:
 
-The file currently imports React Query Devtools and renders it only in development. A recent change replaced the static import with `next/dynamic`, while retaining the development-only conditional. Verify the actual current file before changing it again.
+- imports `ReactQueryDevtools` through `next/dynamic`;
+- imports `DevDebugPanel` through `next/dynamic`;
+- renders both only when `process.env.NODE_ENV === "development"`;
+- keeps `QueryClientProvider`, `AuthProvider`, and the application tree eager.
 
-## Audit candidates
+The production manifest reportedly contains only an approximately 0.3 KB devtools stub. The meeting and notification work must not be mixed into this phase.
 
-- Development-only panels, inspectors, mock tools, and debug overlays.
-- Large optional libraries imported by global providers or root layouts.
-- Modules imported at the top level even though they are used only after a user opens a feature.
-- Duplicate imports or re-exports that prevent a clear route-specific dependency boundary.
+## Verification tasks
+
+1. Inspect the current `frontend/src/app/providers.tsx` before changing anything.
+2. Run a fresh production build.
+3. Inspect the new production route manifests and chunks for dev-only tooling.
+4. Confirm that no full React Query Devtools or debug-panel implementation is shipped to production.
+5. Run the app in development and confirm:
+   - React Query Devtools still appear;
+   - the debug panel still appears;
+   - provider ordering and behavior are unchanged.
+6. Confirm that failed verification is the only reason to modify providers.
 
 ## Rules
 
-- Keep the existing providers and their ordering unless code tracing proves a change is safe.
+- Do not refactor providers merely to change their structure.
+- Do not move authentication or query initialization into a delayed component.
 - Do not lazy-load tiny components without evidence that it helps.
-- Confirm that production does not render development tools and that development tools still work in development.
-- Avoid moving authentication or query initialization into a delayed component.
-- Check SSR/client-only constraints before applying `ssr: false`.
+- Do not introduce additional cleanup in this phase without a measured reason.
+- Preserve provider ordering unless source tracing proves a change is safe.
+- Check SSR/client-only constraints before using `ssr: false`.
 
 ## Validation
 
-1. Run the production build and TypeScript checks.
-2. Run the development app and confirm React Query Devtools and the debug panel still appear in development.
-3. Inspect production rendering/configuration to confirm development-only tools are absent.
-4. Review the diff for accidental provider-order or behavior changes.
+- Fresh production build and typecheck pass.
+- Development tools work in development.
+- Production output contains no full dev-tool implementation.
+- The diff is limited to verification-related changes, if any.
 
 ## Exit criteria
 
-- Build and type-check pass.
-- Development-only tools work in development.
-- No development tooling is rendered in production.
-- Any bundle-size claim is supported by output or measurement.
+- Dev-only tooling is confirmed absent from production.
+- Development tooling still works.
+- Any bundle-size claim is supported by the fresh build output.
+- No broad provider or dependency cleanup was performed without evidence.

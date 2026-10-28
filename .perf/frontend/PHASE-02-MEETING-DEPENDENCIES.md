@@ -1,54 +1,112 @@
-# Phase 02 — Meeting-Only Dependencies
+# Phase 02 — Meeting Dependencies
 
-**Priority:** High if meeting code contributes to initial load  
-**Risk:** Medium–High  
-**Goal:** Keep real-time meeting SDK code off routes that do not use meetings while preserving reliable join/leave and media behavior.
+**Priority:** After Phase 04  
+**Risk:** Medium to high  
+**Goal:** Preserve reliable meeting behavior while removing meeting-only code from routes that do not need it.
 
-## Known candidates
+This phase is split into two independent batches:
 
-- `src/hooks/meeting/useAgoraRTC.ts`
-- `src/hooks/meeting/useMeetingSocket.ts`
-- Meeting components and their import chains, to be discovered from the repository.
+- **Phase 02A — Meeting lifecycle correctness:** fix track/client cleanup and screen-share restoration.
+- **Phase 02B — Lazy Socket.IO loading:** defer the socket client until a meeting connection is actually needed.
 
-The shared `useAgoraRTC.ts` version dynamically imports `agora-rtc-sdk-ng` when meeting credentials are available. The latest version must be verified against the installed SDK typings and actual meeting flows before it is considered complete.
+Do not attempt 02B while 02A is unresolved.
 
-## Audit first
+## Phase 02A — Meeting lifecycle correctness
 
-Trace where meeting hooks and components are imported. A dynamic import inside a hook does not necessarily remove every meeting-related component or dependency from every route if those modules are statically imported elsewhere.
+### Review findings
 
-Determine whether `socket.io-client` is loaded globally or only when a meeting feature is mounted. Do not change it until its import graph and lifecycle are understood.
+Inspect the current source before editing; line numbers may drift. The reviewed code in `frontend/src/hooks/meeting/useAgoraRTC.ts` has these reported problems:
 
-## Lifecycle and correctness requirements
+- When screen sharing starts, the camera track is stopped with `cameraTrack.stop()` but is not closed.
+- After screen sharing ends, a new camera track is created, but the previous stopped track may remain unclosed.
+- Effect cleanup closes only the track currently stored in `localVideoRef`; if that is a screen track, an earlier camera track may leak.
+- If screen-share publishing or track creation fails after the camera has been unpublished, the camera may remain unpublished or not be restored.
+- Cancellation checks exist, but a failed restoration path only logs the error.
 
-- Handle missing credentials without loading the SDK or joining a channel.
-- Handle unmount/re-render during SDK import, join, track creation, publish, and subscribe.
-- Ensure cleanup does not leak tracks, clients, listeners, sockets, or media devices.
-- Avoid double `leave()`/`close()` operations where they cause errors or races.
-- Avoid publishing a screen track after the meeting has already been torn down.
-- Restore the camera correctly after screen sharing ends, and close replaced tracks when safe.
-- Keep remote audio/video subscriptions and user-left/unpublished state correct.
-- Preserve microphone/camera toggles, screen-share stop behavior, and existing DOM playback targets.
-- Avoid stale callbacks mutating a later meeting session.
-- Use actual SDK types; do not invent broad casts solely to suppress TypeScript errors.
+These are correctness issues, not merely bundle-size issues. They affect device ownership, privacy indicators, rejoin behavior, and long-session stability.
 
-## Suggested implementation order
+### Required behavior
 
-1. Fix and validate the current `useAgoraRTC.ts` TypeScript/build errors first.
-2. Smoke-test joining, local camera/mic, remote media, screen sharing, stopping screen sharing, and leaving.
-3. Inspect the route/component import graph for meeting-only modules.
-4. Only then consider lazy-loading meeting UI at the route or interaction boundary.
-5. Consider dynamically importing the socket client only if measurement/import tracing shows it is useful.
+- Every owned track must be closed exactly once when no longer needed.
+- Replacing a camera track with a screen track, or the reverse, must not orphan the replaced track.
+- Browser-native “Stop sharing” and the application’s stop action must converge on the same cleanup path.
+- A failed screen-share start must leave the meeting in a usable state with the camera restored where possible.
+- Unmounting during SDK import, join, publish, or screen-share initialization must not leave devices or listeners behind.
+- Leaving and rejoining must not reuse stale tracks, clients, or callbacks.
+- Do not change Agora subscription or screen-sharing semantics unless required by the bug fix.
 
-## Validation
+### Tests
 
-- Production build and TypeScript pass.
-- Join and leave repeatedly without stale UI or device-lock problems.
-- Camera/mic toggles work.
-- At least two participants can exchange audio/video.
-- Screen share starts and ends; camera returns correctly.
-- Navigating away during SDK initialization does not leak or throw unhandled errors.
-- Routes that never open meetings do not eagerly load the heavy meeting SDK, if the implementation claims this result.
+Before and after the change, exercise:
 
-## Exit criteria
+1. Join and leave a meeting.
+2. Toggle camera and microphone.
+3. Start and stop screen sharing.
+4. Stop sharing with the browser-native control.
+5. Confirm the camera returns after screen sharing ends.
+6. Force a screen-share failure and confirm recovery.
+7. Navigate away during initialization and while sharing.
+8. Rejoin after leaving.
+9. Confirm all owned tracks are closed and no device indicators remain.
+10. Confirm remote participants still see the expected camera, screen, audio, and presence state.
 
-All lifecycle and meeting checks pass. Bundle improvement is verified rather than assumed.
+Use two participants where the behavior requires a remote view. Record any test that cannot be run locally.
+
+### Acceptance criteria
+
+- No track/device leak is observed in repeated join/share/leave cycles.
+- Camera and microphone toggles remain correct.
+- Screen share starts, ends, and restores the camera reliably.
+- Navigation away and rejoin do not throw unhandled errors.
+- Production build and typecheck pass.
+- No bundle-size claim is made for this subphase.
+
+## Phase 02B — Lazy Socket.IO loading
+
+### Review findings
+
+The original assumption that meeting dependencies are already fully deferred is incorrect.
+
+- `frontend/src/hooks/meeting/useMeetingSocket.ts` statically imports `socket.io-client`.
+- `frontend/src/app/educator/layout.tsx` and `frontend/src/app/student/layout.tsx` use `next/dynamic` for the meeting provider.
+- The provider loader chunk still requests a chunk containing Socket.IO and meeting context after hydration.
+- The reviewed Socket.IO-related chunk was approximately **47.5 KB raw**.
+- Agora is already deferred behind meeting credentials; preserve that behavior.
+
+### Investigation
+
+Before changing the import:
+
+1. Trace every consumer of `useMeetingSocket` and the meeting context.
+2. Confirm whether Socket.IO is used outside meeting routes.
+3. Identify the exact conditions under which a connection is required: meeting ID, token, role, and any room/join state.
+4. Confirm present behavior for presence, chat, reconnect, authentication, and disconnect cleanup.
+5. Decide between:
+   - dynamically importing `socket.io-client` inside the connection effect; or
+   - gating the meeting provider so it is only mounted when a meeting is active.
+
+Prefer the smallest boundary that removes the chunk from non-meeting routes while preserving the existing provider/context contract. Do not move the whole meeting UI into a delayed boundary merely to hide the import.
+
+### Rules
+
+- Do not assume socket usage is meeting-only; verify it.
+- Preserve authentication, presence, chat, reconnect, and cleanup semantics.
+- Preserve Agora’s existing deferred import.
+- Do not create duplicate sockets or change reconnection policy without evidence.
+- Do not suppress errors or weaken types to make the change compile.
+- Keep the change reversible.
+
+### Validation
+
+- Fresh build and typecheck pass.
+- Non-meeting educator and student routes do not request the Socket.IO chunk.
+- Meeting routes still connect, exchange chat/presence, reconnect, and disconnect cleanly.
+- Repeat join/leave and navigation between routes.
+- Record the before/after runtime chunk request, not only the static manifest.
+
+### Exit criteria
+
+- 02A lifecycle checks pass.
+- Socket.IO is absent from non-meeting route loading, or a documented investigation explains why it cannot be removed safely.
+- Meeting functionality is unchanged.
+- The improvement is measured in the browser network panel and supported by a fresh build.

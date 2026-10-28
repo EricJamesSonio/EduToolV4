@@ -51,7 +51,7 @@ export function GradeLockSettingModal({
   useEffect(() => {
     setName(existingSetting?.name ?? "")
     setDeadline(toLocalInput(existingSetting?.lock_deadline))
-  }, [existingSetting?.id, open]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [existingSetting?.id, open])
 
   const createMutation = useCreateGradeLockSetting()
   const updateMutation = useUpdateGradeLockSetting()

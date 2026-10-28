@@ -12,7 +12,11 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { subjectCompletionApi } from "@/api/admin/subject-completion.api";
-import { SubjectHierarchyModal } from "@/components/admin/subject/hierarchy/SubjectHierarchyModal";
+import dynamic from "next/dynamic";
+const SubjectHierarchyModal = dynamic(
+  () => import("@/components/admin/subject/hierarchy/SubjectHierarchyModal").then((m) => m.SubjectHierarchyModal),
+  { ssr: false },
+);
 import type { HierarchyScope } from "@/api/admin/subject-hierarchy.api";
 
 interface Props {

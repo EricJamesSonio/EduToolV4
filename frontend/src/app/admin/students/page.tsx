@@ -24,9 +24,14 @@ import { Button }        from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
+import dynamic from "next/dynamic";
+
 import { StudentFilterBar }    from "@/components/admin/student/StudentFilterBar";
 import { StudentTable }        from "@/components/admin/student/StudentTable";
-import { CreateStudentDialog } from "@/components/admin/student/CreateStudentDialog";
+const CreateStudentDialog = dynamic(
+  () => import("@/components/admin/student/CreateStudentDialog").then((m) => m.CreateStudentDialog),
+  { ssr: false },
+);
 import { BulkCreateStudentDialog } from "@/components/admin/student/BulkCreateStudentDialog";
 import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
