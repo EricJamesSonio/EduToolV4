@@ -2,12 +2,22 @@ import { UseQueryResult } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { analyticsApi, DEFAULT_PAGE_SIZE } from "@/api/admin/analytics.api";
-import type { AnalyticsOverview, EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
+import type {
+  AnalyticsOverview,
+  EnrollmentBreakdownRow,
+  EnrollmentDistribution,
+  EnrollmentTimeline,
+} from "@/types/admin/analytics.types";
 import type { PaginatedResponse } from "@/types/api.types";
 import type { GradeAnalyticsResponse } from "@/api/admin/analytics.api";
 
 interface QueryGate {
   enabled?: boolean;
+}
+
+interface DateRangeFilter {
+  startDate?: string;
+  endDate?: string;
 }
 
 export const useAnalyticsOverview = (
@@ -40,6 +50,58 @@ export const useEnrollmentBreakdown = (
     () => analyticsApi.getEnrollmentBreakdown(schoolYearId, page, limit),
     {
       enabled: !!schoolYearId && (options?.enabled ?? true),
+    },
+  );
+};
+
+export const useEnrollmentTimeline = (
+  schoolYearId?: string,
+  range?: DateRangeFilter,
+  options?: QueryGate,
+): UseQueryResult<EnrollmentTimeline, Error> => {
+  return useAsyncQuery<EnrollmentTimeline>(
+    [
+      ...queryKeys.admin.analytics.all,
+      'timeline',
+      schoolYearId ?? '',
+      range?.startDate ?? '',
+      range?.endDate ?? '',
+    ] as const,
+    () =>
+      analyticsApi.getEnrollmentTimeline({
+        schoolYearId,
+        startDate: range?.startDate,
+        endDate: range?.endDate,
+      }),
+    {
+      enabled: !!schoolYearId && (options?.enabled ?? true),
+      meta: { preset: 'list', feature: 'analytics-timeline' },
+    },
+  );
+};
+
+export const useEnrollmentDistribution = (
+  schoolYearId?: string,
+  range?: DateRangeFilter,
+  options?: QueryGate,
+): UseQueryResult<EnrollmentDistribution, Error> => {
+  return useAsyncQuery<EnrollmentDistribution>(
+    [
+      ...queryKeys.admin.analytics.all,
+      'distribution',
+      schoolYearId ?? '',
+      range?.startDate ?? '',
+      range?.endDate ?? '',
+    ] as const,
+    () =>
+      analyticsApi.getEnrollmentDistribution({
+        schoolYearId,
+        startDate: range?.startDate,
+        endDate: range?.endDate,
+      }),
+    {
+      enabled: !!schoolYearId && (options?.enabled ?? true),
+      meta: { preset: 'list', feature: 'analytics-distribution' },
     },
   );
 };
