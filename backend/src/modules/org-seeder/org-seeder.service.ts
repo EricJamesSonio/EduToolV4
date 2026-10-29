@@ -67,58 +67,62 @@ export class OrgSeederService {
       ctx.profileSemesterTerms[cfg.programType] = cfg.terms as string[];
     }
 
-    await this.db.orgEnrollmentSetting.upsert({
-      where: { org_id: ctx.orgId },
-      update: {},
-      create: {
-        id: seedId('org-enrollment-setting', ctx.orgId),
-        org_id: ctx.orgId,
-        require_semester_reenrollment: false,
-        auto_unenroll_on_year_end: true,
-      },
-    });
-
-    // One-row-per-org concern digest setting, mirroring OrgEnrollmentSetting.
-    await this.db.orgConcernSetting.upsert({
-      where: { org_id: ctx.orgId },
-      update: {},
-      create: { org_id: ctx.orgId },
-    });
-
-    // Seed default concern categories (idempotent per unique [org_id, label]).
-    for (const label of DEFAULT_CONCERN_CATEGORIES) {
-      await this.db.concernCategory.upsert({
-        where: {
-          org_id_label: { org_id: ctx.orgId, label },
-        },
+    // Org-level defaults are independent of each other: write them together.
+    await Promise.all([
+      this.db.orgEnrollmentSetting.upsert({
+        where: { org_id: ctx.orgId },
         update: {},
-        create: { org_id: ctx.orgId, label, is_default: true },
-      });
-    }
+        create: {
+          id: seedId('org-enrollment-setting', ctx.orgId),
+          org_id: ctx.orgId,
+          require_semester_reenrollment: false,
+          auto_unenroll_on_year_end: true,
+        },
+      }),
+      // One-row-per-org concern digest setting, mirroring OrgEnrollmentSetting.
+      this.db.orgConcernSetting.upsert({
+        where: { org_id: ctx.orgId },
+        update: {},
+        create: { org_id: ctx.orgId },
+      }),
+      // Default concern categories (idempotent per unique [org_id, label]).
+      this.db.concernCategory.createMany({
+        data: DEFAULT_CONCERN_CATEGORIES.map((label) => ({
+          org_id: ctx.orgId,
+          label,
+          is_default: true,
+        })),
+        skipDuplicates: true,
+      }),
+    ]);
 
     await this.programSeeder.seed(ctx);
     await this.courseSeeder.seed(ctx);
     await this.strandSeeder.seed(ctx);
 
-    console.log('courseMap keys:', Object.keys(ctx.courseMap));
-    console.log('strandMap keys:', Object.keys(ctx.strandMap));
-    console.log('sectionConfigs keys:', Object.keys(ctx.sectionConfigs));
+    // Levels/sections and the grading setups only need the program map, so
+    // they run side by side.
+    await Promise.all([
+      this.levelSectionSeeder.seed(ctx),
+      ctx.seedGradingScales
+        ? this.gradingScaleSeeder.seed(ctx)
+        : Promise.resolve(),
+      ctx.seedGradingSchemes
+        ? this.gradingSchemeSeeder.seed(ctx)
+        : Promise.resolve(),
+    ]);
 
-    await this.levelSectionSeeder.seed(ctx);
-
-    if (ctx.seedGradingScales) {
-      await this.gradingScaleSeeder.seed(ctx);
-    }
-    if (ctx.seedGradingSchemes) {
-      await this.gradingSchemeSeeder.seed(ctx);
-    }
+    // Templates are derived from the calendar, so the order matters here.
     await this.programCalendarSeeder.seed(ctx);
     if (ctx.seedSemesterTemplates) {
       await this.semesterTemplateSeeder.seed(ctx);
     }
 
-    await this.majorSubjectSeeder.seed(ctx);
-    await this.minorSubjectSeeder.seed(ctx);
+    // Majors and minors write different subject rows, so they can overlap.
+    await Promise.all([
+      this.majorSubjectSeeder.seed(ctx),
+      this.minorSubjectSeeder.seed(ctx),
+    ]);
     await this.prerequisiteSeeder.seed(ctx);
 
     this.auditLogService
