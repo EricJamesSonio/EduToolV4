@@ -1,7 +1,8 @@
 // frontend/src/components/admin/data-seeder/SchoolYearStep.tsx
 "use client";
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Check, Plus } from "lucide-react"
 import { Badge }    from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,6 +27,23 @@ export function SchoolYearStep({
   const { ensureOrganization } = useOrganizationGuard()
   const [showCreate, setShowCreate] = useState(false)
 
+  // Arriving from the School Years page ("Seed it") pre-selects that year.
+  // Once the admin picks a card themselves, we never override their choice.
+  const searchParams = useSearchParams()
+  const requestedId = searchParams.get("schoolYearId")
+  const pickedByUser = useRef(false)
+
+  useEffect(() => {
+    if (!requestedId || pickedByUser.current || isLoading) return
+    if (!schoolYears.some((sy) => sy.id === requestedId)) return
+    if (selectedId !== requestedId) onSelect(requestedId)
+  }, [requestedId, schoolYears, isLoading, selectedId, onSelect])
+
+  function handleSelect(id: string) {
+    pickedByUser.current = true
+    onSelect(id)
+  }
+
   return (
     <div className="space-y-3">
       {isLoading ? (
@@ -41,7 +59,7 @@ export function SchoolYearStep({
                 <button
                   key={sy.id}
                   type="button"
-                  onClick={() => onSelect(sy.id)}
+                  onClick={() => handleSelect(sy.id)}
                   className={cn(
                     "flex items-center justify-between rounded-lg border px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50",
                     selectedId === sy.id && "border-primary bg-primary/5",
@@ -95,7 +113,7 @@ export function SchoolYearStep({
       <CreateSchoolYearDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={(schoolYear) => onSelect(schoolYear.id)}
+        onCreated={(schoolYear) => handleSelect(schoolYear.id)}
       />
     </div>
   )
