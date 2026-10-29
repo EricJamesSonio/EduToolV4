@@ -1,10 +1,11 @@
 import 'reflect-metadata';
 
 import * as bcrypt from 'bcrypt';
-import { AccountStatus } from '@prisma/client';
+import { AccountStatus, Prisma } from '@prisma/client';
 
 import { db } from '../domain/db';
 import { SALT_ROUNDS, SEED_PASSWORD } from '../domain/constants';
+import { checkSchoolYearReadiness } from '../domain/readiness-check';
 import {
   buildEducatorEmail,
   buildStudentEmail,
@@ -13,22 +14,29 @@ import {
   slugify,
 } from '../domain/utils/identity.util';
 import { seedId } from '../../modules/org-seeder/seed-id';
+import { SCALE_COLLEGE } from '../../modules/org-seeder/data/grading-scale.data';
+import { SCHEME_PRESETS } from '../../modules/org-seeder/data/grading-schemes.data';
 import { hhmmToScheduleDate } from '../../commons/utils/schedule-time.util';
 
 import {
+  COLLEGE_SCALE_NAME,
   COURSE,
   DEFAULT_STUDENT_SECTION,
   ENROLL_STUDENTS_IN_CLASSES,
-  RAW_STUDENT_NAMES,
-  SCHEDULES,
-  SECTIONS,
-  WEEKDAY_NUMBER,
-} from './bscs.data';
-import {
   IRREGULAR_EXTRA_SECTIONS,
   IRREGULAR_RATE_PERCENT,
   IRREGULAR_STUDENTS,
+  LEGACY_SECTION_NAMES,
+  RAW_STUDENT_NAMES,
   REGULAR_STUDENTS,
+  SCHEDULES,
+  SECTIONS,
+  SEMESTER_BREAK_DAYS,
+  SEMESTER_BREAK_LABEL,
+  SEMESTER_NAMES,
+  SEMESTER_TEMPLATE_NAME,
+  SEMESTER_TERM_NAMES,
+  WEEKDAY_NUMBER,
   type ScheduleDef,
 } from './bscs.data';
 
@@ -46,8 +54,32 @@ type Ctx = {
   anchorDate: Date;
   programId: string;
   courseId: string;
-  semesterId: string;
 };
+
+type DateRange = {
+  start: Date;
+  end: Date;
+};
+
+type SeededSemester = {
+  id: string;
+  name: string;
+  start: Date;
+  end: Date;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const TEMPLATE_INCLUDE = {
+  semesters: {
+    orderBy: { order_index: 'asc' },
+    include: { terms: { orderBy: { order_index: 'asc' } } },
+  },
+} satisfies Prisma.SemesterTemplateInclude;
+
+type TemplateWithItems = Prisma.SemesterTemplateGetPayload<{
+  include: typeof TEMPLATE_INCLUDE;
+}>;
 
 const ORG_SELECT = {
   id: true,
@@ -65,6 +97,20 @@ function readOption(name: string, envName: string): string | undefined {
 
 function describeOrg(o: OrgInfo): string {
   return `${o.name} (${o.slug ?? o.email_extension ?? o.id})`;
+}
+
+function addDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * DAY_MS);
+}
+
+function splitRange(range: DateRange, count: number): DateRange[] {
+  const total = range.end.getTime() - range.start.getTime();
+  return Array.from({ length: count }, (_, i) => ({
+    start: new Date(range.start.getTime() + Math.floor((total * i) / count)),
+    end: new Date(
+      range.start.getTime() + Math.floor((total * (i + 1)) / count),
+    ),
+  }));
 }
 
 async function resolveOrg(): Promise<OrgInfo | null> {
@@ -111,6 +157,11 @@ async function resolveSchoolYear(orgId: string) {
       name
         ? `School year "${name}" was not found for this organization.`
         : 'This organization has no school year yet.',
+    );
+  }
+  if (!found.start_date) {
+    throw new Error(
+      `School year "${found.name}" has no start date. Set it first.`,
     );
   }
   return found;
@@ -170,10 +221,7 @@ async function ensureCourse(
   return created.id;
 }
 
-async function ensureLevel(
-  ctx: Ctx,
-  name: string,
-): Promise<string> {
+async function ensureLevel(ctx: Ctx, name: string): Promise<string> {
   const existing = await db.level.findFirst({
     where: {
       org_id: ctx.orgId,
@@ -195,7 +243,14 @@ async function ensureLevel(
 
   const created = await db.level.create({
     data: {
-      id: seedId('level', 'college', COURSE.code, name, ctx.schoolYearId, ctx.orgId),
+      id: seedId(
+        'level',
+        'college',
+        COURSE.code,
+        name,
+        ctx.schoolYearId,
+        ctx.orgId,
+      ),
       org_id: ctx.orgId,
       school_year_id: ctx.schoolYearId,
       program_id: ctx.programId,
@@ -213,10 +268,28 @@ async function ensureSection(
   capacity: number,
   orderIndex: number,
 ): Promise<{ id: string; capacity: number }> {
-  const existing = await db.section.findFirst({
+  let existing = await db.section.findFirst({
     where: { org_id: ctx.orgId, level_id: levelId, name },
     select: { id: true, capacity: true, deleted_at: true },
   });
+
+  if (!existing) {
+    const legacyName = LEGACY_SECTION_NAMES[name];
+    if (legacyName) {
+      const legacy = await db.section.findFirst({
+        where: { org_id: ctx.orgId, level_id: levelId, name: legacyName },
+        select: { id: true, capacity: true, deleted_at: true },
+      });
+      if (legacy) {
+        await db.section.update({
+          where: { id: legacy.id },
+          data: { name },
+        });
+        existing = legacy;
+      }
+    }
+  }
+
   if (existing) {
     if (existing.deleted_at) {
       await db.section.update({
@@ -229,7 +302,14 @@ async function ensureSection(
 
   const created = await db.section.create({
     data: {
-      id: seedId('section', 'bscs-timetable', levelId, name, ctx.schoolYearId, ctx.orgId),
+      id: seedId(
+        'section',
+        'bscs-timetable',
+        levelId,
+        name,
+        ctx.schoolYearId,
+        ctx.orgId,
+      ),
       org_id: ctx.orgId,
       level_id: levelId,
       course_id: ctx.courseId,
@@ -242,34 +322,382 @@ async function ensureSection(
   return { id: created.id, capacity: created.capacity };
 }
 
-async function ensureSemester(
-  orgId: string,
-  schoolYearId: string,
-  programId: string,
-  syStart: Date | null,
-  syEnd: Date | null,
-): Promise<string> {
-  const existing = await db.semester.findFirst({
-    where: { org_id: orgId, school_year_id: schoolYearId, program_id: programId },
-    orderBy: { start_date: 'asc' },
-    select: { id: true },
+async function ensureCalendar(
+  ctx: Ctx,
+  syStart: Date,
+  syEnd: Date,
+): Promise<DateRange[]> {
+  let calendar = await db.programCalendar.findFirst({
+    where: {
+      org_id: ctx.orgId,
+      school_year_id: ctx.schoolYearId,
+      program_id: ctx.programId,
+    },
+    include: { breaks: { orderBy: { order_index: 'asc' } } },
   });
-  if (existing) return existing.id;
 
-  const start = syStart ?? new Date();
-  const end = syEnd ?? new Date(start.getTime() + 365 * 24 * 60 * 60 * 1000);
-  const created = await db.semester.create({
-    data: {
-      id: seedId('semester', 'bscs', '1st Semester', schoolYearId, orgId),
-      org_id: orgId,
-      school_year_id: schoolYearId,
-      program_id: programId,
-      name: '1st Semester',
-      start_date: start,
-      end_date: new Date(start.getTime() + (end.getTime() - start.getTime()) / 2),
+  if (!calendar) {
+    calendar = await db.programCalendar.create({
+      data: {
+        id: seedId('program-calendar', 'bscs', ctx.schoolYearId, ctx.orgId),
+        org_id: ctx.orgId,
+        school_year_id: ctx.schoolYearId,
+        program_id: ctx.programId,
+        start_date: syStart,
+        end_date: syEnd,
+        notes: 'Seeded calendar: 2 semesters with one semester break.',
+      },
+      include: { breaks: { orderBy: { order_index: 'asc' } } },
+    });
+  }
+
+  let semesterBreak = calendar.breaks[0];
+  if (!semesterBreak) {
+    const span = calendar.end_date.getTime() - calendar.start_date.getTime();
+    const mid = calendar.start_date.getTime() + span / 2;
+    const breakStart = new Date(Math.floor(mid / DAY_MS) * DAY_MS);
+    semesterBreak = await db.programCalendarBreak.create({
+      data: {
+        org_id: ctx.orgId,
+        calendar_id: calendar.id,
+        label: SEMESTER_BREAK_LABEL,
+        start_date: breakStart,
+        end_date: addDays(breakStart, SEMESTER_BREAK_DAYS - 1),
+        order_index: 1,
+      },
+    });
+  }
+
+  return [
+    {
+      start: calendar.start_date,
+      end: addDays(semesterBreak.start_date, -1),
+    },
+    {
+      start: addDays(semesterBreak.end_date, 1),
+      end: calendar.end_date,
+    },
+  ];
+}
+
+async function ensureSemesters(
+  ctx: Ctx,
+  ranges: DateRange[],
+): Promise<SeededSemester[]> {
+  const candidates = await db.semesterTemplate.findMany({
+    where: { org_id: ctx.orgId, program_type: 'college' },
+    include: TEMPLATE_INCLUDE,
+  });
+
+  const currentAssignment = await db.programSemesterAssignment.findUnique({
+    where: { program_id: ctx.programId },
+  });
+
+  let template: TemplateWithItems | undefined = currentAssignment
+    ? candidates.find((t) => t.id === currentAssignment.template_id)
+    : undefined;
+
+  if (!template || template.semesters.length !== ranges.length) {
+    template = candidates.find((t) => t.semesters.length === ranges.length);
+  }
+
+  if (!template) {
+    template = await db.semesterTemplate.create({
+      data: {
+        org_id: ctx.orgId,
+        program_type: 'college',
+        name: SEMESTER_TEMPLATE_NAME,
+        semesters: {
+          create: SEMESTER_NAMES.map((name, i) => ({
+            org_id: ctx.orgId,
+            name,
+            order_index: i,
+            terms: {
+              create: SEMESTER_TERM_NAMES.map((termName, j) => ({
+                org_id: ctx.orgId,
+                name: termName,
+                order_index: j,
+              })),
+            },
+          })),
+        },
+      },
+      include: TEMPLATE_INCLUDE,
+    });
+  }
+
+  const assignment = await db.programSemesterAssignment.upsert({
+    where: { program_id: ctx.programId },
+    update: { template_id: template.id },
+    create: {
+      id: seedId('sem-assignment', ctx.programId, ctx.orgId, ctx.schoolYearId),
+      org_id: ctx.orgId,
+      program_id: ctx.programId,
+      template_id: template.id,
     },
   });
-  return created.id;
+
+  const seeded: SeededSemester[] = [];
+
+  for (let i = 0; i < template.semesters.length; i++) {
+    const item = template.semesters[i];
+    const range = ranges[i];
+    const semesterName = /semester/i.test(item.name)
+      ? item.name
+      : `${item.name} Semester`;
+
+    let semester = await db.semester.findFirst({
+      where: {
+        org_id: ctx.orgId,
+        school_year_id: ctx.schoolYearId,
+        program_id: ctx.programId,
+        template_semester_id: item.id,
+      },
+    });
+    if (!semester && i === 0) {
+      semester = await db.semester.findFirst({
+        where: {
+          org_id: ctx.orgId,
+          school_year_id: ctx.schoolYearId,
+          program_id: ctx.programId,
+          template_semester_id: null,
+        },
+        orderBy: { start_date: 'asc' },
+      });
+    }
+
+    if (semester) {
+      semester = await db.semester.update({
+        where: { id: semester.id },
+        data: {
+          name: semesterName,
+          start_date: range.start,
+          end_date: range.end,
+          template_semester_id: item.id,
+        },
+      });
+    } else {
+      semester = await db.semester.create({
+        data: {
+          id: seedId(
+            'semester',
+            'bscs',
+            item.id,
+            ctx.schoolYearId,
+            ctx.orgId,
+          ),
+          org_id: ctx.orgId,
+          school_year_id: ctx.schoolYearId,
+          program_id: ctx.programId,
+          template_semester_id: item.id,
+          name: semesterName,
+          start_date: range.start,
+          end_date: range.end,
+        },
+      });
+    }
+
+    const termRanges = splitRange(range, item.terms.length);
+    for (let j = 0; j < item.terms.length; j++) {
+      const term = item.terms[j];
+      const termRange = termRanges[j];
+
+      const existingDate = await db.programSemesterTermDate.findFirst({
+        where: { assignment_id: assignment.id, term_id: term.id },
+        select: { id: true },
+      });
+      if (existingDate) {
+        await db.programSemesterTermDate.update({
+          where: { id: existingDate.id },
+          data: { start_date: termRange.start, end_date: termRange.end },
+        });
+      } else {
+        await db.programSemesterTermDate.create({
+          data: {
+            org_id: ctx.orgId,
+            assignment_id: assignment.id,
+            term_id: term.id,
+            start_date: termRange.start,
+            end_date: termRange.end,
+          },
+        });
+      }
+
+      const existingTerm = await db.term.findFirst({
+        where: { semester_id: semester.id, order_index: term.order_index },
+        select: { id: true },
+      });
+      if (existingTerm) {
+        await db.term.update({
+          where: { id: existingTerm.id },
+          data: {
+            name: term.name,
+            start_date: termRange.start,
+            end_date: termRange.end,
+          },
+        });
+      } else {
+        await db.term.create({
+          data: {
+            org_id: ctx.orgId,
+            semester_id: semester.id,
+            name: term.name,
+            order_index: term.order_index,
+            start_date: termRange.start,
+            end_date: termRange.end,
+          },
+        });
+      }
+    }
+
+    seeded.push({
+      id: semester.id,
+      name: semester.name,
+      start: range.start,
+      end: range.end,
+    });
+  }
+
+  return seeded;
+}
+
+function pickClassSemester(semesters: SeededSemester[]): SeededSemester {
+  const now = Date.now();
+  const current = semesters.find(
+    (s) => s.start.getTime() <= now && now <= s.end.getTime(),
+  );
+  return current ?? semesters[0];
+}
+
+async function ensureGradingScale(ctx: Ctx): Promise<void> {
+  let scale = await db.gradingScale.findFirst({
+    where: { org_id: ctx.orgId, name: COLLEGE_SCALE_NAME },
+  });
+  if (!scale) {
+    scale = await db.gradingScale.create({
+      data: {
+        id: seedId('scale', 'college', COLLEGE_SCALE_NAME, ctx.orgId),
+        org_id: ctx.orgId,
+        name: COLLEGE_SCALE_NAME,
+        program_type: 'college',
+        ranges: SCALE_COLLEGE as unknown as Prisma.InputJsonValue,
+        is_locked: false,
+      },
+    });
+  }
+
+  const assignment = await db.gradingScaleAssignment.findFirst({
+    where: { program_id: ctx.programId, school_year_id: ctx.schoolYearId },
+    select: { id: true },
+  });
+  if (!assignment) {
+    await db.gradingScaleAssignment.create({
+      data: {
+        id: seedId(
+          'assign',
+          'college',
+          COLLEGE_SCALE_NAME,
+          ctx.schoolYearId,
+          ctx.programId,
+          ctx.orgId,
+        ),
+        org_id: ctx.orgId,
+        grading_scale_id: scale.id,
+        program_id: ctx.programId,
+        school_year_id: ctx.schoolYearId,
+      },
+    });
+  }
+}
+
+function getCollegePreset() {
+  const preset = SCHEME_PRESETS.find((p) => p.programType === 'college');
+  if (!preset) {
+    throw new Error('College grading scheme preset was not found.');
+  }
+  return preset;
+}
+
+async function ensureGradingSchemeTemplate(ctx: Ctx): Promise<string> {
+  const preset = getCollegePreset();
+
+  let template = await db.gradingSchemeTemplate.findFirst({
+    where: { org_id: ctx.orgId, name: preset.name },
+  });
+  if (!template) {
+    template = await db.gradingSchemeTemplate.create({
+      data: {
+        id: seedId('scheme-template', preset.name, ctx.orgId),
+        org_id: ctx.orgId,
+        name: preset.name,
+        program_type: 'college',
+        components: {
+          create: preset.components.map((c) => ({
+            org_id: ctx.orgId,
+            name: c.name,
+            type: String(c.type),
+            weight: c.weight,
+          })),
+        },
+      },
+    });
+  }
+
+  const assignment = await db.gradingSchemeProgramAssignment.findFirst({
+    where: { program_id: ctx.programId, school_year_id: ctx.schoolYearId },
+    select: { id: true },
+  });
+  if (!assignment) {
+    await db.gradingSchemeProgramAssignment.create({
+      data: {
+        org_id: ctx.orgId,
+        program_id: ctx.programId,
+        school_year_id: ctx.schoolYearId,
+        template_id: template.id,
+      },
+    });
+  }
+
+  return template.id;
+}
+
+async function ensureClassGradingSchemes(
+  ctx: Ctx,
+  classIds: string[],
+  templateId: string,
+): Promise<number> {
+  const preset = getCollegePreset();
+
+  const withScheme = await db.gradingScheme.findMany({
+    where: { org_id: ctx.orgId, class_id: { in: classIds } },
+    select: { class_id: true },
+  });
+  const covered = new Set(withScheme.map((s) => s.class_id));
+
+  let created = 0;
+  for (const classId of classIds) {
+    if (covered.has(classId)) continue;
+    await db.gradingScheme.create({
+      data: {
+        org_id: ctx.orgId,
+        class_id: classId,
+        template_id: templateId,
+        name: preset.name,
+        is_default: true,
+        components: {
+          create: preset.components.map((c) => ({
+            org_id: ctx.orgId,
+            name: c.name,
+            type: String(c.type),
+            weight: c.weight,
+            is_optional: c.isOptional,
+          })),
+        },
+      },
+    });
+    created += 1;
+  }
+  return created;
 }
 
 async function seedRooms(orgId: string): Promise<Record<string, string>> {
@@ -360,7 +788,13 @@ async function seedSubjects(
 
     const created = await db.subject.create({
       data: {
-        id: seedId('subject', 'bscs-timetable', levelName, sch.subject, ctx.orgId),
+        id: seedId(
+          'subject',
+          'bscs-timetable',
+          levelName,
+          sch.subject,
+          ctx.orgId,
+        ),
         org_id: ctx.orgId,
         subject_type: 'major',
         program_id: ctx.programId,
@@ -376,8 +810,21 @@ async function seedSubjects(
   return map;
 }
 
+type ClassRef = {
+  classId: string;
+  sectionName: string;
+  def: ScheduleDef;
+};
+
+type StudentPlan = {
+  regular: boolean;
+  classIds: string[];
+  extras: string[];
+};
+
 async function seedClasses(
   ctx: Ctx,
+  semesterId: string,
   sections: Record<string, { id: string; capacity: number }>,
   subjectIds: Record<string, string>,
   educatorIds: Record<string, string>,
@@ -406,9 +853,17 @@ async function seedClasses(
 
     const existing = await db.class.findFirst({
       where: { id: classId },
-      select: { id: true },
+      select: { id: true, semester_id: true },
     });
-    if (existing) continue;
+    if (existing) {
+      if (existing.semester_id !== semesterId) {
+        await db.class.update({
+          where: { id: classId },
+          data: { semester_id: semesterId },
+        });
+      }
+      continue;
+    }
 
     await db.class.create({
       data: {
@@ -418,7 +873,7 @@ async function seedClasses(
         educator_id: educatorIds[sch.instructor],
         section_id: section.id,
         school_year_id: ctx.schoolYearId,
-        semester_id: ctx.semesterId,
+        semester_id: semesterId,
         capacity: section.capacity,
         schedules: {
           create: [
@@ -483,18 +938,6 @@ function emailLocalPart(name: string): string {
     .replace(/^\.|\.$/g, '');
 }
 
-type ClassRef = {
-  classId: string;
-  sectionName: string;
-  def: ScheduleDef;
-};
-
-type StudentPlan = {
-  regular: boolean;
-  classIds: string[];
-  extras: string[];
-};
-
 function hashString(value: string): number {
   let hash = 5381;
   for (let i = 0; i < value.length; i++) {
@@ -510,7 +953,10 @@ function toMinutes(hhmm: string): number {
 
 function overlaps(a: ScheduleDef, b: ScheduleDef): boolean {
   if (a.day !== b.day) return false;
-  return toMinutes(a.start) < toMinutes(b.end) && toMinutes(b.start) < toMinutes(a.end);
+  return (
+    toMinutes(a.start) < toMinutes(b.end) &&
+    toMinutes(b.start) < toMinutes(a.end)
+  );
 }
 
 function pickRandomExtras(
@@ -611,6 +1057,7 @@ function buildPlans(
 
   return plans;
 }
+
 async function seedStudents(
   ctx: Ctx,
   names: string[],
@@ -791,7 +1238,8 @@ function reportOverlaps(): void {
 async function main(): Promise<void> {
   console.log('\nSEED BSCS - START\n');
 
-  const studentSection = readOption('section', 'BSCS_STUDENT_SECTION') ?? DEFAULT_STUDENT_SECTION;
+  const studentSection =
+    readOption('section', 'BSCS_STUDENT_SECTION') ?? DEFAULT_STUDENT_SECTION;
   const studentSectionDef = SECTIONS.find((s) => s.name === studentSection);
   if (!studentSectionDef) {
     throw new Error(
@@ -809,18 +1257,14 @@ async function main(): Promise<void> {
   console.log(`  organization : ${describeOrg(org)}`);
   console.log(`  school year  : ${schoolYear.name} (${schoolYear.status})`);
 
+  const syStart = schoolYear.start_date as Date;
+  const syEnd = schoolYear.end_date ?? addDays(syStart, 300);
+
   const emailExt = org.email_extension ?? slugify(org.name);
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, SALT_ROUNDS);
 
   const programId = await ensureProgram(org.id, schoolYear.id);
   const courseId = await ensureCourse(org.id, schoolYear.id, programId);
-  const semesterId = await ensureSemester(
-    org.id,
-    schoolYear.id,
-    programId,
-    schoolYear.start_date,
-    schoolYear.end_date,
-  );
 
   await db.orgScheduleConfig.upsert({
     where: { org_id: org.id },
@@ -837,10 +1281,9 @@ async function main(): Promise<void> {
     orgId: org.id,
     emailExt,
     schoolYearId: schoolYear.id,
-    anchorDate: schoolYear.start_date ?? new Date(),
+    anchorDate: syStart,
     programId,
     courseId,
-    semesterId,
   };
 
   const levelIds: Record<string, string> = {};
@@ -870,14 +1313,51 @@ async function main(): Promise<void> {
   const subjectIds = await seedSubjects(ctx, levelIds);
   console.log(`  subjects     : ${Object.keys(subjectIds).length}`);
 
+  const semesterRanges = await ensureCalendar(ctx, syStart, syEnd);
+  console.log(`  calendar     : 2 semesters with 1 semester break`);
+
+  const semesters = await ensureSemesters(ctx, semesterRanges);
+  for (const s of semesters) {
+    console.log(
+      `  semester     : ${s.name} (${s.start.toISOString().slice(0, 10)} -> ${s.end.toISOString().slice(0, 10)})`,
+    );
+  }
+
+  await ensureGradingScale(ctx);
+  const schemeTemplateId = await ensureGradingSchemeTemplate(ctx);
+  console.log(`  grading      : scale and scheme template assigned`);
+
+  const classSemester = pickClassSemester(semesters);
   const classRefs = await seedClasses(
     ctx,
+    classSemester.id,
     sections,
     subjectIds,
     educatorIds,
     roomIds,
   );
-  console.log(`  classes      : ${classRefs.length}`);
+  console.log(`  classes      : ${classRefs.length} in ${classSemester.name}`);
+
+  const schemesCreated = await ensureClassGradingSchemes(
+    ctx,
+    classRefs.map((r) => r.classId),
+    schemeTemplateId,
+  );
+  console.log(`  class schemes: ${schemesCreated} created`);
+
+  reportOverlaps();
+
+  const readiness = await checkSchoolYearReadiness(org.id, schoolYear.id);
+  if (!readiness.ready) {
+    console.error('\n  School year is NOT READY. Students were not seeded.');
+    for (const issue of readiness.issues) {
+      console.error(`    - ${issue}`);
+    }
+    process.exitCode = 1;
+    console.log('\nSEED BSCS - STOPPED (not ready)\n');
+    return;
+  }
+  console.log('  readiness    : school year is READY');
 
   const { names, skipped } = dedupeNames(RAW_STUDENT_NAMES);
   const plans = buildPlans(names, classRefs, studentSectionDef.name);
@@ -905,8 +1385,6 @@ async function main(): Promise<void> {
     }
   }
   console.log(`  class enrollments added: ${studentResult.classEnrollments}`);
-
-  reportOverlaps();
 
   console.log('\nSEED BSCS - COMPLETE\n');
 }

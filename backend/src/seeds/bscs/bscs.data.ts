@@ -11,6 +11,14 @@ export const WEEKDAY_NUMBER: Record<Weekday, number> = {
 
 export const COURSE = { code: 'BSCS', name: 'BS Computer Science' };
 
+export const SEMESTER_NAMES: string[] = ['1st Semester', '2nd Semester'];
+export const SEMESTER_TERM_NAMES: string[] = ['Prelim', 'Midterm', 'Finals'];
+export const SEMESTER_TEMPLATE_NAME = 'College Semester Template';
+export const SEMESTER_BREAK_LABEL = 'Semester Break';
+export const SEMESTER_BREAK_DAYS = 14;
+
+export const COLLEGE_SCALE_NAME = 'College Numeric Scale';
+
 export interface SectionDef {
   name: string;
   levelName: string;
@@ -20,10 +28,16 @@ export interface SectionDef {
 export const SECTIONS: SectionDef[] = [
   { name: 'BSCS-1A', levelName: '1st Year', capacity: 50 },
   { name: 'BSCS-1B', levelName: '1st Year', capacity: 50 },
-  { name: 'BSCS-2', levelName: '2nd Year', capacity: 50 },
-  { name: 'BSCS-3', levelName: '3rd Year', capacity: 50 },
-  { name: 'BSCS-4', levelName: '4th Year', capacity: 50 },
+  { name: 'BSCS-2A', levelName: '2nd Year', capacity: 50 },
+  { name: 'BSCS-3A', levelName: '3rd Year', capacity: 50 },
+  { name: 'BSCS-4A', levelName: '4th Year', capacity: 50 },
 ];
+
+export const LEGACY_SECTION_NAMES: Record<string, string> = {
+  'BSCS-2A': 'BSCS-2',
+  'BSCS-3A': 'BSCS-3',
+  'BSCS-4A': 'BSCS-4',
+};
 
 export interface ScheduleDef {
   section: string;
@@ -52,27 +66,27 @@ export const SCHEDULES: ScheduleDef[] = [
   { section: 'BSCS-1B', subject: 'DASTRUC', instructor: 'Bernardo', room: 'CB205', day: 'SAT', start: '07:30', end: '10:30' },
   { section: 'BSCS-1B', subject: 'PE 2 / NSTP 2', instructor: 'Osorio', room: 'Gym', day: 'SAT', start: '11:00', end: '14:00' },
 
-  { section: 'BSCS-2', subject: 'INFOMGT', instructor: 'Tolentino', room: 'CB205', day: 'TUE', start: '14:00', end: '17:00' },
-  { section: 'BSCS-2', subject: 'ETHICS', instructor: 'Esteban', room: 'SHS202', day: 'WED', start: '07:30', end: '10:30' },
-  { section: 'BSCS-2', subject: 'CSO', instructor: 'Tolentino', room: 'CB205', day: 'WED', start: '11:00', end: '14:00' },
-  { section: 'BSCS-2', subject: 'RIZAL', instructor: 'Tomada', room: 'SHS206', day: 'SAT', start: '07:30', end: '10:30' },
-  { section: 'BSCS-2', subject: 'ANALGOR', instructor: 'Bernardo', room: 'CB205', day: 'SAT', start: '11:00', end: '14:00' },
-  { section: 'BSCS-2', subject: 'SOCISPP', instructor: 'Perez', room: null, day: 'SAT', start: '14:00', end: '17:00' },
+  { section: 'BSCS-2A', subject: 'INFOMGT', instructor: 'Tolentino', room: 'CB205', day: 'TUE', start: '14:00', end: '17:00' },
+  { section: 'BSCS-2A', subject: 'ETHICS', instructor: 'Esteban', room: 'SHS202', day: 'WED', start: '07:30', end: '10:30' },
+  { section: 'BSCS-2A', subject: 'CSO', instructor: 'Tolentino', room: 'CB205', day: 'WED', start: '11:00', end: '14:00' },
+  { section: 'BSCS-2A', subject: 'RIZAL', instructor: 'Tomada', room: 'SHS206', day: 'SAT', start: '07:30', end: '10:30' },
+  { section: 'BSCS-2A', subject: 'ANALGOR', instructor: 'Bernardo', room: 'CB205', day: 'SAT', start: '11:00', end: '14:00' },
+  { section: 'BSCS-2A', subject: 'SOCISPP', instructor: 'Perez', room: null, day: 'SAT', start: '14:00', end: '17:00' },
 
-  { section: 'BSCS-3', subject: 'OS', instructor: 'Reyes', room: 'CB206', day: 'WED', start: '07:30', end: '10:30' },
-  { section: 'BSCS-3', subject: 'QUANMET', instructor: 'Reyes', room: 'CB206', day: 'WED', start: '11:00', end: '14:00' },
-  { section: 'BSCS-3', subject: 'CS ELEC 2', instructor: 'Tolentino', room: 'CB205', day: 'WED', start: '14:00', end: '17:00' },
-  { section: 'BSCS-3', subject: 'PL 1', instructor: 'Tolentino', room: 'CB205', day: 'THU', start: '07:30', end: '10:30' },
-  { section: 'BSCS-3', subject: 'RESEARCH 1', instructor: 'Reyes', room: 'CB204', day: 'THU', start: '11:00', end: '14:00' },
-  { section: 'BSCS-3', subject: 'SOFT ENG 2', instructor: 'Reyes', room: 'CB206', day: 'THU', start: '14:00', end: '17:00' },
-  { section: 'BSCS-3', subject: 'CS PROF EL 3', instructor: 'Bernardo', room: 'CB205', day: 'SAT', start: '14:00', end: '17:00' },
+  { section: 'BSCS-3A', subject: 'OS', instructor: 'Reyes', room: 'CB206', day: 'WED', start: '07:30', end: '10:30' },
+  { section: 'BSCS-3A', subject: 'QUANMET', instructor: 'Reyes', room: 'CB206', day: 'WED', start: '11:00', end: '14:00' },
+  { section: 'BSCS-3A', subject: 'CS ELEC 2', instructor: 'Tolentino', room: 'CB205', day: 'WED', start: '14:00', end: '17:00' },
+  { section: 'BSCS-3A', subject: 'PL 1', instructor: 'Tolentino', room: 'CB205', day: 'THU', start: '07:30', end: '10:30' },
+  { section: 'BSCS-3A', subject: 'RESEARCH 1', instructor: 'Reyes', room: 'CB204', day: 'THU', start: '11:00', end: '14:00' },
+  { section: 'BSCS-3A', subject: 'SOFT ENG 2', instructor: 'Reyes', room: 'CB206', day: 'THU', start: '14:00', end: '17:00' },
+  { section: 'BSCS-3A', subject: 'CS PROF EL 3', instructor: 'Bernardo', room: 'CB205', day: 'SAT', start: '14:00', end: '17:00' },
 
-  { section: 'BSCS-4', subject: 'CS THESIS 2', instructor: 'Reyes', room: 'CB204', day: 'THU', start: '07:30', end: '10:30' },
-  { section: 'BSCS-4', subject: 'IAS 1', instructor: 'Tolentino', room: 'CB205', day: 'THU', start: '11:00', end: '14:00' },
-  { section: 'BSCS-4', subject: 'MODTECH', instructor: 'Tolentino', room: 'CB205', day: 'THU', start: '14:00', end: '17:00' },
+  { section: 'BSCS-4A', subject: 'CS THESIS 2', instructor: 'Reyes', room: 'CB204', day: 'THU', start: '07:30', end: '10:30' },
+  { section: 'BSCS-4A', subject: 'IAS 1', instructor: 'Tolentino', room: 'CB205', day: 'THU', start: '11:00', end: '14:00' },
+  { section: 'BSCS-4A', subject: 'MODTECH', instructor: 'Tolentino', room: 'CB205', day: 'THU', start: '14:00', end: '17:00' },
 ];
 
-export const DEFAULT_STUDENT_SECTION = 'BSCS-4';
+export const DEFAULT_STUDENT_SECTION = 'BSCS-4A';
 
 export const ENROLL_STUDENTS_IN_CLASSES = true;
 export const REGULAR_STUDENTS: string[] = ['Eric James Sonio', 'Rj Diaz'];
@@ -82,7 +96,7 @@ export const IRREGULAR_STUDENTS: Record<string, string[]> = {
   'Jay Entileso': ['CSO'],
 };
 
-export const IRREGULAR_EXTRA_SECTIONS: string[] = ['BSCS-2', 'BSCS-3'];
+export const IRREGULAR_EXTRA_SECTIONS: string[] = ['BSCS-2A', 'BSCS-3A'];
 
 export const IRREGULAR_RATE_PERCENT = 30;
 
