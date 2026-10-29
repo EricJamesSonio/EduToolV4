@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide"
 import { SeederCard } from "@/components/admin/data-seeder/SeederCard"
 import { SchoolProfileCard } from "@/components/admin/school-profile/SchoolProfileCard"
-import { AutomationSettings } from "@/components/admin/school-profile/AutomationSettings"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { useNavigationGuard } from "@/context/NavigationGuardContext"
@@ -15,7 +15,10 @@ import { cn } from "@/lib/utils"
 type Mode = "seed" | "configure"
 
 export default function DataSeederPage(): React.JSX.Element {
-  const [mode, setMode] = useState<Mode>("configure")
+  const searchParams = useSearchParams()
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get("mode") === "seed" ? "seed" : "configure",
+  )
   const [pendingMode, setPendingMode] = useState<Mode | null>(null)
   const { isDirty } = useNavigationGuard()
   const { data: profileData, isLoading: profileLoading } = useSchoolProfileData()
@@ -27,10 +30,11 @@ export default function DataSeederPage(): React.JSX.Element {
   const seedDisabled = profileLoading || !hasProfile
 
   // Never leave the Seeder mounted if the profile disappears underneath us
-  // (e.g. the last department was removed and saved).
+  // (e.g. the last department was removed and saved). Wait for the profile to
+  // finish loading first so a direct "seed" link isn't bounced back.
   useEffect(() => {
-    if (mode === "seed" && seedDisabled) setMode("configure")
-  }, [mode, seedDisabled])
+    if (mode === "seed" && !profileLoading && !hasProfile) setMode("configure")
+  }, [mode, profileLoading, hasProfile])
 
   function requestMode(next: Mode) {
     if (next === mode) return
@@ -82,8 +86,6 @@ export default function DataSeederPage(): React.JSX.Element {
             Seed a School Year
           </Button>
         </div>
-
-        <AutomationSettings />
       </div>
 
       {mode === "seed" ? <SeederCard /> : <SchoolProfileCard />}
