@@ -753,6 +753,8 @@ export class ClassService {
           strand_name: (cls as unknown as { subject: { strand: { name: string } | null } }).subject?.strand?.name ?? null,
           educatorName: educator?.profile?.full_name ?? null,
           enrolled_count: (cls as unknown as { _count: { enrollments: number } })._count?.enrollments ?? 0,
+          student_level_rank:
+            placementByYear.get(cls.school_year_id)?.levelRank ?? null,
           has_prerequisite_warning: eligibility.missing.length > 0,
           prerequisite_warnings: eligibility.missing,
         };
