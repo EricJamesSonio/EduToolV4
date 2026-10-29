@@ -48,6 +48,8 @@ export interface Class {
   programId?: string;
   programName?: string;
   levelName?: string;
+  /** Student's active placement rank for this class's school year. */
+  studentLevelRank?: number | null;
   courseName?: string;
   strandName?: string;
   templateId?: string | null;

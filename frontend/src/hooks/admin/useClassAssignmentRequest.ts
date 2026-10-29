@@ -15,11 +15,30 @@ export const useCreateClassAssignmentRequest = () => {
   );
 };
 
+// Finalizing with approvedClassIds enrolls the student, so the student detail,
+// enrollment lists and class rosters must refetch as well.
 export const useFinalizeClassAssignmentRequest = () => {
   return useMutationWithInvalidation(
-    ({ id, subjectIds }: { id: string; subjectIds: string[] }) =>
-      classAssignmentRequestApi.finalize(id, subjectIds),
-    { invalidateKeys: [["admin", "classAssignmentRequests"] as unknown as readonly unknown[]] },
+    ({
+      id,
+      approvedClassIds,
+      subjectIds,
+    }: {
+      id: string;
+      approvedClassIds?: string[];
+      subjectIds?: string[];
+    }) =>
+      classAssignmentRequestApi.finalize(id, {
+        approvedClassIds,
+        adminFinalizedSubjectIds: subjectIds,
+      }),
+    {
+      invalidateKeys: [
+        ["admin", "classAssignmentRequests"] as unknown as readonly unknown[],
+        ["admin", "students"] as unknown as readonly unknown[],
+        ["admin", "classes"] as unknown as readonly unknown[],
+      ],
+    },
   );
 };
 

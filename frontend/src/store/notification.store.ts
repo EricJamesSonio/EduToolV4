@@ -21,6 +21,8 @@ export type NotificationType =
   | "concern_created"
   | "concern_reply"
   | "application_submitted"
+  | "class_request_submitted"
+  | "class_request_reviewed"
   | "general";
 
 export interface Notification {

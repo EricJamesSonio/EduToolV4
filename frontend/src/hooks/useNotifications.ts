@@ -116,6 +116,31 @@ export function toStoreNotification(n: ApiNotification): Notification {
         : "/admin/enrollment-portal/applications";
       break;
     }
+    // ─── Subject requests (student -> admin, admin -> student) ─────────────
+    case "class_request_submitted": {
+      const who = str(p.studentName) ?? "A student";
+      const count = typeof p.count === "number" ? p.count : null;
+      message =
+        count !== null
+          ? `${who} requested ${count} subject${count === 1 ? "" : "s"}`
+          : `${who} sent a subject request`;
+      const studentId = str(p.studentId);
+      linkTo = studentId ? `/admin/students/${studentId}/review` : "/admin/students";
+      break;
+    }
+    case "class_request_reviewed": {
+      const approved = typeof p.approvedCount === "number" ? p.approvedCount : 0;
+      const denied = typeof p.deniedCount === "number" ? p.deniedCount : 0;
+      if (str(p.origin) === "admin_flag") {
+        message = `Admin assigned ${approved} class${approved === 1 ? "" : "es"} to you`;
+      } else if (denied > 0) {
+        message = `Your subject request was reviewed: ${approved} approved, ${denied} denied`;
+      } else {
+        message = `Your subject request was approved (${approved} class${approved === 1 ? "" : "es"})`;
+      }
+      linkTo = "/student/classes";
+      break;
+    }
     // ─── Assessments & grades (role-aware deep links) ──────────────────────
     case "assessment_released":
     case "assessment_assigned":

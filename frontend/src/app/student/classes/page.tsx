@@ -25,9 +25,7 @@ import type { StudentSemesterItem } from "@/api/student/semester.api";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import { toArray } from "@/utils/classes.utils";
 import { Button } from "@/components/ui/button";
-import { useMyAcademicHistory } from "@/hooks/admin/useAcademicHistory";
-import { useAuth } from "@/hooks/useAuth";
-import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
+import { RequestSubjectsDialog } from "@/components/student/class/RequestSubjectsDialog";
 
 import { getDefaultSemesterId } from "@/utils/semester.utils";
 
@@ -45,12 +43,6 @@ export default function StudentClassesPage(): React.JSX.Element {
     queryKeys.admin.schoolYears.list(),
     () => schoolYearApi.getAll(),
   );
-  const { user } = useAuth();
-  const { data: myHistory } = useMyAcademicHistory() as { data: { studentSchoolYearId: string; schoolYear: { id: string }; programEnrollments: { section?: { id: string } | null; status: string }[] }[] | undefined };
-  const activeHistory = Array.isArray(myHistory) && myHistory.length > 0 ? (myHistory[0] as unknown as { studentSchoolYearId: string; id: string; schoolYear: { id: string }; programEnrollments: { section?: { id: string } | null; status: string }[] }) : null;
-  const activeSsyId = activeHistory?.studentSchoolYearId ?? (activeHistory as unknown as { id: string } | null)?.id ?? undefined;
-  const activeSchoolYearIdForRequest = activeHistory?.schoolYear?.id ?? undefined;
-  const activeSectionId = activeHistory?.programEnrollments?.find((pe) => pe.status === "active")?.section?.id ?? activeHistory?.programEnrollments?.[0]?.section?.id ?? null;
 
   // Defensive normalisation — guards against undefined, wrapped envelopes,
   // or any non-array the query might return before/during loading
@@ -158,6 +150,11 @@ export default function StudentClassesPage(): React.JSX.Element {
                 </SelectContent>
               </Select>
             )}
+            {!isViewingEndedYear && (
+              <Button variant="outline" onClick={() => setRequestOpen(true)}>
+                Request Subjects
+              </Button>
+            )}
           </>
         }
       />
@@ -207,15 +204,7 @@ export default function StudentClassesPage(): React.JSX.Element {
       )}
 
       {requestOpen && (
-        <RequestSubjectsDialog
-          open={requestOpen}
-          studentSchoolYearId={activeSsyId ?? ""}
-          schoolYearId={activeSchoolYearIdForRequest}
-          sectionId={activeSectionId}
-          studentId={user?.id}
-          origin="student_request"
-          onClose={() => setRequestOpen(false)}
-        />
+        <RequestSubjectsDialog open={requestOpen} onClose={() => setRequestOpen(false)} />
       )}
     </div>
   );

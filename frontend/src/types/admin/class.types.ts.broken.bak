@@ -1,0 +1,4 @@
+(Add inside `export interface Class`)
+
+  /** Student's active placement rank for this class's school year. */
+  studentLevelRank?: number | null;

@@ -29,10 +29,6 @@ import {
   type PrerequisiteMiss,
 } from "@/utils/prerequisites";
 
-// -----------------------------------------------------------------------------
-// Types
-// -----------------------------------------------------------------------------
-
 interface Props {
   open: boolean;
   studentId: string;
@@ -40,16 +36,14 @@ interface Props {
   onClose: () => void;
 }
 
-type YearLevelFilter = "all" | "lower";
+type YearLevelFilter = "all" | `year:${number}`;
 
 type EligibleClass = Class & {
+  studentLevelRank?: number | null;
+  student_level_rank?: number | null;
   has_prerequisite_warning?: boolean;
   prerequisite_warnings?: PrerequisiteMiss[];
 };
-
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
 
 const WEEKDAYS = [
   "Sun",
@@ -77,54 +71,73 @@ function formatSchedules(c: Class): string {
     .join(" · ");
 }
 
-/**
- * Extracts the numeric year rank from a level name.
- *
- * Examples:
- * "Year 1" -> 1
- * "1st Year" -> 1
- * "Grade 11" -> 11
- * "Fourth Year" -> null
- */
 function getYearLevelRank(
   levelName?: string | null,
 ): number | null {
   if (!levelName) return null;
 
-  const match = levelName.match(/\d+/);
+  const numeric = levelName.match(/\d+/);
 
-  if (!match) return null;
+  if (numeric) {
+    const rank = Number.parseInt(numeric[0], 10);
+    return Number.isFinite(rank) ? rank : null;
+  }
 
-  const rank = Number.parseInt(match[0], 10);
+  const words: Record<string, number> = {
+    first: 1,
+    second: 2,
+    third: 3,
+    fourth: 4,
+    fifth: 5,
+    sixth: 6,
+    seventh: 7,
+    eighth: 8,
+    ninth: 9,
+    tenth: 10,
+    eleventh: 11,
+    twelfth: 12,
+  };
 
-  return Number.isFinite(rank) ? rank : null;
+  const normalized = levelName.trim().toLowerCase();
+
+  for (const [word, rank] of Object.entries(words)) {
+    if (new RegExp(`\\b${word}\\b`).test(normalized)) {
+      return rank;
+    }
+  }
+
+  return null;
 }
 
-// -----------------------------------------------------------------------------
-// Component
-// -----------------------------------------------------------------------------
+function formatYearLevel(rank: number): string {
+  const suffix =
+    rank % 100 >= 11 && rank % 100 <= 13
+      ? "th"
+      : rank % 10 === 1
+        ? "st"
+        : rank % 10 === 2
+          ? "nd"
+          : rank % 10 === 3
+            ? "rd"
+            : "th";
+
+  return `${rank}${suffix} Year`;
+}
+
+function getStudentLevelRank(c: EligibleClass): number | null {
+  return c.studentLevelRank ?? c.student_level_rank ?? null;
+}
 
 export function EnrollStudentInClassDialog({
   open,
   studentId,
   onClose,
 }: Props): React.JSX.Element {
-  // ---------------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------------
-
   const [selectedClassId, setSelectedClassId] = useState("");
-
   const [search, setSearch] = useState("");
-
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
   const [selectedYearLevel, setSelectedYearLevel] =
     useState<YearLevelFilter>("all");
-
-  // ---------------------------------------------------------------------------
-  // Search debounce
-  // ---------------------------------------------------------------------------
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -136,10 +149,6 @@ export function EnrollStudentInClassDialog({
     };
   }, [search]);
 
-  // ---------------------------------------------------------------------------
-  // Reset dialog state
-  // ---------------------------------------------------------------------------
-
   useEffect(() => {
     if (!open) {
       setSelectedClassId("");
@@ -148,10 +157,6 @@ export function EnrollStudentInClassDialog({
       setSelectedYearLevel("all");
     }
   }, [open]);
-
-  // ---------------------------------------------------------------------------
-  // Fetch eligible classes
-  // ---------------------------------------------------------------------------
 
   const {
     data: classesRaw,
@@ -172,10 +177,6 @@ export function EnrollStudentInClassDialog({
     },
   );
 
-  // ---------------------------------------------------------------------------
-  // Normalize API response
-  // ---------------------------------------------------------------------------
-
   const allClasses = useMemo<EligibleClass[]>(() => {
     if (!Array.isArray(classesRaw)) {
       return [];
@@ -184,41 +185,48 @@ export function EnrollStudentInClassDialog({
     return classesRaw as EligibleClass[];
   }, [classesRaw]);
 
-  // ---------------------------------------------------------------------------
-  // Year-level filtering
-  // ---------------------------------------------------------------------------
+  const lowerYearOptions = useMemo(() => {
+    const currentRanks = allClasses
+      .map(getStudentLevelRank)
+      .filter(
+        (rank): rank is number =>
+          rank !== null &&
+          Number.isInteger(rank) &&
+          rank > 0,
+      );
+
+    if (currentRanks.length === 0) {
+      return [];
+    }
+
+    const currentRank = Math.max(...currentRanks);
+
+    return Array.from(
+      { length: currentRank - 1 },
+      (_, index) => index + 1,
+    );
+  }, [allClasses]);
 
   const classes = useMemo<EligibleClass[]>(() => {
     if (selectedYearLevel === "all") {
       return allClasses;
     }
 
-    const ranks = allClasses
-      .map((c) => getYearLevelRank(c.levelName))
-      .filter((rank): rank is number => rank !== null);
+    const selectedRank = Number(
+      selectedYearLevel.slice("year:".length),
+    );
 
-    if (ranks.length === 0) {
-      return allClasses;
-    }
-
-    const highestRank = Math.max(...ranks);
-
-    // Lower years only:
-    // Exclude classes belonging to the highest numbered year level.
-    // Classes without a recognizable numeric level remain visible.
     return allClasses.filter((c) => {
-      const rank = getYearLevelRank(c.levelName);
+      const classRank = getYearLevelRank(c.levelName);
+      const studentRank = getStudentLevelRank(c);
 
-      return rank === null || rank < highestRank;
+      return (
+        classRank === selectedRank &&
+        studentRank !== null &&
+        selectedRank < studentRank
+      );
     });
   }, [allClasses, selectedYearLevel]);
-
-  // ---------------------------------------------------------------------------
-  // Prerequisite validation
-  //
-  // The eligible-for-student endpoint already returns prerequisite outcomes.
-  // No additional request is required.
-  // ---------------------------------------------------------------------------
 
   const blockedClassIds = useMemo(() => {
     const ids = new Set<string>();
@@ -247,23 +255,13 @@ export function EnrollStudentInClassDialog({
     return map;
   }, [classes]);
 
-  // ---------------------------------------------------------------------------
-  // Selected class
-  // ---------------------------------------------------------------------------
-
   const selectedClass = useMemo(() => {
-    return (
-      classes.find((c) => c.id === selectedClassId) ?? null
-    );
+    return classes.find((c) => c.id === selectedClassId) ?? null;
   }, [classes, selectedClassId]);
 
   const selectedClassBlocked = selectedClass
     ? blockedClassIds.has(selectedClass.id)
     : false;
-
-  // ---------------------------------------------------------------------------
-  // Enrollment mutation
-  // ---------------------------------------------------------------------------
 
   const mutation = useMutationWithInvalidation(
     () => studentApi.addEnrollment(studentId, selectedClassId),
@@ -301,10 +299,6 @@ export function EnrollStudentInClassDialog({
     },
   );
 
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
-
   function handleClose(): void {
     if (mutation.isPending) return;
 
@@ -317,11 +311,8 @@ export function EnrollStudentInClassDialog({
   }
 
   function handleClassSelection(c: EligibleClass): void {
-    const blocked = blockedClassIds.has(c.id);
-
-    if (blocked) {
-      const missing =
-        missingPrereqsByClass.get(c.id) ?? [];
+    if (blockedClassIds.has(c.id)) {
+      const missing = missingPrereqsByClass.get(c.id) ?? [];
 
       toast.warning(
         prerequisiteBlockMessage(
@@ -348,30 +339,29 @@ export function EnrollStudentInClassDialog({
     mutation.mutate();
   }
 
-  // ---------------------------------------------------------------------------
-  // Empty-state messages
-  // ---------------------------------------------------------------------------
+  const selectedYearLabel =
+    selectedYearLevel === "all"
+      ? null
+      : formatYearLevel(
+          Number(selectedYearLevel.slice("year:".length)),
+        );
 
   const emptyTitle = debouncedSearch
-    ? `No eligible classes match “${debouncedSearch}”`
-    : selectedYearLevel === "lower"
-      ? "No eligible lower-year classes"
+    ? `No eligible classes match "${debouncedSearch}"`
+    : selectedYearLabel
+      ? `No eligible ${selectedYearLabel} classes`
       : "No eligible classes";
 
   const emptyHint = debouncedSearch
     ? "Try a different search, or check the class subject / educator name."
-    : selectedYearLevel === "lower"
-      ? "No lower-year classes are available. Try selecting All year levels."
+    : selectedYearLabel
+      ? `No eligible classes are available for ${selectedYearLabel}. Try selecting All eligible years.`
       : [
           "This student has no eligible classes right now. Possible reasons:",
           "• No active program placement for the class school year",
           "• Already enrolled in every eligible class for this subject/semester",
-          "• No classes exist for the student's program / course / strand / level / section",
+          "• No classes exist for the student's academic placement",
         ].join("\n");
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <Modal
@@ -381,8 +371,6 @@ export function EnrollStudentInClassDialog({
       size="lg"
     >
       <div className="space-y-4">
-        {/* Search and filters */}
-
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="enroll-class-search">
@@ -407,34 +395,28 @@ export function EnrollStudentInClassDialog({
               className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               value={selectedYearLevel}
               onChange={(e) => {
-                const value =
-                  e.target.value as YearLevelFilter;
-
-                setSelectedYearLevel(value);
-
-                // Clear selection when changing filters.
+                setSelectedYearLevel(
+                  e.target.value as YearLevelFilter,
+                );
                 setSelectedClassId("");
               }}
             >
-              <option value="all">
-                All year levels
-              </option>
+              <option value="all">All eligible years</option>
 
-              <option value="lower">
-                Lower years only
-              </option>
+              {lowerYearOptions.map((rank) => (
+                <option key={rank} value={`year:${rank}`}>
+                  {formatYearLevel(rank)}
+                </option>
+              ))}
             </select>
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Only classes that match the student&apos;s
-            program, course/strand, level and section are
-            shown — you won&apos;t get &ldquo;not
-            eligible&rdquo; errors.
+            Select a specific lower year to show only its eligible
+            classes. Available options depend on the student&apos;s
+            current placement. Prerequisite requirements still apply.
           </p>
         </div>
-
-        {/* Class selection */}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -451,8 +433,6 @@ export function EnrollStudentInClassDialog({
             </span>
           </div>
 
-          {/* Loading state */}
-
           {classesLoading ? (
             <div className="space-y-2 rounded-lg border p-3">
               <Skeleton className="h-12 w-full" />
@@ -460,8 +440,6 @@ export function EnrollStudentInClassDialog({
               <Skeleton className="h-12 w-full" />
             </div>
           ) : classesError ? (
-            /* Error state */
-
             <div className="rounded-lg border border-destructive/30 p-8 text-center">
               <p className="text-sm font-medium text-destructive">
                 Failed to load eligible classes.
@@ -472,8 +450,6 @@ export function EnrollStudentInClassDialog({
               </p>
             </div>
           ) : classes.length === 0 ? (
-            /* Empty state */
-
             <div className="rounded-lg border border-dashed p-8 text-center">
               <p className="text-sm font-medium">
                 {emptyTitle}
@@ -484,31 +460,22 @@ export function EnrollStudentInClassDialog({
               </p>
             </div>
           ) : (
-            /* Eligible class list */
-
             <ScrollArea className="h-[320px] rounded-lg border">
               <div className="divide-y">
                 {classes.map((c) => {
-                  const isSelected =
-                    c.id === selectedClassId;
-
-                  const enrolled =
-                    c.enrolledCount ?? 0;
-
-                  const capacity =
-                    c.capacity ?? 0;
+                  const isSelected = c.id === selectedClassId;
+                  const enrolled = c.enrolledCount ?? 0;
+                  const capacity = c.capacity ?? 0;
 
                   const isFull =
-                    capacity > 0 &&
-                    enrolled >= capacity;
+                    capacity > 0 && enrolled >= capacity;
 
                   const capacityLabel =
                     capacity > 0
                       ? `${enrolled}/${capacity}`
                       : `${enrolled} enrolled`;
 
-                  const blocked =
-                    blockedClassIds.has(c.id);
+                  const blocked = blockedClassIds.has(c.id);
 
                   const classDetails = [
                     c.courseName,
@@ -526,21 +493,15 @@ export function EnrollStudentInClassDialog({
                       type="button"
                       aria-pressed={isSelected}
                       aria-disabled={blocked}
-                      onClick={() =>
-                        handleClassSelection(c)
-                      }
+                      onClick={() => handleClassSelection(c)}
                       className={[
                         "flex w-full items-start gap-3 px-3 py-3 text-left transition",
-                        isSelected
-                          ? "bg-accent"
-                          : "",
+                        isSelected ? "bg-accent" : "",
                         blocked
                           ? "cursor-not-allowed opacity-60"
                           : "hover:bg-accent/50",
                       ].join(" ")}
                     >
-                      {/* Selection indicator */}
-
                       <span
                         aria-hidden="true"
                         className={[
@@ -551,13 +512,10 @@ export function EnrollStudentInClassDialog({
                         ].join(" ")}
                       />
 
-                      {/* Class information */}
-
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-medium leading-none">
-                            {c.subjectName ??
-                              "Unnamed Class"}
+                            {c.subjectName ?? "Unnamed Class"}
                           </span>
 
                           {c.levelName ? (
@@ -607,22 +565,16 @@ export function EnrollStudentInClassDialog({
                           ) : null}
                         </span>
 
-                        {/* Additional details */}
-
                         {classDetails ? (
                           <span className="mt-1 block text-xs text-muted-foreground">
                             {classDetails}
                           </span>
                         ) : null}
 
-                        {/* Schedule */}
-
                         <span className="mt-1 block text-xs text-muted-foreground">
                           {formatSchedules(c)}
                         </span>
                       </span>
-
-                      {/* Capacity */}
 
                       <span className="ml-2 shrink-0 text-xs text-muted-foreground">
                         {capacityLabel}
@@ -634,14 +586,11 @@ export function EnrollStudentInClassDialog({
             </ScrollArea>
           )}
 
-          {/* Selected class summary */}
-
           {selectedClass ? (
             <div className="rounded-md bg-muted p-3 text-xs">
               <p className="font-medium">
                 Selected:{" "}
-                {selectedClass.subjectName ??
-                  "Unnamed Class"}
+                {selectedClass.subjectName ?? "Unnamed Class"}
               </p>
 
               <p className="text-muted-foreground">
@@ -657,27 +606,21 @@ export function EnrollStudentInClassDialog({
               <p className="text-muted-foreground">
                 {formatSchedules(selectedClass)}
                 {" · "}
-                {selectedClass.educatorName ??
-                  "No educator"}
+                {selectedClass.educatorName ?? "No educator"}
               </p>
-
-              {/* Capacity warning */}
 
               {(selectedClass.capacity ?? 0) > 0 &&
                 (selectedClass.enrolledCount ?? 0) >=
                   (selectedClass.capacity ?? 0) && (
                   <p className="mt-1 font-medium text-warning">
-                    This class is at capacity —
-                    enrolling will create an overflow
-                    record.
+                    This class is at capacity — enrolling will
+                    create an overflow record.
                   </p>
                 )}
             </div>
           ) : null}
         </div>
       </div>
-
-      {/* Footer */}
 
       <ModalFooter>
         <Button
@@ -696,9 +639,7 @@ export function EnrollStudentInClassDialog({
             selectedClassBlocked
           }
         >
-          {mutation.isPending
-            ? "Enrolling..."
-            : "Enroll"}
+          {mutation.isPending ? "Enrolling..." : "Enroll"}
         </Button>
       </ModalFooter>
     </Modal>
