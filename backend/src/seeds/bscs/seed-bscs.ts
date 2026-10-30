@@ -1216,27 +1216,71 @@ async function seedStudents(
   return { created, reused, classEnrollments };
 }
 
-function reportOverlaps(): void {
-  const toMin = (t: string): number => {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  };
+function assertNoScheduleConflicts(): void {
+  const problems: string[] = [];
   for (let i = 0; i < SCHEDULES.length; i++) {
     for (let j = i + 1; j < SCHEDULES.length; j++) {
       const a = SCHEDULES[i];
       const b = SCHEDULES[j];
-      if (a.instructor !== b.instructor || a.day !== b.day) continue;
-      if (toMin(a.start) < toMin(b.end) && toMin(b.start) < toMin(a.end)) {
-        console.warn(
-          `  warning: ${a.instructor} overlaps on ${a.day} ${a.start}-${a.end}: ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
+      if (!overlaps(a, b)) continue;
+      const when = `${a.day} ${a.start}-${a.end}`;
+      if (a.instructor === b.instructor) {
+        problems.push(
+          `instructor ${a.instructor} on ${when}: ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
+        );
+      }
+      if (a.section === b.section) {
+        problems.push(
+          `section ${a.section} on ${when}: ${a.subject} and ${b.subject}`,
+        );
+      }
+      if (a.room && a.room === b.room) {
+        problems.push(
+          `room ${a.room} on ${when}: ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
         );
       }
     }
   }
+  if (problems.length > 0) {
+    throw new Error(
+      `Timetable in bscs.data.ts has conflicts, nothing was seeded:\n  - ${problems.join('\n  - ')}`,
+    );
+  }
+}
+
+async function retireStaleClasses(
+  ctx: Ctx,
+  sections: Record<string, { id: string; capacity: number }>,
+  keepClassIds: string[],
+): Promise<number> {
+  const sectionIds = Object.values(sections).map((s) => s.id);
+  const stale = await db.class.findMany({
+    where: {
+      org_id: ctx.orgId,
+      school_year_id: ctx.schoolYearId,
+      section_id: { in: sectionIds },
+      deleted_at: null,
+      id: { notIn: keepClassIds },
+    },
+    select: { id: true },
+  });
+  if (stale.length === 0) return 0;
+
+  const staleIds = stale.map((c) => c.id);
+  await db.enrollment.deleteMany({
+    where: { org_id: ctx.orgId, class_id: { in: staleIds } },
+  });
+  await db.class.updateMany({
+    where: { id: { in: staleIds } },
+    data: { deleted_at: new Date() },
+  });
+  return staleIds.length;
 }
 
 async function main(): Promise<void> {
   console.log('\nSEED BSCS - START\n');
+
+  assertNoScheduleConflicts();
 
   const studentSection =
     readOption('section', 'BSCS_STUDENT_SECTION') ?? DEFAULT_STUDENT_SECTION;
@@ -1338,14 +1382,21 @@ async function main(): Promise<void> {
   );
   console.log(`  classes      : ${classRefs.length} in ${classSemester.name}`);
 
+  const retired = await retireStaleClasses(
+    ctx,
+    sections,
+    classRefs.map((r) => r.classId),
+  );
+  if (retired > 0) {
+    console.log(`  retired      : ${retired} old class(es) no longer in the timetable`);
+  }
+
   const schemesCreated = await ensureClassGradingSchemes(
     ctx,
     classRefs.map((r) => r.classId),
     schemeTemplateId,
   );
   console.log(`  class schemes: ${schemesCreated} created`);
-
-  reportOverlaps();
 
   const readiness = await checkSchoolYearReadiness(org.id, schoolYear.id);
   if (!readiness.ready) {

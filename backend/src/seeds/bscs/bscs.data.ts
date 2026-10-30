@@ -59,12 +59,12 @@ export const SCHEDULES: ScheduleDef[] = [
   { section: 'BSCS-1A', subject: 'PE 2 / NSTP 2', instructor: 'Osorio', room: 'Gym', day: 'SAT', start: '11:00', end: '14:00' },
 
   { section: 'BSCS-1B', subject: 'PROG 2', instructor: 'Tolentino', room: 'CB205', day: 'TUE', start: '11:00', end: '14:00' },
-  { section: 'BSCS-1B', subject: 'STS', instructor: 'Biore', room: 'SHS206', day: 'THU', start: '07:30', end: '10:30' },
-  { section: 'BSCS-1B', subject: 'PCO', instructor: 'Oreng', room: 'SHS101', day: 'THU', start: '11:00', end: '14:00' },
+  { section: 'BSCS-1B', subject: 'STS', instructor: 'Biore', room: 'SHS206', day: 'THU', start: '14:00', end: '17:00' },
+  { section: 'BSCS-1B', subject: 'PCO', instructor: 'Oreng', room: 'SHS101', day: 'FRI', start: '14:00', end: '17:00' },
   { section: 'BSCS-1B', subject: 'FIL 2', instructor: 'Lomot', room: 'SHS703', day: 'FRI', start: '07:30', end: '10:30' },
   { section: 'BSCS-1B', subject: 'DISCRETE 1', instructor: 'Reyes', room: 'CB206', day: 'FRI', start: '11:00', end: '14:00' },
-  { section: 'BSCS-1B', subject: 'DASTRUC', instructor: 'Bernardo', room: 'CB205', day: 'SAT', start: '07:30', end: '10:30' },
-  { section: 'BSCS-1B', subject: 'PE 2 / NSTP 2', instructor: 'Osorio', room: 'Gym', day: 'SAT', start: '11:00', end: '14:00' },
+  { section: 'BSCS-1B', subject: 'DASTRUC', instructor: 'Bernardo', room: 'CB205', day: 'WED', start: '07:30', end: '10:30' },
+  { section: 'BSCS-1B', subject: 'PE 2 / NSTP 2', instructor: 'Osorio', room: 'Gym', day: 'SAT', start: '14:00', end: '17:00' },
 
   { section: 'BSCS-2A', subject: 'INFOMGT', instructor: 'Tolentino', room: 'CB205', day: 'TUE', start: '14:00', end: '17:00' },
   { section: 'BSCS-2A', subject: 'ETHICS', instructor: 'Esteban', room: 'SHS202', day: 'WED', start: '07:30', end: '10:30' },
