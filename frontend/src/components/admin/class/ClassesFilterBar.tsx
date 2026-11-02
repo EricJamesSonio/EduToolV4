@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/shared/SearchInput";
 import { toArray } from "@/utils/classes.utils";
 import type { useClassFilters } from "@/hooks/admin/useClassFilters";
 
@@ -126,14 +126,12 @@ export function ClassesFilterBar({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {/* Search — subject or educator name - same size as Subjects search */}
-      <div className="relative max-w-xs">
-        <Input
-          placeholder="Search subject or educator..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-9 text-sm w-[200px] rounded-full"
-        />
-      </div>
+      <SearchInput
+        placeholder="Search subject or educator..."
+        value={search}
+        onChange={setSearch}
+        className="max-w-xs w-[200px] [&_input]:h-9 [&_input]:text-sm [&_input]:rounded-full"
+      />
 
       {/* Department */}
       <Select

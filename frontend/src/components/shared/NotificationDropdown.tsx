@@ -28,7 +28,7 @@ export function NotificationDropdown(): React.JSX.Element {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const feed = useNotificationFeed();
+  const feed = useNotificationFeed(open);
   const { data: summary } = useNotificationSummary();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();

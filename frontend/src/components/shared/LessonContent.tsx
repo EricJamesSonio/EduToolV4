@@ -23,7 +23,7 @@ function cleanText(raw: string): string {
   return raw
     .replace(/\r\n?/g, "\n")
     .replace(/[\u00a0\u2007\u202f]/g, " ")
-    .replace(/[\u200b\u200c\u200d\ufeff]/g, "")
+    .replace(/(?:\u200b|\u200c|\u200d|\ufeff)/g, "")
     .replace(/\t/g, "    ")
     .replace(/[ ]+$/gm, "");
 }

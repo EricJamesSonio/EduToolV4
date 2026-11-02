@@ -204,20 +204,26 @@ export function toStoreNotification(n: ApiNotification): Notification {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 /** Total unread + per-type unread. Drives the red badge and grouped rows. */
-export function useNotificationSummary() {
+export function useNotificationSummary(enabled = true) {
   const token = useAuthStore((s) => s.accessToken);
   return useQuery({
     queryKey: KEYS.summary,
     queryFn: () => notificationApi.getSummary(),
-    enabled: !!token,
+    enabled: !!token && enabled,
     refetchInterval: POLL_MS,
     refetchOnWindowFocus: true,
   });
 }
 
 /** Recent notifications; mirrored into the zustand store the bell reads. */
-/** Paginated notifications; flattened into the zustand store the bell reads. */
-export function useNotificationFeed() {
+/**
+ * Paginated notifications; flattened into the zustand store the bell reads.
+ *
+ * Pass `enabled: false` while the dropdown is closed: the summary query keeps
+ * the unread badge live, so polling the (potentially multi-page) feed for a
+ * closed popover is wasted work.
+ */
+export function useNotificationFeed(enabled = true) {
   const token = useAuthStore((s) => s.accessToken);
   const setNotifications = useNotificationStore((s) => s.setNotifications);
 
@@ -228,7 +234,7 @@ export function useNotificationFeed() {
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,
-    enabled: !!token,
+    enabled: !!token && enabled,
     refetchInterval: POLL_MS,
     refetchOnWindowFocus: true,
   });

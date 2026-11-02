@@ -549,9 +549,11 @@ export default function EnrollWorkspacePage() {
             <Select
               value={selectedSectionId}
               disabled={!r.peId || updateProgEnrollMutation.isPending || sectionsLoading}
-              onValueChange={(value) =>
-                setSectionAssignments((prev) => ({ ...prev, [r.peId]: value }))
-              }
+              onValueChange={(value) => {
+                const peId = r.peId;
+                if (!peId || !value) return;
+                setSectionAssignments((prev) => ({ ...prev, [peId]: value }));
+              }}
             >
               <SelectTrigger
                 aria-label={`Section for ${r.studentName}`}

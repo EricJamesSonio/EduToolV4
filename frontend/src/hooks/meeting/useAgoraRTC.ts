@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   IAgoraRTCClient,
   IAgoraRTCRemoteUser,
@@ -31,6 +31,16 @@ const CAMERA_ENCODER_CONFIG = {
   bitrateMax: 800,
 };
 
+/** Agora `close()` throws when a track was already closed. */
+function closeTrack(track: ILocalAudioTrack | ILocalVideoTrack | null): void {
+  if (!track) return;
+  try {
+    track.close();
+  } catch {
+    /* already closed */
+  }
+}
+
 export const useAgoraRTC = ({
   appId,
   channel,
@@ -41,11 +51,14 @@ export const useAgoraRTC = ({
   const agoraRTCRef = useRef<AgoraRTCModule | null>(null);
   const localAudioRef = useRef<ILocalAudioTrack | null>(null);
   const localVideoRef = useRef<ILocalVideoTrack | null>(null);
+  const cameraTrackRef = useRef<ICameraVideoTrack | null>(null);
+  const screenTrackRef = useRef<ILocalVideoTrack | null>(null);
 
   const [localAudio, setLocalAudio] = useState<ILocalAudioTrack | null>(null);
   const [localVideo, setLocalVideo] = useState<ILocalVideoTrack | null>(null);
   const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
   const [joined, setJoined] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   useEffect(() => {
     if (!appId || !channel || !token) return;
@@ -137,6 +150,7 @@ export const useAgoraRTC = ({
 
       localAudioRef.current = micTrack;
       localVideoRef.current = camTrack;
+      cameraTrackRef.current = camTrack;
 
       await meetingClient.publish([micTrack, camTrack]);
 
@@ -165,12 +179,20 @@ export const useAgoraRTC = ({
 
       const audioTrack = localAudioRef.current;
       const videoTrack = localVideoRef.current;
+      const cameraTrack = cameraTrackRef.current;
+      const screenTrack = screenTrackRef.current;
 
       localAudioRef.current = null;
       localVideoRef.current = null;
+      cameraTrackRef.current = null;
+      screenTrackRef.current = null;
 
-      audioTrack?.close();
-      videoTrack?.close();
+      closeTrack(audioTrack);
+      // `videoTrack` is the screen track while sharing; close both explicitly
+      // so the camera is not leaked when sharing ends at unmount.
+      if (videoTrack !== screenTrack) closeTrack(videoTrack);
+      closeTrack(cameraTrack);
+      closeTrack(screenTrack);
 
       if (clientRef.current === client) {
         clientRef.current = null;
@@ -187,6 +209,7 @@ export const useAgoraRTC = ({
       setLocalAudio(null);
       setLocalVideo(null);
       setRemoteUsers([]);
+      setIsScreenSharing(false);
     };
   }, [appId, channel, token, uid]);
 
@@ -199,18 +222,74 @@ export const useAgoraRTC = ({
   };
 
   const toggleCamera = async () => {
-    const track = localVideoRef.current;
+    // While screen sharing, `localVideoRef` points at the screen track; the
+    // camera toggle must always target the camera track.
+    const track = cameraTrackRef.current;
 
     if (!track) return;
 
     await track.setEnabled(!track.enabled);
   };
 
+  const restoreCamera = useCallback(async (client: IAgoraRTCClient) => {
+    const cameraTrack = cameraTrackRef.current;
+
+    if (!cameraTrack || clientRef.current !== client) return;
+
+    try {
+      await client.publish(cameraTrack);
+
+      if (clientRef.current !== client) return;
+
+      localVideoRef.current = cameraTrack;
+      setLocalVideo(cameraTrack);
+
+      try {
+        cameraTrack.play("local-video-pip");
+      } catch {
+        /* pip element may already be unmounted */
+      }
+    } catch (error) {
+      console.error("Failed to restore camera after screen sharing:", error);
+      localVideoRef.current = null;
+      setLocalVideo(null);
+    }
+  }, []);
+
+  const stopScreenShare = useCallback(async (): Promise<void> => {
+    const client = clientRef.current;
+    const screenTrack = screenTrackRef.current;
+
+    if (!screenTrack) return;
+
+    screenTrackRef.current = null;
+    setIsScreenSharing(false);
+
+    if (localVideoRef.current === screenTrack) {
+      localVideoRef.current = null;
+      setLocalVideo(null);
+    }
+
+    if (client) {
+      try {
+        await client.unpublish(screenTrack);
+      } catch (error) {
+        console.error("Failed to unpublish screen track:", error);
+      }
+    }
+
+    closeTrack(screenTrack);
+
+    if (client && clientRef.current === client) {
+      await restoreCamera(client);
+    }
+  }, [restoreCamera]);
+
   const shareScreen = async () => {
     const client = clientRef.current;
     const AgoraRTC = agoraRTCRef.current;
 
-    if (!client || !AgoraRTC) return;
+    if (!client || !AgoraRTC || screenTrackRef.current) return;
 
     let screenTrack: IScreenVideoTrack | null = null;
 
@@ -229,11 +308,13 @@ export const useAgoraRTC = ({
       screenTrack = createdScreenTrack as IScreenVideoTrack;
 
       if (clientRef.current !== client) {
-        screenTrack.close();
+        closeTrack(screenTrack);
         return;
       }
 
-      const cameraTrack = localVideoRef.current;
+      // Keep the camera track alive (on the device) so stopping the share can
+      // republish it instead of leaking it and re-acquiring the camera.
+      const cameraTrack = cameraTrackRef.current;
 
       if (cameraTrack) {
         await client.unpublish(cameraTrack);
@@ -241,66 +322,35 @@ export const useAgoraRTC = ({
       }
 
       if (clientRef.current !== client) {
-        screenTrack.close();
+        closeTrack(screenTrack);
         return;
       }
 
       await client.publish(screenTrack);
 
       if (clientRef.current !== client) {
-        screenTrack.close();
+        closeTrack(screenTrack);
         return;
       }
 
-      const activeScreenTrack = screenTrack;
+      screenTrackRef.current = screenTrack;
+      localVideoRef.current = screenTrack;
+      setLocalVideo(screenTrack);
+      setIsScreenSharing(true);
 
-      activeScreenTrack.on("track-ended", async () => {
-        const currentClient = clientRef.current;
-        const currentAgoraRTC = agoraRTCRef.current;
-
-        if (
-          !currentClient ||
-          currentClient !== client ||
-          !currentAgoraRTC
-        ) {
-          return;
-        }
-
-        try {
-          const cameraTrack = await currentAgoraRTC.createCameraVideoTrack({
-            encoderConfig: CAMERA_ENCODER_CONFIG,
-          });
-
-          if (clientRef.current !== currentClient) {
-            cameraTrack.close();
-            return;
-          }
-
-          await currentClient.unpublish(activeScreenTrack);
-          activeScreenTrack.close();
-
-          await currentClient.publish(cameraTrack);
-
-          if (clientRef.current !== currentClient) {
-            cameraTrack.close();
-            return;
-          }
-
-          localVideoRef.current = cameraTrack;
-          setLocalVideo(cameraTrack);
-        } catch (error) {
-          console.error(
-            "Failed to restore camera after screen sharing:",
-            error,
-          );
-        }
+      screenTrack.on("track-ended", () => {
+        void stopScreenShare();
       });
-
-      localVideoRef.current = activeScreenTrack;
-      setLocalVideo(activeScreenTrack);
     } catch (error) {
-      screenTrack?.close();
+      closeTrack(screenTrack);
+      screenTrackRef.current = null;
+      setIsScreenSharing(false);
       console.error("Failed to share screen:", error);
+
+      // Camera was unpublished before the failure: put it back.
+      if (clientRef.current === client) {
+        await restoreCamera(client);
+      }
     }
   };
 
@@ -313,5 +363,7 @@ export const useAgoraRTC = ({
     toggleMic,
     toggleCamera,
     shareScreen,
+    stopScreenShare,
+    isScreenSharing,
   };
 };

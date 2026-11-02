@@ -73,17 +73,25 @@ describe("useTeachableSeed", () => {
   });
 
   test("close then reopen shows fresh server state", () => {
+    // Fresh Map/array identities on every render are intentional: they guard
+    // against the hook re-seeding (and looping) on reference churn.
     const { result, rerender } = renderHook(
-      ({ open, assigned }) =>
+      ({ open, assigned, info }) =>
         useTeachableSeed({
           open,
           educatorId: "ed-1",
           schoolYearId: "sy-1",
           assigned,
-          subjectInfoById: new Map([["s1", { positions: 2 }]]),
+          subjectInfoById: info,
           infoLoading: false,
         }),
-      { initialProps: { open: true, assigned: [link("s1")] } },
+      {
+        initialProps: {
+          open: true,
+          assigned: [link("s1")],
+          info: new Map([["s1", { positions: 2 }]]),
+        },
+      },
     );
     expect(result.current.selected).toEqual(["s1"]);
 
@@ -92,13 +100,21 @@ describe("useTeachableSeed", () => {
     });
     expect(result.current.selected).toEqual(["s1", "s2"]);
 
-    rerender({ open: false, assigned: [link("s1")] });
+    rerender({
+      open: false,
+      assigned: [link("s1")],
+      info: new Map([["s1", { positions: 2 }]]),
+    });
     expect(result.current.selected).toEqual([]);
     expect(result.current.picksBySubject).toEqual({});
 
     // Server state changed while closed: reopen reflects it, not the
     // pre-close edits.
-    rerender({ open: true, assigned: [link("s2", ["sec-9"])] });
+    rerender({
+      open: true,
+      assigned: [link("s2", ["sec-9"])],
+      info: new Map([["s2", { positions: 2 }]]),
+    });
     expect(result.current.selected).toEqual(["s2"]);
     expect(result.current.picksBySubject).toEqual({ s2: { "sec-9": [1, 2] } });
   });

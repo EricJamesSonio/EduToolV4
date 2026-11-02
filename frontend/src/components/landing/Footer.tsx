@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { GraduationCap, Globe, MessageCircle, Link2, Mail } from "lucide-react";
 

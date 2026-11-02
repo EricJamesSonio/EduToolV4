@@ -8,6 +8,8 @@ import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 interface DeviceFrameProps {
   src: string;
   alt: string;
+  width: number;
+  height: number;
 }
 
 const KEY_COLUMNS = 14;
@@ -62,7 +64,7 @@ function PortLights() {
   );
 }
 
-function LaptopFrame({ src, alt }: DeviceFrameProps) {
+function LaptopFrame({ src, alt, width, height }: DeviceFrameProps) {
   return (
     <div className="@container w-full">
       <div className="flex flex-col drop-shadow-2xl">
@@ -72,7 +74,14 @@ function LaptopFrame({ src, alt }: DeviceFrameProps) {
             <span className="h-[1cqw] w-[1cqw] rounded-full bg-slate-500 ring-1 ring-slate-700" />
           </div>
           <div className="overflow-hidden rounded-sm bg-background">
-            <img src={src} alt={alt} className="block h-auto w-full" />
+            <img
+              src={src}
+              alt={alt}
+              width={width}
+              height={height}
+              fetchPriority="high"
+              className="block h-auto w-full"
+            />
           </div>
         </div>
 
@@ -90,7 +99,7 @@ function LaptopFrame({ src, alt }: DeviceFrameProps) {
   );
 }
 
-function PhoneFrame({ src, alt }: DeviceFrameProps) {
+function PhoneFrame({ src, alt, width, height }: DeviceFrameProps) {
   return (
     <div className="@container w-full">
       <div className="relative drop-shadow-2xl">
@@ -103,6 +112,9 @@ function PhoneFrame({ src, alt }: DeviceFrameProps) {
             <img
               src={src}
               alt={alt}
+              width={width}
+              height={height}
+              loading="lazy"
               className="absolute inset-x-0 bottom-0 top-[8cqw] h-[calc(100%-8cqw)] w-full bg-background object-cover object-top"
             />
           </div>
@@ -196,6 +208,8 @@ export function HeroSection() {
               <LaptopFrame
                 src="/desktop-3.png"
                 alt="Relief-ED dashboard preview"
+                width={1899}
+                height={916}
               />
             </div>
 
@@ -203,6 +217,8 @@ export function HeroSection() {
               <PhoneFrame
                 src="/mobile-3.png"
                 alt="Relief-ED mobile dashboard preview"
+                width={445}
+                height={792}
               />
             </div>
           </div>
