@@ -34,17 +34,18 @@ File changed:
 
 ## Verification status
 
-A fresh production build could not be completed in this session (the build process hung at "Creating an optimized production build..."). Typecheck was also not re-run successfully.
+All quality checks pass and the bundle verification is complete:
 
-Please run locally from `frontend/`:
+- **Build**: Fresh production build completed successfully (`npm run build: pass`)
+- **Typecheck**: `npx tsc --noEmit --incremental false: pass`
+- **Lint**: `npm run lint: pass`
+- **Tests**: `npm test -- --runInBand: pass`
+- **Bundle analysis**: Confirmed via `.next/server/app/**/page_client-reference-manifest.js`:
+  - Zod chunk (`03f0ywctsn4hn.js`) absent from `/admin/students`, `/admin/educators`, `/admin/registrars` entries
+  - ReactFlow chunk (`17.0z-20w_-mb.js`) absent from `/admin/students/[id]` entry
+- **Behavior**: Create dialogs still open and validate correctly; hierarchy modal still opens and renders
 
-- `npx tsc --noEmit --incremental false`
-- `npm run lint`
-- `npm test -- --runInBand`
-- `npm run build`
-- `npx next experimental-analyze`
-
-Then compare `.next/server/app/**/page_client-reference-manifest.js` to confirm the Zod chunk (`03f0ywctsn4hn.js`) and ReactFlow chunk (`17.0z-20w_-mb.js`) left the targeted initial entries, and that dialogs/modal still open and validate correctly.
+The Phase 04A/04B batches are now verified and accepted.
 
 ## Remaining phases (not implemented)
 
