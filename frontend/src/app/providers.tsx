@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
+import { AppWrapper } from "@/components/shared/AppWrapper";
 import { queryClient } from "@/lib/query-client.config";
 
 const Devtools = dynamic(
@@ -28,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {children}
+        <AppWrapper>{children}</AppWrapper>
 
         <Toaster richColors position="top-right" />
 
