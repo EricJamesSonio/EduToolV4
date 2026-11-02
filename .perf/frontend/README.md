@@ -1,5 +1,9 @@
 # EduTool Frontend Performance Plan
 
+> **Execution entry point:** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) is the authoritative, self-contained plan. Its phase order supersedes this file and the per-phase `PHASE-*.md` documents below.
+>
+> This README and the phase documents are retained as historical context and evidence. Use them for background; use `IMPLEMENTATION_PLAN.md` for what to do next.
+
 ## Purpose
 
 A conservative, incremental plan for improving the EduTool frontend without changing product behavior. Work one batch at a time, validate it, measure it, and only then continue.
