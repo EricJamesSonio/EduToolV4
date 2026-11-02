@@ -24,6 +24,7 @@ const solutionsByRole = {
         "No rigid setup or limitations",
       ],
       video: "/videos/setup.mp4",
+      poster: "/posters/setup.png",
     },
     {
       eyebrow: "Class management",
@@ -36,6 +37,7 @@ const solutionsByRole = {
         "Centralized dashboard for full visibility",
       ],
       video: "/videos/classes.mp4",
+      poster: "/posters/classes.png",
     },
     {
       eyebrow: "Grading system",
@@ -48,6 +50,7 @@ const solutionsByRole = {
         "Grade locking to prevent unwanted changes",
       ],
       video: "/videos/grading.mp4",
+      poster: "/posters/grading.png",
     },
   ],
 
@@ -63,6 +66,7 @@ const solutionsByRole = {
         "No more scattered tools or manual tracking",
       ],
       video: "/videos/educator/classes.mp4",
+      poster: "/posters/educator-classes.png",
     },
     {
       eyebrow: "Assessment creation",
@@ -75,6 +79,7 @@ const solutionsByRole = {
         "Edit before publishing",
       ],
       video: "/videos/educator/assessments.mp4",
+      poster: "/posters/educator-assessments.png",
     },
     {
       eyebrow: "Grading workflow",
@@ -87,6 +92,7 @@ const solutionsByRole = {
         "Lock grades to finalize results",
       ],
       video: "/videos/educator/grading.mp4",
+      poster: "/posters/educator-grading.png",
     },
   ],
 
@@ -102,6 +108,7 @@ const solutionsByRole = {
         "Clear status tracking",
       ],
       video: "/videos/student/assessments.mp4",
+      poster: "/posters/student-assessments.png",
     },
     {
       eyebrow: "Grades & progress",
@@ -114,6 +121,7 @@ const solutionsByRole = {
         "Real-time updates",
       ],
       video: "/videos/student/grades.mp4",
+      poster: "/posters/student-grades.png",
     },
     {
       eyebrow: "Learning experience",
@@ -126,6 +134,7 @@ const solutionsByRole = {
         "View schedules easily",
       ],
       video: "/videos/student/portal.mp4",
+      poster: "/posters/student-portal.png",
     },
   ],
 };
@@ -146,7 +155,7 @@ function usePlayerCtx(): PlayerCtxValue {
 
 // ── Optimized VideoPreview ────────────────────────────
 
-function VideoPreview({ src }: { src: string }) {
+function VideoPreview({ src, poster }: { src: string; poster?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -235,6 +244,7 @@ function VideoPreview({ src }: { src: string }) {
           loop
           muted
           playsInline
+          poster={poster}
           className={`absolute inset-0 w-full h-full object-cover ${loaded ? "opacity-100" : "opacity-0"}`}
           onLoadedData={() => setLoaded(true)}
         />
