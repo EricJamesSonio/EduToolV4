@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { Database } from "lucide-react";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { useSchoolProfileData } from "@/hooks/admin/useSchoolProfile";
 import { queryKeys } from "@/hooks/queryKeys.factory";
+import { ActionPromptDialog } from "@/components/shared/ActionPromptDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
@@ -28,9 +30,14 @@ interface Props {
   onClose: () => void;
   /**
    * When provided, the caller handles what happens after creation (for example
-   * the Data Seeder selecting the new year), so the "Seed it" shortcut is skipped.
+   * the Data Seeder selecting the new year), so the "Seed it" prompt is skipped.
    */
   onCreated?: (schoolYear: SchoolYear) => void;
+}
+
+interface SeedPrompt {
+  id: string;
+  name: string;
 }
 
 function previewName(start: string, end: string): string | null {
@@ -47,6 +54,7 @@ export function CreateSchoolYearDialog({ open, onClose, onCreated }: Props): Rea
 
   const [shortDurationWarning, setShortDurationWarning] =
     useState<ShortDurationWarning | null>(null);
+  const [seedPrompt, setSeedPrompt] = useState<SeedPrompt | null>(null);
 
   const { data: profileData } = useSchoolProfileData();
   const hasProfile = (profileData?.departments?.length ?? 0) > 0;
@@ -94,16 +102,9 @@ export function CreateSchoolYearDialog({ open, onClose, onCreated }: Props): Rea
       // Seeding lives in School Profile -> Seed a School Year, where the
       // academic calendar is set up in the same flow.
       if (hasProfile && createdSchoolYear?.id) {
-        const targetId = createdSchoolYear.id;
-        toast.success("School year created.", {
-          description:
-            "Seed it from School Profile to set up its academic calendar and structure.",
-          duration: 10000,
-          action: {
-            label: "Seed it",
-            onClick: () =>
-              router.push(`/admin/data-seeder?mode=seed&schoolYearId=${targetId}`),
-          },
+        setSeedPrompt({
+          id: createdSchoolYear.id,
+          name: createdSchoolYear.name,
         });
       } else {
         toast.success("School year created.");
@@ -153,6 +154,13 @@ export function CreateSchoolYearDialog({ open, onClose, onCreated }: Props): Rea
       name,
       confirm_short_duration: true,
     });
+  };
+
+  const handleSeedNow = () => {
+    if (!seedPrompt) return;
+    const targetId = seedPrompt.id;
+    setSeedPrompt(null);
+    router.push(`/admin/data-seeder?mode=seed&schoolYearId=${targetId}`);
   };
 
   return (
@@ -229,6 +237,25 @@ export function CreateSchoolYearDialog({ open, onClose, onCreated }: Props): Rea
         onOpenChange={(o) => {
           if (!o) setShortDurationWarning(null);
         }}
+      />
+
+      <ActionPromptDialog
+        open={!!seedPrompt}
+        onOpenChange={(o) => {
+          if (!o) setSeedPrompt(null);
+        }}
+        icon={Database}
+        tone="green"
+        title="School year created"
+        description={
+          <>
+            {seedPrompt?.name ?? "The new school year"} is ready. Seed it from your
+            School Profile to set up its academic calendar and structure.
+          </>
+        }
+        primaryLabel="Seed it"
+        onPrimary={handleSeedNow}
+        secondaryLabel="Maybe later"
       />
     </>
   );
