@@ -10,6 +10,8 @@
 @import "./theme.css";
 /* Base layer styles (typography, elements) */
 @import "./base.css";
+/* Cursor / caret defaults for display-only content */
+@import "./interaction.css";
 /* Utility classes and helpers */
 @import "./utilities.css";
 /* Responsive styles for all devices */

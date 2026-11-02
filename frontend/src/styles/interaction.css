@@ -1,0 +1,38 @@
+/* ─────────────────────────────────────────
+   INTERACTION DEFAULTS
+   Hide the text cursor / caret on display-only content.
+   Real text-entry elements get them back.
+   Kept in the base layer so Tailwind utilities
+   (cursor-pointer, select-text, ...) still win.
+───────────────────────────────────────── */
+@layer base {
+  .app-no-text-cursor {
+    cursor: default;
+    caret-color: transparent;
+  }
+
+  .app-no-text-cursor input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  .app-no-text-cursor textarea,
+  .app-no-text-cursor [contenteditable=""],
+  .app-no-text-cursor [contenteditable="true"],
+  .app-no-text-cursor [contenteditable="plaintext-only"] {
+    cursor: text;
+    caret-color: auto;
+  }
+
+  .app-no-text-cursor a,
+  .app-no-text-cursor button,
+  .app-no-text-cursor select,
+  .app-no-text-cursor summary,
+  .app-no-text-cursor [role="button"],
+  .app-no-text-cursor [role="tab"],
+  .app-no-text-cursor [role="menuitem"],
+  .app-no-text-cursor label[for] {
+    cursor: pointer;
+  }
+
+  .app-no-text-cursor button:disabled,
+  .app-no-text-cursor [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
