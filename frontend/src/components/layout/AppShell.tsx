@@ -13,7 +13,7 @@ export function AppShell({ sidebar, children }: AppShellProps) {
   const { collapsed, isMobile } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="app-no-text-cursor min-h-screen bg-background text-foreground">
       <PortalNavbar />
 
       {sidebar}

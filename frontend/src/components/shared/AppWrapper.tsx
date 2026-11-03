@@ -2,23 +2,22 @@
 
 import { useEffect, type ReactNode } from "react";
 
-const WRAPPER_CLASS = "app-no-text-cursor";
+export const APP_WRAPPER_CLASS = "app-no-text-cursor";
 
 /**
- * Global app wrapper. Marks the whole app as display-only by default so the
- * I-beam cursor and text caret do not appear over non-input content, which
- * misleads users into thinking they can type in the design.
+ * Global app wrapper. Keeps the whole app display-only by default: no I-beam
+ * cursor, no blinking caret and no text selection outside real inputs, so
+ * users are not misled into thinking they can type in the design.
  *
- * The class is also placed on <body> so portaled content (dialogs, toasts,
- * popovers) is covered. Real inputs are restored in styles/interaction.css.
+ * The class is also set on <body> in the root layout, so portaled content
+ * (dialogs, toasts, popovers) is covered from the first render. The effect
+ * below only re-adds it if something removed it. Rules live in
+ * styles/interaction.css. Opt in to selectable text with `data-selectable`.
  */
 export function AppWrapper({ children }: { children: ReactNode }) {
   useEffect(() => {
-    document.body.classList.add(WRAPPER_CLASS);
-    return () => {
-      document.body.classList.remove(WRAPPER_CLASS);
-    };
+    document.body.classList.add(APP_WRAPPER_CLASS);
   }, []);
 
-  return <div className={`${WRAPPER_CLASS} contents`}>{children}</div>;
+  return <div className={`${APP_WRAPPER_CLASS} contents`}>{children}</div>;
 }

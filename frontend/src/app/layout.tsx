@@ -45,7 +45,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${kodchasan.variable} ${jetbrainsMono.variable} ${plusJakartaSans.variable}`}
     >
-      <body className="antialiased">
+      <body className="antialiased app-no-text-cursor">
         <Providers>{children}</Providers>
       </body>
     </html>
