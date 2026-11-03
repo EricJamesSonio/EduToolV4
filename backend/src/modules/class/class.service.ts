@@ -406,6 +406,9 @@ export class ClassService {
       subjectId: query.subjectId,
       sectionId: query.sectionId,
       programId: query.programId,
+      courseId: query.courseId,
+      strandId: query.strandId,
+      levelId: query.levelId,
       search: query.search,
       page,
       limit,
@@ -435,8 +438,6 @@ export class ClassService {
           level_name: subject?.level?.name ?? null,
           course_name: subject?.course?.name ?? null,
           strand_name: subject?.strand?.name ?? null,
-
-          // ✅ THIS IS THE FIX
           educatorName: educator?.profile?.full_name ?? null,
         };
       }),
