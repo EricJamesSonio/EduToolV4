@@ -1119,13 +1119,19 @@ async function retireUnseededSubject(
     where: {
       org_id: ctx.orgId,
       level_id: levelId,
-      name: {
-        in: [
-          subjectDisplayName(subject),
-          subject.code,
-          ...(subject.legacyNames ?? []),
-        ],
-      },
+      OR: [
+        {
+          name: {
+            in: [
+              subjectDisplayName(subject),
+              subject.code,
+              subject.name,
+              ...(subject.legacyNames ?? []),
+            ],
+          },
+        },
+        { code: subject.code },
+      ],
     },
     select: { id: true },
   });
@@ -1200,7 +1206,6 @@ async function seedSubjects(
     }
 
     const minor = MINOR_SUBJECT_CODES.includes(s.code);
-    const name = subjectDisplayName(s);
     const id = seedId(
       'subject',
       'bscs-curriculum',
@@ -1209,18 +1214,28 @@ async function seedSubjects(
       ctx.schoolYearId,
       ctx.orgId,
     );
-    const knownNames = [name, s.code, ...(s.legacyNames ?? [])];
+    const knownNames = [
+      s.name,
+      subjectDisplayName(s),
+      s.code,
+      ...(s.legacyNames ?? []),
+    ];
 
     const existing = await db.subject.findFirst({
       where: {
         org_id: ctx.orgId,
-        OR: [{ id }, { level_id: levelId, name: { in: knownNames } }],
+        OR: [
+          { id },
+          { level_id: levelId, code: s.code },
+          { level_id: levelId, name: { in: knownNames } },
+        ],
       },
       select: { id: true },
     });
 
     const data = {
-      name,
+      name: s.name,
+      code: s.code,
       subject_type: minor ? 'minor' : 'major',
       program_id: ctx.programId,
       level_id: levelId,

@@ -173,9 +173,26 @@ export class SubjectService {
       );
     }
 
+    const code = dto.code?.trim() || null;
+    if (code) {
+      const existingCode = await this.subjectRepository.findDuplicateByCode(
+        orgId,
+        code,
+        dto.programId,
+        dto.levelId,
+        dto.subjectType,
+      );
+      if (existingCode) {
+        throw new ConflictException(
+          'A subject with this code already exists for this program and level.',
+        );
+      }
+    }
+
     const subject = (await this.subjectRepository.create({
       orgId,
-      name: dto.name,
+      name: dto.name.trim(),
+      code,
       subjectType: dto.subjectType,
       programId: dto.programId,
       levelId: dto.levelId,
@@ -261,8 +278,6 @@ export class SubjectService {
     const typeChanged =
       !!dto.subjectType && dto.subjectType !== subject.subject_type;
     const scopeChanged = programChanged || typeChanged;
-    // Only needed when the program moves: the new program's default weekly
-    // count is what the saved row will fall back to.
     let targetProgramType: string | null = null;
 
     if (scopeChanged) {
@@ -311,16 +326,28 @@ export class SubjectService {
       );
     }
 
+    const nextCode: string | null | undefined =
+      dto.code === undefined ? undefined : dto.code.trim() || null;
+    if (nextCode) {
+      const existingCode = await this.subjectRepository.findDuplicateByCode(
+        orgId,
+        nextCode,
+        dto.programId ?? subject.program_id ?? undefined,
+        levelToCheck,
+        typeToCheck,
+        id,
+      );
+      if (existingCode) {
+        throw new ConflictException(
+          'A subject with this code already exists for this program and level.',
+        );
+      }
+    }
+
     if (programChanged) {
       await this.subjectRepository.clearSharings(id, orgId);
     }
 
-    // Data rule: a count change must never leave stale durations behind. If
-    // this request changes the count and does not restate the lengths, they
-    // are cleared rather than left describing the old number of meetings.
-    //
-    // `null` (clear) is deliberately distinct from `undefined` (leave alone),
-    // which is how the repository tells "set this column" from "don't touch".
     const countChanged =
       dto.sessionsPerWeek !== undefined &&
       dto.sessionsPerWeek !== subject.sessions_per_week;
@@ -340,7 +367,8 @@ export class SubjectService {
     );
 
     const updated = (await this.subjectRepository.update(id, {
-      name: dto.name,
+      name: dto.name?.trim(),
+      code: nextCode,
       subjectType: dto.subjectType,
       programId: programChanged ? dto.programId : undefined,
       levelId: scopeChanged && dto.levelId === undefined ? null : dto.levelId,
