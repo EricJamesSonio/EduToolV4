@@ -36,8 +36,11 @@ export interface GetClassesQuery {
   educatorId?:   string;
   subjectId?:    string;
   sectionId?:    string;
-  programId?:    string;  // NEW — department filter
-  search?:       string;  // NEW — subject/educator search
+  programId?:    string;
+  courseId?:     string;
+  strandId?:     string;
+  levelId?:      string;
+  search?:       string;
   page?:         number;
   limit?:        number;
 }
