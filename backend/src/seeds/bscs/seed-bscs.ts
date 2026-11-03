@@ -39,6 +39,19 @@ import {
   WEEKDAY_NUMBER,
   type ScheduleDef,
 } from './bscs.data';
+import { scheduleDateToMinutes } from '../../commons/utils/schedule-time.util';
+import {
+  CLASS_DAYS,
+  CURRICULUM,
+  FULL_BLOCKS,
+  HALF_BLOCKS,
+  POSTED_TIMETABLE_SEMESTER,
+  ROOM_POOLS,
+  STUDENT_SEMESTER,
+  type CurriculumSubject,
+  type TermLabel,
+} from './bscs.data';
+import { SEEDED_TERMS } from './bscs.data';
 
 type OrgInfo = {
   id: string;
@@ -561,14 +574,6 @@ async function ensureSemesters(
   return seeded;
 }
 
-function pickClassSemester(semesters: SeededSemester[]): SeededSemester {
-  const now = Date.now();
-  const current = semesters.find(
-    (s) => s.start.getTime() <= now && now <= s.end.getTime(),
-  );
-  return current ?? semesters[0];
-}
-
 async function ensureGradingScale(ctx: Ctx): Promise<void> {
   let scale = await db.gradingScale.findFirst({
     where: { org_id: ctx.orgId, name: COLLEGE_SCALE_NAME },
@@ -700,11 +705,356 @@ async function ensureClassGradingSchemes(
   return created;
 }
 
-async function seedRooms(orgId: string): Promise<Record<string, string>> {
+function termOrder(term: TermLabel): number {
+  if (term === '1st Semester') return 0;
+  if (term === '2nd Semester') return 1;
+  return 2;
+}
+
+function termPosition(levelName: string, term: TermLabel): number {
+  const year = Number.parseInt(levelName, 10);
+  return (year - 1) * 3 + termOrder(term);
+}
+
+function subjectDisplayName(subject: CurriculumSubject): string {
+  return `${subject.code} - ${subject.name}`;
+}
+
+function validateCurriculum(): void {
+  const problems: string[] = [];
+  const byCode = new Map<string, CurriculumSubject>();
+  const levelNames = new Set(SECTIONS.map((s) => s.levelName));
+
+  for (const s of CURRICULUM) {
+    if (byCode.has(s.code)) problems.push(`duplicate subject code ${s.code}`);
+    byCode.set(s.code, s);
+    if (!levelNames.has(s.levelName)) {
+      problems.push(`${s.code}: unknown level "${s.levelName}"`);
+    }
+    if (s.instructors.length === 0) {
+      problems.push(`${s.code}: no instructor listed`);
+    }
+  }
+
+  for (const s of CURRICULUM) {
+    for (const pre of s.prerequisites) {
+      const prerequisite = byCode.get(pre);
+      if (!prerequisite) {
+        problems.push(`${s.code}: prerequisite ${pre} does not exist`);
+        continue;
+      }
+      if (
+        termPosition(prerequisite.levelName, prerequisite.term) >=
+        termPosition(s.levelName, s.term)
+      ) {
+        problems.push(`${s.code}: prerequisite ${pre} is not taken before it`);
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(
+      `Curriculum in bscs.data.ts is invalid, nothing was seeded:\n  - ${problems.join('\n  - ')}`,
+    );
+  }
+}
+
+function clashReasons(a: ScheduleDef, b: ScheduleDef): string[] {
+  if (a.semester !== b.semester || !overlaps(a, b)) return [];
+  const reasons: string[] = [];
+  if (a.section === b.section) reasons.push(`section ${a.section}`);
+  if (a.instructor === b.instructor) reasons.push(`instructor ${a.instructor}`);
+  if (a.room && a.room === b.room) reasons.push(`room ${a.room}`);
+  return reasons;
+}
+
+function generateEntry(
+  subject: CurriculumSubject,
+  sectionName: string,
+  semester: number,
+  plan: ScheduleDef[],
+): ScheduleDef {
+  const blocks = subject.halfBlock ? HALF_BLOCKS : FULL_BLOCKS;
+  const rooms = ROOM_POOLS[subject.roomKind];
+  const candidates: { entry: ScheduleDef; rank: number }[] = [];
+
+  for (const day of CLASS_DAYS) {
+    for (const block of blocks) {
+      for (const instructor of subject.instructors) {
+        for (const room of rooms) {
+          candidates.push({
+            entry: {
+              section: sectionName,
+              subject: subject.code,
+              instructor,
+              room,
+              day,
+              start: block.start,
+              end: block.end,
+              semester,
+            },
+            rank: hashString(
+              `${sectionName}:${semester}:${subject.code}:${day}:${block.start}:${instructor}:${room}`,
+            ),
+          });
+        }
+      }
+    }
+  }
+  candidates.sort((a, b) => a.rank - b.rank);
+
+  for (const { entry } of candidates) {
+    const clashes = plan.some(
+      (existing) => clashReasons(existing, entry).length > 0,
+    );
+    if (!clashes) return entry;
+  }
+  throw new Error(
+    `No conflict-free slot was found for ${subject.code} in ${sectionName} (semester ${semester}).`,
+  );
+}
+
+function buildTimetable(): ScheduleDef[] {
+  const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
+  const plan: ScheduleDef[] = [];
+
+  for (const posted of SCHEDULES) {
+    if (!byCode.has(posted.subject)) {
+      throw new Error(
+        `Posted timetable uses unknown subject code "${posted.subject}".`,
+      );
+    }
+    plan.push({ ...posted, semester: POSTED_TIMETABLE_SEMESTER });
+  }
+
+  for (const section of SECTIONS) {
+    for (const semester of [1, 2]) {
+      const label = SEMESTER_NAMES[semester - 1];
+      const required = CURRICULUM.filter(
+        (s) => s.levelName === section.levelName && s.term === label,
+      );
+      for (const subject of required) {
+        const scheduled = plan.some(
+          (e) =>
+            e.section === section.name &&
+            e.subject === subject.code &&
+            e.semester === semester,
+        );
+        if (!scheduled) {
+          plan.push(generateEntry(subject, section.name, semester, plan));
+        }
+      }
+    }
+  }
+  return plan;
+}
+
+async function verifyNoDbConflicts(
+  ctx: Ctx,
+  educatorIds: string[],
+  sectionIds: string[],
+  roomIds: string[],
+): Promise<void> {
+  const classes = await db.class.findMany({
+    where: {
+      org_id: ctx.orgId,
+      school_year_id: ctx.schoolYearId,
+      deleted_at: null,
+      OR: [
+        { educator_id: { in: educatorIds } },
+        { section_id: { in: sectionIds } },
+        { schedules: { some: { room_id: { in: roomIds } } } },
+      ],
+    },
+    select: {
+      id: true,
+      semester_id: true,
+      educator_id: true,
+      section_id: true,
+      subject: { select: { name: true } },
+      schedules: {
+        select: {
+          weekday: true,
+          start_time: true,
+          end_time: true,
+          room_id: true,
+        },
+      },
+    },
+  });
+
+  const rows = classes.flatMap((c) =>
+    c.schedules.map((s) => ({
+      classId: c.id,
+      label: c.subject.name,
+      semesterId: c.semester_id,
+      educatorId: c.educator_id,
+      sectionId: c.section_id,
+      roomId: s.room_id,
+      weekday: s.weekday,
+      start: scheduleDateToMinutes(s.start_time),
+      end: scheduleDateToMinutes(s.end_time),
+    })),
+  );
+
+  const problems: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const a = rows[i];
+      const b = rows[j];
+      if (a.classId === b.classId) continue;
+      if (a.semesterId !== b.semesterId || a.weekday !== b.weekday) continue;
+      if (!(a.start < b.end && b.start < a.end)) continue;
+
+      const reasons: string[] = [];
+      if (a.educatorId === b.educatorId) reasons.push('same educator');
+      if (a.sectionId && a.sectionId === b.sectionId) reasons.push('same section');
+      if (a.roomId && a.roomId === b.roomId) reasons.push('same room');
+      if (reasons.length > 0) {
+        problems.push(
+          `weekday ${a.weekday} (${reasons.join(', ')}): ${a.label} and ${b.label}`,
+        );
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(
+      `Schedule conflicts exist in the database, students were not seeded:\n  - ${problems.join('\n  - ')}`,
+    );
+  }
+}
+
+async function seedPrerequisites(
+  ctx: Ctx,
+  subjectIds: Record<string, string>,
+): Promise<number> {
+  const rows: { org_id: string; subject_id: string; prerequisite_id: string }[] = [];
+  for (const s of CURRICULUM) {
+    if (!SEEDED_TERMS.includes(s.term)) continue;
+    for (const pre of s.prerequisites) {
+      rows.push({
+        org_id: ctx.orgId,
+        subject_id: subjectIds[s.code],
+        prerequisite_id: subjectIds[pre],
+      });
+    }
+  }
+
+  const wanted = new Set(rows.map((r) => `${r.subject_id}|${r.prerequisite_id}`));
+  const existing = await db.subjectPrerequisite.findMany({
+    where: {
+      org_id: ctx.orgId,
+      subject_id: { in: Object.values(subjectIds) },
+    },
+    select: { id: true, subject_id: true, prerequisite_id: true },
+  });
+  const stale = existing
+    .filter((e) => !wanted.has(`${e.subject_id}|${e.prerequisite_id}`))
+    .map((e) => e.id);
+  if (stale.length > 0) {
+    await db.subjectPrerequisite.deleteMany({ where: { id: { in: stale } } });
+  }
+
+  await db.subjectPrerequisite.createMany({
+    data: rows,
+    skipDuplicates: true,
+  });
+  return rows.length;
+}
+
+async function seedEducatorSubjects(
+  ctx: Ctx,
+  plan: ScheduleDef[],
+  educatorIds: Record<string, string>,
+  subjectIds: Record<string, string>,
+  sections: Record<string, { id: string; capacity: number }>,
+): Promise<number> {
+  const wanted = new Map<
+    string,
+    { educatorId: string; subjectId: string; sectionIds: Set<string> }
+  >();
+  for (const e of plan) {
+    const educatorId = educatorIds[e.instructor];
+    const subjectId = subjectIds[e.subject];
+    const key = `${educatorId}|${subjectId}`;
+    const row = wanted.get(key) ?? {
+      educatorId,
+      subjectId,
+      sectionIds: new Set<string>(),
+    };
+    row.sectionIds.add(sections[e.section].id);
+    wanted.set(key, row);
+  }
+
+  const existing = await db.educatorSubject.findMany({
+    where: {
+      org_id: ctx.orgId,
+      educator_id: { in: Object.values(educatorIds) },
+      subject_id: { in: Object.values(subjectIds) },
+    },
+    select: { id: true, educator_id: true, subject_id: true },
+  });
+  const stale = existing
+    .filter((r) => !wanted.has(`${r.educator_id}|${r.subject_id}`))
+    .map((r) => r.id);
+  if (stale.length > 0) {
+    await db.educatorSubject.deleteMany({ where: { id: { in: stale } } });
+  }
+
+  for (const row of wanted.values()) {
+    await db.educatorSubject.upsert({
+      where: {
+        educator_id_subject_id: {
+          educator_id: row.educatorId,
+          subject_id: row.subjectId,
+        },
+      },
+      update: { section_ids: [...row.sectionIds] },
+      create: {
+        org_id: ctx.orgId,
+        educator_id: row.educatorId,
+        subject_id: row.subjectId,
+        section_ids: [...row.sectionIds],
+      },
+    });
+  }
+  return wanted.size;
+}
+
+function creditCodesFor(position: number, taken: Set<string>): string[] {
+  return CURRICULUM.filter(
+    (s) =>
+      SEEDED_TERMS.includes(s.term) &&
+      termPosition(s.levelName, s.term) < position &&
+      !taken.has(s.code),
+  ).map((s) => s.code);
+}
+
+function assertPrerequisitesMet(
+  studentName: string,
+  takenCodes: string[],
+  credited: Set<string>,
+): void {
+  const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
+  const problems: string[] = [];
+  for (const code of takenCodes) {
+    for (const pre of byCode.get(code)?.prerequisites ?? []) {
+      if (!credited.has(pre)) problems.push(`${code} needs ${pre}`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Prerequisites are not met for ${studentName}: ${problems.join(', ')}. Nothing was enrolled.`,
+    );
+  }
+}
+async function seedRooms(
+  orgId: string,
+  plan: ScheduleDef[],
+): Promise<Record<string, string>> {
   const names = [
-    ...new Set(
-      SCHEDULES.map((s) => s.room).filter((r): r is string => r !== null),
-    ),
+    ...new Set(plan.map((e) => e.room).filter((r): r is string => r !== null)),
   ];
   const map: Record<string, string> = {};
   for (const name of names) {
@@ -722,8 +1072,9 @@ async function seedEducators(
   orgId: string,
   emailExt: string,
   passwordHash: string,
+  plan: ScheduleDef[],
 ): Promise<Record<string, string>> {
-  const names = [...new Set(SCHEDULES.map((s) => s.instructor))];
+  const names = [...new Set(plan.map((e) => e.instructor))];
   const map: Record<string, string> = {};
 
   for (const name of names) {
@@ -758,54 +1109,107 @@ async function seedEducators(
   return map;
 }
 
+async function retireUnseededSubject(
+  ctx: Ctx,
+  subject: CurriculumSubject,
+  levelId: string,
+): Promise<void> {
+  const rows = await db.subject.findMany({
+    where: {
+      org_id: ctx.orgId,
+      level_id: levelId,
+      course_id: ctx.courseId,
+      name: {
+        in: [
+          subjectDisplayName(subject),
+          subject.code,
+          ...(subject.legacyNames ?? []),
+        ],
+      },
+    },
+    select: { id: true },
+  });
+
+  for (const row of rows) {
+    await db.educatorSubject.deleteMany({ where: { subject_id: row.id } });
+    await db.subjectPrerequisite.deleteMany({
+      where: { OR: [{ subject_id: row.id }, { prerequisite_id: row.id }] },
+    });
+    await db.subjectCompletionOverride.deleteMany({
+      where: { subject_id: row.id },
+    });
+    const used = await db.class.count({ where: { subject_id: row.id } });
+    if (used === 0) {
+      await db.subject.delete({ where: { id: row.id } });
+    } else {
+      await db.subject.update({
+        where: { id: row.id },
+        data: { deleted_at: new Date() },
+      });
+    }
+  }
+}
 async function seedSubjects(
   ctx: Ctx,
   levelIds: Record<string, string>,
 ): Promise<Record<string, string>> {
-  const sectionLevel: Record<string, string> = {};
-  for (const sec of SECTIONS) sectionLevel[sec.name] = sec.levelName;
-
   const map: Record<string, string> = {};
-  for (const sch of SCHEDULES) {
-    const levelName = sectionLevel[sch.section];
-    const key = `${levelName}|${sch.subject}`;
-    if (map[key]) continue;
 
-    const levelId = levelIds[levelName];
+  for (const s of CURRICULUM) {
+    const levelId = levelIds[s.levelName];
+
+    if (!SEEDED_TERMS.includes(s.term)) {
+      await retireUnseededSubject(ctx, s, levelId);
+      continue;
+    }
+
+    const name = subjectDisplayName(s);
+    const id = seedId(
+      'subject',
+      'bscs-curriculum',
+      s.code,
+      s.levelName,
+      ctx.schoolYearId,
+      ctx.orgId,
+    );
+    const knownNames = [name, s.code, ...(s.legacyNames ?? [])];
+
     const existing = await db.subject.findFirst({
       where: {
         org_id: ctx.orgId,
-        level_id: levelId,
-        course_id: ctx.courseId,
-        name: sch.subject,
+        OR: [
+          { id },
+          {
+            level_id: levelId,
+            course_id: ctx.courseId,
+            name: { in: knownNames },
+          },
+        ],
       },
       select: { id: true },
     });
+
+    const data = {
+      name,
+      subject_type: 'major',
+      program_id: ctx.programId,
+      level_id: levelId,
+      course_id: ctx.courseId,
+      year_level: s.levelName,
+      term_label: s.term,
+      deleted_at: null,
+    };
+
     if (existing) {
-      map[key] = existing.id;
+      await db.subject.update({ where: { id: existing.id }, data });
+      map[s.code] = existing.id;
       continue;
     }
 
     const created = await db.subject.create({
-      data: {
-        id: seedId(
-          'subject',
-          'bscs-timetable',
-          levelName,
-          sch.subject,
-          ctx.orgId,
-        ),
-        org_id: ctx.orgId,
-        subject_type: 'major',
-        program_id: ctx.programId,
-        level_id: levelId,
-        course_id: ctx.courseId,
-        name: sch.subject,
-        year_level: levelName,
-        is_locked: false,
-      },
+      data: { id, org_id: ctx.orgId, is_locked: false, ...data },
     });
-    map[key] = created.id;
+    map[s.code] = created.id;
   }
   return map;
 }
@@ -824,44 +1228,61 @@ type StudentPlan = {
 
 async function seedClasses(
   ctx: Ctx,
-  semesterId: string,
+  semesterIds: Record<number, string>,
   sections: Record<string, { id: string; capacity: number }>,
   subjectIds: Record<string, string>,
   educatorIds: Record<string, string>,
   roomIds: Record<string, string>,
+  plan: ScheduleDef[],
 ): Promise<ClassRef[]> {
-  const sectionLevel: Record<string, string> = {};
-  for (const sec of SECTIONS) sectionLevel[sec.name] = sec.levelName;
-
   const refs: ClassRef[] = [];
 
-  for (const sch of SCHEDULES) {
-    const section = sections[sch.section];
-    const subjectId = subjectIds[`${sectionLevel[sch.section]}|${sch.subject}`];
+  for (const e of plan) {
+    const section = sections[e.section];
+    const subjectId = subjectIds[e.subject];
+    const semesterId = semesterIds[e.semester];
+    const educatorId = educatorIds[e.instructor];
     const classId = seedId(
       'class',
-      'bscs-timetable',
+      'bscs-curriculum',
       section.id,
       subjectId,
-      sch.day,
-      sch.start,
+      semesterId,
       ctx.schoolYearId,
       ctx.orgId,
     );
 
-    refs.push({ classId, sectionName: sch.section, def: sch });
+    refs.push({ classId, sectionName: e.section, def: e });
+
+    const schedule = {
+      org_id: ctx.orgId,
+      weekday: WEEKDAY_NUMBER[e.day],
+      start_time: hhmmToScheduleDate(e.start, ctx.anchorDate),
+      end_time: hhmmToScheduleDate(e.end, ctx.anchorDate),
+      room_id: e.room ? roomIds[e.room] : null,
+    };
 
     const existing = await db.class.findFirst({
       where: { id: classId },
-      select: { id: true, semester_id: true },
+      select: { id: true },
     });
+
     if (existing) {
-      if (existing.semester_id !== semesterId) {
-        await db.class.update({
-          where: { id: classId },
-          data: { semester_id: semesterId },
-        });
-      }
+      await db.class.update({
+        where: { id: classId },
+        data: {
+          subject_id: subjectId,
+          educator_id: educatorId,
+          section_id: section.id,
+          semester_id: semesterId,
+          capacity: section.capacity,
+          deleted_at: null,
+        },
+      });
+      await db.classSchedule.deleteMany({ where: { class_id: classId } });
+      await db.classSchedule.create({
+        data: { class_id: classId, ...schedule },
+      });
       continue;
     }
 
@@ -870,22 +1291,12 @@ async function seedClasses(
         id: classId,
         org_id: ctx.orgId,
         subject_id: subjectId,
-        educator_id: educatorIds[sch.instructor],
+        educator_id: educatorId,
         section_id: section.id,
         school_year_id: ctx.schoolYearId,
         semester_id: semesterId,
         capacity: section.capacity,
-        schedules: {
-          create: [
-            {
-              org_id: ctx.orgId,
-              weekday: WEEKDAY_NUMBER[sch.day],
-              start_time: hhmmToScheduleDate(sch.start, ctx.anchorDate),
-              end_time: hhmmToScheduleDate(sch.end, ctx.anchorDate),
-              room_id: sch.room ? roomIds[sch.room] : undefined,
-            },
-          ],
-        },
+        schedules: { create: [schedule] },
       },
     });
   }
@@ -1065,11 +1476,21 @@ async function seedStudents(
   sectionId: string,
   plans: Map<string, StudentPlan>,
   allClassIds: string[],
-  passwordHash: string,
-): Promise<{ created: number; reused: number; classEnrollments: number }> {
+  passwordHash: string
+
+,
+  credits: Map<string, { taken: string[]; credited: string[] }>,
+  subjectIds: Record<string, string>,
+): Promise<{
+  created: number;
+  reused: number;
+  classEnrollments: number;
+  creditsAdded: number;
+}> {
   let created = 0;
   let reused = 0;
   let classEnrollments = 0;
+  let creditsAdded = 0;
   const usedLocals = new Set<string>();
 
   for (const name of names) {
@@ -1192,6 +1613,31 @@ async function seedStudents(
       });
     }
 
+    const credit = credits.get(name);
+    if (credit) {
+      const takenIds = credit.taken.map((code) => subjectIds[code]);
+      const creditIds = credit.credited.map((code) => subjectIds[code]);
+      await db.subjectCompletionOverride.deleteMany({
+        where: {
+          org_id: ctx.orgId,
+          student_id: accountId,
+          subject_id: { in: takenIds },
+        },
+      });
+      const creditResult = await db.subjectCompletionOverride.createMany({
+        data: creditIds.map((subjectId) => ({
+          org_id: ctx.orgId,
+          student_id: accountId,
+          subject_id: subjectId,
+          status: 'completed',
+          reason: 'BSCS seed: prior coursework credit',
+          source: 'manual',
+        })),
+        skipDuplicates: true,
+      });
+      creditsAdded += creditResult.count;
+    }
+
     if (ENROLL_STUDENTS_IN_CLASSES) {
       await db.enrollment.deleteMany({
         where: {
@@ -1213,37 +1659,63 @@ async function seedStudents(
     }
   }
 
-  return { created, reused, classEnrollments };
+  return { created, reused, classEnrollments, creditsAdded };
 }
 
-function assertNoScheduleConflicts(): void {
+function assertNoScheduleConflicts(plan: ScheduleDef[]): void {
   const problems: string[] = [];
-  for (let i = 0; i < SCHEDULES.length; i++) {
-    for (let j = i + 1; j < SCHEDULES.length; j++) {
-      const a = SCHEDULES[i];
-      const b = SCHEDULES[j];
-      if (!overlaps(a, b)) continue;
-      const when = `${a.day} ${a.start}-${a.end}`;
-      if (a.instructor === b.instructor) {
+  const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
+  const sectionLevel = new Map(SECTIONS.map((s) => [s.name, s.levelName] as const));
+  const seen = new Set<string>();
+
+  for (const e of plan) {
+    const label = `${e.section} ${e.subject} (semester ${e.semester})`;
+    const subject = byCode.get(e.subject);
+    if (!subject) {
+      problems.push(`${label}: unknown subject code`);
+      continue;
+    }
+    if (!sectionLevel.has(e.section)) {
+      problems.push(`${label}: unknown section`);
+    } else if (sectionLevel.get(e.section) !== subject.levelName) {
+      problems.push(`${label}: subject belongs to ${subject.levelName}`);
+    }
+    if (subject.term !== SEMESTER_NAMES[e.semester - 1]) {
+      problems.push(`${label}: subject is offered in ${subject.term}`);
+    }
+
+    const key = `${e.section}|${e.subject}|${e.semester}`;
+    if (seen.has(key)) problems.push(`${label}: scheduled twice`);
+    seen.add(key);
+
+    const start = toMinutes(e.start);
+    const end = toMinutes(e.end);
+    if (start >= end) {
+      problems.push(`${label}: end time is not after start time`);
+    }
+    if (start < 7 * 60 || end > 17 * 60 || start % 30 !== 0 || end % 30 !== 0) {
+      problems.push(
+        `${label}: outside the 07:00-17:00 school window or the 30-minute grid`,
+      );
+    }
+  }
+
+  for (let i = 0; i < plan.length; i++) {
+    for (let j = i + 1; j < plan.length; j++) {
+      const a = plan[i];
+      const b = plan[j];
+      const reasons = clashReasons(a, b);
+      if (reasons.length > 0) {
         problems.push(
-          `instructor ${a.instructor} on ${when}: ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
-        );
-      }
-      if (a.section === b.section) {
-        problems.push(
-          `section ${a.section} on ${when}: ${a.subject} and ${b.subject}`,
-        );
-      }
-      if (a.room && a.room === b.room) {
-        problems.push(
-          `room ${a.room} on ${when}: ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
+          `semester ${a.semester} ${a.day} ${a.start}-${a.end} / ${b.start}-${b.end} (${reasons.join(', ')}): ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
         );
       }
     }
   }
+
   if (problems.length > 0) {
     throw new Error(
-      `Timetable in bscs.data.ts has conflicts, nothing was seeded:\n  - ${problems.join('\n  - ')}`,
+      `Timetable has problems, nothing was seeded:\n  - ${problems.join('\n  - ')}`,
     );
   }
 }
@@ -1280,7 +1752,15 @@ async function retireStaleClasses(
 async function main(): Promise<void> {
   console.log('\nSEED BSCS - START\n');
 
-  assertNoScheduleConflicts();
+  validateCurriculum();
+  const timetable = buildTimetable();
+  assertNoScheduleConflicts(timetable);
+  console.log(
+    `  curriculum   : ${CURRICULUM.length} subjects, prerequisites verified`,
+  );
+  console.log(
+    `  timetable    : ${timetable.length} classes planned, no schedule conflicts`,
+  );
 
   const studentSection =
     readOption('section', 'BSCS_STUDENT_SECTION') ?? DEFAULT_STUDENT_SECTION;
@@ -1348,19 +1828,17 @@ async function main(): Promise<void> {
   }
   console.log(`  sections     : ${Object.keys(sections).length}`);
 
-  const roomIds = await seedRooms(org.id);
-  console.log(`  rooms        : ${Object.keys(roomIds).length}`);
-
-  const educatorIds = await seedEducators(org.id, emailExt, passwordHash);
-  console.log(`  educators    : ${Object.keys(educatorIds).length}`);
-
-  const subjectIds = await seedSubjects(ctx, levelIds);
-  console.log(`  subjects     : ${Object.keys(subjectIds).length}`);
-
   const semesterRanges = await ensureCalendar(ctx, syStart, syEnd);
-  console.log(`  calendar     : 2 semesters with 1 semester break`);
+  console.log('  calendar     : 2 semesters with 1 semester break');
 
   const semesters = await ensureSemesters(ctx, semesterRanges);
+  if (semesters.length < 2) {
+    throw new Error('The semester template must have 2 semesters.');
+  }
+  const semesterIds: Record<number, string> = {
+    1: semesters[0].id,
+    2: semesters[1].id,
+  };
   for (const s of semesters) {
     console.log(
       `  semester     : ${s.name} (${s.start.toISOString().slice(0, 10)} -> ${s.end.toISOString().slice(0, 10)})`,
@@ -1369,18 +1847,50 @@ async function main(): Promise<void> {
 
   await ensureGradingScale(ctx);
   const schemeTemplateId = await ensureGradingSchemeTemplate(ctx);
-  console.log(`  grading      : scale and scheme template assigned`);
+  console.log('  grading      : scale and scheme template assigned');
 
-  const classSemester = pickClassSemester(semesters);
+  const roomIds = await seedRooms(org.id, timetable);
+  console.log(`  rooms        : ${Object.keys(roomIds).length}`);
+
+  const educatorIds = await seedEducators(
+    org.id,
+    emailExt,
+    passwordHash,
+    timetable,
+  );
+  console.log(`  educators    : ${Object.keys(educatorIds).length}`);
+
+  const subjectIds = await seedSubjects(ctx, levelIds);
+  console.log(`  subjects     : ${Object.keys(subjectIds).length}`);
+
+  await seedPrerequisites(ctx, subjectIds);
+  const prerequisiteCount = CURRICULUM.reduce(
+    (sum, s) => sum + s.prerequisites.length,
+    0,
+  );
+  console.log(`  prerequisites: ${prerequisiteCount} links`);
+
+  const teachable = await seedEducatorSubjects(
+    ctx,
+    timetable,
+    educatorIds,
+    subjectIds,
+    sections,
+  );
+  console.log(`  teachable    : ${teachable} educator-subject links`);
+
   const classRefs = await seedClasses(
     ctx,
-    classSemester.id,
+    semesterIds,
     sections,
     subjectIds,
     educatorIds,
     roomIds,
+    timetable,
   );
-  console.log(`  classes      : ${classRefs.length} in ${classSemester.name}`);
+  console.log(
+    `  classes      : ${classRefs.length} (1st sem ${classRefs.filter((r) => r.def.semester === 1).length}, 2nd sem ${classRefs.filter((r) => r.def.semester === 2).length})`,
+  );
 
   const retired = await retireStaleClasses(
     ctx,
@@ -1390,6 +1900,14 @@ async function main(): Promise<void> {
   if (retired > 0) {
     console.log(`  retired      : ${retired} old class(es) no longer in the timetable`);
   }
+
+  await verifyNoDbConflicts(
+    ctx,
+    Object.values(educatorIds),
+    Object.values(sections).map((s) => s.id),
+    Object.values(roomIds),
+  );
+  console.log('  conflicts    : none in the database');
 
   const schemesCreated = await ensureClassGradingSchemes(
     ctx,
@@ -1411,7 +1929,27 @@ async function main(): Promise<void> {
   console.log('  readiness    : school year is READY');
 
   const { names, skipped } = dedupeNames(RAW_STUDENT_NAMES);
-  const plans = buildPlans(names, classRefs, studentSectionDef.name);
+  const studentRefs = classRefs.filter(
+    (r) => r.def.semester === STUDENT_SEMESTER,
+  );
+  const plans = buildPlans(names, studentRefs, studentSectionDef.name);
+
+  const position = termPosition(
+    studentSectionDef.levelName,
+    SEMESTER_NAMES[STUDENT_SEMESTER - 1] as TermLabel,
+  );
+  const refById = new Map(classRefs.map((r) => [r.classId, r] as const));
+  const credits = new Map<string, { taken: string[]; credited: string[] }>();
+  for (const [name, plan] of plans) {
+    const taken = plan.classIds
+      .map((id) => refById.get(id)?.def.subject)
+      .filter((code): code is string => Boolean(code));
+    const credited = creditCodesFor(position, new Set(taken));
+    assertPrerequisitesMet(name, taken, new Set(credited));
+    credits.set(name, { taken, credited });
+  }
+  console.log('  prerequisites: met for every enrolled class');
+
   const targetSection = sections[studentSectionDef.name];
   const studentResult = await seedStudents(
     ctx,
@@ -1421,6 +1959,8 @@ async function main(): Promise<void> {
     plans,
     classRefs.map((r) => r.classId),
     passwordHash,
+    credits,
+    subjectIds,
   );
 
   const regularCount = [...plans.values()].filter((p) => p.regular).length;
@@ -1436,6 +1976,7 @@ async function main(): Promise<void> {
     }
   }
   console.log(`  class enrollments added: ${studentResult.classEnrollments}`);
+  console.log(`  completion credits added: ${studentResult.creditsAdded}`);
 
   console.log('\nSEED BSCS - COMPLETE\n');
 }
