@@ -19,9 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, Loader2, Lock } from "lucide-react";
+import { Calendar, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
+import { LessonContent } from "@/components/shared/LessonContent";
 
 interface LessonFormProps {
   classId: string;
@@ -53,6 +54,7 @@ export function LessonForm({
   const [title,       setTitle]       = useState(lesson?.title       ?? "");
   const [description, setDescription] = useState(lesson?.description ?? "");
   const [detail,      setDetail]      = useState(lesson?.detail      ?? "");
+  const [showPreview, setShowPreview] = useState(false);
 
   // Determine the locked/default week value
   const defaultSlot = availableWeeks[0];
@@ -184,30 +186,60 @@ export function LessonForm({
 
       {/* ── Lesson Detail (card container) ────────────────────────────────── */}
       <div className="rounded-lg border bg-card p-5 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <Label htmlFor="detail">
             Lesson Detail <span className="text-destructive">*</span>
           </Label>
-          <span className={cn(
-            "text-xs",
-            detailValid ? "text-success" : "text-muted-foreground",
-          )}>
-            {wordCount} / {MIN_DETAIL_WORDS} words min
-          </span>
+          <div className="flex items-center gap-3">
+            <span className={cn(
+              "text-xs",
+              detailValid ? "text-success" : "text-muted-foreground",
+            )}>
+              {wordCount} / {MIN_DETAIL_WORDS} words min
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs"
+              onClick={() => setShowPreview((v) => !v)}
+              disabled={detail.trim().length === 0}
+            >
+              {showPreview ? (
+                <EyeOff className="h-3.5 w-3.5" />
+              ) : (
+                <Eye className="h-3.5 w-3.5" />
+              )}
+              {showPreview ? "Hide preview" : "Preview as students see it"}
+            </Button>
+          </div>
         </div>
 
         <Textarea
           id="detail"
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
-          placeholder="Write detailed lesson content (minimum 10 words)..."
-          rows={8}
+          placeholder="Write or paste the lesson content (minimum 10 words)..."
+          rows={14}
+          className="min-h-[320px] leading-relaxed"
         />
+
+        <p className="text-xs text-muted-foreground">
+          Formatting tips: leave a blank line between paragraphs, start a line
+          with - or 1. for lists, and end a short line with a colon to make it a
+          heading.
+        </p>
 
         {detail.length > 0 && !detailValid && (
           <p className="text-xs text-destructive">
             At least {MIN_DETAIL_WORDS} words required for concept extraction.
           </p>
+        )}
+
+        {showPreview && (
+          <div className="rounded-md border bg-background p-4">
+            <LessonContent content={detail} />
+          </div>
         )}
       </div>
 

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import {
+  AccountStatus,
   SchoolYearEnrollmentStatus,
   ProgramEnrollmentStatus,
   ProgramEnrollmentEndReason,
@@ -113,23 +114,46 @@ export class StudentEnrollmentRepository {
     });
   }
 
-  enrollStudent(
+  /**
+   * Enrolls the student in the school year and, in the same transaction,
+   * promotes a pending account to active. Only `pending` accounts are touched
+   * so suspended / dropped / transferred / graduated students are never
+   * reactivated by an enrollment.
+   */
+  async enrollStudent(
     orgId: string,
     schoolYearId: string,
     studentId: string,
     notes?: string,
     tx?: Prisma.TransactionClient,
   ) {
-    const client = tx ?? this.db;
-    return client.studentSchoolYear.create({
-      data: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        student_id: studentId,
-        status: SchoolYearEnrollmentStatus.active,
-        notes: notes ?? null,
-      },
-    });
+    const run = async (client: Prisma.TransactionClient) => {
+      const enrollment = await client.studentSchoolYear.create({
+        data: {
+          org_id: orgId,
+          school_year_id: schoolYearId,
+          student_id: studentId,
+          status: SchoolYearEnrollmentStatus.active,
+          notes: notes ?? null,
+        },
+      });
+
+      await client.account.updateMany({
+        where: {
+          id: studentId,
+          org_id: orgId,
+          role: 'student',
+          status: AccountStatus.pending,
+          deleted_at: null,
+        },
+        data: { status: AccountStatus.active },
+      });
+
+      return enrollment;
+    };
+
+    if (tx) return run(tx);
+    return this.db.$transaction((client) => run(client));
   }
 
   unenrollStudent(id: string) {

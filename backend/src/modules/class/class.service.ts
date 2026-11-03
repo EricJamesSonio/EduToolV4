@@ -22,6 +22,7 @@ import {
   resolveSubjectAcademicStructures,
   isEligibleForClassStructure,
 } from '../enrollment/enrollment-eligibility.util';
+import { parseLevelRank } from '../subject-prerequisite/subject-prerequisite.utils';
 import {
   CreateClassDto,
   UpdateClassDto,
@@ -405,6 +406,9 @@ export class ClassService {
       subjectId: query.subjectId,
       sectionId: query.sectionId,
       programId: query.programId,
+      courseId: query.courseId,
+      strandId: query.strandId,
+      levelId: query.levelId,
       search: query.search,
       page,
       limit,
@@ -434,8 +438,6 @@ export class ClassService {
           level_name: subject?.level?.name ?? null,
           course_name: subject?.course?.name ?? null,
           strand_name: subject?.strand?.name ?? null,
-
-          // ✅ THIS IS THE FIX
           educatorName: educator?.profile?.full_name ?? null,
         };
       }),
@@ -616,13 +618,13 @@ export class ClassService {
     const ssyRows = await this.db.studentSchoolYear.findMany({
       where: { org_id: orgId, student_id: studentId },
       include: {
-        programEnrollments: { where: { status: 'active' } },
+        programEnrollments: { where: { status: 'active' }, include: { level: { select: { name: true } } } },
       },
     });
 
     const placementByYear = new Map<
       string,
-      { programId: string | null; levelId: string | null; courseId: string | null; strandId: string | null; sectionId: string | null }
+      { programId: string | null; levelId: string | null; courseId: string | null; strandId: string | null; sectionId: string | null; isIrregular: boolean; levelRank: number | null }
     >();
     for (const row of ssyRows) {
       const pe = row.programEnrollments[0];
@@ -633,6 +635,8 @@ export class ClassService {
         courseId: pe.course_id,
         strandId: pe.strand_id,
         sectionId: pe.section_id,
+        isIrregular: (pe as any).is_regular !== true,
+        levelRank: parseLevelRank((pe as any).level?.name ?? null),
       });
     }
 
@@ -750,6 +754,8 @@ export class ClassService {
           strand_name: (cls as unknown as { subject: { strand: { name: string } | null } }).subject?.strand?.name ?? null,
           educatorName: educator?.profile?.full_name ?? null,
           enrolled_count: (cls as unknown as { _count: { enrollments: number } })._count?.enrollments ?? 0,
+          student_level_rank:
+            placementByYear.get(cls.school_year_id)?.levelRank ?? null,
           has_prerequisite_warning: eligibility.missing.length > 0,
           prerequisite_warnings: eligibility.missing,
         };

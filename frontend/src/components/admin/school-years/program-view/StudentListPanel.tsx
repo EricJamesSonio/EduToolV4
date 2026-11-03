@@ -13,7 +13,7 @@ import { ConfirmDialog }       from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge }  from "@/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
 import { StudentRow } from "./StudentRow";
 import { getProgramEnrollment, filterBySection } from "./enrollment.helpers";
@@ -83,6 +83,15 @@ export function StudentListPanel({
 
   const showSectionFilter = availableSections.length > 0 || hasUnassigned;
 
+  // Resolve the trigger label ourselves so the raw filter value (a section
+  // UUID) can never be what the user sees.
+  const sectionFilterLabel =
+    sectionFilter === "all"
+      ? "All Sections"
+      : sectionFilter === "none"
+        ? "No section"
+        : (availableSections.find((s) => s.id === sectionFilter)?.name ?? "All Sections");
+
   const filteredStudents = useMemo(
     () => filterBySection(students, programId, sectionFilter),
     [students, programId, sectionFilter],
@@ -141,9 +150,7 @@ export function StudentListPanel({
           {showSectionFilter && (
             <Select value={sectionFilter} onValueChange={(v) => { if (v !== null) setSectionFilter(v); }}>
               <SelectTrigger className="h-7 text-xs w-36">
-                <SelectValue placeholder="All Sections">
-                {availableSections.find((s) => s.id === sectionFilter)?.name ?? "All Sections"}
-              </SelectValue>
+                <span className="flex flex-1 truncate text-left">{sectionFilterLabel}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sections</SelectItem>

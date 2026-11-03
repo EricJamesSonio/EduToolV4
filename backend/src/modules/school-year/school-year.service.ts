@@ -12,8 +12,6 @@ import { LevelService } from '@/modules/level/level.service';
 import { SubjectService } from '@/modules/subject/subject.service';
 import { GradingScaleService } from '../grading-scale/grading-scale.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
-import { SchoolProfileService } from '@/modules/school-profile/school-profile.service';
 import { ProgramService } from '@/modules/program/program.service';
 import { DatabaseService } from '@/core/database/database.provider';
 import {
@@ -28,11 +26,6 @@ import {
   formatBlockerMessage,
   item,
 } from '@/commons/utils/deletion-report.util';
-import {
-  calendarDateOf,
-  calendarDateToUtc,
-  todayInZone,
-} from '@/commons/utils/datetime.util';
 
 const TEN_MONTHS_MS = 10 * 30 * 24 * 60 * 60 * 1000;
 const MAX_CONFLICT_NAMES_IN_MESSAGE = 3;
@@ -46,22 +39,18 @@ export class SchoolYearService {
     private readonly gradingScaleService: GradingScaleService,
     private readonly auditLogService: AuditLogService,
     private readonly readinessService: SchoolYearReadinessService,
-    private readonly orgSeeder: OrgSeederService,
-    private readonly schoolProfileService: SchoolProfileService,
     private readonly programService: ProgramService,
     private readonly db: DatabaseService,
   ) {}
 
-    private deriveSchoolYearName(start_date?: string, end_date?: string): string {
+  private deriveSchoolYearName(start_date?: string, end_date?: string): string {
     if (!start_date || !end_date) {
       throw new BadRequestException(
         'Both start_date and end_date are required to generate the school year name.',
       );
     }
-    // TICK-INFRA-017: year from the string itself. new Date("2026-01-01")
-    // .getFullYear() reads the process zone and returns 2025 west of UTC.
-    const startYear = start_date.slice(0, 4);
-    const endYear = end_date.slice(0, 4);
+    const startYear = new Date(start_date).getFullYear();
+    const endYear = new Date(end_date).getFullYear();
     return `SY ${startYear}-${endYear}`;
   }
 
@@ -72,9 +61,12 @@ export class SchoolYearService {
   private validateDateRange(start_date?: string, end_date?: string): void {
     if (!start_date || !end_date) return;
 
-    // TICK-INFRA-017: kind-B "YYYY-MM-DD" strings (DTO-guaranteed shape)
-    // compare chronologically as plain strings in every TZ.
-    if (end_date <= start_date) {
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return; // class-validator already catches this
+
+    if (end <= start) {
       throw new BadRequestException('end_date must be after start_date.');
     }
   }
@@ -86,11 +78,9 @@ export class SchoolYearService {
   private isShortDuration(start_date?: string, end_date?: string): boolean {
     if (!start_date || !end_date) return false;
 
-    // TICK-INFRA-017: explicit UTC-midnight endpoints — same ms math as
-    // before, but independent of the process zone.
-    const start = calendarDateToUtc(start_date).getTime();
-    const end = calendarDateToUtc(end_date).getTime();
-    return end - start < TEN_MONTHS_MS;
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+    return end.getTime() - start.getTime() < TEN_MONTHS_MS;
   }
 
   /**
@@ -107,9 +97,10 @@ export class SchoolYearService {
   ): Promise<void> {
     if (!start_date || !end_date) return;
 
-    // TICK-INFRA-017: normalize to UTC-midnight calendar days.
-    const start = calendarDateToUtc(start_date);
-    const end = calendarDateToUtc(end_date);
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
 
     const conflicts = await this.schoolYearRepository.findOverlapping(
       orgId,
@@ -121,7 +112,7 @@ export class SchoolYearService {
     if (conflicts.length === 0) return;
 
     const formatDay = (value: Date | null): string =>
-      value ? calendarDateOf(value) : 'unset';
+      value ? value.toISOString().slice(0, 10) : 'unset';
 
     const described = conflicts
       .slice(0, MAX_CONFLICT_NAMES_IN_MESSAGE)
@@ -156,59 +147,15 @@ export class SchoolYearService {
     }
   }
 
-  /**
-   * If the org has "auto-seed new school years" enabled AND a School
-   * Profile with at least one configured department exists, seeds the new
-   * school year's structure (programs/courses/strands/levels/sections/
-   * subjects + grading scales/schemes) from that profile — mirroring the
-   * "Select All" flow in the Data Seeder. Semester templates and program
-   * calendars are intentionally skipped here since they need per-year dates
-   * the admin still has to supply.
-   *
-   * Never throws — a seeding failure must not block school year creation;
-   * it's surfaced via the returned warning string instead.
-   */
-  private async maybeAutoSeed(
-    orgId: string,
-    schoolYearId: string,
-    actorId: string,
-  ): Promise<{ seeded: boolean; warning?: string }> {
-    const org = await this.db.organization.findUnique({
-      where: { id: orgId },
-      select: { auto_seed_new_school_years: true },
-    });
-    if (!org?.auto_seed_new_school_years) return { seeded: false };
-
-    const profileByType = await this.schoolProfileService.getAllByType(orgId);
-    const programs = Object.keys(profileByType).filter(
-      (type) => !!profileByType[type],
-    );
-    if (programs.length === 0) return { seeded: false };
-
-    try {
-      await this.orgSeeder.seedOrg({
-        orgId,
-        actorId,
-        schoolYearId,
-        programs,
-        seedGradingScales: true,
-        seedGradingSchemes: true,
-        seedSemesterTemplates: false,
-        seedProgramCalendars: false,
-      });
-      return { seeded: true };
-    } catch (e: any) {
-      return {
-        seeded: false,
-        warning: `School year created, but automatic seeding from your School Profile failed: ${e?.message ?? 'unknown error'}. You can seed it manually from Data Seeder.`,
-      };
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // CRUD
   // ---------------------------------------------------------------------------
 
+  /**
+   * Creating a school year never seeds it. Seeding happens from
+   * School Profile -> Seed a School Year, where the academic calendar
+   * (and everything that depends on it) is configured at the same time.
+   */
   async create(
     orgId: string,
     dto: CreateSchoolYearDto,
@@ -219,7 +166,9 @@ export class SchoolYearService {
     this.validateNotInPast(dto.start_date, dto.end_date);
     await this.assertNoOverlap(orgId, dto.start_date, dto.end_date);
 
-    const name = dto.name?.trim() || this.deriveSchoolYearName(dto.start_date, dto.end_date);
+    const name =
+      dto.name?.trim() ||
+      this.deriveSchoolYearName(dto.start_date, dto.end_date);
 
     const short = this.isShortDuration(dto.start_date, dto.end_date);
 
@@ -241,12 +190,6 @@ export class SchoolYearService {
 
     await this.levelService.seedFromDefaults(orgId, schoolYear.id, {});
 
-    const autoSeedResult = await this.maybeAutoSeed(
-      orgId,
-      schoolYear.id,
-      actorId,
-    );
-
     this.auditLogService
       .logAdminAction({
         orgId,
@@ -258,20 +201,14 @@ export class SchoolYearService {
           name,
           start_date: dto.start_date,
           end_date: dto.end_date,
-          auto_seeded: autoSeedResult.seeded,
         },
       })
       .catch(() => {});
 
-    const warnings = [
-      short ? 'School year is shorter than 10 months.' : undefined,
-      autoSeedResult.warning,
-    ].filter(Boolean);
-
     return {
       data: schoolYear,
-      warning: warnings.length > 0 ? warnings.join(' ') : undefined,
-      seeded: autoSeedResult.seeded,
+      warning: short ? 'School year is shorter than 10 months.' : undefined,
+      seeded: false,
     };
   }
 
@@ -323,29 +260,21 @@ export class SchoolYearService {
       );
     }
 
-    // TICK-INFRA-017: effective dates stay "YYYY-MM-DD" so every validator
-    // below compares day strings (never mixed ISO/day formats).
     const effectiveStart =
-      dto.start_date ??
-      (schoolYear.start_date ? calendarDateOf(schoolYear.start_date) : undefined);
-    const effectiveEnd =
-      dto.end_date ??
-      (schoolYear.end_date ? calendarDateOf(schoolYear.end_date) : undefined);
+      dto.start_date ?? schoolYear.start_date?.toISOString();
+    const effectiveEnd = dto.end_date ?? schoolYear.end_date?.toISOString();
 
     this.validateDateRange(effectiveStart, effectiveEnd);
     this.validateNotInPast(effectiveStart, effectiveEnd);
 
     // Only re-check overlaps when a date really changes, so renaming a school
-    // year that already overlaps legacy data is not blocked. Compared as
-    // calendar days so legacy 16:00Z rows don't read as "changed".
+    // year that already overlaps legacy data is not blocked.
     const startChanged =
       !!dto.start_date &&
-      calendarDateOf(dto.start_date) !==
-        (schoolYear.start_date ? calendarDateOf(schoolYear.start_date) : undefined);
+      new Date(dto.start_date).getTime() !== schoolYear.start_date?.getTime();
     const endChanged =
       !!dto.end_date &&
-      calendarDateOf(dto.end_date) !==
-        (schoolYear.end_date ? calendarDateOf(schoolYear.end_date) : undefined);
+      new Date(dto.end_date).getTime() !== schoolYear.end_date?.getTime();
 
     if (startChanged || endChanged) {
       await this.assertNoOverlap(orgId, effectiveStart, effectiveEnd, id);
@@ -411,22 +340,26 @@ export class SchoolYearService {
     // Require the school year to be structurally ready before activation.
     await this.readinessService.assertReady(orgId, id);
 
-    // ✅ Null safety (fix TS error properly)
     if (!schoolYear.start_date) {
       throw new BadRequestException(
         'School year has no start date and cannot be activated.',
       );
     }
 
-    // 🔥 Prevent early activation, allow late activation.
-    // TICK-INFRA-017: calendar-day compare in school time — no setHours.
-    if (calendarDateOf(schoolYear.start_date) > todayInZone()) {
+    // Prevent early activation, allow late activation
+    const today = new Date();
+    const start = new Date(schoolYear.start_date);
+
+    today.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+
+    if (start > today) {
       throw new BadRequestException(
         'Cannot activate a school year before its start date.',
       );
     }
 
-    // ✅ Ensure only one active school year (safer than count)
+    // Ensure only one active school year
     const existingActive = await this.schoolYearRepository.findActive(orgId);
     if (existingActive) {
       throw new ConflictException(
@@ -585,15 +518,20 @@ export class SchoolYearService {
   private validateNotInPast(start_date?: string, end_date?: string): void {
     if (!start_date || !end_date) return;
 
-    // TICK-INFRA-017: "YYYY-MM-DD" string compare against the school day.
-    // Today is allowed (a year ending today is still active — R6).
-    const today = todayInZone();
+    const now = new Date();
+    const start = new Date(start_date);
+    const end = new Date(end_date);
 
-    if (start_date < today) {
+    // normalize to ignore time (important!)
+    now.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    if (start < now) {
       throw new BadRequestException('start_date cannot be in the past.');
     }
 
-    if (end_date < today) {
+    if (end < now) {
       throw new BadRequestException('end_date cannot be in the past.');
     }
   }

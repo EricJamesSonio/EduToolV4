@@ -26,7 +26,7 @@ export function elementarySubjects(): SubjectDef[] {
   for (let g = 1; g <= 6; g++) {
     for (const subjectName of ELEM_CORE) {
       const prereq = ELEM_PREREQS[subjectName];
-      const prereqNames = prereq && g > 1 ? [prereq] : [];
+      const prereqNames = prereq && g > 1 ? [`${prereq} (Grade ${g - 1})`] : [];
       out.push(
         subj(
           `Grade ${g}`,

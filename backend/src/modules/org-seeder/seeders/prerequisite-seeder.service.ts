@@ -27,6 +27,10 @@ export class PrerequisiteSeederService {
     );
 
     let rejected = 0;
+    const links = new Map<
+      string,
+      { id: string; org_id: string; subject_id: string; prerequisite_id: string }
+    >();
 
     for (const s of subjectDefs) {
       if (s.prereqNames.length === 0) continue;
@@ -69,23 +73,24 @@ export class PrerequisiteSeederService {
           continue;
         }
 
-        await this.db.subjectPrerequisite.upsert({
-          where: {
-            org_id_subject_id_prerequisite_id: {
-              org_id: ctx.orgId,
-              subject_id: subjectId,
-              prerequisite_id: prereqId,
-            },
-          },
-          update: {},
-          create: {
-            id: uuid(),
-            org_id: ctx.orgId,
-            subject_id: subjectId,
-            prerequisite_id: prereqId,
-          },
+        const key = `${subjectId}|${prereqId}`;
+        if (links.has(key)) continue;
+        links.set(key, {
+          id: uuid(),
+          org_id: ctx.orgId,
+          subject_id: subjectId,
+          prerequisite_id: prereqId,
         });
       }
+    }
+
+    // One batch insert instead of an upsert per link; existing links are
+    // skipped by the (org, subject, prerequisite) unique key.
+    if (links.size > 0) {
+      await this.db.subjectPrerequisite.createMany({
+        data: Array.from(links.values()),
+        skipDuplicates: true,
+      });
     }
 
     if (rejected > 0) {

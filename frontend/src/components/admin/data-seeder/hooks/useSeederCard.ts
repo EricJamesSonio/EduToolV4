@@ -13,7 +13,6 @@ import { levelApi } from "@/api/admin/level.api";
 import { subjectApi } from "@/api/admin/subject.api";
 import { useSeedState } from "./useSeedState";
 import type { EffectiveSeedOverrides } from "./useEffectiveSeedData";
-import type { SchoolProfileDepartment } from "@/types/admin/school-profile.types";
 import {
   COLLEGE_COURSES,
   LEVEL_DEFS,
@@ -25,22 +24,8 @@ import {
 import { useSemesterTemplates } from "@/hooks/admin/useSemesterTemplate";
 import type { SeedOutcome, SeedStage } from "../SeedProgressDialog";
 
-interface PendingSchoolYear {
-  name: string;
-  start_date?: string;
-  end_date?: string;
-}
-
-function isShortDurationError(err: unknown): boolean {
-  return (
-    isAxiosError(err) && err.response?.data?.error === "SHORT_DURATION_WARNING"
-  );
-}
-
 export function useSeederCard(overrides?: EffectiveSeedOverrides) {
   const [collapsed, setCollapsed] = useState(false);
-  const [pendingSchoolYear, setPendingSchoolYear] =
-    useState<PendingSchoolYear | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   // Seed progress: stage list is snapshotted when seeding starts so the modal
   // keeps its labels after resetAll() clears the selection.
@@ -59,48 +44,6 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
   }, [schoolYears, selectedSchoolYearId]);
 
   const selectedSchoolYear = schoolYears.find((sy) => sy.id === selectedSchoolYearId);
-
-  const createSchoolYearMutation = useMutationWithInvalidation(
-    ({
-      name,
-      start_date,
-      end_date,
-      confirm_short_duration,
-    }: {
-      name: string;
-      start_date?: string;
-      end_date?: string;
-      confirm_short_duration?: boolean;
-    }) => schoolYearApi.create({ name, start_date, end_date, confirm_short_duration }),
-    {
-      invalidateKeys: [queryKeys.admin.schoolYears.all],
-      onSuccess: (result) => {
-        const created = (result as any).data ?? result;
-        toast.success(`School year "${created.name}" created.`);
-        setSelectedSchoolYearId(created.id);
-        setPendingSchoolYear(null);
-      },
-      onError: (err: unknown, variables) => {
-        if (isShortDurationError(err)) {
-          setPendingSchoolYear({
-            name: variables.name,
-            start_date: variables.start_date,
-            end_date: variables.end_date,
-          });
-          return;
-      }
-      toast.error("Failed to create school year.");
-    },
-  });
-
-  function handleConfirmShortDuration() {
-    if (!pendingSchoolYear) return;
-    createSchoolYearMutation.mutate({ ...pendingSchoolYear, confirm_short_duration: true });
-  }
-
-  function handleCreateSchoolYear(name: string, start_date?: string, end_date?: string) {
-    createSchoolYearMutation.mutate({ name, start_date, end_date });
-  }
 
   const { data: existingPrograms = [] } = useAsyncQuery(
     queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId! }),
@@ -236,14 +179,14 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
   const seedMutation = useMutationWithInvalidation(
     organizationApi.seedOrg,
     {
-    invalidateKeys: [
-      queryKeys.admin.programs.all,
-      queryKeys.admin.courses.all,
-      queryKeys.admin.strands.all,
-      queryKeys.admin.levels.all,
-      queryKeys.admin.subjects.all,
-      queryKeys.admin.semesterTemplates.all,
-    ],
+      invalidateKeys: [
+        queryKeys.admin.programs.all,
+        queryKeys.admin.courses.all,
+        queryKeys.admin.strands.all,
+        queryKeys.admin.levels.all,
+        queryKeys.admin.subjects.all,
+        queryKeys.admin.semesterTemplates.all,
+      ],
       onSuccess: (result) => {
         const warnings: string[] = result?.result?.warnings ?? [];
         setSeedOutcome((prev) =>
@@ -265,15 +208,15 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
         resetAll();
       },
       onError: (err: unknown) => {
-  const message =
-    isAxiosError<{ message?: string }>(err) && err.response?.data?.message
-      ? err.response.data.message
-      : "Seed failed. Please try again.";
-  setSeedOutcome((prev) =>
-    prev ? { ...prev, status: "error", message } : prev,
-  );
-  toast.error(message);
-},
+        const message =
+          isAxiosError<{ message?: string }>(err) && err.response?.data?.message
+            ? err.response.data.message
+            : "Seed failed. Please try again.";
+        setSeedOutcome((prev) =>
+          prev ? { status: "error", stages: prev.stages, message } : prev,
+        );
+        toast.error(message);
+      },
     }
   );
 
@@ -394,22 +337,22 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
           )
         : undefined;
 
-seedMutation.mutate({
-  schoolYearId: selectedSchoolYearId,
-  programs: Array.from(selectedPrograms),
-  courses: selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
-  strands: selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
-  levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
-  sectionConfigs: sectionConfigsPayload,
-  excludedLevelSubjects:
-    Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
-  // Grading scales/schemes are global setups owned by their own pages.
-  seedGradingScales: false,
-  seedGradingSchemes: false,
-  seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
-  seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
-  programCalendars,
-});
+    seedMutation.mutate({
+      schoolYearId: selectedSchoolYearId,
+      programs: Array.from(selectedPrograms),
+      courses: selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
+      strands: selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
+      levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
+      sectionConfigs: sectionConfigsPayload,
+      excludedLevelSubjects:
+        Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
+      // Grading scales/schemes are global setups owned by their own pages.
+      seedGradingScales: false,
+      seedGradingSchemes: false,
+      seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
+      seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
+      programCalendars,
+    });
   }
 
   function handleSelectAll(allowedProgramTypes?: Set<string> | null) {
@@ -558,11 +501,6 @@ seedMutation.mutate({
     selectedSchoolYearId,
     setSelectedSchoolYearId,
     selectedSchoolYear,
-    handleCreateSchoolYear,
-    handleConfirmShortDuration,
-    pendingSchoolYear,
-    setPendingSchoolYear,
-    createSchoolYearMutation,
 
     // Seed
     seedMutation,

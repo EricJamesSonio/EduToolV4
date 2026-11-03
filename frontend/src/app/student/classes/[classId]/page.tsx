@@ -6,9 +6,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ClassInfoCard } from "@/components/student/class/overview/ClassInfoCard";
 import { UpcomingAssessmentsCard } from "@/components/student/class/overview/UpcomingAssessmentsCard";
 import { GradeSummaryCard } from "@/components/student/class/overview/GradeSummaryCard";
+import { AttendanceSummaryCard } from "@/components/student/class/overview/AttendanceSummaryCard";
 import { useStudentClass } from "@/hooks/student/useStudentClasses";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
+import { useStudentAttendance } from "@/hooks/student/useAttendance";
 // HIDDEN: Groupy Class Chat - imports kept commented for easy restore
 // import { MessageSquare } from "lucide-react";
 // import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
@@ -24,6 +26,7 @@ export default function StudentClassDetailPage(): React.JSX.Element {
   const { data: classData, isLoading: classLoading } = useStudentClass(classId);
   const { data: assessments = [], isLoading: assessmentsLoading } = useStudentAssessments(classId);
   const { data: grades = [], isLoading: gradesLoading } = useStudentGrades(classId);
+  const { data: attendance, isLoading: attendanceLoading } = useStudentAttendance(classId);
 
   const subjectName = classData?.class?.subjectName ?? "Class";
 
@@ -66,11 +69,19 @@ export default function StudentClassDetailPage(): React.JSX.Element {
               assessments={assessments}
               isLoading={assessmentsLoading}
               onViewAll={() => router.push(`/student/classes/${classId}/assessments`)}
+              onOpenAssessment={(assessmentId) =>
+                router.push(`/student/classes/${classId}/assessments/${assessmentId}`)
+              }
             />
             <GradeSummaryCard
               grades={grades}
               isLoading={gradesLoading}
               onViewAll={() => router.push(`/student/classes/${classId}/grades`)}
+            />
+            <AttendanceSummaryCard
+              summary={attendance?.summary}
+              isLoading={attendanceLoading}
+              onViewAll={() => router.push(`/student/classes/${classId}/attendance`)}
             />
           </div>
         </div>

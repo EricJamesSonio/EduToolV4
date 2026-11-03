@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { LevelRepository } from './level.repository';
 import {
@@ -11,6 +12,7 @@ import {
 } from './dto/level.dto';
 import { DatabaseService } from '@/core/database/database.provider';
 import { getLevelLabel } from './level-label.util';
+import { parseLevelRank } from '../subject-prerequisite/subject-prerequisite.utils';
 
 @Injectable()
 export class LevelService {
@@ -45,6 +47,29 @@ export class LevelService {
     if (!program) throw new NotFoundException('Program not found.');
 
     const name = getLevelLabel(program.type, dto.count);
+
+    const newRank = parseLevelRank(name);
+    if (newRank === null) {
+      throw new BadRequestException('Level name must contain a number.');
+    }
+    const existingLevels = await this.db.level.findMany({
+      where: {
+        org_id: orgId,
+        program_id: existing.program_id,
+        school_year_id: existing.school_year_id,
+        course_id: existing.course_id,
+        strand_id: existing.strand_id,
+        deleted_at: null,
+        id: { not: id },
+      },
+      select: { name: true },
+    });
+    if (existingLevels.some((l) => parseLevelRank(l.name) === newRank)) {
+      throw new BadRequestException(
+        'A level with this number already exists in this scope.',
+      );
+    }
+
     return this.levelRepository.update(id, { name });
   }
 
@@ -168,6 +193,27 @@ export class LevelService {
 
     const name = getLevelLabel(program.type, dto.count);
 
+    const newRank = parseLevelRank(name);
+    if (newRank === null) {
+      throw new BadRequestException('Level name must contain a number.');
+    }
+    const existingLevels = await this.db.level.findMany({
+      where: {
+        org_id: orgId,
+        program_id: dto.programId,
+        school_year_id: dto.schoolYearId,
+        course_id: dto.courseId ?? null,
+        strand_id: dto.strandId ?? null,
+        deleted_at: null,
+      },
+      select: { name: true },
+    });
+    if (existingLevels.some((l) => parseLevelRank(l.name) === newRank)) {
+      throw new BadRequestException(
+        'A level with this number already exists in this scope.',
+      );
+    }
+
     return this.levelRepository.create(orgId, {
       programId: dto.programId,
       schoolYearId: dto.schoolYearId,
@@ -206,6 +252,27 @@ export class LevelService {
 
     const nextCount = existingCount + 1;
     const name = getLevelLabel(program.type, nextCount);
+
+    const newRank = parseLevelRank(name);
+    if (newRank === null) {
+      throw new BadRequestException('Level name must contain a number.');
+    }
+    const existingLevels = await this.db.level.findMany({
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        school_year_id: schoolYearId,
+        course_id: courseId ?? null,
+        strand_id: strandId ?? null,
+        deleted_at: null,
+      },
+      select: { name: true },
+    });
+    if (existingLevels.some((l) => parseLevelRank(l.name) === newRank)) {
+      throw new BadRequestException(
+        'A level with this number already exists in this scope.',
+      );
+    }
 
     return this.levelRepository.create(orgId, {
       programId,

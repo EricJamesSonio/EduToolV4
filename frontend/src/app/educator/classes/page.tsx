@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -22,6 +22,7 @@ import { formatSchedules } from "@/types/educator/class.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardGrid } from "@/components/shared/CardGrid";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import {
   ListItemCardAction,
   listItemCardClass,
@@ -40,6 +41,7 @@ import {
 import type { EducatorClass } from "@/types/educator/class.types";
 import type { Subject } from "@/types/admin/subject.types";
 import type { Semester } from "@/types/admin/semester.types";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 
 import { getDefaultSemesterId } from "@/utils/semester.utils";
 
@@ -48,7 +50,6 @@ interface EnrichedClass extends EducatorClass {
   sectionName:  string | null;
   semesterName: string | null;
   schoolYearName: string | null;
-  // NEW
   programName:  string | null;
   levelName:    string | null;
   courseName:   string | null;
@@ -140,6 +141,7 @@ function ClassCardSkeleton(): React.JSX.Element {
 export default function EducatorClassesPage(): React.JSX.Element {
   const router = useRouter();
 
+  const [schoolYearId, setSchoolYearId] = useState<string | null>(null);
   const [semesterId, setSemesterId] = useState<string>("");
   // Tracks whether the person has explicitly picked a semester, so the
   // auto-default effect below doesn't stomp on their choice on refetch.
@@ -157,27 +159,48 @@ export default function EducatorClassesPage(): React.JSX.Element {
     () => semesterApi.getAll(),
   );
 
-  const { data: schoolYearsRaw } = useAsyncQuery(
+  const { data: schoolYearsRaw, isLoading: schoolYearsLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
     () => schoolYearApi.getAll(),
   );
 
-  const activeSchoolYearId = useMemo(() => {
-    const arr = toArray<{ id: string; status: string }>(schoolYearsRaw);
-    return arr.find((sy) => sy.status === "active")?.id ?? null;
-  }, [schoolYearsRaw]);
+  const allSchoolYears = useMemo(
+    () => toArray<SchoolYear>(schoolYearsRaw),
+    [schoolYearsRaw],
+  );
+
+  const rawClasses = useMemo(
+    () => toArray<EducatorClass>(classesRaw),
+    [classesRaw],
+  );
+
+  // Only offer the active year plus years in which this educator has classes.
+  // Held back until classes load so the default pick is based on real data.
+  const schoolYearOptions = useMemo<SchoolYear[]>(() => {
+    if (classesLoading) return [];
+    const taughtYearIds = new Set(rawClasses.map((c) => c.school_year_id));
+    return allSchoolYears.filter(
+      (sy) => sy.status === "active" || taughtYearIds.has(sy.id),
+    );
+  }, [allSchoolYears, rawClasses, classesLoading]);
+
+  const handleSchoolYearChange = useCallback((id: string): void => {
+    userSelectedRef.current = false;
+    setSchoolYearId(id);
+    setSemesterId("");
+  }, []);
 
   const { data: sectionsRaw } = useAsyncQuery(
-    queryKeys.admin.sections.list({ schoolYearId: activeSchoolYearId! }),
-    () => sectionApi.getAll(activeSchoolYearId!),
-    { enabled: !!activeSchoolYearId },
+    queryKeys.admin.sections.list({ schoolYearId: schoolYearId! }),
+    () => sectionApi.getAll(schoolYearId!),
+    { enabled: !!schoolYearId },
   );
 
   // Courses and strands — needed to resolve course/strand name from subject
   const { data: coursesRaw } = useAsyncQuery(
-    queryKeys.admin.courses.list({ schoolYearId: activeSchoolYearId! }),
-    () => courseApi.getAll({ schoolYearId: activeSchoolYearId! }),
-    { enabled: !!activeSchoolYearId },
+    queryKeys.admin.courses.list({ schoolYearId: schoolYearId! }),
+    () => courseApi.getAll({ schoolYearId: schoolYearId! }),
+    { enabled: !!schoolYearId },
   );
 
   const { data: strandsRaw } = useAsyncQuery(
@@ -185,11 +208,19 @@ export default function EducatorClassesPage(): React.JSX.Element {
     () => strandApi.getAll(),
   );
 
-  const semesters = useMemo(() => toArray<Semester>(semestersRaw), [semestersRaw]);
+  const allSemesters = useMemo(
+    () => toArray<Semester>(semestersRaw),
+    [semestersRaw],
+  );
 
-  // Once semesters load, default the selection to the current (or next
-  // upcoming, or most recent past) semester — unless the person already
-  // picked one themselves.
+  const semesters = useMemo(() => {
+    if (!schoolYearId) return [];
+    return allSemesters.filter((s) => s.schoolYearId === schoolYearId);
+  }, [allSemesters, schoolYearId]);
+
+  // Once the selected year's semesters load, default the selection to the
+  // current (or next upcoming, or most recent past) semester — unless the
+  // person already picked one themselves.
   useEffect(() => {
     if (userSelectedRef.current) return;
     if (semesters.length === 0) return;
@@ -224,17 +255,15 @@ export default function EducatorClassesPage(): React.JSX.Element {
 
   const semesterMap = useMemo(() => {
     const m = new Map<string, string>();
-    semesters.forEach((s) => m.set(s.id, s.name));
+    allSemesters.forEach((s) => m.set(s.id, s.name));
     return m;
-  }, [semesters]);
+  }, [allSemesters]);
 
   const schoolYearMap = useMemo(() => {
     const m = new Map<string, string>();
-    toArray<{ id: string; name: string }>(schoolYearsRaw).forEach((s) =>
-      m.set(s.id, s.name),
-    );
+    allSchoolYears.forEach((s) => m.set(s.id, s.name));
     return m;
-  }, [schoolYearsRaw]);
+  }, [allSchoolYears]);
 
   const courseMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -256,7 +285,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
   // ── Enrich ───────────────────────────────────────────────────────────────
 
   const classes = useMemo<EnrichedClass[]>(() => {
-    return toArray<EducatorClass>(classesRaw).map((cls) => {
+    return rawClasses.map((cls) => {
       const subject = subjectMap.get(cls.subject_id);
 
       const courseName = subject?.courseId
@@ -279,36 +308,55 @@ export default function EducatorClassesPage(): React.JSX.Element {
         schoolYearName: schoolYearMap.get(cls.school_year_id) ?? null,
       };
     });
-  }, [classesRaw, subjectMap, sectionMap, semesterMap, schoolYearMap, courseMap, strandMap]);
+  }, [rawClasses, subjectMap, sectionMap, semesterMap, schoolYearMap, courseMap, strandMap]);
 
   const filtered = useMemo(() => {
-    if (!semesterId) return classes;
-    return classes.filter((cls) => cls.semester_id === semesterId);
-  }, [classes, semesterId]);
+    return classes.filter((cls) => {
+      if (schoolYearId && cls.school_year_id !== schoolYearId) return false;
+      if (semesterId && cls.semester_id !== semesterId) return false;
+      return true;
+    });
+  }, [classes, schoolYearId, semesterId]);
 
   const selectedSemesterName = semesters.find((s) => s.id === semesterId)?.name;
+  const selectedSchoolYearName = allSchoolYears.find(
+    (sy) => sy.id === schoolYearId,
+  )?.name;
+  const scopeLabel = [selectedSemesterName, selectedSchoolYearName]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="My Classes"
         actions={
-          semesters.length > 0 && (
-            <Select value={semesterId} onValueChange={handleSemesterChange}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select semester">
-                  {selectedSemesterName ?? "Select semester"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {semesters.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )
+          <>
+            <div className="w-full sm:w-72">
+              <SchoolYearSelector
+                schoolYears={schoolYearOptions}
+                isLoading={schoolYearsLoading || classesLoading}
+                selectedId={schoolYearId}
+                onSelect={handleSchoolYearChange}
+              />
+            </div>
+            {semesters.length > 0 && (
+              <Select value={semesterId} onValueChange={handleSemesterChange}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select semester">
+                    {selectedSemesterName ?? "Select semester"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {semesters.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </>
         }
       />
 
@@ -323,8 +371,8 @@ export default function EducatorClassesPage(): React.JSX.Element {
           icon={BookOpen}
           title="No classes assigned"
           description={
-            selectedSemesterName
-              ? `You have no active classes for ${selectedSemesterName}.`
+            scopeLabel
+              ? `You have no active classes for ${scopeLabel}.`
               : "You have no active classes yet. Contact your administrator."
           }
         />

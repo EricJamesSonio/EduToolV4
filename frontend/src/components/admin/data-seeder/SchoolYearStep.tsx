@@ -1,16 +1,14 @@
 // frontend/src/components/admin/data-seeder/SchoolYearStep.tsx
 "use client";
 
-import { useState } from "react"
-import { Check, Loader2, Plus } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
+import { Check, Plus } from "lucide-react"
 import { Badge }    from "@/components/ui/badge"
-import { Button }   from "@/components/ui/button"
-import { Input }    from "@/components/ui/input"
-import { Label }    from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn }       from "@/lib/utils"
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext"
-import { startDateMin, endDateMin } from "@/lib/school-year-dates"
+import { CreateSchoolYearDialog } from "@/components/admin/school-years/CreateSchoolYearDialog"
 import type { SchoolYear } from "@/types/admin/school-year.types"
 
 interface SchoolYearStepProps {
@@ -18,8 +16,6 @@ interface SchoolYearStepProps {
   isLoading:   boolean
   selectedId:  string | null
   onSelect:    (id: string) => void
-  onCreate:    (name: string, startDate?: string, endDate?: string) => void
-  isCreating:  boolean
 }
 
 export function SchoolYearStep({
@@ -27,41 +23,25 @@ export function SchoolYearStep({
   isLoading,
   selectedId,
   onSelect,
-  onCreate,
-  isCreating,
 }: SchoolYearStepProps) {
   const { ensureOrganization } = useOrganizationGuard()
   const [showCreate, setShowCreate] = useState(false)
-  const [newName,    setNewName]    = useState("")
-  const [startDate,  setStartDate]  = useState("")
-  const [endDate,    setEndDate]    = useState("")
-  const [errors,     setErrors]     = useState<{ name?: string; startDate?: string; endDate?: string }>({})
 
-  function validate(): boolean {
-    const e: typeof errors = {}
-    if (!newName.trim())  e.name      = "Title is required"
-    if (!startDate)       e.startDate = "Start date is required"
-    if (!endDate)         e.endDate   = "End date is required"
-    setErrors(e)
-    return Object.keys(e).length === 0
-  }
+  // Arriving from the School Years page ("Seed it") pre-selects that year.
+  // Once the admin picks a card themselves, we never override their choice.
+  const searchParams = useSearchParams()
+  const requestedId = searchParams.get("schoolYearId")
+  const pickedByUser = useRef(false)
 
-  function handleCreate() {
-    if (!validate()) return
-    onCreate(newName.trim(), startDate, endDate)
-    setNewName("")
-    setStartDate("")
-    setEndDate("")
-    setShowCreate(false)
-    setErrors({})
-  }
+  useEffect(() => {
+    if (!requestedId || pickedByUser.current || isLoading) return
+    if (!schoolYears.some((sy) => sy.id === requestedId)) return
+    if (selectedId !== requestedId) onSelect(requestedId)
+  }, [requestedId, schoolYears, isLoading, selectedId, onSelect])
 
-  function handleCancel() {
-    setShowCreate(false)
-    setNewName("")
-    setStartDate("")
-    setEndDate("")
-    setErrors({})
+  function handleSelect(id: string) {
+    pickedByUser.current = true
+    onSelect(id)
   }
 
   return (
@@ -79,7 +59,7 @@ export function SchoolYearStep({
                 <button
                   key={sy.id}
                   type="button"
-                  onClick={() => onSelect(sy.id)}
+                  onClick={() => handleSelect(sy.id)}
                   className={cn(
                     "flex items-center justify-between rounded-lg border px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50",
                     selectedId === sy.id && "border-primary bg-primary/5",
@@ -113,92 +93,28 @@ export function SchoolYearStep({
             </div>
           )}
 
-          {schoolYears.length === 0 && !showCreate && (
+          {schoolYears.length === 0 && (
             <p className="text-sm text-muted-foreground not-interactive">
               No school years found. Create one below to proceed.
             </p>
           )}
 
-          {showCreate ? (
-            <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
-              {/* Title */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">School Year Title</Label>
-                <Input
-                  autoFocus
-                  placeholder="e.g. S.Y. 2025–2026"
-                  value={newName}
-                  onChange={(e) => {
-                    setNewName(e.target.value)
-                    if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                />
-                {errors.name && (
-                  <p className="text-xs text-destructive">{errors.name}</p>
-                )}
-              </div>
-
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Start Date</Label>
-                  <Input
-                    type="date"
-                    min={startDateMin()}
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value)
-                      if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: undefined }))
-                    }}
-                  />
-                  {errors.startDate && (
-                    <p className="text-xs text-destructive">{errors.startDate}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">End Date</Label>
-                  <Input
-                    type="date"
-                    min={endDateMin(startDate)}
-                    value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value)
-                      if (errors.endDate) setErrors((prev) => ({ ...prev, endDate: undefined }))
-                    }}
-                  />
-                  {errors.endDate && (
-                    <p className="text-xs text-destructive">{errors.endDate}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCreate}
-                  disabled={isCreating || !newName.trim()}
-                >
-                  {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={handleCancel}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => ensureOrganization(() => setShowCreate(true))}
-              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create new school year
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => ensureOrganization(() => setShowCreate(true))}
+            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Create new school year
+          </button>
         </>
       )}
+
+      <CreateSchoolYearDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={(schoolYear) => handleSelect(schoolYear.id)}
+      />
     </div>
   )
 }

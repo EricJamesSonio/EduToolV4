@@ -51,6 +51,15 @@ export function useTeachableSeed({
   const seededForRef = useRef<string | null>(null);
   const seedKey = open ? `${educatorId}::${schoolYearId ?? ""}` : null;
 
+  // Callers may pass fresh arrays/maps on every render. Seeding must key off
+  // the open session only, so hold the latest server data in a ref instead of
+  // depending on reference identity (which would loop forever).
+  const serverDataRef = useRef({ assigned, subjectInfoById });
+
+  useEffect(() => {
+    serverDataRef.current = { assigned, subjectInfoById };
+  });
+
   useEffect(() => {
     if (!open || seedKey === null) {
       seededForRef.current = null;
@@ -63,10 +72,12 @@ export function useTeachableSeed({
     }
     if (seededForRef.current === seedKey) return;
     if (infoLoading) return;
-    const serverSeed = buildSeedPicks(assigned, subjectInfoById);
+    const { assigned: latestAssigned, subjectInfoById: latestInfo } =
+      serverDataRef.current;
+    const serverSeed = buildSeedPicks(latestAssigned, latestInfo);
     setSeedPicks(JSON.parse(JSON.stringify(serverSeed)) as Picks);
     setSelected((prev) =>
-      prev.length > 0 ? prev : assigned.map((s) => s.id),
+      prev.length > 0 ? prev : latestAssigned.map((s) => s.id),
     );
     setPicksBySubject((prev) => {
       if (Object.keys(prev).length === 0) return serverSeed;
@@ -75,7 +86,7 @@ export function useTeachableSeed({
       return next;
     });
     seededForRef.current = seedKey;
-  }, [open, seedKey, educatorId, schoolYearId, assigned, subjectInfoById, infoLoading]);
+  }, [open, seedKey, infoLoading]);
 
   return {
     seedKey,

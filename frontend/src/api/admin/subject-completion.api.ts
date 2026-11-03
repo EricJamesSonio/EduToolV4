@@ -11,6 +11,7 @@ export interface SubjectCompletionOverride {
   subject_id: string;
   status: "completed" | "pending";
   reason: string | null;
+  source?: string;
   created_at: string;
   updated_at: string;
   subject: {

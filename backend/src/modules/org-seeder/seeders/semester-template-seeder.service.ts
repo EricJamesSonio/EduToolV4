@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { ProgramCalendarService } from '@/modules/academic-calendar/program-calendar/program-calendar.service';
+import { materializeSemestersFromAssignment } from '@/modules/semester-template/semester-materializer.util';
 import {
   SEMESTER_TEMPLATES,
   buildGenericTemplate,
@@ -124,6 +125,14 @@ export class SemesterTemplateSeederService {
               })),
             },
           );
+
+          // The assignment alone is not enough: class creation, the class
+          // preset and generation all read real Semester rows.
+          await materializeSemestersFromAssignment(this.db, {
+            orgId: ctx.orgId,
+            programId,
+            schoolYearId: ctx.schoolYearId,
+          });
         } else {
           ctx.result.warnings.push(
             `Semester template "${existing.name}" was not auto-registered for ` +
@@ -205,6 +214,12 @@ export class SemesterTemplateSeederService {
           syEnd,
           tpl,
         );
+
+        await materializeSemestersFromAssignment(this.db, {
+          orgId: ctx.orgId,
+          programId,
+          schoolYearId: ctx.schoolYearId,
+        });
       } else {
         ctx.result.warnings.push(
           `Semester template "${tpl.name}" was not auto-registered for "${programName}" — ` +

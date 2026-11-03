@@ -1,6 +1,4 @@
-﻿"use client";
-
-import { BookOpen, Zap, BarChart3, Layout, HelpCircle } from "lucide-react";
+﻿import { BookOpen, Zap, BarChart3, Layout, HelpCircle } from "lucide-react";
 import Link from "next/link";
 
 interface ResourceCard {

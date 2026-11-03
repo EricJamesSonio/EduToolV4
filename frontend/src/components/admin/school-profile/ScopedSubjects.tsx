@@ -20,7 +20,6 @@ interface ScopedSubjectsProps {
 export function ScopedSubjects({
   department,
   levels,
-  levelOptions,
   expandedLevelKey,
   onToggleLevel,
   readOnly,
@@ -29,6 +28,29 @@ export function ScopedSubjects({
 }: ScopedSubjectsProps) {
   const sorted = [...levels].sort((a, b) => a.orderIndex - b.orderIndex)
   const activeLevel = sorted.find((l) => l.key === expandedLevelKey) ?? sorted[0] ?? null
+
+  const allLevels: DraftLevel[] = [
+    ...department.levels,
+    ...department.courses.flatMap((c) => c.levels),
+    ...department.strands.flatMap((s) => s.levels),
+  ]
+  const orderByName = new Map<string, number>()
+  for (const level of allLevels) {
+    const current = orderByName.get(level.name)
+    if (current === undefined || level.orderIndex < current) {
+      orderByName.set(level.name, level.orderIndex)
+    }
+  }
+  const levelNames = Array.from(orderByName.entries())
+    .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
+    .map(([name]) => name)
+
+  function handlePromote(subjectKey: string): void {
+    const subject = department.subjects.find((s) => s.key === subjectKey)
+    const target = sorted.find((l) => l.name === subject?.levelName) ?? activeLevel
+    if (!target) return
+    draft.promoteSharedSubjectToLevel(department.type, subjectKey, target.key)
+  }
 
   return (
     <div className="space-y-3">
@@ -82,14 +104,18 @@ export function ScopedSubjects({
 
       <SharedSubjectStep
         subjects={department.subjects}
-        levelOptions={levelOptions}
+        levelNames={levelNames}
+        activeLevelName={activeLevel?.name ?? null}
+        canPromote={!!activeLevel}
         disabled={readOnly || saving}
-        onAdd={(name) => draft.addSubject(department.type, activeLevel?.key ?? "", name, "minor")}
+        onAdd={(name) => {
+          if (!activeLevel) return
+          draft.addSubject(department.type, activeLevel.key, name, "minor")
+        }}
         onRename={(subjectKey, name) => draft.renameSharedSubject(department.type, subjectKey, name)}
         onDelete={(subjectKey) => draft.deleteSharedSubject(department.type, subjectKey)}
-        onPromote={(subjectKey, _levelKey) =>
-          draft.promoteSharedSubjectToLevel(department.type, subjectKey, activeLevel?.key ?? _levelKey)
-        }
+        onSetLevel={(subjectKey, levelName) => draft.setSharedSubjectLevel(department.type, subjectKey, levelName)}
+        onPromote={handlePromote}
       />
     </div>
   )

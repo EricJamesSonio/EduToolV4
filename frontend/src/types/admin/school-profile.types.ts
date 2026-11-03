@@ -16,6 +16,8 @@ export interface SchoolProfileSubject {
   id: string;
   name: string;
   subjectType: "major" | "minor";
+  /** Level name a shared (minor) subject applies to; null/undefined = all levels. */
+  levelName?: string | null;
   sharings?: SchoolProfileSubjectSharing[];
 }
 

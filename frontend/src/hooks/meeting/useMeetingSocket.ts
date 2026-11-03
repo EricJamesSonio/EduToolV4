@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { io, Socket } from "socket.io-client";
+// Type-only: the runtime client is imported lazily so portal routes that never
+// open a meeting do not download/ship the socket.io bundle.
+import type { Socket } from "socket.io-client";
 
 import type {
   MeetingParticipant,
@@ -80,6 +82,7 @@ export const useMeetingSocket = ({
     if (!meetingId || !token) return;
 
 let isActive = true;
+let socket: Socket | null = null;
 
 // Reset ephemeral overlay state for the new session.
 // Without this, the last reaction/hand-raise from the PREVIOUS session
@@ -89,7 +92,12 @@ setLatestHandRaise(null);
 setMeetingEnded(false);
 prevParticipantsRef.current = [];
 
-const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
+void (async () => {
+  const { io } = await import("socket.io-client");
+
+  if (!isActive) return;
+
+  socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
       auth: { token },
       query: { meetingId },
       transports: ["websocket"],
@@ -246,13 +254,15 @@ const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
       setMeetingEnded(true);
     });
 
+})();
+
 return () => {
   isActive = false;
   if (selfEchoTimerRef.current) {       // ← ADD: cancel any pending self-echo
     clearTimeout(selfEchoTimerRef.current);
     selfEchoTimerRef.current = null;
   }
-  socket.disconnect();
+  socket?.disconnect();
   socketRef.current = null;
   setConnected(false);
 };

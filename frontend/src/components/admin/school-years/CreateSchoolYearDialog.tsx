@@ -1,27 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { isAxiosError } from "axios";
 import { toast } from "sonner";
+import { Database } from "lucide-react";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { organizationApi } from "@/api/admin/organization.api";
 import { useSchoolProfileData } from "@/hooks/admin/useSchoolProfile";
-import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
+import { ActionPromptDialog } from "@/components/shared/ActionPromptDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
-import {
-  SeedProgressDialog,
-  type SeedOutcome,
-} from "@/components/admin/data-seeder/SeedProgressDialog";
-import { buildSeedStages } from "@/components/admin/data-seeder/seed-stages";
 
+import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { CreateForm, ShortDurationWarning } from "./types/types";
 import { isShortDurationError, getSchoolYearOverlapMessage } from "./utils/helpers";
 import {
@@ -32,6 +28,16 @@ import {
 interface Props {
   open: boolean;
   onClose: () => void;
+  /**
+   * When provided, the caller handles what happens after creation (for example
+   * the Data Seeder selecting the new year), so the "Seed it" prompt is skipped.
+   */
+  onCreated?: (schoolYear: SchoolYear) => void;
+}
+
+interface SeedPrompt {
+  id: string;
+  name: string;
 }
 
 function previewName(start: string, end: string): string | null {
@@ -42,24 +48,16 @@ function previewName(start: string, end: string): string | null {
   return `SY ${startYear}-${endYear}`;
 }
 
-interface PendingSeedPrompt {
-  schoolYearId: string;
-  schoolYearName: string;
-}
-
-export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Element {
+export function CreateSchoolYearDialog({ open, onClose, onCreated }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [shortDurationWarning, setShortDurationWarning] =
     useState<ShortDurationWarning | null>(null);
+  const [seedPrompt, setSeedPrompt] = useState<SeedPrompt | null>(null);
 
   const { data: profileData } = useSchoolProfileData();
-  const savedDepartments = profileData?.departments ?? [];
-  const hasProfile = savedDepartments.length > 0;
-
-  const [pendingSeedPrompt, setPendingSeedPrompt] =
-    useState<PendingSeedPrompt | null>(null);
-  const [seedOutcome, setSeedOutcome] = useState<SeedOutcome | null>(null);
+  const hasProfile = (profileData?.departments?.length ?? 0) > 0;
 
   const {
     handleSubmit,
@@ -87,21 +85,29 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
       }),
 
     onSuccess: (result: any) => {
-      toast.success("School year created.");
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.list() });
 
-      const createdSchoolYear = result?.data ?? result;
-      const alreadySeeded = !!result?.seeded;
+      const createdSchoolYear = (result?.data ?? result) as SchoolYear | undefined;
 
       reset();
       setShortDurationWarning(null);
 
-      if (!alreadySeeded && hasProfile && createdSchoolYear?.id) {
-        setPendingSeedPrompt({
-          schoolYearId: createdSchoolYear.id,
-          schoolYearName: createdSchoolYear.name ?? namePreview ?? "this school year",
+      if (onCreated && createdSchoolYear?.id) {
+        toast.success("School year created.");
+        onCreated(createdSchoolYear);
+        onClose();
+        return;
+      }
+
+      // Seeding lives in School Profile -> Seed a School Year, where the
+      // academic calendar is set up in the same flow.
+      if (hasProfile && createdSchoolYear?.id) {
+        setSeedPrompt({
+          id: createdSchoolYear.id,
+          name: createdSchoolYear.name,
         });
-        return; // parent's onClose runs when the seed flow finishes/declines
+      } else {
+        toast.success("School year created.");
       }
 
       onClose();
@@ -121,78 +127,6 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
       toast.error("Failed to create school year.");
     },
   });
-
-  const seedMutation = useMutationWithInvalidation(
-    (schoolYearId: string) =>
-      organizationApi.seedOrg({
-        schoolYearId,
-        programs: savedDepartments.map((d) => d.type),
-        seedGradingScales: true,
-        seedGradingSchemes: true,
-        // Semester templates/program calendars need per-year dates the admin
-        // still has to enter — skipped here just like the org auto-seed path.
-        seedSemesterTemplates: false,
-        seedProgramCalendars: false,
-      }),
-    {
-      invalidateKeys: [
-        queryKeys.admin.schoolYears.all,
-        queryKeys.admin.schoolYears.readiness(),
-        queryKeys.admin.programs.all,
-        queryKeys.admin.courses.all,
-        queryKeys.admin.strands.all,
-        queryKeys.admin.levels.all,
-        queryKeys.admin.enrichedLevels.all,
-        queryKeys.admin.sections.all,
-        queryKeys.admin.subjects.all,
-      ],
-      onSuccess: (result) => {
-        setSeedOutcome((prev) =>
-          prev
-            ? {
-                status: "success",
-                stages: prev.stages,
-                result: (result?.result ?? {}) as Record<string, unknown>,
-              }
-            : prev,
-        );
-        toast.success("School year seeded from your School Profile.");
-      },
-      onError: (err: unknown) => {
-        const message =
-          isAxiosError<{ message?: string }>(err) && err.response?.data?.message
-            ? err.response.data.message
-            : "Seeding failed. You can retry from School Profile → Seed a School Year.";
-        setSeedOutcome((prev) =>
-          prev ? { status: "error", stages: prev.stages, message } : prev,
-        );
-      },
-    },
-  );
-
-  function handleConfirmSeed() {
-    if (!pendingSeedPrompt) return;
-    const { schoolYearId } = pendingSeedPrompt;
-    setSeedOutcome({
-      status: "running",
-      stages: buildSeedStages({
-        hasCollege: savedDepartments.some((d) => d.type === "college"),
-        hasShs: savedDepartments.some((d) => d.type === "shs"),
-      }),
-    });
-    setPendingSeedPrompt(null);
-    seedMutation.mutate(schoolYearId);
-  }
-
-  function handleDeclineSeed() {
-    setPendingSeedPrompt(null);
-    onClose();
-  }
-
-  function handleSeedFinished() {
-    setSeedOutcome(null);
-    onClose();
-  }
 
   const onSubmit = (values: CreateForm) => {
     // The name is derived from the dates (shown as a preview) — the submit
@@ -222,12 +156,17 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
     });
   };
 
+  const handleSeedNow = () => {
+    if (!seedPrompt) return;
+    const targetId = seedPrompt.id;
+    setSeedPrompt(null);
+    router.push(`/admin/data-seeder?mode=seed&schoolYearId=${targetId}`);
+  };
+
   return (
     <>
-      {/* Hidden (not closed) while the seed prompt / progress is showing, so the
-          parent doesn't unmount this component mid-seed. */}
       <Modal
-        open={open && !pendingSeedPrompt && !seedOutcome}
+        open={open}
         onClose={handleClose}
         title="New School Year"
         size="sm"
@@ -300,23 +239,24 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
         }}
       />
 
-      <ConfirmDialog
-        open={!!pendingSeedPrompt}
-        title="Seed this school year?"
-        message={
-          pendingSeedPrompt
-            ? `Seed "${pendingSeedPrompt.schoolYearName}" with your School Profile configuration (departments, courses/strands, levels, sections, subjects, grading scales/schemes)? You can also do this later from Data Seeder.`
-            : ""
-        }
-        confirmLabel="Yes, seed it"
-        destructive={false}
-        onConfirm={handleConfirmSeed}
+      <ActionPromptDialog
+        open={!!seedPrompt}
         onOpenChange={(o) => {
-          if (!o) handleDeclineSeed();
+          if (!o) setSeedPrompt(null);
         }}
+        icon={Database}
+        tone="green"
+        title="School year created"
+        description={
+          <>
+            {seedPrompt?.name ?? "The new school year"} is ready. Seed it from your
+            School Profile to set up its academic calendar and structure.
+          </>
+        }
+        primaryLabel="Seed it"
+        onPrimary={handleSeedNow}
+        secondaryLabel="Maybe later"
       />
-
-      <SeedProgressDialog outcome={seedOutcome} onClose={handleSeedFinished} />
     </>
   );
 }

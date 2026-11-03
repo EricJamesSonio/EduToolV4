@@ -27,7 +27,7 @@ export function jhsSubjects(): SubjectDef[] {
   for (let g = 7; g <= 10; g++) {
     for (const subjectName of JHS_CORE) {
       const prereq = JHS_PREREQS[subjectName];
-      const prereqNames = prereq ? [prereq] : [];
+      const prereqNames = prereq && g > 7 ? [`${prereq} (Grade ${g - 1})`] : [];
       out.push(
         subj(
           `Grade ${g}`,

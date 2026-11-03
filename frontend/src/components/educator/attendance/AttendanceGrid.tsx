@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Loader2, Save, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
+
 import {
   useAttendanceGrid,
   useSaveAttendanceGrid,
@@ -290,6 +290,15 @@ export function AttendanceGrid({ classId }: Props) {
         )}
       </div>
 
+      {/* Legend */}
+      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground">Legend:</span>
+        <span className="flex items-center gap-1"><span className="inline-flex h-5 w-5 items-center justify-center rounded bg-success text-white text-[10px] font-bold">P</span> Present</span>
+        <span className="flex items-center gap-1"><span className="inline-flex h-5 w-5 items-center justify-center rounded bg-destructive text-white text-[10px] font-bold">A</span> Absent</span>
+        <span className="flex items-center gap-1"><span className="inline-flex h-5 w-5 items-center justify-center rounded bg-warning text-white text-[10px] font-bold">L</span> Late</span>
+        <span className="flex items-center gap-1"><span className="inline-flex h-5 w-5 items-center justify-center rounded bg-info text-white text-[10px] font-bold">E</span> Excused</span>
+      </div>
+
       {/* Scrollable table */}
       <div className="overflow-auto rounded-lg border border-border/60 bg-card">
         <table className="w-full text-sm border-collapse">
@@ -301,14 +310,14 @@ export function AttendanceGrid({ classId }: Props) {
                 Student
               </th>
               {weekGroups.map(([weekNum, weekSessions]) => {
-                const colorIdx = (weekNum - 1) % WEEK_COLORS.length;
+
                 return (
                   <th
                     key={weekNum}
                     colSpan={weekSessions.length}
                     className={cn(
                       "px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider border-r border-b border-border/40 last:border-r-0",
-                      WEEK_COLORS[colorIdx],
+                      "bg-primary text-primary-foreground",
                     )}
                   >
                     Week {weekNum}

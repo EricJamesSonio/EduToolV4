@@ -14,14 +14,17 @@ describe('useAuthStore', () => {
     expect(state.isLoading).toBe(true);
   });
 
-  it('persists auth state so a refresh keeps the logged-in session', () => {
+  it('does not persist auth state to localStorage', () => {
     const user = { id: '1', role: 'admin', org_id: 'org-1', email: 'a@b.com' } as any;
     useAuthStore.getState().setUser(user);
     useAuthStore.getState().setAccessToken('token-123');
 
-    const snapshot = JSON.parse(localStorage.getItem('auth-store') ?? '{}');
-    expect(snapshot.state.user).toEqual(user);
-    expect(snapshot.state.accessToken).toBe('token-123');
+    // In-memory state is updated
+    expect(useAuthStore.getState().user).toEqual(user);
+    expect(useAuthStore.getState().accessToken).toBe('token-123');
+
+    // Nothing is written to localStorage
+    expect(localStorage.getItem('auth-store')).toBeNull();
   });
 
   it('setUser updates user', () => {
