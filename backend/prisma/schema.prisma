@@ -646,6 +646,7 @@ model Subject {
   id           String  @id @default(uuid())
   org_id       String
   name         String
+  code         String?
   subject_type String  @default("major")
   program_id   String?
   level_id     String?
