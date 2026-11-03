@@ -185,7 +185,7 @@ export type PostedSchedule = Omit<ScheduleDef, 'semester'>;
 
 export const POSTED_TIMETABLE_SEMESTER = 2;
 
-export const STUDENT_SEMESTER = 2;
+export const STUDENT_SEMESTER = 1;
 
 export const SCHEDULES: PostedSchedule[] = [
   { section: 'BSCS-1A', subject: 'PROG 2', instructor: 'Tolentino', room: 'CB205', day: 'TUE', start: '07:30', end: '10:30' },
@@ -232,8 +232,8 @@ export const ENROLL_STUDENTS_IN_CLASSES = true;
 export const REGULAR_STUDENTS: string[] = ['Eric James Sonio', 'Rj Diaz'];
 
 export const IRREGULAR_STUDENTS: Record<string, string[]> = {
-  'Ian Vitente': ['CSO'],
-  'Jay Entileso': ['CSO'],
+  'Ian Vitente': ['OOP'],
+  'Jay Entileso': ['OOP'],
 };
 
 export const IRREGULAR_EXTRA_SECTIONS: string[] = ['BSCS-2A', 'BSCS-3A'];

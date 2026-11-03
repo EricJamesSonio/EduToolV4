@@ -774,6 +774,7 @@ function generateEntry(
   sectionName: string,
   semester: number,
   plan: ScheduleDef[],
+  avoid: ScheduleDef[] = [],
 ): ScheduleDef {
   const blocks = subject.halfBlock ? HALF_BLOCKS : FULL_BLOCKS;
   const rooms = ROOM_POOLS[subject.roomKind];
@@ -808,7 +809,9 @@ function generateEntry(
     const clashes = plan.some(
       (existing) => clashReasons(existing, entry).length > 0,
     );
-    if (!clashes) return entry;
+    if (clashes) continue;
+    if (avoid.some((other) => overlaps(other, entry))) continue;
+    return entry;
   }
   throw new Error(
     `No conflict-free slot was found for ${subject.code} in ${sectionName} (semester ${semester}).`,
@@ -818,6 +821,7 @@ function generateEntry(
 function buildTimetable(): ScheduleDef[] {
   const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
   const plan: ScheduleDef[] = [];
+  const extraCodes = new Set(Object.values(IRREGULAR_STUDENTS).flat());
 
   for (const posted of SCHEDULES) {
     if (!byCode.has(posted.subject)) {
@@ -841,9 +845,19 @@ function buildTimetable(): ScheduleDef[] {
             e.subject === subject.code &&
             e.semester === semester,
         );
-        if (!scheduled) {
-          plan.push(generateEntry(subject, section.name, semester, plan));
-        }
+        if (scheduled) continue;
+
+        const avoid =
+          section.name === DEFAULT_STUDENT_SECTION &&
+          semester === STUDENT_SEMESTER
+            ? plan.filter(
+                (e) =>
+                  e.semester === semester &&
+                  extraCodes.has(e.subject) &&
+                  IRREGULAR_EXTRA_SECTIONS.includes(e.section),
+              )
+            : [];
+        plan.push(generateEntry(subject, section.name, semester, plan, avoid));
       }
     }
   }
@@ -1797,6 +1811,96 @@ async function retireStaleClasses(
   return staleIds.length;
 }
 
+function formatDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function assertSemesterOpenForEnrollment(
+  semesters: SeededSemester[],
+  target: number,
+  now: Date,
+): void {
+  const current = semesters[target - 1];
+  if (!current) {
+    throw new Error(`Semester ${target} does not exist, students were not enrolled.`);
+  }
+  if (current.end.getTime() < now.getTime()) {
+    throw new Error(
+      `${current.name} ended on ${formatDay(current.end)}. Students cannot be enrolled in an ended semester.`,
+    );
+  }
+  const blocking = semesters
+    .slice(0, target - 1)
+    .filter((s) => s.end.getTime() >= now.getTime());
+  if (blocking.length > 0) {
+    throw new Error(
+      `Enrollment in ${current.name} is locked until ${blocking
+        .map((s) => `${s.name} ends (${formatDay(s.end)})`)
+        .join(', ')}. Students were not enrolled.`,
+    );
+  }
+}
+
+function assertStudentPlans(
+  plans: Map<string, StudentPlan>,
+  refById: Map<string, ClassRef>,
+  semester: number,
+): void {
+  const problems: string[] = [];
+  for (const [name, plan] of plans) {
+    const defs = plan.classIds
+      .map((id) => refById.get(id)?.def)
+      .filter((d): d is ScheduleDef => Boolean(d));
+    for (const d of defs) {
+      if (d.semester !== semester) {
+        problems.push(
+          `${name}: ${d.subject} is a semester ${d.semester} class but enrollment is locked to semester ${semester}`,
+        );
+      }
+    }
+    for (let i = 0; i < defs.length; i++) {
+      for (let j = i + 1; j < defs.length; j++) {
+        if (defs[i].semester === defs[j].semester && overlaps(defs[i], defs[j])) {
+          problems.push(
+            `${name}: ${defs[i].subject} overlaps ${defs[j].subject} on ${defs[i].day}`,
+          );
+        }
+      }
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Student class plans are invalid, nobody was enrolled:\n  - ${problems.join('\n  - ')}`,
+    );
+  }
+}
+
+async function closeEndedSemesterEnrollments(
+  ctx: Ctx,
+  semesters: SeededSemester[],
+  classRefs: ClassRef[],
+  now: Date,
+): Promise<number> {
+  const endedClassIds = classRefs
+    .filter((r) => semesters[r.def.semester - 1].end.getTime() < now.getTime())
+    .map((r) => r.classId);
+  if (endedClassIds.length === 0) return 0;
+
+  const result = await db.enrollment.updateMany({
+    where: {
+      org_id: ctx.orgId,
+      class_id: { in: endedClassIds },
+      status: 'active',
+    },
+    data: {
+      status: 'removed',
+      outcome: 'completed',
+      outcome_reason: 'Semester ended',
+      outcome_set_at: now,
+    },
+  });
+  return result.count;
+}
 async function main(): Promise<void> {
   console.log('\nSEED BSCS - START\n');
 
@@ -1964,6 +2068,19 @@ async function main(): Promise<void> {
   );
   console.log(`  class schemes: ${schemesCreated} created`);
 
+  const now = new Date();
+  const closed = await closeEndedSemesterEnrollments(
+    ctx,
+    semesters,
+    classRefs,
+    now,
+  );
+  if (closed > 0) {
+    console.log(
+      `  unenrolled   : ${closed} enrollment(s) closed because their semester ended (records kept)`,
+    );
+  }
+
   const readiness = await checkSchoolYearReadiness(org.id, schoolYear.id);
   if (!readiness.ready) {
     console.error('\n  School year is NOT READY. Students were not seeded.');
@@ -1976,6 +2093,11 @@ async function main(): Promise<void> {
   }
   console.log('  readiness    : school year is READY');
 
+  assertSemesterOpenForEnrollment(semesters, STUDENT_SEMESTER, now);
+  console.log(
+    `  enrollment   : ${semesters[STUDENT_SEMESTER - 1].name} is open, later semesters stay locked`,
+  );
+
   const { names, skipped } = dedupeNames(RAW_STUDENT_NAMES);
   const studentRefs = classRefs.filter(
     (r) => r.def.semester === STUDENT_SEMESTER,
@@ -1987,6 +2109,8 @@ async function main(): Promise<void> {
     SEMESTER_NAMES[STUDENT_SEMESTER - 1] as TermLabel,
   );
   const refById = new Map(classRefs.map((r) => [r.classId, r] as const));
+  assertStudentPlans(plans, refById, STUDENT_SEMESTER);
+
   const credits = new Map<string, { taken: string[]; credited: string[] }>();
   for (const [name, plan] of plans) {
     const taken = plan.classIds
@@ -1997,6 +2121,11 @@ async function main(): Promise<void> {
     credits.set(name, { taken, credited });
   }
   console.log('  prerequisites: met for every enrolled class');
+  console.log('  student plans: in the open semester, no overlapping classes');
+
+  const openClassIds = classRefs
+    .filter((r) => semesters[r.def.semester - 1].end.getTime() >= now.getTime())
+    .map((r) => r.classId);
 
   const targetSection = sections[studentSectionDef.name];
   const studentResult = await seedStudents(
@@ -2005,7 +2134,7 @@ async function main(): Promise<void> {
     levelIds[studentSectionDef.levelName],
     targetSection.id,
     plans,
-    classRefs.map((r) => r.classId),
+    openClassIds,
     passwordHash,
     credits,
     subjectIds,
