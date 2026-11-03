@@ -1,4 +1,3 @@
-// src/core/scheduler/scheduler.module.ts
 import { Module } from '@nestjs/common';
 import { SchedulerTasks } from './scheduler.tasks';
 import { GradeLockModule } from '@/modules/grade-lock/grade-lock.module';
@@ -7,6 +6,7 @@ import { NotificationModule } from '@/modules/notification/notification.module';
 import { OrgEnrollmentSettingModule } from '@/modules/org-enrollment-setting/org-enrollment-setting.module';
 import { EnrollmentPortalModule } from '@/modules/enrollment-portal/enrollment-portal.module';
 import { ConcernDigestModule } from '@/modules/concern/digest/concern-digest.module';
+import { EnrollmentModule } from '@/modules/enrollment/enrollment.module';
 
 @Module({
   imports: [
@@ -16,6 +16,7 @@ import { ConcernDigestModule } from '@/modules/concern/digest/concern-digest.mod
     OrgEnrollmentSettingModule,
     EnrollmentPortalModule,
     ConcernDigestModule,
+    EnrollmentModule,
   ],
   providers: [SchedulerTasks],
 })
