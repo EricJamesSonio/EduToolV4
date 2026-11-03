@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { ShortDurationWarning } from "./types/types";
 import { isShortDurationError, getSchoolYearOverlapMessage } from "./utils/helpers";
+import { normalizeDateInput } from "@/utils/datetime.util";
 
 interface Props {
   schoolYear: SchoolYear;
@@ -30,10 +31,13 @@ interface EditForm {
 
 function previewName(start: string, end: string): string | null {
   if (!start || !end) return null;
-  const startYear = new Date(start).getFullYear();
-  const endYear = new Date(end).getFullYear();
-  if (isNaN(startYear) || isNaN(endYear)) return null;
-  return `SY ${startYear}-${endYear}`;
+  // TICK-INFRA-017: year from the string itself — new Date("2026-01-01")
+  // .getFullYear() reads the browser zone and previews 2025 west of UTC.
+  // type="date" values are always "YYYY-MM-DD" when valid.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    return null;
+  }
+  return `SY ${start.slice(0, 4)}-${end.slice(0, 4)}`;
 }
 
 export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): React.JSX.Element {
@@ -48,8 +52,11 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
     watch,
   } = useForm<EditForm>({
     defaultValues: {
-      start_date: schoolYear.start_date ?? "",
-      end_date: schoolYear.end_date ?? "",
+      // TICK-INFRA-017: normalize (legacy-ISO tolerant). A raw ISO string is
+      // an INVALID value for <input type="date"> (renders empty and would
+      // submit "" → null → clear the date on save).
+      start_date: normalizeDateInput(schoolYear.start_date),
+      end_date: normalizeDateInput(schoolYear.end_date),
     },
   });
 

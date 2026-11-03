@@ -3,7 +3,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   SetEducatorSubjectsDto,
-  CarryOverEducatorSubjectsDto,
+  EducatorSubjectUsageQueryDto,
 } from '../dto/educator.dto';
 
 // Seeded rows use deterministic UUIDv5 ids; admin-created rows use v4.
@@ -26,11 +26,9 @@ describe('educator DTO id versions', () => {
     expect((await validate(dto)).length).toBeGreaterThan(0);
   });
 
-  it('accepts v5 educator ids in carry-over', async () => {
-    const dto = plainToInstance(CarryOverEducatorSubjectsDto, {
-      fromSchoolYearId: V4,
-      toSchoolYearId: V4,
-      educatorIds: [V5],
+  it('accepts a school year id in the subject usage query', async () => {
+    const dto = plainToInstance(EducatorSubjectUsageQueryDto, {
+      schoolYearId: V4,
     });
     expect(await validate(dto)).toHaveLength(0);
   });

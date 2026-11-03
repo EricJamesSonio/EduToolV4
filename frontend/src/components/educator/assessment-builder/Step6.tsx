@@ -32,8 +32,11 @@ export function Step6({
   isLoading: boolean;
 }) {
   const datesMissing = !releaseDate || !endDate;
-  const invalid =
-    datesMissing || new Date(endDate) <= new Date(releaseDate);
+  // TICK-INFRA-017: both values are same-shape "YYYY-MM-DDTHH:mm" zone-less
+  // strings, so lexicographic order IS chronological order in every process
+  // TZ. Do not wrap them in new Date() here — that would parse in the
+  // browser's zone and reintroduce the bug this ticket removes.
+  const invalid = datesMissing || endDate <= releaseDate;
   const { data: students } = useAsyncQuery(
     queryKeys.educator.classes.students(classId),
     () => educatorClassApi.getStudents(classId),

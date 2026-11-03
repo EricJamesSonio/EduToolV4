@@ -1,11 +1,31 @@
 # Current Project State
 
-Last updated: 2026-09-30
+Last updated: 2026-10-08
 
 <!--
 One section per major domain/module. Keep status labels consistent:
 implemented / partially implemented / not implemented / needs investigation
 -->
+
+## Timezone Step 5 enforcement (2026-10-08)
+
+Status: implemented (TICK-INFRA-018 fast-forwarded to development, `01e1c21c..7a99ca5b`)
+
+Implemented:
+
+- ESLint timezone bans (both `eslint.config.mjs`): error in the 54 migrated files, warn elsewhere (23 backend + 66 frontend allowlist files, documented in-config to shrink). `datetime.util` implements (exempt), kind-C schedule files exempt by design, specs out of scope. Every disable carries a reason.
+- CI `backend-tz-matrix` + `frontend-tz-matrix` (4 TZs each, in `ci-gate`); `test:tz-invariant` scripts (single TZ) + `test:tz` loops; dev scripts `TZ=UTC`; Dockerfile `ENV TZ=UTC`; HTTP boundary e2e (no DB).
+- Merge gate: tz loops green x4 both apps, eslint 0 errors, tsc clean, both builds green; full suites at documented baselines.
+
+## Timezone independence (2026-10-07)
+
+Status: implemented (TICK-INFRA-017 fast-forwarded to development, `5b7efce5..af9aa74d`)
+
+Implemented:
+
+- Single time layer per side (`backend/src/commons/utils/datetime.util.ts`, `frontend/src/utils/datetime.util.ts`): `ORG_TIMEZONE = 'Asia/Manila'` (equality-tested), `parseInstant`, `@IsInstant`, `@IsCalendarDate`, `localInputToIso`, `isoToLocalInput`, `formatInZone`, `todayInZone`, `calendarDateOf` (+12h legacy tolerance), `calendarDateToUtc`, `addDaysToCalendarDate`, day-bound helpers, `weekdayInZone`, `weekdayOccurrencesInZone`, `normalizeDateInput` (frontend). Intl only, no new deps.
+- Boundaries enforced per area in 8 commits (assessment → grade lock → crons + kind-B → edit-form round-trip → enrollment lock → attendance → lesson → meeting → audit-log). Remaining for later: Step 5 enforcement (eslint bans, CI matrix, dev/Docker TZ), Step 6 bad-data counting (held for cutoff date).
+- Merge gate: development unmoved since branch point, clean fast-forward; validation above in CHANGELOG. Pre-existing reds unchanged (level/registrar/educator suites, frontend lint error in untouched assessment-type-gradability test, useTeachableSeed OOM).
 
 ## Grading-scheme category naming (2026-09-29)
 

@@ -26,7 +26,9 @@ import {
   SetEducatorSubjectSlotsDto,
   SetEducatorSubjectBundleDto,
   EducatorCapacityQueryDto,
-  CarryOverEducatorSubjectsDto,
+  EducatorSubjectUsageQueryDto,
+  RemoveTeachableKeysDto,
+  ListEducatorSubjectsQueryDto,
   SetEducatorScheduleProfileDto,
 } from './dto/educator.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
@@ -75,15 +77,22 @@ export class EducatorController {
   /**
    * GET /educators/:id/subjects
    * Subjects this educator is able to teach, with display context. The
-   * generator assigns only from this set.
+   * generator assigns only from this set. With ?schoolYearId= the rows are
+   * scoped to that year and their sections are resolved server-side, so the
+   * client never renders a raw section id.
    */
   @Get(':id/subjects')
   @Roles('admin')
   async listSubjects(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @Query() query: ListEducatorSubjectsQueryDto,
   ) {
-    return this.educatorSubjectService.listForEducator(orgId, id);
+    return this.educatorSubjectService.listForEducator(
+      orgId,
+      id,
+      query.schoolYearId,
+    );
   }
 
   /**
@@ -199,27 +208,44 @@ export class EducatorController {
   }
 
   /**
-   * POST /educators/carry-over-subjects
-   * Copies teachable subjects from one school year to another, matching on
-   * name + program type + parent names. Unmatched links are reported, never
-   * guessed.
-   *
-   * Declared alongside the other static routes on purpose: Nest matches in
-   * declaration order, so a route nested after `@Get(':id')` would never fire.
+   * POST /educators/:id/subject-keys/remove
+   * Removes global teachable keys (every year at once) plus the picks rows
+   * whose subject carries a removed key. POST-with-body by codebase
+   * convention for scoped removals (assign-students, reopen, carry-over).
    */
-  @Post('carry-over-subjects')
+  @Post(':id/subject-keys/remove')
   @Roles('admin')
-  async carryOverSubjects(
+  async removeSubjectKeys(
+    @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') actorId: string,
-    @Body() dto: CarryOverEducatorSubjectsDto,
+    @Body() dto: RemoveTeachableKeysDto,
   ) {
-    return this.educatorSubjectService.carryOver(
+    return this.educatorSubjectService.removeKeys(
       orgId,
-      dto.fromSchoolYearId,
-      dto.toSchoolYearId,
-      dto.educatorIds,
+      id,
+      dto.keys,
       actorId,
+    );
+  }
+
+  /**
+   * GET /educators/:id/subjects/usage?schoolYearId=
+   * Per year-linked subject, where else (other years) the educator's classes
+   * or slot picks use it. Drives the modal's untick confirm — unticking
+   * removes the GLOBAL link, so other-year usage must be visible first.
+   */
+  @Get(':id/subjects/usage')
+  @Roles('admin')
+  async subjectUsage(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: EducatorSubjectUsageQueryDto,
+  ) {
+    return this.educatorSubjectService.subjectUsage(
+      orgId,
+      id,
+      query.schoolYearId,
     );
   }
 

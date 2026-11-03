@@ -16,6 +16,7 @@ import {
   UpdateMeetingDto,
   RespondJoinRequestDto,
 } from './dto/meeting.dto';
+import { parseInstant } from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class MeetingService {
@@ -48,7 +49,8 @@ export class MeetingService {
       educatorId,
       title: dto.title,
       description: dto.description,
-      startTime: new Date(dto.startTime),
+      // TICK-INFRA-017: DTO guarantees Z/offset via @IsInstant.
+      startTime: parseInstant(dto.startTime),
       isEphemeral: dto.ephemeral ?? false,
     });
 
@@ -150,7 +152,8 @@ export class MeetingService {
     return this.meetingRepo.update(id, {
       title: dto.title,
       description: dto.description,
-      startTime: dto.startTime ? new Date(dto.startTime) : undefined,
+      // TICK-INFRA-017: DTO guarantees Z/offset via @IsInstant.
+      startTime: dto.startTime ? parseInstant(dto.startTime) : undefined,
     });
   }
 

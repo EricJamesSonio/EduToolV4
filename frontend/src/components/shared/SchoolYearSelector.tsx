@@ -9,6 +9,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 
@@ -61,9 +62,9 @@ export function SchoolYearSelector({
         }}
       >
         <SelectTrigger className="w-full sm:w-64 h-10 text-sm">
-          <span className="truncate">
+          <SelectValue placeholder="Select school year">
             {selected?.name ?? "Select school year"}
-          </span>
+          </SelectValue>
         </SelectTrigger>
 
         <SelectContent side="bottom" sideOffset={8} align="start" alignItemWithTrigger={false} className="sm:min-w-[16rem]">

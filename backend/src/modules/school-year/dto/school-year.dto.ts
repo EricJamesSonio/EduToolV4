@@ -2,13 +2,12 @@
 
 import {
   IsString,
-  IsNotEmpty,
   MinLength,
   MaxLength,
   IsOptional,
-  IsDateString,
   IsBoolean,
 } from 'class-validator';
+import { IsCalendarDate } from '@/commons/utils/datetime.util';
 
 export class CreateSchoolYearDto {
   @IsOptional()
@@ -17,12 +16,13 @@ export class CreateSchoolYearDto {
   @MaxLength(100)
   name?: string;
 
+  // TICK-INFRA-017: kind-B calendar dates — "YYYY-MM-DD" only.
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   start_date?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   end_date?: string;
 
   @IsOptional()
@@ -36,12 +36,13 @@ export class UpdateSchoolYearDto {
   @MaxLength(100)
   name?: string;
 
+  // TICK-INFRA-017: kind-B calendar dates — "YYYY-MM-DD" only.
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   start_date?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   end_date?: string;
 
   @IsOptional()

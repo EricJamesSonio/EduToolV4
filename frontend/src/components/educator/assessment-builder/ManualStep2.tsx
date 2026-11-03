@@ -29,10 +29,10 @@ export function ManualStep2({
   onCreate: () => void;
   isLoading: boolean;
 }) {
+  // TICK-INFRA-017: same-shape "YYYY-MM-DDTHH:mm" strings compare
+  // chronologically as plain strings in every TZ — never new Date() here.
   const invalid =
-    !releaseDate ||
-    !endDate ||
-    new Date(endDate) <= new Date(releaseDate);
+    !releaseDate || !endDate || endDate <= releaseDate;
   const { data: weeks = [] } = useClassWeeks(classId);
   const { data: students } = useAsyncQuery(
     queryKeys.educator.classes.students(classId),

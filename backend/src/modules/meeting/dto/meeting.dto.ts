@@ -1,13 +1,13 @@
 import {
   IsString,
   IsOptional,
-  IsDateString,
   IsArray,
   IsUUID,
   IsBoolean,
   MinLength,
   MaxLength,
 } from 'class-validator';
+import { IsInstant } from '@/commons/utils/datetime.util';
 
 export class CreateMeetingDto {
   @IsString()
@@ -19,7 +19,9 @@ export class CreateMeetingDto {
   @IsString()
   description?: string;
 
-  @IsDateString()
+  // TICK-INFRA-017: kind-A instant. Zone-less and date-only values rejected
+  // with 400; the frontend sends UTC ISO (localInputToIso in ORG_TIMEZONE).
+  @IsInstant()
   startTime: string;
 
   @IsOptional()
@@ -44,7 +46,7 @@ export class UpdateMeetingDto {
   description?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsInstant()
   startTime?: string;
 
   @IsOptional()

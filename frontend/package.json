@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next dev -p 3000",
+    "dev": "cross-env TZ=UTC NODE_OPTIONS=--max-old-space-size=8192 next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
-    "test:tz": "cross-env TZ=UTC jest && cross-env TZ=Asia/Manila jest && cross-env TZ=America/Los_Angeles jest",
+    "test:tz-invariant": "jest src/utils/__tests__/datetime.util.test.ts src/utils/__tests__/studentSchedule.utils.test.ts src/utils/__tests__/semester.utils.test.ts src/utils/__tests__/scheduleTime.utils.test.ts --silent",
+    "test:tz": "cross-env TZ=UTC npm run test:tz-invariant --silent && cross-env TZ=Asia/Manila npm run test:tz-invariant --silent && cross-env TZ=America/Los_Angeles npm run test:tz-invariant --silent && cross-env TZ=Pacific/Kiritimati npm run test:tz-invariant --silent",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
     "test:e2e:headed": "cross-env HEADED=1 playwright test"

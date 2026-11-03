@@ -2,7 +2,6 @@
 import {
   IsString,
   IsOptional,
-  IsDateString,
   IsInt,
   IsArray,
   ValidateNested,
@@ -13,6 +12,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCalendarDate } from '@/commons/utils/datetime.util';
 
 // ── Term DTO (nested inside semester) ────────────────────────────────────────
 
@@ -26,10 +26,10 @@ export class CreateTermDto {
   @Min(1)
   orderIndex: number;
 
-  @IsDateString()
+  @IsCalendarDate()
   startDate: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate: string;
 }
 
@@ -50,11 +50,11 @@ export class UpdateTermDto {
   orderIndex?: number;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   endDate?: string;
 }
 
@@ -85,10 +85,10 @@ export class CreateSemesterDto {
   @MaxLength(100)
   name: string; // display label only, e.g. "1st Semester" — pre-filled from the template slot's own name, editable
 
-  @IsDateString()
+  @IsCalendarDate()
   startDate: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate: string;
 
   @IsArray()
@@ -112,11 +112,11 @@ export class UpdateSemesterDto {
   name?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   endDate?: string;
 
   /**

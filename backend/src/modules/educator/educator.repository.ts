@@ -258,7 +258,6 @@ export class EducatorRepository {
   ) {
     const [
       classes,
-      teachableLinks,
       ownedSubjects,
       meetings,
       ownershipLogs,
@@ -266,9 +265,6 @@ export class EducatorRepository {
       gradeLockEvents,
     ] = await Promise.all([
       client.class.count({
-        where: { org_id: orgId, educator_id: educatorId },
-      }),
-      client.educatorSubject.count({
         where: { org_id: orgId, educator_id: educatorId },
       }),
       client.subject.count({
@@ -295,7 +291,6 @@ export class EducatorRepository {
     ]);
     return {
       classes,
-      teachableLinks,
       ownedSubjects,
       meetings,
       ownershipLogs,
@@ -305,10 +300,33 @@ export class EducatorRepository {
   }
 
   /**
+   * Teachable configuration going away with the educator: per-year picks
+   * rows plus global teachable keys. Configuration, not history — cascaded,
+   * never blocking.
+   */
+  async getTeachableCleanupCounts(
+    client: Prisma.TransactionClient,
+    orgId: string,
+    educatorId: string,
+  ) {
+    const [picks, keys] = await Promise.all([
+      client.educatorSubject.count({
+        where: { org_id: orgId, educator_id: educatorId },
+      }),
+      client.educatorTeachableSubject.count({
+        where: { org_id: orgId, educator_id: educatorId },
+      }),
+    ]);
+    return { picks, keys };
+  }
+
+  /**
    * Delete an educator with no history: notifications + profile are
-   * hard-deleted, the schedule profile cascades at DB level, and the Account
-   * itself is soft-deleted (existing `deleted_at` convention — the row stays
-   * for immutable history such as audit/groupy sender references).
+   * hard-deleted, teachable configuration (per-year picks rows and global
+   * keys) cascades with it, the schedule profile cascades at DB level, and
+   * the Account itself is soft-deleted (existing `deleted_at` convention —
+   * the row stays for immutable history such as audit/groupy sender
+   * references).
    */
   async deleteAccountCascade(
     client: Prisma.TransactionClient,
@@ -319,6 +337,12 @@ export class EducatorRepository {
     });
     await client.profile.deleteMany({
       where: { account_id: accountId },
+    });
+    await client.educatorSubject.deleteMany({
+      where: { educator_id: accountId },
+    });
+    await client.educatorTeachableSubject.deleteMany({
+      where: { educator_id: accountId },
     });
     await client.account.update({
       where: { id: accountId },

@@ -15,6 +15,7 @@ import {
   useUnpublishAssessment,
 } from "@/hooks/educator/useAssessments";
 import { assessmentApi } from "@/api/educator/assessment.api";
+import { localInputToIso } from "@/utils/datetime.util";
 import { educatorClassApi } from "@/api/educator/class.api";
 
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -66,7 +67,8 @@ export default function AssessmentDetailPage(): React.JSX.Element {
   async function handleReopen(selectedIds: string[], reopenUntil: string) {
     setReopening(true);
     try {
-      const res = await assessmentApi.reopen(classId, assessmentId, selectedIds, reopenUntil);
+      // TICK-INFRA-017: picker value is Manila wall-clock -> UTC ISO once, here.
+      const res = await assessmentApi.reopen(classId, assessmentId, selectedIds, localInputToIso(reopenUntil));
       toast.success(`Reopened for ${res.reopened} student${res.reopened !== 1 ? "s" : ""}.`);
       setReopenOpen(false);
     } catch {
@@ -91,6 +93,9 @@ export default function AssessmentDetailPage(): React.JSX.Element {
     );
   }
 
+  // TICK-INFRA-018 (R3): releaseDate from our own API is a true instant;
+  // comparing it to now is TZ-safe and must stay a direct read.
+  // eslint-disable-next-line no-restricted-syntax -- R3 instant read, TZ-safe by design.
   const isBeforeRelease = !assessment.releaseDate || new Date() < new Date(assessment.releaseDate);
   const isClosed = assessment.status === "closed";
 

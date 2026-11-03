@@ -1,5 +1,7 @@
 import { NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { validate } from 'class-validator';
 import { MeetingService } from '../meeting.service';
+import { CreateMeetingDto, UpdateMeetingDto } from '../dto/meeting.dto';
 
 describe('MeetingService', () => {
   let service: MeetingService;
@@ -194,6 +196,71 @@ describe('MeetingService', () => {
       meetingRepo.findAll.mockResolvedValue([{ id: 'meet-1', title: 'M', start_time: new Date(), status: 'scheduled', invites: [{ student_id: studentId }], join_requests: [] }]);
       const res = await service.findAllForStudent(classId, orgId, studentId);
       expect(res[0].isInvited).toBe(true);
+    });
+  });
+
+  // TICK-INFRA-017: meeting startTime is a kind-A instant. Existing stored
+  // rows are untouched; only the write boundary is strict.
+  describe('startTime instant boundary', () => {
+    async function errorsFor(dto: object): Promise<string[]> {
+      const errors = await validate(dto);
+      return errors.flatMap((e) => Object.values(e.constraints ?? {}));
+    }
+
+    it('rejects zone-less and date-only startTime, accepts Z/offset', async () => {
+      const zoneless = new CreateMeetingDto();
+      zoneless.title = 'M';
+      zoneless.startTime = '2026-10-06T17:00';
+      expect(await errorsFor(zoneless)).not.toHaveLength(0);
+
+      const dateOnly = new CreateMeetingDto();
+      dateOnly.title = 'M';
+      dateOnly.startTime = '2026-10-06';
+      expect(await errorsFor(dateOnly)).not.toHaveLength(0);
+
+      const zoned = new CreateMeetingDto();
+      zoned.title = 'M';
+      zoned.startTime = '2026-10-06T09:00:00.000Z';
+      expect(await errorsFor(zoned)).toHaveLength(0);
+
+      const update = new UpdateMeetingDto();
+      update.startTime = '2026-10-06T17:00:00+08:00';
+      expect(await errorsFor(update)).toHaveLength(0);
+    });
+
+    it('stores Z and offset strings as the same absolute instant', async () => {
+      classRepo.findById.mockResolvedValue({ id: classId, educator_id: educatorId });
+      meetingRepo.create.mockImplementation((d: { startTime: Date }) => ({
+        id: 'meet-1',
+        ...d,
+      }));
+      for (const startTime of [
+        '2026-10-06T09:00:00.000Z',
+        '2026-10-06T17:00:00+08:00',
+      ]) {
+        meetingRepo.create.mockClear();
+        await service.create(classId, orgId, educatorId, {
+          title: 'M',
+          startTime,
+          invitedStudentIds: [studentId],
+        } as CreateMeetingDto);
+        expect(meetingRepo.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            startTime: new Date('2026-10-06T09:00:00.000Z'),
+          }),
+        );
+      }
+    });
+
+    it('rejects zone-less startTime even if DTO validation is bypassed', async () => {
+      classRepo.findById.mockResolvedValue({ id: classId, educator_id: educatorId });
+      await expect(
+        service.create(classId, orgId, educatorId, {
+          title: 'M',
+          startTime: '2026-10-06T17:00',
+        } as CreateMeetingDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(meetingRepo.create).not.toHaveBeenCalled();
     });
   });
 });

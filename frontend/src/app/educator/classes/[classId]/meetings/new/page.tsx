@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { useCreateMeeting, useEnrolledStudents } from "@/hooks/educator/useMeeting";
+import { localInputToIso } from "@/utils/datetime.util";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AxiosError } from "axios";
 
@@ -55,7 +56,8 @@ export default function NewMeetingPage({ params }: Props) {
       {
         title:       title.trim(),
         description: description.trim() || undefined,
-        startTime:   new Date(startTime).toISOString(),
+        // TICK-INFRA-017: picker value is Manila wall-clock -> UTC ISO once, here.
+        startTime:   localInputToIso(startTime),
         invitedStudentIds,
       },
       {

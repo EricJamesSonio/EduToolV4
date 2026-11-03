@@ -30,24 +30,33 @@ function formatSchedule(cls: Class): string {
 
 interface EducatorClassAssignmentManagerProps {
   educatorId: string;
+  /** Scope lists to this year/semester — classes of other years are never offered. */
+  schoolYearId?: string;
+  semesterId?: string;
 }
 
-export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssignmentManagerProps) {
+export function EducatorClassAssignmentManager({ educatorId, schoolYearId, semesterId }: EducatorClassAssignmentManagerProps) {
   const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Class | null>(null);
   const [assignTarget, setAssignTarget] = useState<Class | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "schedule">("list");
 
+  // Same key shape as the detail page's counts query, so both share one cache
+  // entry instead of fetching the same scope twice.
+  const assignedFilters = { educatorId, schoolYearId, semesterId };
+  const pickerFilters = { schoolYearId, semesterId };
+
   const { data: assigned = [], isLoading } = useAsyncQuery(
-    queryKeys.admin.classes.list({ educatorId }),
-    () => classApi.getAll({ educatorId }),
+    queryKeys.admin.classes.list(assignedFilters),
+    () => classApi.getAll(assignedFilters),
+    { enabled: !!schoolYearId },
   );
 
   const { data: allClasses = [], isLoading: loadingAll } = useAsyncQuery(
-    queryKeys.admin.classes.list(),
-    () => classApi.getAll(),
-    { enabled: assignOpen },
+    queryKeys.admin.classes.list(pickerFilters),
+    () => classApi.getAll(pickerFilters),
+    { enabled: assignOpen && !!schoolYearId },
   );
 
   const assignedIds = useMemo(() => new Set(assigned.map((c) => c.id)), [assigned]);
@@ -67,7 +76,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
   const assignMutation = useMutationWithInvalidation(
     (classId: string) => classApi.update(classId, { educatorId }),
     {
-      invalidateKeys: [queryKeys.admin.classes.list({ educatorId }), queryKeys.admin.educators.all],
+      invalidateKeys: [queryKeys.admin.classes.list(assignedFilters), queryKeys.admin.classes.list(pickerFilters), queryKeys.admin.educators.all],
       onSuccess: () => {
         toast.success("Class assigned.");
         setAssignTarget(null);
@@ -83,7 +92,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
   const removeMutation = useMutationWithInvalidation(
     (classId: string) => classApi.update(classId, { educatorId: undefined }),
     {
-      invalidateKeys: [queryKeys.admin.classes.list({ educatorId }), queryKeys.admin.educators.all],
+      invalidateKeys: [queryKeys.admin.classes.list(assignedFilters), queryKeys.admin.classes.list(pickerFilters), queryKeys.admin.educators.all],
       onSuccess: () => {
         toast.success("Class removed.");
         setRemoveTarget(null);

@@ -58,7 +58,7 @@ describe('MeetingGateway rate limiting + validation (Phase 2)', () => {
   });
 
   it('bursts chat: 2 pass, rest throttled with rate_limited feedback', async () => {
-    const { client, emit, broadcastEmit } = fakeClient('sock-burst');
+    const { client, emit } = fakeClient('sock-burst');
 
     for (let i = 0; i < 5; i++) {
       // eslint-disable-next-line no-await-in-loop
@@ -66,7 +66,14 @@ describe('MeetingGateway rate limiting + validation (Phase 2)', () => {
     }
 
     expect(db.meetingChatMessage.create).toHaveBeenCalledTimes(2);
-    expect(broadcastEmit).toHaveBeenCalledTimes(2); // to others, never echo
+    // Chat broadcasts go through the server room (server.to().emit), not the
+    // sender's client broadcast — the old broadcastEmit expectation predates
+    // that change.
+    expect(serverEmit).toHaveBeenCalledTimes(2);
+    expect(serverEmit).toHaveBeenCalledWith(
+      'chat:message',
+      expect.objectContaining({ message: 'hi 0' }),
+    );
     expect(emit).toHaveBeenCalledTimes(3);
     expect(emit).toHaveBeenCalledWith('rate_limited', { event: 'chat' });
   });
@@ -79,11 +86,16 @@ describe('MeetingGateway rate limiting + validation (Phase 2)', () => {
         message: `spam ${i}`,
       });
     }
-    const { client, broadcastEmit } = fakeClient('sock-calm');
+    const { client } = fakeClient('sock-calm');
     await gateway.handleChatSend(client as never, { message: 'hello' });
 
     expect(db.meetingChatMessage.create).toHaveBeenCalledTimes(3);
-    expect(broadcastEmit).toHaveBeenCalledTimes(1);
+    // See above: chat broadcasts go through the server room.
+    expect(serverEmit).toHaveBeenCalledTimes(3);
+    expect(serverEmit).toHaveBeenCalledWith(
+      'chat:message',
+      expect.objectContaining({ message: 'hello' }),
+    );
   });
 
   it('drops oversized chat without persisting', async () => {
