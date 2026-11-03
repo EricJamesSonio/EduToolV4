@@ -1,4 +1,3 @@
-// ===== File: frontend\src\app\admin\classes\page.tsx =====
 "use client";
 
 import { Suspense, useState, useMemo, useEffect } from "react";
@@ -61,20 +60,6 @@ function ClassesPageInner(): React.JSX.Element {
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
   const filters = useClassFilters(defaultSubjectId);
-
-  const {
-    filterProgramId,
-    filterSemesterId,
-    filterEducatorId,
-    search,
-    setFilterProgramId,
-    setFilterSemesterId,
-    setFilterEducatorId,
-    setDepartmentAndSemester,
-    setSearch,
-    resetSemester,
-    query,
-  } = filters;
 
   // ===== School Years =====
   const { data: schoolYearsRaw, isLoading: isSchoolYearsLoading } = useAsyncQuery(
@@ -324,15 +309,7 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
       )}
 
 <ClassesFilterBar
-  filterProgramId={filterProgramId}
-  filterSemesterId={filterSemesterId}
-  filterEducatorId={filterEducatorId}
-  search={search}
-  setFilterProgramId={setFilterProgramId}
-  setFilterSemesterId={setFilterSemesterId}
-  setFilterEducatorId={setFilterEducatorId}
-  setDepartmentAndSemester={setDepartmentAndSemester}
-  setSearch={setSearch}
+  filters={filters}
   schoolYearId={selectedSchoolYearId}
 />
 
