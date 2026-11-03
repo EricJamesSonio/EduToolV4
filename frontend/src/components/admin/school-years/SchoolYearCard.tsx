@@ -1,4 +1,3 @@
-// ===== File: frontend/src/app/admin/school-years/SchoolYearCard.tsx =====
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,6 +23,7 @@ import {
 } from "@/components/shared/ListItemCard";
 import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle, CircleAlert, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ICON_TONES, type IconTone } from "@/lib/palette";
 import { formatDate } from "@/utils/date.util";
 
 import type { SchoolYear, SchoolYearReadiness, ReadinessSummary } from "@/types/admin/school-year.types";
@@ -60,6 +60,16 @@ const CONFIRM_COPY: Record<ConfirmAction, ConfirmCopy> = {
   },
 };
 
+const TONE_KEYS = Object.keys(ICON_TONES) as IconTone[];
+
+function schoolYearIconTone(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return ICON_TONES[TONE_KEYS[hash % TONE_KEYS.length]];
+}
+
 export function SchoolYearCard({ year, hasActive, readiness }: Props): React.JSX.Element {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -94,7 +104,9 @@ export function SchoolYearCard({ year, hasActive, readiness }: Props): React.JSX
       ? !readiness.ready
       : false;
 
-const invalidateSchoolYears = () => {
+  const iconTone = schoolYearIconTone(year.id);
+
+  const invalidateSchoolYears = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.all });
   };
 
@@ -219,7 +231,7 @@ const invalidateSchoolYears = () => {
       >
         {/* Header with Icon and Info */}
         <div className="flex items-start gap-3">
-          <div className={cn(listItemIconClass, "bg-[#98FB98] text-[#0B1E3A] border border-[#86EFAC] mt-0.5")}>
+          <div className={cn(listItemIconClass, iconTone, "mt-0.5")}>
             {getStatusIcon()}
           </div>
           <div className="flex-1 space-y-1">
