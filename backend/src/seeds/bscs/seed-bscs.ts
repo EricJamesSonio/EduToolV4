@@ -52,6 +52,7 @@ import {
   type TermLabel,
 } from './bscs.data';
 import { SEEDED_TERMS } from './bscs.data';
+import { MINOR_SUBJECT_CODES } from './bscs.data';
 
 type OrgInfo = {
   id: string;
@@ -1118,7 +1119,6 @@ async function retireUnseededSubject(
     where: {
       org_id: ctx.orgId,
       level_id: levelId,
-      course_id: ctx.courseId,
       name: {
         in: [
           subjectDisplayName(subject),
@@ -1132,6 +1132,7 @@ async function retireUnseededSubject(
 
   for (const row of rows) {
     await db.educatorSubject.deleteMany({ where: { subject_id: row.id } });
+    await db.subjectSharing.deleteMany({ where: { subject_id: row.id } });
     await db.subjectPrerequisite.deleteMany({
       where: { OR: [{ subject_id: row.id }, { prerequisite_id: row.id }] },
     });
@@ -1149,10 +1150,45 @@ async function retireUnseededSubject(
     }
   }
 }
+async function syncMinorSharing(
+  ctx: Ctx,
+  subjectId: string,
+  minor: boolean,
+): Promise<void> {
+  const existing = await db.subjectSharing.findFirst({
+    where: { subject_id: subjectId, course_id: ctx.courseId },
+    select: { id: true },
+  });
+
+  if (minor && !existing) {
+    await db.subjectSharing.create({
+      data: {
+        id: seedId('sharing', subjectId, ctx.courseId, ctx.orgId),
+        org_id: ctx.orgId,
+        subject_id: subjectId,
+        course_id: ctx.courseId,
+        strand_id: null,
+        level_id: null,
+      },
+    });
+  }
+  if (!minor && existing) {
+    await db.subjectSharing.delete({ where: { id: existing.id } });
+  }
+}
 async function seedSubjects(
   ctx: Ctx,
   levelIds: Record<string, string>,
 ): Promise<Record<string, string>> {
+  const unknownMinors = MINOR_SUBJECT_CODES.filter(
+    (code) => !CURRICULUM.some((s) => s.code === code),
+  );
+  if (unknownMinors.length > 0) {
+    throw new Error(
+      `MINOR_SUBJECT_CODES has unknown subject code(s): ${unknownMinors.join(', ')}`,
+    );
+  }
+
   const map: Record<string, string> = {};
 
   for (const s of CURRICULUM) {
@@ -1163,6 +1199,7 @@ async function seedSubjects(
       continue;
     }
 
+    const minor = MINOR_SUBJECT_CODES.includes(s.code);
     const name = subjectDisplayName(s);
     const id = seedId(
       'subject',
@@ -1177,39 +1214,35 @@ async function seedSubjects(
     const existing = await db.subject.findFirst({
       where: {
         org_id: ctx.orgId,
-        OR: [
-          { id },
-          {
-            level_id: levelId,
-            course_id: ctx.courseId,
-            name: { in: knownNames },
-          },
-        ],
+        OR: [{ id }, { level_id: levelId, name: { in: knownNames } }],
       },
       select: { id: true },
     });
 
     const data = {
       name,
-      subject_type: 'major',
+      subject_type: minor ? 'minor' : 'major',
       program_id: ctx.programId,
       level_id: levelId,
-      course_id: ctx.courseId,
+      course_id: minor ? null : ctx.courseId,
       year_level: s.levelName,
       term_label: s.term,
       deleted_at: null,
     };
 
+    let subjectId: string;
     if (existing) {
       await db.subject.update({ where: { id: existing.id }, data });
-      map[s.code] = existing.id;
-      continue;
+      subjectId = existing.id;
+    } else {
+      const created = await db.subject.create({
+        data: { id, org_id: ctx.orgId, is_locked: false, ...data },
+      });
+      subjectId = created.id;
     }
 
-    const created = await db.subject.create({
-      data: { id, org_id: ctx.orgId, is_locked: false, ...data },
-    });
-    map[s.code] = created.id;
+    map[s.code] = subjectId;
+    await syncMinorSharing(ctx, subjectId, minor);
   }
   return map;
 }

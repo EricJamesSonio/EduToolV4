@@ -146,6 +146,28 @@ export const CURRICULUM: CurriculumSubject[] = [
   { code: 'CS THESIS 2', name: 'Thesis Writing 2', levelName: '4th Year', term: '2nd Semester', prerequisites: [], instructors: ['Reyes'], roomKind: 'cs' },
   { code: 'MODTECH', name: 'Modern Technologies in Software Development', levelName: '4th Year', term: '2nd Semester', prerequisites: [], instructors: ['Tolentino'], roomKind: 'cs' },
 ];
+export const MINOR_SUBJECT_CODES: string[] = [
+  'UTS',
+  'RPH',
+  'MMW',
+  'PE 1',
+  'FIL 1',
+  'NSTP 1',
+  'STS',
+  'PCO',
+  'PE 2',
+  'FIL 2',
+  'NSTP 2',
+  'TCW',
+  'AAP',
+  'FIL 3',
+  'ACCTGFUND',
+  'PE 3',
+  'ETHICS',
+  'RIZAL',
+  'PE 4',
+];
+
 export const SEEDED_TERMS: TermLabel[] = ['1st Semester', '2nd Semester'];
 
 export interface ScheduleDef {
