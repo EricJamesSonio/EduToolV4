@@ -30,8 +30,11 @@ export function CreateClassDialog({
     data,
     hasDraft,
     presetActive,
+    programChosenByUser,
+    handleProgramChange,
     takenSubjectIds,
     subjectAlreadyHasClass,
+    selectionGate,
     isSubmitting,
     isSubmitDisabled,
     onSubmit,
@@ -85,6 +88,8 @@ function handleGoToSemesterSettings(): void {
                 schoolYearId={schoolYearId}
                 schoolYearName={schoolYearName}
                 data={data}
+                programChosenByUser={programChosenByUser}
+                onProgramChange={handleProgramChange}
                 takenSubjectIds={takenSubjectIds}
                 subjectAlreadyHasClass={subjectAlreadyHasClass}
                 onGoToSemesterSettings={handleGoToSemesterSettings}
@@ -98,6 +103,7 @@ function handleGoToSemesterSettings(): void {
                 sectionClasses={data.sectionClasses}
                 isLoading={data.educatorClassesLoading}
                 schoolYearId={schoolYearId}
+                selectionGate={selectionGate}
                 onConflictsChange={handleScheduleConflictsChange}
               />
             </div>

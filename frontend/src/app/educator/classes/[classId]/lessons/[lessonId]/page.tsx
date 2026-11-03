@@ -14,6 +14,7 @@ import { usePresentationByLesson } from "@/hooks/educator/usePresentations";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { LessonForm } from "@/components/educator/lesson/LessonForm";
 import { ConceptBuildViewer } from "@/components/educator/lesson/ConceptBuildViewer";
+import { LessonContent } from "@/components/shared/LessonContent";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 import { Button } from "@/components/ui/button";
@@ -286,9 +287,9 @@ export default function LessonDetailPage(): React.JSX.Element {
             <span className="w-28 text-sm text-muted-foreground shrink-0">Week</span>
             <span className="text-sm">Week {lesson.weekNumber}</span>
           </div>
-          <div className="px-6 py-4 space-y-1.5">
+          <div className="px-6 py-4 space-y-3">
             <span className="text-sm text-muted-foreground">Lesson Detail</span>
-            <p className="text-sm whitespace-pre-wrap">{lesson.detail}</p>
+            <LessonContent content={lesson.detail} />
           </div>
         </div>
       )}
@@ -309,4 +310,3 @@ export default function LessonDetailPage(): React.JSX.Element {
     </div>
   );
 }
-

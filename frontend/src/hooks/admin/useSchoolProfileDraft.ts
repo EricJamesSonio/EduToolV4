@@ -28,6 +28,11 @@ export interface DraftSubject {
   key: string
   name: string
   subjectType: "major" | "minor"
+  /**
+   * Shared (minor) subjects only: the level name this subject applies to
+   * (e.g. "1st Year"). null/undefined means it applies to every level.
+   */
+  levelName?: string | null
 }
 
 export interface DraftLevel {
@@ -121,6 +126,7 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
       key: makeKey("subject"),
       name,
       subjectType: "minor" as const,
+      levelName: null,
     }))
 
     return { type, courses, strands: [], levels: [], subjects }
@@ -151,6 +157,7 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
       key: makeKey("subject"),
       name,
       subjectType: "minor" as const,
+      levelName: null,
     }))
 
     return { type, courses: [], strands, levels: [], subjects }
@@ -199,8 +206,19 @@ function fromSavedDepartment(saved: SchoolProfileDepartment): DraftDepartment {
       key: s.id,
       name: s.name,
       subjectType: s.subjectType,
+      levelName: s.levelName ?? null,
     })),
   }
+}
+
+/** Resolve a level's display name from its key anywhere in the department. */
+function findLevelName(dept: DraftDepartment, levelKey: string): string | null {
+  const all: DraftLevel[] = [
+    ...dept.levels,
+    ...dept.courses.flatMap((c) => c.levels),
+    ...dept.strands.flatMap((s) => s.levels),
+  ]
+  return all.find((l) => l.key === levelKey)?.name ?? null
 }
 
 // ── The hook ─────────────────────────────────────────────────────────────
@@ -382,21 +400,33 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
   }
 
   // ── Subject ──
-  // Majors are level-scoped; minors/shared are department-scoped. That mirrors
-  // how the seeder reads them (major-subject-seeder walks level.subjects,
-  // minor-subject-seeder walks profile.subjects), so a subject always lives in
-  // the bucket the seeder will actually pick it up from.
+  // Majors are level-scoped; minors/shared are department-scoped but carry the
+  // level name they apply to. That mirrors how the seeder reads them
+  // (major-subject-seeder walks level.subjects, minor-subject-seeder walks
+  // profile.subjects and shares each one only with courses/strands that have
+  // its level), so a subject always lives in the bucket the seeder will
+  // actually pick it up from.
   function addSubject(
     type: ProgramType,
     levelKey: string,
     name: string,
     subjectType: DraftSubject["subjectType"] = "major",
+    levelName?: string | null,
   ) {
     updateDepartment(type, (d) => {
       if (subjectType === "minor") {
+        const resolvedLevelName = levelName !== undefined ? levelName : findLevelName(d, levelKey)
         return {
           ...d,
-          subjects: [...d.subjects, { key: makeKey("subject"), name, subjectType: "minor" as const }],
+          subjects: [
+            ...d.subjects,
+            {
+              key: makeKey("subject"),
+              name,
+              subjectType: "minor" as const,
+              levelName: resolvedLevelName,
+            },
+          ],
         }
       }
       return withLevel(d, levelKey, (l) => ({
@@ -422,6 +452,7 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
    * Flip a subject between major (level-scoped) and minor (department-scoped).
    * Flipping moves the row between the two buckets rather than just relabelling
    * it, so the seeder never silently drops a subject that was reclassified.
+   * A major turned minor keeps the level it came from as its shared level.
    */
   function setSubjectType(
     type: ProgramType,
@@ -433,10 +464,12 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
       // Minor: lift it out of the level and into the department's shared list.
       if (subjectType === "minor") {
         let moved: DraftSubject | null = null
+        let fromLevelName: string | null = null
         const withoutLevelSubject = withLevel(d, levelKey, (l) => {
           const found = l.subjects.find((s) => s.key === subjectKey)
           if (!found) return l
           moved = found
+          fromLevelName = l.name
           return { ...l, subjects: l.subjects.filter((s) => s.key !== subjectKey) }
         })
         if (!moved) return d
@@ -445,7 +478,11 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
           ...withoutLevelSubject,
           subjects: [
             ...withoutLevelSubject.subjects,
-            { ...subject, subjectType: "minor" as const },
+            {
+              ...subject,
+              subjectType: "minor" as const,
+              levelName: fromLevelName as string | null,
+            },
           ],
         }
       }
@@ -459,7 +496,7 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
       return withLevel(base, levelKey, (l) => ({
         ...l,
         subjects: shared
-          ? [...l.subjects, { ...shared, subjectType: "major" as const }]
+          ? [...l.subjects, { ...shared, subjectType: "major" as const, levelName: null }]
           : l.subjects.map((s) => (s.key === subjectKey ? { ...s, subjectType: "major" as const } : s)),
       }))
     })
@@ -480,6 +517,14 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
     }))
   }
 
+  /** Set which level a shared subject applies to (null = all levels). */
+  function setSharedSubjectLevel(type: ProgramType, subjectKey: string, levelName: string | null) {
+    updateDepartment(type, (d) => ({
+      ...d,
+      subjects: d.subjects.map((s) => (s.key === subjectKey ? { ...s, levelName } : s)),
+    }))
+  }
+
   /** Promote a shared subject to a major on the given level. */
   function promoteSharedSubjectToLevel(type: ProgramType, subjectKey: string, levelKey: string) {
     updateDepartment(type, (d) => {
@@ -488,7 +533,10 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
       return withLevel(
         { ...d, subjects: d.subjects.filter((s) => s.key !== subjectKey) },
         levelKey,
-        (l) => ({ ...l, subjects: [...l.subjects, { ...shared, subjectType: "major" as const }] }),
+        (l) => ({
+          ...l,
+          subjects: [...l.subjects, { ...shared, subjectType: "major" as const, levelName: null }],
+        }),
       )
     })
   }
@@ -530,6 +578,7 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
     setSubjectType,
     renameSharedSubject,
     deleteSharedSubject,
+    setSharedSubjectLevel,
     promoteSharedSubjectToLevel,
     markSaved,
     discardChanges,

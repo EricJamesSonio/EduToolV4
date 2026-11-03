@@ -5,6 +5,10 @@ export interface ClassFilters {
   semesterId: string | undefined;
   educatorId: string | undefined;
   programId: string | undefined;
+  courseId: string | undefined;
+  strandId: string | undefined;
+  levelId: string | undefined;
+  sectionId: string | undefined;
   search: string | undefined;
   /**
    * Narrows the list to a single subject. Set from `?subjectId=` on the Classes
@@ -17,6 +21,10 @@ export interface ClassFilters {
 
 export function useClassFilters(initialSubjectId?: string) {
   const [filterProgramId, setFilterProgramIdRaw] = useState<string>("all");
+  const [filterCourseId, setFilterCourseIdRaw] = useState<string>("all");
+  const [filterStrandId, setFilterStrandIdRaw] = useState<string>("all");
+  const [filterLevelId, setFilterLevelIdRaw] = useState<string>("all");
+  const [filterSectionId, setFilterSectionId] = useState<string>("all");
   const [filterSemesterId, setFilterSemesterId] = useState<string>("all");
   const [filterEducatorId, setFilterEducatorId] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
@@ -24,21 +32,44 @@ export function useClassFilters(initialSubjectId?: string) {
   // so letting it drift would silently un-filter a list the user came to see.
   const [subjectId] = useState<string | undefined>(initialSubjectId);
 
-  // Changing department invalidates whatever semester was selected —
-  // always fall back to "all" so the Select never points at a stale id.
+  function resetBelowProgram() {
+    setFilterCourseIdRaw("all");
+    setFilterStrandIdRaw("all");
+    setFilterLevelIdRaw("all");
+    setFilterSectionId("all");
+  }
+
+  // Changing department invalidates everything scoped under it, so every
+  // dependent Select falls back to "all" and never points at a stale id.
   function setFilterProgramId(value: string) {
     setFilterProgramIdRaw(value);
+    resetBelowProgram();
     setFilterSemesterId("all");
   }
 
-  // NEW — used when the user picks a semester from the "All Departments"
-  // grouped list (e.g. "1st - College"). A semester name can resolve to the
-  // SAME physical Semester row across different departments' templates, so
-  // picking one must set Department and Semester together — setting only
-  // the semesterId would match "everyone's 1st semester" across every
-  // department, not just the one implied by the label.
+  function setFilterCourseId(value: string) {
+    setFilterCourseIdRaw(value);
+    setFilterLevelIdRaw("all");
+    setFilterSectionId("all");
+  }
+
+  function setFilterStrandId(value: string) {
+    setFilterStrandIdRaw(value);
+    setFilterLevelIdRaw("all");
+    setFilterSectionId("all");
+  }
+
+  function setFilterLevelId(value: string) {
+    setFilterLevelIdRaw(value);
+    setFilterSectionId("all");
+  }
+
+  // Used when the user picks a semester from the "All Departments" grouped
+  // list (e.g. "1st - College"). Department and semester must be set together:
+  // setting only the semesterId would match every department's semester.
   function setDepartmentAndSemester(programId: string, semesterId: string) {
     setFilterProgramIdRaw(programId);
+    resetBelowProgram();
     setFilterSemesterId(semesterId);
   }
 
@@ -47,10 +78,24 @@ export function useClassFilters(initialSubjectId?: string) {
       semesterId: filterSemesterId !== "all" ? filterSemesterId : undefined,
       educatorId: filterEducatorId !== "all" ? filterEducatorId : undefined,
       programId: filterProgramId !== "all" ? filterProgramId : undefined,
+      courseId: filterCourseId !== "all" ? filterCourseId : undefined,
+      strandId: filterStrandId !== "all" ? filterStrandId : undefined,
+      levelId: filterLevelId !== "all" ? filterLevelId : undefined,
+      sectionId: filterSectionId !== "all" ? filterSectionId : undefined,
       search: search.trim() ? search.trim() : undefined,
       subjectId,
     }),
-    [filterSemesterId, filterEducatorId, filterProgramId, search, subjectId]
+    [
+      filterSemesterId,
+      filterEducatorId,
+      filterProgramId,
+      filterCourseId,
+      filterStrandId,
+      filterLevelId,
+      filterSectionId,
+      search,
+      subjectId,
+    ]
   );
 
   function resetSemester() {
@@ -59,10 +104,18 @@ export function useClassFilters(initialSubjectId?: string) {
 
   return {
     filterProgramId,
+    filterCourseId,
+    filterStrandId,
+    filterLevelId,
+    filterSectionId,
     filterSemesterId,
     filterEducatorId,
     search,
     setFilterProgramId,
+    setFilterCourseId,
+    setFilterStrandId,
+    setFilterLevelId,
+    setFilterSectionId,
     setFilterSemesterId,
     setFilterEducatorId,
     setDepartmentAndSemester,

@@ -225,7 +225,11 @@ export const schoolProfileApi = {
       sections: l.sections.map((s) => ({ name: s.name, capacity: s.capacity })),
       subjects: l.subjects.map((s) => ({ name: s.name, subjectType: s.subjectType })),
     })),
-    subjects: d.subjects.map((s) => ({ name: s.name, subjectType: s.subjectType })),
+    subjects: d.subjects.map((s) => ({
+      name: s.name,
+      subjectType: s.subjectType,
+      levelName: s.levelName ?? null,
+    })),
   }))
   const body: any = { departments: payload }
   await client.post("/school-profile/save", body)

@@ -120,6 +120,10 @@ export class SaveProfileSubjectDto {
 
   @IsIn(['major', 'minor'])
   subjectType!: 'major' | 'minor';
+
+  @IsOptional()
+  @IsString()
+  levelName?: string | null;
 }
 
 export class SaveProfileLevelDto {

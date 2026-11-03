@@ -8,6 +8,8 @@ import type {
   UpdateSchoolYearEnrollmentRequest,
   EnrollStudentProgramRequest,
   UpdateProgramEnrollmentRequest,
+  SetRegularStudentRequest,
+  SetRegularStudentResult,
 } from "@/types/admin/student-enrollment.types";
 
 interface ApiResponse<T> {
@@ -101,6 +103,18 @@ export const studentEnrollmentApi = {
   ): Promise<ProgramEnrollmentSnapshot> => {
     const res = await client.patch<ApiResponse<ProgramEnrollmentSnapshot>>(
       `/school-years/${schoolYearId}/enrollments/programs/${programEnrollmentId}`,
+      data,
+    );
+    return res.data.data;
+  },
+
+  setRegular: async (
+    schoolYearId:        string,
+    programEnrollmentId: string,
+    data: SetRegularStudentRequest,
+  ): Promise<SetRegularStudentResult> => {
+    const res = await client.patch<ApiResponse<SetRegularStudentResult>>(
+      `/school-years/${schoolYearId}/enrollments/programs/${programEnrollmentId}/regular`,
       data,
     );
     return res.data.data;

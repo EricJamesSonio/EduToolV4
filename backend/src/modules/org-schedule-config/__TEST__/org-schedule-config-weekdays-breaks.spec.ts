@@ -1,11 +1,18 @@
 import { OrgScheduleConfigService } from '../org-schedule-config.service';
 
-/** Builds a ClassSchedule row whose wall-clock time is `start` on `weekday`. */
+/**
+ * Builds a ClassSchedule row whose wall-clock time is `start` on `weekday`.
+ *
+ * Built with UTC setters to match what production writes: `ClassSchedule` times
+ * are UTC wall-clock (see commons/utils/schedule-time.util.ts). Local setters
+ * here made the fixture resolve differently per timezone, so the assertions
+ * held under UTC and broke under TZ=Asia/Manila.
+ */
 function sched(classId: string, weekday: number, start: string, end: string) {
   const at = (hhmm: string) => {
     const [h, m] = hhmm.split(':').map(Number);
     const d = new Date();
-    d.setHours(h, m, 0, 0);
+    d.setUTCHours(h, m, 0, 0);
     return d;
   };
   return { class_id: classId, weekday, start_time: at(start), end_time: at(end) };

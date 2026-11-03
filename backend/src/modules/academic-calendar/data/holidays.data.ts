@@ -2,6 +2,7 @@
 // Complete Philippine holiday seed list.
 // Keys are stable identifiers used in OrgHolidayConfig.enabled_keys.
 // month/day are 1-indexed. Movable holidays use approximate dates — admin adjusts per year.
+import { calendarDateToUtc } from '@/commons/utils/datetime.util';
 
 export interface HolidaySeed {
   key: string;
@@ -233,6 +234,11 @@ export function buildHolidayDates(
     key: h.key,
     title: h.title,
     description: h.description,
-    date: new Date(year, h.month - 1, h.day),
+    // TICK-INFRA-017: UTC midnight via the shared helper. new Date(y, m, d)
+    // is process-local midnight and shifted every seeded row by the
+    // server's UTC offset.
+    date: calendarDateToUtc(
+      `${year}-${String(h.month).padStart(2, '0')}-${String(h.day).padStart(2, '0')}`,
+    ),
   }));
 }

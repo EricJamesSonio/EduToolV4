@@ -1,0 +1,19 @@
+(Replace: the return object inside `const withWarnings = eligible.map((cls) => { ... })`)
+
+        return {
+          ...cls,
+          program_id:
+            (cls as unknown as { subject: { program_id: string | null } }).subject?.program_id ?? null,
+          template_id: (cls as unknown as { gradingSchemes: { template_id: string }[] }).gradingSchemes?.[0]?.template_id ?? null,
+          subject_name: subject?.name ?? null,
+          program_name: subject?.program?.name ?? subject?.course?.name ?? subject?.strand?.name ?? null,
+          level_name: subject?.level?.name ?? null,
+          course_name: (cls as unknown as { subject: { course: { name: string } | null } }).subject?.course?.name ?? null,
+          strand_name: (cls as unknown as { subject: { strand: { name: string } | null } }).subject?.strand?.name ?? null,
+          educatorName: educator?.profile?.full_name ?? null,
+          enrolled_count: (cls as unknown as { _count: { enrollments: number } })._count?.enrollments ?? 0,
+          student_level_rank:
+            placementByYear.get(cls.school_year_id)?.levelRank ?? null,
+          has_prerequisite_warning: eligibility.missing.length > 0,
+          prerequisite_warnings: eligibility.missing,
+        };

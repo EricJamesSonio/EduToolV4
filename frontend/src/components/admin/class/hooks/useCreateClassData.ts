@@ -16,16 +16,36 @@ import { toArray }             from "@/utils/classes.utils";
 import { queryKeys }           from "@/hooks/queryKeys.factory";
 import { useClassScheduleContext } from "@/hooks/admin/useClassScheduleContext";
 
-export function useCreateClassData(
-  schoolYearId: string | null,
-  selectedProgramId: string,
-  selectedSemesterId: string,
-  selectedTrackId: string,
-  selectedLevelId: string,
-  selectedSectionId: string,
-  selectedEducatorId: string,
-  isEnabled: boolean,
-) {
+export interface UseCreateClassDataParams {
+  schoolYearId: string | null;
+  selectedProgramId: string;
+  /**
+   * Whether the admin actually picked the department in this session.
+   *
+   * Gates every department-scoped validation. A restored draft can carry a
+   * programId, and without this flag the semester-template check ran on open
+   * and surfaced "No template assigned" for a department nobody had selected.
+   */
+  programChosenByUser: boolean;
+  selectedSemesterId: string;
+  selectedTrackId: string;
+  selectedLevelId: string;
+  selectedSectionId: string;
+  selectedEducatorId: string;
+  isEnabled: boolean;
+}
+
+export function useCreateClassData({
+  schoolYearId,
+  selectedProgramId,
+  programChosenByUser,
+  selectedSemesterId: _selectedSemesterId,
+  selectedTrackId,
+  selectedLevelId,
+  selectedSectionId,
+  selectedEducatorId,
+  isEnabled,
+}: UseCreateClassDataParams) {
   const { data: educatorsRaw } = useAsyncQuery(
     queryKeys.admin.educators.list({}),
     () => educatorApi.getAll(),
@@ -149,18 +169,30 @@ export function useCreateClassData(
     [templateAssignments],
   );
 
-  // Only trust this once the assignments query has actually resolved —
-  // otherwise assignedProgramIds is momentarily empty on every program
-  // change and this flips true->false a beat later, which is what caused
-  // the "No template assigned" warning + semester field to flash before
-  // settling on the correct state.
+  // Only trust this once the assignments query has actually resolved — otherwise
+  // assignedProgramIds is momentarily empty on every program change and this
+  // flips true->false a beat later, which is what caused the "No template
+  // assigned" warning + semester field to flash before settling.
+  //
+  // `programChosenByUser` is the other half: without it a restored draft made
+  // this evaluate for a department the admin never picked.
   const programMissingTemplate =
-    !!selectedProgramId && !templateAssignmentsLoading && !assignedProgramIds.has(selectedProgramId);
+    programChosenByUser &&
+    !!selectedProgramId &&
+    !templateAssignmentsLoading &&
+    !assignedProgramIds.has(selectedProgramId);
 
   const { data: semesters = [] } = useAsyncQuery(
     [...queryKeys.admin.semesters.all, 'by-program', selectedProgramId, schoolYearId] as const,
     () => semesterApi.getByProgram(selectedProgramId!, schoolYearId!),
-    { enabled: !!schoolYearId && !!selectedProgramId && !programMissingTemplate && isEnabled },
+    {
+      enabled:
+        !!schoolYearId &&
+        !!selectedProgramId &&
+        programChosenByUser &&
+        !programMissingTemplate &&
+        isEnabled,
+    },
   );
 
   // Existing classes contending for the chosen educator's week AND the chosen

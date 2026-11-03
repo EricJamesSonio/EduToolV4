@@ -2,6 +2,30 @@
 import { Injectable } from '@nestjs/common';
 import { AuditLogRepository } from './audit-log.repository';
 import { QueryAuditLogDto, QueryActivityLogDto } from './dto/audit-log.dto';
+import {
+  calendarDateToUtc,
+  endOfDayInZone,
+  parseInstant,
+  startOfDayInZone,
+} from '@/commons/utils/datetime.util';
+
+/**
+ * Expand a range bound to a UTC instant. Date-only bounds cover the whole
+ * Manila school day (start-of-day for `from`, end-of-day for `to`); full
+ * ISO bounds pass through as the exact instant. Zone-less datetimes are
+ * rejected — filters are API inputs like any other.
+ */
+function expandBound(
+  value: string | undefined,
+  edge: 'start' | 'end',
+): Date | undefined {
+  if (!value) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const day = calendarDateToUtc(value);
+    return edge === 'start' ? startOfDayInZone(day) : endOfDayInZone(day);
+  }
+  return parseInstant(value);
+}
 
 @Injectable()
 export class AuditLogService {
@@ -10,9 +34,11 @@ export class AuditLogService {
   // ── GET /audit-log ──────────────────────────────────────────────────────────
 
   async findAdminLogs(orgId: string, query: QueryAuditLogDto) {
+    // TICK-INFRA-017: date-only `to` used to mean midnight UTC (08:00
+    // Manila), silently dropping most of the day's rows.
     return this.auditLogRepository.findAdminLogs(orgId, {
-      from: query.from ? new Date(query.from) : undefined,
-      to: query.to ? new Date(query.to) : undefined,
+      from: expandBound(query.from, 'start'),
+      to: expandBound(query.to, 'end'),
       action: query.action,
       entityType: query.entityType,
       entityId: query.entityId,
@@ -29,8 +55,8 @@ export class AuditLogService {
       classId: query.classId,
       action: query.action,
       actionContains: query.actionContains,
-      from: query.from ? new Date(query.from) : undefined,
-      to: query.to ? new Date(query.to) : undefined,
+      from: expandBound(query.from, 'start'),
+      to: expandBound(query.to, 'end'),
       page: query.page,
       limit: query.limit,
     });

@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma, SchoolYearEnrollmentStatus } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradeAnalyticsQueryDto } from './dto/analytics.dto';
-import { SchoolYearEnrollmentStatus } from '@prisma/client';
+
+export interface AnalyticsDateRange {
+  start: Date;
+  end: Date;
+}
 
 @Injectable()
 export class AnalyticsRepository {
@@ -60,6 +65,87 @@ export class AnalyticsRepository {
     return this.db.studentSchoolYear.count({
       where: { org_id: orgId, school_year_id: schoolYearId, status: 'pending' },
     });
+  }
+
+  private studentSchoolYearWhere(
+    orgId: string,
+    schoolYearId: string,
+    range?: AnalyticsDateRange,
+  ): Prisma.StudentSchoolYearWhereInput {
+    return {
+      org_id: orgId,
+      school_year_id: schoolYearId,
+      ...(range && { enrolled_at: { gte: range.start, lte: range.end } }),
+    };
+  }
+
+  async getEnrollmentRows(
+    orgId: string,
+    schoolYearId: string,
+    range?: AnalyticsDateRange,
+  ) {
+    return this.db.studentSchoolYear.findMany({
+      where: this.studentSchoolYearWhere(orgId, schoolYearId, range),
+      select: { enrolled_at: true, status: true },
+      orderBy: { enrolled_at: 'asc' },
+    });
+  }
+
+  async getEnrollmentDistribution(
+    orgId: string,
+    schoolYearId: string,
+    range?: AnalyticsDateRange,
+  ) {
+    const syWhere = this.studentSchoolYearWhere(orgId, schoolYearId, range);
+    const programEnrollmentWhere: Prisma.StudentProgramEnrollmentWhereInput = {
+      org_id: orgId,
+      status: 'active',
+      studentSchoolYear: syWhere,
+    };
+
+    const [statusGroups, programGroups, assigned, unassigned] =
+      await Promise.all([
+        this.db.studentSchoolYear.groupBy({
+          by: ['status'],
+          where: syWhere,
+          _count: { _all: true },
+        }),
+        this.db.studentProgramEnrollment.groupBy({
+          by: ['program_id'],
+          where: programEnrollmentWhere,
+          _count: { _all: true },
+        }),
+        this.db.studentProgramEnrollment.count({
+          where: { ...programEnrollmentWhere, section_id: { not: null } },
+        }),
+        this.db.studentProgramEnrollment.count({
+          where: { ...programEnrollmentWhere, section_id: null },
+        }),
+      ]);
+
+    const programIds = programGroups.map((group) => group.program_id);
+    const programs =
+      programIds.length > 0
+        ? await this.db.program.findMany({
+            where: { org_id: orgId, id: { in: programIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const programNames = new Map(programs.map((p) => [p.id, p.name]));
+
+    return {
+      statusGroups: statusGroups.map((group) => ({
+        status: group.status,
+        count: group._count._all,
+      })),
+      programGroups: programGroups.map((group) => ({
+        programId: group.program_id,
+        name: programNames.get(group.program_id) ?? 'Unknown program',
+        count: group._count._all,
+      })),
+      assigned,
+      unassigned,
+    };
   }
 
   async getEducatorLoad(orgId: string, schoolYearId: string) {

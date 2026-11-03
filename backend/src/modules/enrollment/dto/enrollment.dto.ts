@@ -1,4 +1,5 @@
 import { IsUUID, IsIn, IsOptional } from 'class-validator';
+export { PrerequisiteCheckResultDto } from '../../subject-prerequisite/dto/subject-prerequisite.dto';
 
 export class EnrollStudentDto {
   @IsUUID()
@@ -14,13 +15,4 @@ export class EnrollmentQueryDto {
   @IsOptional()
   @IsIn(['active', 'pending', 'removed'])
   status?: 'active' | 'pending' | 'removed';
-}
-
-export class PrerequisiteCheckResultDto {
-  eligible!: boolean;
-  missing!: {
-    subject_id: string;
-    subject_name: string;
-    reason: 'not_taken' | 'not_passed' | 'not_locked';
-  }[];
 }

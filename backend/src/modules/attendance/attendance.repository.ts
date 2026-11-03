@@ -2,6 +2,10 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { AttendanceStatus } from './dto/attendance.dto';
+import {
+  startOfDayInZone,
+  endOfDayInZone,
+} from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class AttendanceRepository {
@@ -190,15 +194,16 @@ export class AttendanceRepository {
     student_id: string;
     date: Date;
   }) {
-    const dayStart = new Date(data.date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(data.date);
-    dayEnd.setHours(23, 59, 59, 999);
-
+    // TICK-INFRA-017: match the submission's Manila school day. The old
+    // local-midnight window missed sessions whenever the server zone put
+    // the submission on a different day.
     const session = await this.db.attendanceSession.findFirst({
       where: {
         class_id: data.class_id,
-        date: { gte: dayStart, lte: dayEnd },
+        date: {
+          gte: startOfDayInZone(data.date),
+          lte: endOfDayInZone(data.date),
+        },
       },
     });
 

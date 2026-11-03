@@ -224,6 +224,40 @@ jobs:
         continue-on-error: true
         run: npx jest --ci --config ./test/jest-e2e.json --runInBand --testPathPattern="${{ env.E2E_PROOF_PATTERN }}" --passWithNoTests
 
+  # Timezone-independence proof (TICK-INFRA-017, enforced TICK-INFRA-018):
+  # the invariant suites must produce identical results whether the process
+  # runs in UTC (Render, Vercel SSR), Asia/Manila (dev), America/Los_Angeles,
+  # or Pacific/Kiritimati (UTC+14). Same file set as `npm run test:tz-invariant`.
+  backend-tz-matrix:
+    needs: [changes]
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: ['UTC', 'Asia/Manila', 'America/Los_Angeles', 'Pacific/Kiritimati']
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TZ: ${{ matrix.tz }}
+      NODE_ENV: test
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN || '1d' }}
+      # No Postgres service in this job (invariant suites are mocked) —
+      # this only satisfies Joi's "is a string" check, never connected to.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/unused
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run test:tz-invariant
+
   frontend-lint:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
@@ -297,6 +331,31 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  # Timezone-independence proof, frontend side (same contract as
+  # backend-tz-matrix above; same file set as `npm run test:tz-invariant`).
+  frontend-tz-matrix:
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: ['UTC', 'Asia/Manila', 'America/Los_Angeles', 'Pacific/Kiritimati']
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test:tz-invariant
+
   ci-gate:
     if: always()
     needs:
@@ -306,10 +365,12 @@ jobs:
       - backend-build
       - backend-unit-tests
       - backend-e2e-tests
+      - backend-tz-matrix
       - frontend-lint
       - frontend-typecheck
       - frontend-unit-tests
       - frontend-build
+      - frontend-tz-matrix
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs passed
@@ -322,10 +383,12 @@ jobs:
           BACKEND_BUILD: ${{ needs.backend-build.result }}
           BACKEND_UNIT: ${{ needs.backend-unit-tests.result }}
           BACKEND_E2E: ${{ needs.backend-e2e-tests.result }}
+          BACKEND_TZ: ${{ needs.backend-tz-matrix.result }}
           FRONTEND_LINT: ${{ needs.frontend-lint.result }}
           FRONTEND_TYPECHECK: ${{ needs.frontend-typecheck.result }}
           FRONTEND_UNIT: ${{ needs.frontend-unit-tests.result }}
           FRONTEND_BUILD: ${{ needs.frontend-build.result }}
+          FRONTEND_TZ: ${{ needs.frontend-tz-matrix.result }}
         run: |
           set -u
 
@@ -357,9 +420,11 @@ jobs:
           check backend-build "$BACKEND_BUILD" "$BACKEND_CHANGED"
           check backend-unit-tests "$BACKEND_UNIT" "$BACKEND_CHANGED"
           check backend-e2e-tests "$BACKEND_E2E" "$BACKEND_CHANGED"
+          check backend-tz-matrix "$BACKEND_TZ" "$BACKEND_CHANGED"
           check frontend-lint "$FRONTEND_LINT" "$FRONTEND_CHANGED"
           check frontend-typecheck "$FRONTEND_TYPECHECK" "$FRONTEND_CHANGED"
           check frontend-unit-tests "$FRONTEND_UNIT" "$FRONTEND_CHANGED"
           check frontend-build "$FRONTEND_BUILD" "$FRONTEND_CHANGED"
+          check frontend-tz-matrix "$FRONTEND_TZ" "$FRONTEND_CHANGED"
 
           echo "All required checks passed."

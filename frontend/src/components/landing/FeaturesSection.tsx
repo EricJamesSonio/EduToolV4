@@ -1,5 +1,3 @@
-"use client";
-
 import { Building2, BookOpen, Calendar, Zap, Users, GraduationCap, BrainCircuit, CheckCircle2, Video } from "lucide-react";
 
 const features = [

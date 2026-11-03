@@ -104,6 +104,7 @@ describe("assessment type gradability (TICK-ASSESS-005)", () => {
     // duplicated constant is exactly how these drifted before.
     // `node:fs` (not bare "fs") so next/jest's jsdom resolver doesn't swap in
     // the browser shim, which has no readFileSync.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { readFileSync } = require("node:fs") as typeof import("node:fs");
     const backendSrc = readFileSync(
       resolve(

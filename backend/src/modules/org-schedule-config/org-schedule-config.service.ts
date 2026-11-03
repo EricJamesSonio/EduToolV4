@@ -16,6 +16,7 @@ import {
   type ScheduleBreak,
   type ScheduleWindow,
 } from './schedule-window.util';
+import { scheduleDateToMinutes } from '@/commons/utils/schedule-time.util';
 
 /** Reads Prisma's `JsonValue` into typed breaks, dropping malformed entries. */
 function parseBreaks(raw: unknown): ScheduleBreak[] {
@@ -33,14 +34,6 @@ function parseBreaks(raw: unknown): ScheduleBreak[] {
     }
   }
   return out;
-}
-
-
-
-function timeFromDate(d: Date): string {
-  const h = d.getHours().toString().padStart(2, '0');
-  const m = d.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
 }
 
 @Injectable()
@@ -166,8 +159,11 @@ export class OrgScheduleConfigService {
     const other: string[] = [];
 
     for (const s of schedules) {
-      const sStart = toMinutes(timeFromDate(new Date(s.start_time)));
-      const sEnd = toMinutes(timeFromDate(new Date(s.end_time)));
+      // UTC wall-clock -> minutes-of-day, per the schedule-time convention.
+      // The previous local-getter round-trip via timeFromDate() shifted every
+      // stored slot by the server's UTC offset when validating this change.
+      const sStart = scheduleDateToMinutes(new Date(s.start_time));
+      const sEnd = scheduleDateToMinutes(new Date(s.end_time));
       const violation = getScheduleViolation(
         candidate,
         sStart,

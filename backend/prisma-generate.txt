@@ -1,0 +1,8 @@
+npm notice run backend@0.0.1 npx
+npm notice run prisma generate
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Error: 
+EPERM: operation not permitted, rename 'C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV4\backend\node_modules\.prisma\client\query_engine-windows.dll.node.tmp19532' -> 'C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV4\backend\node_modules\.prisma\client\query_engine-windows.dll.node'
+
+

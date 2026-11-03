@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { EnrollmentRepository } from './enrollment.repository';
-import { GradingScaleRepository } from '../grading-scale/grading-scale.repository';
+import { SubjectPrerequisiteService } from '../subject-prerequisite/subject-prerequisite.service';
 import {
   UpdateEnrollmentDto,
   PrerequisiteCheckResultDto,
@@ -17,64 +17,13 @@ import {
   isEligibleForClassStructure,
 } from './enrollment-eligibility.util';
 
-// Fallback when no GradingScale assignment exists
-const FALLBACK_PASSING_SCORE = 75;
-
 @Injectable()
 export class EnrollmentService {
   constructor(
     private readonly enrollmentRepository: EnrollmentRepository,
-    private readonly gradingScaleRepository: GradingScaleRepository,
+    private readonly subjectPrerequisiteService: SubjectPrerequisiteService,
     private readonly db: DatabaseService,
   ) {}
-
-  private async isGradePassing(
-    grade: { final_score: number; class: { id: string } },
-    orgId: string,
-    scaleCache?: Map<
-      string,
-      Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
-    >,
-  ): Promise<boolean> {
-    const classId = (grade.class as unknown as { id: string }).id;
-    // Perf Phase 5: per-request memoization — repeated checks in one request
-    // share one scale lookup per class. Failures are never cached.
-    let scale: Awaited<ReturnType<GradingScaleRepository['findByClassId']>>;
-    if (scaleCache?.has(classId)) {
-      // has() guard above narrows away the Map.get() undefined case.
-      scale = scaleCache.get(classId) as Awaited<
-        ReturnType<GradingScaleRepository['findByClassId']>
-      >;
-    } else {
-      try {
-        scale = await this.gradingScaleRepository.findByClassId(
-          classId,
-          orgId,
-        );
-      } catch {
-        // fall through
-        return grade.final_score >= FALLBACK_PASSING_SCORE;
-      }
-      scaleCache?.set(classId, scale);
-    }
-    try {
-      if (scale && (scale as unknown as { ranges: unknown }).ranges) {
-        const ranges = (scale as unknown as { ranges: unknown[] }).ranges as Array<{
-          minPercent: number;
-          maxPercent: number;
-          isPassing: boolean;
-        }>;
-        const rounded = Math.round(grade.final_score);
-        const match = ranges.find(
-          (r) => rounded >= r.minPercent && rounded <= r.maxPercent,
-        );
-        if (match) return !!match.isPassing;
-      }
-    } catch {
-      // fall through
-    }
-    return grade.final_score >= FALLBACK_PASSING_SCORE;
-  }
 
   // ── Prerequisite gate ───────────────────────────────────────────────────
 
@@ -92,64 +41,13 @@ export class EnrollmentService {
     subjectId: string,
     studentId: string,
     orgId: string,
-    scaleCache?: Map<
-      string,
-      Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
-    >,
   ): Promise<PrerequisiteCheckResultDto> {
-    const rows = await this.enrollmentRepository.getPrerequisitesWithGrades(
-      subjectId,
+    const resMap = await this.subjectPrerequisiteService.checkEligibilityBatch(
+      [subjectId],
       studentId,
       orgId,
     );
-
-    if (rows.length === 0) return { eligible: true, missing: [] };
-
-    // Perf Phase 5: one shared scale cache for the whole check (was: one
-    // scale lookup per prerequisite row). Defaults to a fresh per-call cache.
-    const cache =
-      scaleCache ??
-      new Map<
-        string,
-        Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
-      >();
-
-    const missing: PrerequisiteCheckResultDto['missing'] = [];
-
-    for (const row of rows) {
-      if (!row.grade) {
-        missing.push({
-          subject_id: row.subject_id,
-          subject_name: row.subject_name,
-          reason: 'not_taken',
-        });
-        continue;
-      }
-
-      if (!row.grade.is_locked) {
-        missing.push({
-          subject_id: row.subject_id,
-          subject_name: row.subject_name,
-          reason: 'not_locked',
-        });
-        continue;
-      }
-
-      const passed = await this.isGradePassing(
-        row.grade as unknown as { final_score: number; class: { id: string } },
-        orgId,
-        cache,
-      );
-      if (!passed) {
-        missing.push({
-          subject_id: row.subject_id,
-          subject_name: row.subject_name,
-          reason: 'not_passed',
-        });
-      }
-    }
-
-    return { eligible: missing.length === 0, missing };
+    return resMap.get(subjectId) ?? { eligible: true, missing: [] };
   }
 
   // ── Enrollment CRUD ─────────────────────────────────────────────────────

@@ -5,15 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
 import type { TermInput } from "@/api/admin/semester.api";
+import { addDaysToCalendarDate } from "@/utils/datetime.util";
 import { cn } from "@/lib/utils";
 
 const TERM_SUGGESTIONS = ["Prelim", "Midterm", "Pre-Finals", "Finals"];
 
+// TICK-INFRA-017: the day after a "YYYY-MM-DD" string. Pure calendar math —
+// the old new Date()/setDate()/toISOString() version returned the wrong day
+// in zones east of UTC.
 function addOneDay(dateStr: string): string {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return "";
+  return addDaysToCalendarDate(dateStr, 1);
 }
 
 // ─── Term Name Input with suggestion dropdown ─────────────────────────────────

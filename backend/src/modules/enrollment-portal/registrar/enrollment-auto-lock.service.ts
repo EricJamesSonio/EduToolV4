@@ -18,8 +18,7 @@ export class EnrollmentAutoLockService {
   ) {}
 
   async lockExpired() {
-    const now = new Date();
-    const expired = await this.repo.findExpiredPendingApplications(now);
+    const expired = await this.repo.findExpiredPendingApplications();
 
     // Perf Phase 3: one batched UPDATE instead of one per application.
     // Re-read the actually-locked rows so audit/count only cover rows this

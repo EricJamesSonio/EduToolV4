@@ -89,6 +89,7 @@ export class StudentSemesterController {
     const semesters = await this.semesterService.findAll(orgId);
     return semesters.map((s) => ({
       id: s.id,
+      schoolYearId: s.school_year_id,
       name: s.name,
       startDate: s.start_date,
       endDate: s.end_date,

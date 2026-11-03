@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useGrantUnlock, useDenyUnlock } from "@/hooks/admin/useGradeLocks";
+import { localInputToIso } from "@/utils/datetime.util";
 import type { UnlockRequest } from "@/types/admin/grade-lock.types";
 
 type ActionMode = "grant" | "deny";
@@ -41,7 +42,8 @@ export function GradeLockUnlockActionDialog({
       {
         classId: target.class_id,
         reason: reason.trim(),
-        newDeadline: newDeadline ? new Date(newDeadline).toISOString() : undefined,
+        // TICK-INFRA-017: Manila wall-clock -> UTC ISO once, at the edge.
+        newDeadline: newDeadline ? localInputToIso(newDeadline) : undefined,
       },
       { onSuccess: handleClose },
     );

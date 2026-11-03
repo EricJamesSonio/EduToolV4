@@ -47,12 +47,29 @@ export class ClassRepository {
       subjectId?: string;
       sectionId?: string;
       programId?: string;
+      courseId?: string;
+      strandId?: string;
+      levelId?: string;
       search?: string;
       page?: number;
       limit?: number;
     },
   ) {
     const { page = 1, limit = 20 } = filters;
+
+    const subjectConditions: Record<string, unknown>[] = [];
+    if (filters.programId) {
+      subjectConditions.push({
+        OR: [
+          { program_id: filters.programId },
+          { course: { program_id: filters.programId } },
+          { strand: { program_id: filters.programId } },
+        ],
+      });
+    }
+    if (filters.courseId) subjectConditions.push({ course_id: filters.courseId });
+    if (filters.strandId) subjectConditions.push({ strand_id: filters.strandId });
+    if (filters.levelId) subjectConditions.push({ level_id: filters.levelId });
 
     const where: any = {
       org_id: orgId,
@@ -62,14 +79,8 @@ export class ClassRepository {
       ...(filters.educatorId && { educator_id: filters.educatorId }),
       ...(filters.subjectId && { subject_id: filters.subjectId }),
       ...(filters.sectionId && { section_id: filters.sectionId }),
-      ...(filters.programId && {
-        subject: {
-          OR: [
-            { program_id: filters.programId },
-            { course: { program_id: filters.programId } },
-            { strand: { program_id: filters.programId } },
-          ],
-        },
+      ...(subjectConditions.length > 0 && {
+        subject: { AND: subjectConditions },
       }),
       ...(filters.search && {
         OR: [

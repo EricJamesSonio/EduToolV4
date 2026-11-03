@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsEnum,
   IsArray,
-  ArrayMinSize,
 } from 'class-validator';
 
 export class CreateClassAssignmentRequestDto {
@@ -27,13 +26,30 @@ export class CreateClassAssignmentRequestDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  studentRequestedClassIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   adminFinalizedSubjectIds?: string[];
 }
 
 export class FinalizeClassAssignmentRequestDto {
+  /**
+   * Classes the admin approves. Approved classes are enrolled immediately;
+   * every other requested class counts as denied. An empty array is valid
+   * (deny everything).
+   */
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  adminFinalizedSubjectIds!: string[];
+  approvedClassIds?: string[];
+
+  /** Legacy subject-level finalize (no enrollment). */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  adminFinalizedSubjectIds?: string[];
 }
 
 export class ReopenClassAssignmentRequestDto {

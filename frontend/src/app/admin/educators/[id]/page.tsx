@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Trash2, Mail, Hash, User, Pencil } from "lucide-react";
 import { useEducator, useDeleteEducator, useResetEducatorPassword, useTeachableSubjects } from "@/hooks/admin/useEducators";
@@ -21,8 +21,12 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+import { SemesterSelector, ALL_SEMESTERS } from "@/components/shared/SemesterSelector";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { useSemestersByYear } from "@/hooks/admin/useSemester";
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { programApi, type GroupedSemester } from "@/api/admin/program.api";
+import { getCurrentSemesterId } from "@/utils/semester.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { AxiosError } from "axios";
@@ -33,13 +37,19 @@ function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 }
 
-export default function EducatorDetailPage(): React.JSX.Element {
+function EducatorDetailPageInner(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
+  const searchParams = useSearchParams();
 
-  // Teachable subjects are year-scoped (subjects are recreated per year), so
-  // the admin picks which school year they are editing.
-  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | undefined>();
+  // Year + semester survive refresh/back via ?sy=&sem=. A selection the new
+  // year's options don't contain falls back to that year's default.
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | undefined>(
+    () => searchParams.get("sy") ?? undefined,
+  );
+  const [semesterOverride, setSemesterOverride] = useState<string | null>(
+    () => searchParams.get("sem"),
+  );
 
   const { data: schoolYearsRaw, isLoading: schoolYearsLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
@@ -47,7 +57,69 @@ export default function EducatorDetailPage(): React.JSX.Element {
   );
   const schoolYears: SchoolYear[] = schoolYearsRaw ?? [];
   const schoolYearId =
-    selectedSchoolYearId ?? schoolYears.find((y) => y.status === "active")?.id ?? schoolYears[0]?.id;
+    (selectedSchoolYearId && schoolYears.some((y) => y.id === selectedSchoolYearId)
+      ? selectedSchoolYearId
+      : undefined) ??
+    schoolYears.find((y) => y.status === "active")?.id ?? schoolYears[0]?.id;
+
+  // Semesters of the selected year only (both queries are year-scoped
+  // server-side). Grouped rows carry program labels; dated rows drive the
+  // today-default. The same physical row can sit under several programs, so
+  // options are deduped by semester id — it filters as one semester anyway.
+  const { data: datedSemestersRaw } = useSemestersByYear(schoolYearId);
+  const { data: groupedRaw, isLoading: groupedLoading } = useAsyncQuery(
+    queryKeys.admin.programs.semestersGrouped(schoolYearId ?? null),
+    () => programApi.getSemestersGrouped(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
+  const semesterOptions: GroupedSemester[] = useMemo(() => {
+    const seen = new Set<string>();
+    const out: GroupedSemester[] = [];
+    for (const o of groupedRaw ?? []) {
+      if (seen.has(o.semesterId)) continue;
+      seen.add(o.semesterId);
+      out.push(o);
+    }
+    return out;
+  }, [groupedRaw]);
+  const defaultSemesterId =
+    getCurrentSemesterId(datedSemestersRaw) ?? ALL_SEMESTERS;
+
+  const optionsReady = !!schoolYearId && !groupedLoading;
+  const semesterId = useMemo(() => {
+    if (
+      semesterOverride &&
+      (semesterOverride === ALL_SEMESTERS ||
+        semesterOptions.some((o) => o.semesterId === semesterOverride))
+    ) {
+      return semesterOverride;
+    }
+    // While options load, hold the URL value so back-navigation never
+    // flashes "All" before settling on the stored selection.
+    if (!optionsReady) return semesterOverride ?? ALL_SEMESTERS;
+    return defaultSemesterId;
+  }, [semesterOverride, semesterOptions, optionsReady, defaultSemesterId]);
+  const semesterParam = semesterId !== ALL_SEMESTERS ? semesterId : undefined;
+
+  // Keep the URL in sync (replace, no scroll, no history spam). The compare
+  // guards the replace → searchParams-change → effect loop.
+  useEffect(() => {
+    if (!schoolYearId) return;
+    const params = new URLSearchParams();
+    params.set("sy", schoolYearId);
+    if (semesterId !== ALL_SEMESTERS) params.set("sem", semesterId);
+    const next = params.toString();
+    if (next !== searchParams.toString()) {
+      router.replace(`?${next}`, { scroll: false });
+    }
+  }, [schoolYearId, semesterId, searchParams, router]);
+
+  const handleSelectYear = (yearId: string) => {
+    setSelectedSchoolYearId(yearId);
+    // Changing year invalidates whatever semester was selected — follow the
+    // new year's default instead of pointing at a stale id.
+    setSemesterOverride(null);
+  };
 
   const [editOpen, setEditOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -58,10 +130,20 @@ export default function EducatorDetailPage(): React.JSX.Element {
 
   const { data: educator, isLoading } = useEducator(id);
     const [tab, setTab] = useState<"subjects" | "classes">("classes");
+  // Global tab count: the Subjects tab never changes with the selectors.
   const { data: teachableSubjects } = useTeachableSubjects(id);
   const { data: assignedClasses } = useAsyncQuery(
-    queryKeys.admin.classes.list({ educatorId: id }),
-    () => classApi.getAll({ educatorId: id }),
+    queryKeys.admin.classes.list({
+      educatorId: id,
+      schoolYearId,
+      semesterId: semesterParam,
+    }),
+    () => classApi.getAll({
+      educatorId: id,
+      schoolYearId,
+      semesterId: semesterParam,
+    }),
+    { enabled: !!schoolYearId },
   );
   const resetMutation  = useResetEducatorPassword();
   const deleteMutation = useDeleteEducator();
@@ -125,12 +207,19 @@ export default function EducatorDetailPage(): React.JSX.Element {
           { label: educator.fullName },
         ]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <SchoolYearSelector
               schoolYears={schoolYears}
               isLoading={schoolYearsLoading}
               selectedId={schoolYearId ?? null}
-              onSelect={setSelectedSchoolYearId}
+              onSelect={handleSelectYear}
+            />
+            <SemesterSelector
+              options={semesterOptions}
+              isLoading={groupedLoading}
+              selectedId={semesterId}
+              onSelect={setSemesterOverride}
+              disabled={!schoolYearId}
             />
             <Button
               variant="outline"
@@ -186,12 +275,17 @@ export default function EducatorDetailPage(): React.JSX.Element {
           </TabsList>
 
           <TabsContent value="classes" className="pt-3">
-            <EducatorClassAssignmentManager educatorId={educator.id} />
+            <EducatorClassAssignmentManager
+              educatorId={educator.id}
+              schoolYearId={schoolYearId}
+              semesterId={semesterParam}
+            />
           </TabsContent>
           <TabsContent value="subjects" className="pt-3">
             <EducatorTeachableSubjectsCard
               educatorId={educator.id}
               schoolYearId={schoolYearId}
+              semesterId={semesterParam}
             />
           </TabsContent>
         </Tabs>
@@ -290,6 +384,22 @@ export default function EducatorDetailPage(): React.JSX.Element {
         />
       )}
     </div>
+  );
+}
+
+export default function EducatorDetailPage(): React.JSX.Element {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-32 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-lg" />
+        </div>
+      }
+    >
+      <EducatorDetailPageInner />
+    </Suspense>
   );
 }
 

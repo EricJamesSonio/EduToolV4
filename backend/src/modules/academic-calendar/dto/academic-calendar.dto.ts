@@ -2,12 +2,12 @@
 import {
   IsString,
   IsOptional,
-  IsDateString,
   IsEnum,
   IsUUID,
   MinLength,
   MaxLength,
 } from 'class-validator';
+import { IsCalendarDate } from '@/commons/utils/datetime.util';
 
 export enum CalendarEventType {
   HOLIDAY = 'holiday',
@@ -30,10 +30,10 @@ export class CreateCalendarEventDto {
   @IsEnum(CalendarEventType)
   type: CalendarEventType;
 
-  @IsDateString()
+  @IsCalendarDate()
   startDate: string;
 
-  @IsDateString()
+  @IsCalendarDate()
   endDate: string;
 
   @IsOptional()
@@ -56,11 +56,11 @@ export class UpdateCalendarEventDto {
   type?: CalendarEventType;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsCalendarDate()
   endDate?: string;
 
   @IsOptional()

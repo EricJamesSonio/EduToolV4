@@ -1,11 +1,6 @@
-"use client";
+import type { ReactNode } from "react";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-import { useAuth } from "@/hooks/useAuth";
-import { getRoleHomePath } from "@/utils/role.util";
-
+import { LandingRedirect } from "@/components/landing/LandingRedirect";
 import { Navbar } from "@/components/landing/Navbar";
 import { HeroSection } from "@/components/landing/HeroSection";
 
@@ -18,38 +13,23 @@ import { CTASection } from "@/components/landing/CTASection";
 import { ContactAdminSection } from "@/components/landing/Contactadminsection";
 import { Footer } from "@/components/landing/Footer";
 
-export default function RootPage(): React.ReactNode {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    // Only redirect authenticated users
-    if (user) {
-      router.replace(getRoleHomePath(user.role));
-    }
-  }, [user, isLoading, router]);
-
-  // Prevent landing page flash during redirect
-  if (isLoading || user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
-
-  // Guests see landing page
+/**
+ * Public landing page. Kept as a Server Component so the static marketing
+ * sections ship zero JS; only the navbar, hero, solution carousel and analytics
+ * preview are client boundaries. Auth redirect lives in `LandingRedirect` so
+ * guests are not blocked on the `/auth/refresh` bootstrap.
+ */
+export default function RootPage(): ReactNode {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <LandingRedirect />
       <Navbar />
       <HeroSection />
       <AnalyticsPreviewSection />
       <FeaturesSection />
       <SolutionSection />
       <ResourcesSection />
-      
+
       <PricingSection />
       <CTASection />
       <ContactAdminSection />

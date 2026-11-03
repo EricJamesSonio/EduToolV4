@@ -21,8 +21,11 @@ export class QueryClassDto {
   @IsOptional() @IsUUID() educatorId?: string;
   @IsOptional() @IsUUID() subjectId?: string;
   @IsOptional() @IsUUID() sectionId?: string;
-  @IsOptional() @IsUUID() programId?: string;   // ← NEW: department filter
-  @IsOptional() @IsString() search?: string;      // ← NEW: subject/educator search
+  @IsOptional() @IsUUID() programId?: string;
+  @IsOptional() @IsUUID() courseId?: string;
+  @IsOptional() @IsUUID() strandId?: string;
+  @IsOptional() @IsUUID() levelId?: string;
+  @IsOptional() @IsString() search?: string;
 
   @IsOptional()
   @Type(() => Number)

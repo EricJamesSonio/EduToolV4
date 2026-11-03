@@ -210,6 +210,7 @@ model Account {
   // inferred from the classes they already hold. The generator assigns only
   // from this set.
   educatorSubjects EducatorSubject[]
+  teachableSubjects EducatorTeachableSubject[]
   scheduleProfile EducatorScheduleProfile?
 
   @@unique([org_id, email])
@@ -303,6 +304,7 @@ model SchoolProfileSubject {
   level_id      String?
   name          String
   subject_type  String  @default("major") // "major" | "minor"
+  level_name    String?
 
   department SchoolProfileDepartment?      @relation(fields: [department_id], references: [id], onDelete: Cascade)
   level      SchoolProfileLevel?           @relation(fields: [level_id], references: [id], onDelete: Cascade)
@@ -591,6 +593,9 @@ model StudentProgramEnrollment {
   end_reason             ProgramEnrollmentEndReason?
   ended_at               DateTime?
   ended_by               String?
+  is_regular             Boolean                  @default(false)
+  regular_marked_at      DateTime?
+  regular_marked_by      String?
 
   studentSchoolYear       StudentSchoolYear        @relation(fields: [student_school_year_id], references: [id])
   program                 Program                  @relation(fields: [program_id], references: [id])
@@ -723,6 +728,37 @@ model EducatorSubject {
   @@index([org_id, educator_id])
 }
 
+/// GLOBAL teachability: "subject X can be taught by educator E", applying to
+/// every school year automatically. Identity is the normalized subject key
+/// (see subject-key.util.ts), not a subject id, because subjects are
+/// recreated per year.
+///
+/// Per-year data (WHICH sections/slots the educator handles) stays on
+/// EducatorSubject, created when slot picks are saved — not when teachability
+/// is granted. A key with no matching subject in a given year is simply not
+/// shown or used for that year; it is pruned only when NO non-deleted subject
+/// with that key exists anywhere in the org (subject hard-delete path).
+///
+/// Display columns are best-effort labels for keys that currently match
+/// nothing (debugging/admin); live reads always use the year's real subjects.
+model EducatorTeachableSubject {
+  id           String   @id @default(uuid())
+  org_id       String
+  educator_id  String
+  subject_key  String
+  display_name String
+  program_type String   @default("")
+  level_name   String   @default("")
+  course_name  String   @default("")
+  strand_name  String   @default("")
+  created_at   DateTime @default(now())
+
+  educator Account @relation(fields: [educator_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, educator_id, subject_key])
+  @@index([org_id, educator_id])
+}
+
 /// Which weekdays an educator is available, plus optional load limits.
 ///
 /// One row per educator, created lazily. Absence of a row and
@@ -794,6 +830,7 @@ model SubjectCompletionOverride {
   status     String   @default("pending")
   reason     String?
   actor_id   String?
+  source     String   @default("manual")
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

@@ -206,7 +206,66 @@ export class SubjectPrerequisiteService {
     return grade.final_score >= FALLBACK_PASSING_SCORE;
   }
 
-  async checkEligibility(
+  
+/**
+   * Subjects the student has already completed: a manual completion credit, a
+   * class outcome of passed / completed / transferred_credited, or a locked
+   * grade that passes under the class's grading scale (latest grade per subject
+   * wins, matching the prerequisite check above).
+   */
+  async getCompletedSubjectIds(
+    student_id: string,
+    org_id: string,
+  ): Promise<Set<string>> {
+    const completed = new Set<string>();
+
+    try {
+      const credits = await this.db.subjectCompletionOverride.findMany({
+        where: { org_id, student_id, status: 'completed' },
+        select: { subject_id: true },
+      });
+      for (const c of credits) completed.add(c.subject_id);
+    } catch {
+      // No credits table data available — continue with grades/outcomes.
+    }
+
+    const outcomes = await this.db.enrollment.findMany({
+      where: {
+        org_id,
+        student_id,
+        outcome: { in: ['passed', 'completed', 'transferred_credited'] },
+        class: { deleted_at: null },
+      },
+      select: { class: { select: { subject_id: true } } },
+    });
+    for (const o of outcomes) completed.add(o.class.subject_id);
+
+    const grades = await this.db.grade.findMany({
+      where: { org_id, student_id, is_locked: true, class: { deleted_at: null } },
+      orderBy: [
+        { class: { schoolYear: { start_date: 'asc' } } },
+        { id: 'asc' },
+      ],
+      include: { class: { select: { id: true, subject_id: true } } },
+    });
+
+    const latestBySubject = new Map<string, (typeof grades)[number]>();
+    for (const g of grades) latestBySubject.set(g.class.subject_id, g);
+
+    const scaleCache = new Map<
+      string,
+      Awaited<ReturnType<GradingScaleRepository['findByClassId']>>
+    >();
+    for (const [subjectId, grade] of latestBySubject) {
+      if (completed.has(subjectId)) continue;
+      if (await this.isGradePassing(grade, org_id, scaleCache)) {
+        completed.add(subjectId);
+      }
+    }
+
+    return completed;
+  }
+async checkEligibility(
     subject_id: string,
     student_id: string,
     org_id: string,

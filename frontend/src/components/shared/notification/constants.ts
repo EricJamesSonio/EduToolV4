@@ -12,6 +12,7 @@ import {
   Lock,
   PenLine,
   RotateCcw,
+  ListChecks,
 } from "lucide-react";
 
 export const TYPE_ICON: Record<string, React.ElementType> = {
@@ -22,6 +23,8 @@ export const TYPE_ICON: Record<string, React.ElementType> = {
   concern_created: MessageSquare,
   concern_reply: Reply,
   application_submitted: ClipboardList,
+  class_request_submitted: ListChecks,
+  class_request_reviewed: ListChecks,
   assessment_released: FileText,
   assessment_assigned: ClipboardList,
   assessment_reopened: RotateCcw,
@@ -54,5 +57,11 @@ export const SUMMARY_ROWS: {
     icon: ClipboardList,
     label: (n) => `${n} new application form${n === 1 ? "" : "s"}`,
     href: "/admin/enrollment-portal/applications",
+  },
+  {
+    type: "class_request_submitted",
+    icon: ListChecks,
+    label: (n) => `${n} subject request${n === 1 ? "" : "s"} to review`,
+    href: "/admin/students",
   },
 ];

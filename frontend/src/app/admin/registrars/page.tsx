@@ -18,8 +18,13 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import dynamic from "next/dynamic";
+
 import { RegistrarTable } from "@/components/admin/registrar/RegistrarTable";
-import { CreateRegistrarDialog } from "@/components/admin/registrar/CreateRegistrarDialog";
+const CreateRegistrarDialog = dynamic(
+  () => import("@/components/admin/registrar/CreateRegistrarDialog").then((m) => m.CreateRegistrarDialog),
+  { ssr: false },
+);
 import { RegistrarCredentialsCard } from "@/components/admin/registrar/RegistrarCredentialsCard";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import type { AxiosError } from "axios";

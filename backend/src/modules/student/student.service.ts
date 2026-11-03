@@ -24,10 +24,7 @@ import { Prisma } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
-import {
-  resolveSubjectAcademicStructure,
-  isEligibleForClassStructure,
-} from '../enrollment/enrollment-eligibility.util';
+import { EnrollmentService } from '../enrollment/enrollment.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { OrganizationService } from '../organization/organization.service';
 
@@ -44,6 +41,7 @@ export class StudentService {
     private readonly sectionService: SectionService,
     private readonly classRepository: ClassRepository,
     private readonly enrollmentRepo: EnrollmentRepository,
+    private readonly enrollmentService: EnrollmentService,
     private readonly auditLogService: AuditLogService, // ← INJECTED
     private readonly organizationService: OrganizationService,
     private readonly db: DatabaseService,
@@ -679,83 +677,43 @@ const created: Array<ReturnType<typeof this.formatAccount> & { plainPassword: st
     const cls = await this.classRepository.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
-    // ── Academic structure gate ──────────────────────────────────────────
-    // Strict: student must belong to the class's program, course/strand, and level.
-    const [subjectStructure, studentStructure] = await Promise.all([
-      resolveSubjectAcademicStructure(this.db, cls.subject_id, orgId),
-      this.enrollmentRepo.findStudentAcademicStructure(
-        studentId,
-        orgId,
-        cls.school_year_id,
-      ),
-    ]);
-
-    if (
-      !isEligibleForClassStructure(
-        subjectStructure,
-        studentStructure,
-        cls.section_id,
-      )
-    ) {
-      const reason = !studentStructure
-        ? 'The student has no active academic placement for this school year.'
-        : 'The student does not belong to the same program, course/strand, or level assigned to this class.';
-      throw new BadRequestException(
-        `Student is not eligible for this class. ${reason}`,
-      );
-    }
-
-    const duplicate = await this.enrollmentRepo.findDuplicate(
-      studentId,
+    // ── Shared decision path ──────────────────────────────────────────────
+    // All enrollment gates (academic structure, prerequisites incl.
+    // SubjectCompletionOverride credits, duplicate subject+semester, duplicate
+    // class, capacity) live in EnrollmentService.enroll() so this surface can
+    // never diverge from the class-detail enrollment path. Overflow is a
+    // return value, not a throw — audited and passed through below.
+    const result = await this.enrollmentService.enroll(
+      classId,
       cls.subject_id,
       cls.semester_id,
-      orgId,
-    );
-    if (duplicate) {
-      throw new ConflictException(
-        'Student is already enrolled in a class for this subject in the same semester.',
-      );
-    }
-
-    const existing = await this.enrollmentRepo.findByStudent(
-      classId,
+      cls.capacity,
       studentId,
       orgId,
     );
-    if (existing && existing.status !== 'removed') {
-      throw new ConflictException('Student is already enrolled in this class.');
+
+    if ('overflow' in result) {
+      // ── Audit: capacity overflow ──────────────────────────────────────
+      this.auditLogService
+        .logAdminAction({
+          orgId,
+          actorId,
+          action: 'class_capacity_overflow',
+          entityType: 'class',
+          entityId: classId,
+          metadata: { studentId, capacity: cls.capacity },
+        })
+        .catch(() => {});
+
+      return {
+        overflow: true,
+        message: `Class is at full capacity (${cls.capacity} students).`,
+        classId,
+        studentId,
+      };
     }
 
-    if (cls.capacity > 0) {
-      const activeCount = await this.enrollmentRepo.countActive(classId);
-      if (activeCount >= cls.capacity) {
-        // ── Audit: capacity overflow ──────────────────────────────────────
-        this.auditLogService
-          .logAdminAction({
-            orgId,
-            actorId,
-            action: 'class_capacity_overflow',
-            entityType: 'class',
-            entityId: classId,
-            metadata: { studentId, capacity: cls.capacity },
-          })
-          .catch(() => {});
-
-        return {
-          overflow: true,
-          message: `Class is at full capacity (${cls.capacity} students).`,
-          classId,
-          studentId,
-        };
-      }
-    }
-
-    const enrollment = await this.enrollmentRepo.create({
-      orgId,
-      classId,
-      studentId,
-      status: 'active',
-    });
+    const enrollment = result;
 
     // ── Audit: enrollment created ─────────────────────────────────────────
     this.auditLogService

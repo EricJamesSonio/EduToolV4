@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { Calendar } from "lucide-react"
 import { toast } from "sonner"
+import { localInputToIso, isoToLocalInput } from "@/utils/datetime.util"
 import {
   Dialog,
   DialogContent,
@@ -32,8 +33,10 @@ interface GradeLockSettingModalProps {
   minDeadline?: string | null
 }
 
+// TICK-INFRA-017: pre-fill in ORG_TIMEZONE (never the browser's zone, so a
+// teacher on VPN still sees school time). Empty when no deadline is set.
 const toLocalInput = (iso?: string | null): string =>
-  iso ? format(new Date(iso), "yyyy-MM-dd'T'HH:mm") : ""
+  iso ? isoToLocalInput(iso) : ""
 
 export function GradeLockSettingModal({
   open,
@@ -51,25 +54,35 @@ export function GradeLockSettingModal({
   useEffect(() => {
     setName(existingSetting?.name ?? "")
     setDeadline(toLocalInput(existingSetting?.lock_deadline))
-  }, [existingSetting?.id, open]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [existingSetting?.id, open])
 
   const createMutation = useCreateGradeLockSetting()
   const updateMutation = useUpdateGradeLockSetting()
   const isPending = createMutation.isPending || updateMutation.isPending
 
   const minInput = toLocalInput(minDeadline)
+  // Same-shape "YYYY-MM-DDTHH:mm" strings: lexicographic order is
+  // chronological in every TZ. Never wrap these in new Date() here.
   const belowMin = !!deadline && !!minInput && deadline < minInput
+
+  // Display helper for the school-year-end hint below. Deferred to the
+  // formatInZone display pass with the rest of server-rendered instants.
+  const formatMinDeadline = (iso: string): string =>
+    // eslint-disable-next-line no-restricted-syntax -- display formatting of a stored instant; the formatInZone migration (display pass) owns this line.
+    format(new Date(iso), "MMM d, yyyy h:mm a")
 
   const handleSubmit = async (): Promise<void> => {
     if (!name.trim() || !deadline || belowMin) return
 
+    // TICK-INFRA-017: picker value is Manila wall-clock -> UTC ISO once, here.
+    const lock_deadline = localInputToIso(deadline)
     try {
       if (isEdit && existingSetting?.id) {
         await updateMutation.mutateAsync({
           id: existingSetting.id,
           data: {
             name,
-            lock_deadline: new Date(deadline).toISOString(),
+            lock_deadline,
           },
         })
 
@@ -77,7 +90,7 @@ export function GradeLockSettingModal({
       } else {
         await createMutation.mutateAsync({
           name,
-          lock_deadline: new Date(deadline).toISOString(),
+          lock_deadline,
           lockType: "hard",
           allowOverride: true,
         })
@@ -126,12 +139,12 @@ export function GradeLockSettingModal({
             {belowMin ? (
               <p className="text-xs text-destructive">
                 Deadline cannot be before the end of the school year (
-                {format(new Date(minDeadline as string), "MMM d, yyyy h:mm a")}).
+                {formatMinDeadline(minDeadline as string)}).
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
                 {minInput
-                  ? `Must be on or after the school year end (${format(new Date(minDeadline as string), "MMM d, yyyy h:mm a")}).`
+                  ? `Must be on or after the school year end (${formatMinDeadline(minDeadline as string)}).`
                   : "This will be used when applying the template to school years."}
               </p>
             )}

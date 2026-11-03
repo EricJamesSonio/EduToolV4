@@ -1,0 +1,74 @@
+/* ─────────────────────────────────────────
+   INTERACTION DEFAULTS
+   Display-only by default: no I-beam cursor, no blinking caret,
+   no text selection start. Real inputs get them back.
+   Opt in to selectable text with [data-selectable] or .select-text.
+   Lives in the base layer so Tailwind utilities (cursor-pointer,
+   cursor-text, select-text, caret-*) still win.
+───────────────────────────────────────── */
+@layer base {
+  .app-no-text-cursor,
+  .app-no-text-cursor * {
+    cursor: default;
+    caret-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* ── Clickable things keep the pointer (children included) ── */
+  .app-no-text-cursor a,
+  .app-no-text-cursor a *,
+  .app-no-text-cursor button,
+  .app-no-text-cursor button *,
+  .app-no-text-cursor summary,
+  .app-no-text-cursor summary *,
+  .app-no-text-cursor select,
+  .app-no-text-cursor [role="button"],
+  .app-no-text-cursor [role="button"] *,
+  .app-no-text-cursor [role="tab"],
+  .app-no-text-cursor [role="tab"] *,
+  .app-no-text-cursor [role="menuitem"],
+  .app-no-text-cursor [role="menuitem"] *,
+  .app-no-text-cursor [role="option"],
+  .app-no-text-cursor [role="option"] *,
+  .app-no-text-cursor label[for],
+  .app-no-text-cursor label[for] * {
+    cursor: pointer;
+  }
+
+  .app-no-text-cursor button:disabled,
+  .app-no-text-cursor button:disabled *,
+  .app-no-text-cursor [aria-disabled="true"],
+  .app-no-text-cursor [aria-disabled="true"] * {
+    cursor: not-allowed;
+  }
+
+  /* ── Real text entry gets the caret, I-beam and selection back ── */
+  .app-no-text-cursor input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  .app-no-text-cursor textarea,
+  .app-no-text-cursor [contenteditable=""],
+  .app-no-text-cursor [contenteditable=""] *,
+  .app-no-text-cursor [contenteditable="true"],
+  .app-no-text-cursor [contenteditable="true"] *,
+  .app-no-text-cursor [contenteditable="plaintext-only"],
+  .app-no-text-cursor [contenteditable="plaintext-only"] * {
+    cursor: text;
+    caret-color: auto;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  .app-no-text-cursor input:disabled,
+  .app-no-text-cursor textarea:disabled {
+    cursor: not-allowed;
+  }
+
+  /* ── Opt-in selectable text (credentials, IDs, emails, ...) ── */
+  .app-no-text-cursor [data-selectable],
+  .app-no-text-cursor [data-selectable] *,
+  .app-no-text-cursor .select-text,
+  .app-no-text-cursor .select-text * {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}

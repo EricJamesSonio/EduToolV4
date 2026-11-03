@@ -17,6 +17,7 @@ import {
 } from "../CreateClassDialog.types";
 import { clearClassDraft, loadClassDraft, saveClassDraft } from "./useClassDraft";
 import { useCreateClassData } from "./useCreateClassData";
+import { buildCreateSelectionGate } from "../CreateClassStepGate";
 
 const NO_CONFLICTS: ScheduleConflictState = { educator: false, section: false, room: false };
 
@@ -118,17 +119,41 @@ export function useCreateClassForm({
     schedules,
   } = values;
 
-  // ── Data ──────────────────────────────────────────────────────────────────
-  const data = useCreateClassData(
-    schoolYearId,
-    programId,
-    semesterId,
-    trackId,
-    levelId,
-    sectionId,
-    educatorId,
-    open,
+  // ── Department selection intent ───────────────────────────────────────────
+  //
+  // A restored draft (or a preset) can populate programId without the admin
+  // having chosen a department in THIS session. Every downstream validation
+  // (semester template, semester list, subject list) used to key off the raw
+  // `programId` value, so opening the dialog with a stale draft immediately
+  // evaluated "does this department have a semester template?" and could show
+  // the "No template assigned" warning before the admin had touched anything.
+  //
+  // `programChosenByUser` is the fix: validation only runs once the admin
+  // actually picks a department. It starts true when a preset supplied one
+  // (that IS an explicit, deliberate choice by whatever opened the dialog).
+  const [programChosenByUser, setProgramChosenByUser] = useState(presetActive);
+  const handleProgramChange = useCallback(
+    (next: string) => {
+      setProgramChosenByUser(!!next);
+      setValue("programId", next);
+    },
+    [setValue],
   );
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const data = useCreateClassData({
+    schoolYearId,
+    selectedProgramId: programId,
+    // Only a department the admin actually picked is validated. Without this,
+    // a restored draft triggered the semester-template check on open.
+    programChosenByUser,
+    selectedSemesterId: semesterId,
+    selectedTrackId: trackId,
+    selectedLevelId: levelId,
+    selectedSectionId: sectionId,
+    selectedEducatorId: educatorId,
+    isEnabled: open,
+  });
 
   // ── Cascade resets ────────────────────────────────────────────────────────
   useOnChange(
@@ -226,20 +251,45 @@ export function useCreateClassForm({
     onClose();
   }, [reset, onClose]);
 
+  // The single gate for the schedule grid. The dialog passes this straight to
+  // ScheduleSlotFields, so the "may I place a slot?" rule is defined exactly
+  // once instead of being re-derived inside the picker.
+  const selectionGate = useMemo(
+    () =>
+      buildCreateSelectionGate(
+        {
+          programId,
+          semesterId,
+          trackId,
+          levelId,
+          sectionId,
+          subjectId,
+          educatorId,
+        },
+        { hasTrack: data.hasTrack, subjectAlreadyHasClass },
+      ),
+    [
+      programId,
+      semesterId,
+      trackId,
+      levelId,
+      sectionId,
+      subjectId,
+      educatorId,
+      data.hasTrack,
+      subjectAlreadyHasClass,
+    ],
+  );
+
   const isSubmitDisabled =
     mutation.isPending ||
     scheduleConflicts.educator ||
     scheduleConflicts.section ||
     scheduleConflicts.room ||
-    subjectAlreadyHasClass ||
-    !programId ||
+    // One rule for both: the gate already encodes every pick plus the
+    // duplicate-subject block, so these can't drift apart.
+    !selectionGate.ready ||
     data.programMissingTemplate ||
-    !semesterId ||
-    (data.hasTrack && !trackId) ||
-    !levelId ||
-    !sectionId ||
-    !subjectId ||
-    !educatorId ||
     schedules.length === 0;
 
   return {
@@ -248,8 +298,11 @@ export function useCreateClassForm({
     data,
     hasDraft,
     presetActive,
+    programChosenByUser,
+    handleProgramChange,
     takenSubjectIds,
     subjectAlreadyHasClass,
+    selectionGate,
     isSubmitting: mutation.isPending,
     isSubmitDisabled,
     onSubmit: handleSubmit((form) => mutation.mutate(form)),

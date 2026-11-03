@@ -3,6 +3,7 @@ import apiClient from "@/api/client";
 
 export interface StudentSemesterItem {
   id: string;
+  schoolYearId: string;
   name: string;
   startDate: string;
   endDate: string;

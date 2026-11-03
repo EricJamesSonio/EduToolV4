@@ -10,6 +10,8 @@ import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
+type AuthUser = { org_id: string; id: string; role: string };
+
 @Controller('class-assignment-requests')
 @UseGuards(AuthGuard, RolesGuard)
 export class ClassAssignmentRequestController {
@@ -18,16 +20,16 @@ export class ClassAssignmentRequestController {
   @Post()
   @Roles('admin', 'student')
   create(
-    @CurrentUser() user: { org_id: string; id: string },
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateClassAssignmentRequestDto,
   ) {
-    return this.service.create(user.org_id, user.id, dto);
+    return this.service.create(user.org_id, { id: user.id, role: user.role }, dto);
   }
 
   @Get()
   @Roles('admin', 'student')
   list(
-    @CurrentUser() user: { org_id: string; id: string },
+    @CurrentUser() user: AuthUser,
     @Query('studentId') studentId?: string,
     @Query('schoolYearId') schoolYearId?: string,
     @Query('status') status?: string,
@@ -37,6 +39,7 @@ export class ClassAssignmentRequestController {
   ) {
     return this.service.list(
       user.org_id,
+      { id: user.id, role: user.role },
       { studentId, schoolYearId, status, hasPrerequisiteWarning },
       page ? Number(page) : 1,
       limit ? Number(limit) : 20,
@@ -45,15 +48,15 @@ export class ClassAssignmentRequestController {
 
   @Get(':id')
   @Roles('admin', 'student')
-  getOne(@Param('id') id: string, @CurrentUser() user: { org_id: string; id: string }) {
-    return this.service.findById(id, user.org_id);
+  getOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.findById(id, user.org_id, { id: user.id, role: user.role });
   }
 
   @Patch(':id/finalize')
   @Roles('admin')
   finalize(
     @Param('id') id: string,
-    @CurrentUser() user: { org_id: string; id: string },
+    @CurrentUser() user: AuthUser,
     @Body() dto: FinalizeClassAssignmentRequestDto,
   ) {
     return this.service.finalize(id, user.org_id, user.id, dto);
@@ -63,7 +66,7 @@ export class ClassAssignmentRequestController {
   @Roles('admin')
   reopen(
     @Param('id') id: string,
-    @CurrentUser() user: { org_id: string; id: string },
+    @CurrentUser() user: AuthUser,
     @Body() dto: ReopenClassAssignmentRequestDto,
   ) {
     return this.service.reopen(id, user.org_id, user.id, dto);

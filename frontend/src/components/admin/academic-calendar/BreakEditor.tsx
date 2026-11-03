@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { addDaysToCalendarDate } from "@/utils/datetime.util";
 import type { CalendarBreak } from "@/api/admin/program-calendar.api";
 
 interface Props {
@@ -12,17 +13,12 @@ interface Props {
   calendarEnd:   string;
 }
 
-function toLocalDateString(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
+// TICK-INFRA-017: the day after a "YYYY-MM-DD" string via shared calendar
+// math (the old new Date(iso + "T00:00:00") + setDate version drifted with
+// the browser zone on DST transitions).
 function nextDay(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + 1);
-  return toLocalDateString(d);
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  return addDaysToCalendarDate(iso, 1);
 }
 
 export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Props) {

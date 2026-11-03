@@ -102,15 +102,19 @@ describe('AcademicCalendarService', () => {
     });
 
     it('should return warning if retroactive', async () => {
-      const pastDate = new Date();
-      pastDate.setDate(pastDate.getDate() - 5);
+      // TICK-INFRA-017: calendar-date fields take "YYYY-MM-DD" only (the
+      // DTO rejects full datetimes); five UTC days ago is safely past in
+      // every zone including Manila.
+      const pastDay = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
 
       const dto: CreateCalendarEventDto = {
         schoolYearId: 'sy1',
         title: 'Past Event',
         type: CalendarEventType.HOLIDAY,
-        startDate: pastDate.toISOString(),
-        endDate: pastDate.toISOString(),
+        startDate: pastDay,
+        endDate: pastDay,
         description: '',
       };
 

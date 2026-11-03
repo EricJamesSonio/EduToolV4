@@ -7,13 +7,13 @@ import {
   IsBoolean,
   IsArray,
   IsIn,
-  IsDateString,
   IsEnum,
   Min,
   ValidateNested,
   ArrayNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsInstant } from '@/commons/utils/datetime.util';
 import { ASSESSMENT_TYPE_VALUES } from '@/modules/grading-scheme/constants/assessment-type.constants';
 
 // ── Grading mode ──────────────────────────────────────────────────────────────
@@ -150,12 +150,14 @@ export class CreateAssessmentDto {
   @IsString()
   manualInstructions?: string;
 
+  // TICK-INFRA-017: kind-A instants. Zone-less values are rejected with 400;
+  // the frontend sends UTC ISO (localInputToIso in ORG_TIMEZONE).
   @IsOptional()
-  @IsDateString()
+  @IsInstant()
   releaseDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsInstant()
   endDate?: string;
 
   @IsOptional()
@@ -167,13 +169,15 @@ export class CreateAssessmentDto {
 // ── PATCH /assessments/:id ────────────────────────────────────────────────────
 
 export class UpdateAssessmentDto {
+  // TICK-INFRA-017: clearing contract is undefined = untouched, null = clear
+  // (@IsOptional() skips both; the service maps null -> NULL).
   @IsOptional()
-  @IsDateString()
-  releaseDate?: string;
+  @IsInstant()
+  releaseDate?: string | null;
 
   @IsOptional()
-  @IsDateString()
-  endDate?: string;
+  @IsInstant()
+  endDate?: string | null;
 
   @IsOptional()
   @IsString()
@@ -277,7 +281,7 @@ export class ReopenAssessmentDto {
   @IsUUID('4', { each: true })
   studentIds: string[];
 
-  @IsDateString()
+  @IsInstant()
   reopenedUntil: string;
 }
 

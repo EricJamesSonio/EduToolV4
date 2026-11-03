@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 
 import { ScheduleSlotFields } from "../ScheduleSlotFields";
+import { buildSelectionGate } from "../CreateClassStepGate";
 import type { ScheduleConflictState } from "../ClassSchedulePicker";
 import { toArray } from "../utils/classDetail.utils";
 
@@ -163,8 +164,27 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
     onClose();
   };
 
+  /**
+   * Edit requires ONLY an educator.
+   *
+   * The subject is immutable here (rendered read-only above), so requiring it
+   * would be wrong — and requiring a section would be wronger, since a section
+   * is explicitly optional on a class.
+   *
+   * This used to be derived inside ClassSchedulePicker by reading
+   * `subjectId` off the form. EditClassForm has no such field, so
+   * `watch('subjectId')` was always undefined and the grid stayed permanently
+   * locked: "+ Add slot" was disabled and no slot could be added. Supplying the
+   * gate per caller fixes that and keeps Create's stricter rule separate.
+   */
+  const selectionGate = useMemo(
+    () => buildSelectionGate({ educatorId: selectedEducatorId }, ['educatorId']),
+    [selectedEducatorId],
+  );
+
   const isSubmitDisabled =
     mutation.isPending ||
+    !selectionGate.ready ||
     scheduleConflicts.educator ||
     scheduleConflicts.section ||
     scheduleConflicts.room;
@@ -248,6 +268,7 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
             isLoading={scheduleContextLoading}
             schoolYearId={schoolYearId}
             excludeClassId={cls.id}
+            selectionGate={selectionGate}
             onConflictsChange={handleScheduleConflictsChange}
           />
 

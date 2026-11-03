@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { EnrollmentService } from './enrollment.service';
 import { EnrollmentRepository } from './enrollment.repository';
-import { GradingScaleModule } from '../grading-scale/grading-scale.module';
+import { SubjectPrerequisiteModule } from '../subject-prerequisite/subject-prerequisite.module';
 
 @Module({
-  imports: [GradingScaleModule],
+  imports: [SubjectPrerequisiteModule],
   providers: [EnrollmentService, EnrollmentRepository],
   exports: [EnrollmentService, EnrollmentRepository],
 })

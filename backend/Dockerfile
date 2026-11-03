@@ -22,6 +22,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=5000
+# TICK-INFRA-018: documents intent — production runs in UTC (like Render).
+# The code must NOT depend on this (every read uses ORG_TIMEZONE or an
+# explicit zone); the value only reproduces prod behavior for anything that
+# still reads the process zone.
+ENV TZ=UTC
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*

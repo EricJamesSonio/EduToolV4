@@ -24,6 +24,7 @@ import {
 } from "@/utils/classes.utils";
 import { roomUsageToClasses } from "@/utils/roomSchedule.utils";
 import type { CreateClassForm } from "./CreateClassDialog.types";
+import type { SelectionGate } from "./CreateClassStepGate";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { adminQueryKeys } from "@/hooks/queryKeys/admin.keys";
 import { useScheduleWindow } from "@/hooks/shared/useScheduleWindow";
@@ -53,6 +54,16 @@ interface ClassSchedulePickerProps {
   schoolYearId?: string | null;
   /** The class being edited, so its own bookings don't show as conflicts with itself. */
   excludeClassId?: string;
+  /**
+   * Whether the grid accepts picks, and what to tell the admin is missing.
+   *
+   * This is REQUIRED rather than derived from the form. Deriving it is what
+   * caused two bugs: it ignored `sectionId` (so slots could be placed for a
+   * class with no section), and EditClassDialog's form has no `subjectId` field
+   * at all, so its schedule editing was permanently locked. Each caller now
+   * states its own requirement. See CreateClassStepGate.
+   */
+  selectionGate: SelectionGate;
   /** Fired whenever the picked slots' conflict status changes, split by source. */
   onConflictsChange?: (conflicts: ScheduleConflictState) => void;
 }
@@ -74,17 +85,13 @@ export function ClassSchedulePicker({
   maxSlots,
   schoolYearId,
   excludeClassId,
+  selectionGate,
   onConflictsChange,
 }: ClassSchedulePickerProps) {
-  const { getValues, setValue, watch } = useFormContext<CreateClassForm>();
+  const { getValues, setValue } = useFormContext<CreateClassForm>();
 
-  // The schedule is locked until both a subject and an educator are chosen.
-  const subjectId = watch("subjectId");
-  const educatorId = watch("educatorId");
-  const scheduleReady = !!subjectId && !!educatorId;
-  const missingLabel = [!subjectId && "a subject", !educatorId && "an educator"]
-    .filter(Boolean)
-    .join(" and ");
+  // Supplied by the caller, never derived from the form — see the prop doc.
+  const { ready: scheduleReady, hint: gateHint } = selectionGate;
 
   // One source of truth for the school's operating window, active weekdays and
   // breaks. Previously this component fetched the org schedule config itself,
@@ -414,6 +421,11 @@ export function ClassSchedulePicker({
   };
 
   const handlePickRange = (range: ScheduleRange): void => {
+    // Defence in depth. The grid is rendered non-interactive and the Add-slot
+    // button is disabled when the gate is closed, but this is the state
+    // mutation itself — it must never run on a closed gate, or a stray event
+    // (autofill, replayed click, re-render race) would slip a slot in.
+    if (!scheduleReady || !hasContext) return;
     setRanges((prev) => [...prev, range]);
     setDraft(null);
     setIsAddingSlot(false);
@@ -431,7 +443,7 @@ export function ClassSchedulePicker({
   };
 
   const hint = !scheduleReady
-    ? `Select ${missingLabel} first.`
+    ? gateHint
     : !hasContext
       ? "Select a section first."
       : !isAddingSlot
@@ -518,7 +530,7 @@ export function ClassSchedulePicker({
               classTags={classTags}
               getSublabel={getBlockSublabel}
               isLoading={isLoading || cfgLoading}
-              interactive
+              interactive={scheduleReady}
               showAllDays
               pickedRanges={ranges}
               conflictedPickIndexes={conflictedPickIndexes}

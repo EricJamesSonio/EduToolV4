@@ -22,8 +22,13 @@ import { DeleteEntityDialog } from "@/components/shared/DeleteEntityDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import dynamic from "next/dynamic";
+
 import { EducatorTable } from "@/components/admin/educator/EducatorTable";
-import { CreateEducatorDialog } from "@/components/admin/educator/CreateEducatorDialog";
+const CreateEducatorDialog = dynamic(
+  () => import("@/components/admin/educator/CreateEducatorDialog").then((m) => m.CreateEducatorDialog),
+  { ssr: false },
+);
 import { BulkCreateEducatorDialog } from "@/components/admin/educator/BulkCreateEducatorDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import type { AxiosError } from "axios";

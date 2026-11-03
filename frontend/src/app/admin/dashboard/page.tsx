@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { DEFAULT_PAGE_SIZE } from "@/api/admin/analytics.api";
 import { organizationApi } from "@/api/admin/organization.api";
-import { useAnalyticsOverview, useEnrollmentBreakdown } from "@/hooks/admin/useAnalytics";
+import {
+  useAnalyticsOverview,
+  useEnrollmentDistribution,
+  useEnrollmentTimeline,
+} from "@/hooks/admin/useAnalytics";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { DataTable } from "@/components/shared/DataTable";
-import { Pagination } from "@/components/shared/Pagination";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,11 +21,30 @@ import {
   AlertTriangle,
   ArrowRight,
 } from "lucide-react";
-import { ColumnDef } from "@tanstack/react-table";
-import type { EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { cn } from "@/lib/utils";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
+import { EnrollmentTrendChart } from "@/components/admin/dashboard/EnrollmentTrendChart";
+import {
+  DonutChart,
+  type DonutDatum,
+} from "@/components/admin/dashboard/DonutChart";
+import {
+  DashboardPeriodFilter,
+  createDefaultPeriod,
+  describePeriod,
+  resolvePeriodBounds,
+  type PeriodFilterValue,
+} from "@/components/admin/dashboard/DashboardPeriodFilter";
+import {
+  CATEGORY_COLORS,
+  OTHERS_COLOR,
+  SECTION_COLORS,
+  STATUS_COLORS,
+} from "@/components/admin/dashboard/dashboard-colors";
+
+const MAX_PROGRAM_SLICES = 6;
+
 interface StatCardProps {
   label: string;
   value: number | undefined;
@@ -76,55 +97,10 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, act
   );
 }
 
-
-
-const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
-  {
-    accessorKey: "levelSection",
-    header: "Level Section",
-    cell: ({ row }) => <span className="font-medium">{row.original.levelSection}</span>,
-  },
-  {
-    accessorKey: "programName",
-    header: "Department / Course",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.programName}</span>,
-  },
-  {
-    accessorKey: "gradeLevel",
-    header: "Year / Grade",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.gradeLevel}</span>,
-  },
-  { accessorKey: "sectionName", header: "Section" },
-  {
-    accessorKey: "activeCount",
-    header: "Active",
-    cell: ({ row }) => (
-      <span className="text-success font-medium">{row.original.activeCount}</span>
-    ),
-  },
-  {
-    accessorKey: "pendingCount",
-    header: "Pending",
-    cell: ({ row }) => (
-      <span className={cn(
-        row.original.pendingCount > 0 ? "text-warning font-medium" : "text-muted-foreground"
-      )}>
-        {row.original.pendingCount}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "totalCount",
-    header: "Total",
-    cell: ({ row }) => <span className="font-semibold">{row.original.totalCount}</span>,
-  },
-];
-
 export default function AdminDashboardPage(): React.JSX.Element {
   const router = useRouter();
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
-  const [enrollmentPage, setEnrollmentPage] = useState(1);
-  const [enrollmentLimit, setEnrollmentLimit] = useState(DEFAULT_PAGE_SIZE);
+  const [period, setPeriod] = useState<PeriodFilterValue>(createDefaultPeriod);
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
@@ -135,41 +111,80 @@ export default function AdminDashboardPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-  useEffect(() => {
-    setEnrollmentPage(1);
-  }, [selectedYearId]);
+  const bounds = useMemo(() => resolvePeriodBounds(period), [period]);
 
-  const { data: org, isLoading: orgLoading } = useAsyncQuery(
+  const activeRange = useMemo(
+    () => ({
+      startDate: format(bounds.start, "yyyy-MM-dd"),
+      endDate: format(bounds.end, "yyyy-MM-dd"),
+    }),
+    [bounds],
+  );
+
+  const { data: org } = useAsyncQuery(
     queryKeys.admin.organization.detail(),
     organizationApi.getOrg,
     { retry: false },
   );
 
+  const enabled = !!org && !!selectedYearId;
+
   const { data: overview, isLoading: overviewLoading } = useAnalyticsOverview(
     selectedYearId ?? undefined,
-    { enabled: !!org && !!selectedYearId },
+    { enabled },
   );
 
-  const {
-    data: enrollment,
-    isLoading: enrollmentLoading,
-  } = useEnrollmentBreakdown(
+  const { data: timeline, isLoading: timelineLoading } = useEnrollmentTimeline(
     selectedYearId ?? undefined,
-    enrollmentPage,
-    enrollmentLimit,
-    { enabled: !!org && !!selectedYearId },
+    activeRange,
+    { enabled },
   );
 
-  const enrollmentRows = enrollment?.data ?? [];
-  const enrollmentTotal = enrollment?.meta?.total ?? 0;
-  const enrollmentTotalPages = enrollment?.meta?.totalPages ?? 1;
+  const { data: distribution, isLoading: distributionLoading } =
+    useEnrollmentDistribution(selectedYearId ?? undefined, activeRange, {
+      enabled,
+    });
 
-  useEffect(() => {
-    if (enrollmentPage > enrollmentTotalPages) setEnrollmentPage(Math.max(1, enrollmentTotalPages));
-  }, [enrollmentPage, enrollmentTotalPages]);
+  const statusData = useMemo<DonutDatum[]>(
+    () =>
+      (distribution?.studentStatus ?? []).map((slice) => ({
+        ...slice,
+        color: STATUS_COLORS[slice.key] ?? OTHERS_COLOR,
+      })),
+    [distribution],
+  );
+
+  const programData = useMemo<DonutDatum[]>(() => {
+    const slices = distribution?.programs ?? [];
+    const head: DonutDatum[] = slices
+      .slice(0, MAX_PROGRAM_SLICES)
+      .map((slice, i) => ({
+        ...slice,
+        color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+      }));
+    const rest = slices.slice(MAX_PROGRAM_SLICES);
+    if (rest.length > 0) {
+      head.push({
+        key: "others",
+        label: "Others",
+        value: rest.reduce((sum, slice) => sum + slice.value, 0),
+        color: OTHERS_COLOR,
+      });
+    }
+    return head;
+  }, [distribution]);
+
+  const sectionData = useMemo<DonutDatum[]>(
+    () =>
+      (distribution?.sectionAssignment ?? []).map((slice) => ({
+        ...slice,
+        color: SECTION_COLORS[slice.key] ?? OTHERS_COLOR,
+      })),
+    [distribution],
+  );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         actions={
@@ -222,24 +237,60 @@ export default function AdminDashboardPage(): React.JSX.Element {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-base font-semibold not-interactive">Enrollment Breakdown</h2>
-        <DataTable
-          columns={enrollmentColumns}
-          data={enrollmentRows}
-          isLoading={enrollmentLoading}
-          emptyTitle="No enrollment data"
-          emptyDescription="Enrollment data will appear once students are assigned to sections."
-        />
-        {enrollmentTotal > 0 && (
-          <Pagination
-            page={enrollmentPage}
-            limit={enrollmentLimit}
-            total={enrollmentTotal}
-            onPageChange={setEnrollmentPage}
-            onLimitChange={(l) => { setEnrollmentLimit(l); setEnrollmentPage(1); }}
-            pageSizeOptions={[20, 50, 100]}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <h2 className="text-base font-semibold not-interactive">Enrollment Analytics</h2>
+            <p className="text-sm text-muted-foreground not-interactive">
+              Showing {describePeriod(period)}.
+            </p>
+          </div>
+
+          <DashboardPeriodFilter value={period} onChange={setPeriod} />
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="mb-2 space-y-0.5">
+            <h3 className="text-sm font-semibold text-foreground not-interactive">
+              Enrollments over time
+            </h3>
+            <p className="text-xs text-muted-foreground not-interactive">
+              New student enrollments grouped by their current status.
+            </p>
+          </div>
+          <EnrollmentTrendChart
+            data={timeline}
+            isLoading={timelineLoading}
+            placeholderStart={bounds.start}
+            placeholderEnd={bounds.end}
           />
-        )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <DonutChart
+            title="Student status"
+            subtitle="Enrolled students by status"
+            data={statusData}
+            isLoading={distributionLoading}
+            emptyText="No students found for this period."
+            centerLabel="Students"
+          />
+          <DonutChart
+            title="Students by program"
+            subtitle="Active program enrollments"
+            data={programData}
+            isLoading={distributionLoading}
+            emptyText="No program enrollments found for this period."
+            centerLabel="Enrolled"
+          />
+          <DonutChart
+            title="Section assignment"
+            subtitle="Are enrolled students placed in a section?"
+            data={sectionData}
+            isLoading={distributionLoading}
+            emptyText="No program enrollments found for this period."
+            centerLabel="Enrolled"
+          />
+        </div>
       </div>
     </div>
   );

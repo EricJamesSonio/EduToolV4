@@ -21,16 +21,20 @@ describe('ClassService', () => {
   function makeSlot(weekday: number, start: string, end: string) {
     return { weekday, startTime: start, endTime: end };
   }
-  /** Minutes-of-day for a Date or ISO string, mirroring the occupancy index. */
-function minutesOf(v: Date | string): number {
-  const d = typeof v === 'string' ? new Date(v) : v;
-  return d.getHours() * 60 + d.getMinutes();
-}
+/**
+   * Minutes-of-day for a Date or ISO string, mirroring the occupancy index.
+   * UTC getters — the occupancy index reads schedule times as UTC wall-clock,
+   * so a local getter here would disagree with it under any non-UTC TZ.
+   */
+  function minutesOf(v: Date | string): number {
+    const d = typeof v === 'string' ? new Date(v) : v;
+    return d.getUTCHours() * 60 + d.getUTCMinutes();
+  }
 
-function todayISO(hhmm: string) {
+  function todayISO(hhmm: string) {
     const [h, m] = hhmm.split(':').map(Number);
     const d = new Date();
-    d.setHours(h, m, 0, 0);
+    d.setUTCHours(h, m, 0, 0);
     d.setMilliseconds(0);
     return d.toISOString();
   }
@@ -39,12 +43,16 @@ function todayISO(hhmm: string) {
    * Same wall-clock time, but stamped `daysAgo` days in the past. Reproduces
    * the real bug: slots are persisted with the date the class was created, so
    * two classes created on different days used to never be seen as overlapping.
+   *
+   * UTC setters throughout: `setDate`+`setHours` (local) shifted the instant by
+   * the server offset and changed which day the fixture fell on, so these
+   * tests passed under UTC and failed under TZ=Asia/Manila.
    */
   function shiftedISO(hhmm: string, daysAgo: number) {
     const [h, m] = hhmm.split(':').map(Number);
     const d = new Date();
-    d.setDate(d.getDate() - daysAgo);
-    d.setHours(h, m, 0, 0);
+    d.setUTCDate(d.getUTCDate() - daysAgo);
+    d.setUTCHours(h, m, 0, 0);
     d.setMilliseconds(0);
     return d.toISOString();
   }

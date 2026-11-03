@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsUUID } from 'class-validator';
+import { IsOptional, IsEnum, IsUUID, Matches } from 'class-validator';
 import { SchoolYearEnrollmentStatus } from '@prisma/client';
 
 export class GradeAnalyticsQueryDto {
@@ -13,4 +13,22 @@ export class GradeAnalyticsQueryDto {
   @IsOptional()
   @IsEnum(SchoolYearEnrollmentStatus)
   status?: SchoolYearEnrollmentStatus;
+}
+
+export class AnalyticsRangeQueryDto {
+  @IsOptional()
+  @IsUUID()
+  schoolYearId?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'startDate must be in YYYY-MM-DD format',
+  })
+  startDate?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'endDate must be in YYYY-MM-DD format',
+  })
+  endDate?: string;
 }

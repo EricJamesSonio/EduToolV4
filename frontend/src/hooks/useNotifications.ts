@@ -116,6 +116,31 @@ export function toStoreNotification(n: ApiNotification): Notification {
         : "/admin/enrollment-portal/applications";
       break;
     }
+    // ─── Subject requests (student -> admin, admin -> student) ─────────────
+    case "class_request_submitted": {
+      const who = str(p.studentName) ?? "A student";
+      const count = typeof p.count === "number" ? p.count : null;
+      message =
+        count !== null
+          ? `${who} requested ${count} subject${count === 1 ? "" : "s"}`
+          : `${who} sent a subject request`;
+      const studentId = str(p.studentId);
+      linkTo = studentId ? `/admin/students/${studentId}/review` : "/admin/students";
+      break;
+    }
+    case "class_request_reviewed": {
+      const approved = typeof p.approvedCount === "number" ? p.approvedCount : 0;
+      const denied = typeof p.deniedCount === "number" ? p.deniedCount : 0;
+      if (str(p.origin) === "admin_flag") {
+        message = `Admin assigned ${approved} class${approved === 1 ? "" : "es"} to you`;
+      } else if (denied > 0) {
+        message = `Your subject request was reviewed: ${approved} approved, ${denied} denied`;
+      } else {
+        message = `Your subject request was approved (${approved} class${approved === 1 ? "" : "es"})`;
+      }
+      linkTo = "/student/classes";
+      break;
+    }
     // ─── Assessments & grades (role-aware deep links) ──────────────────────
     case "assessment_released":
     case "assessment_assigned":
@@ -179,20 +204,26 @@ export function toStoreNotification(n: ApiNotification): Notification {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 /** Total unread + per-type unread. Drives the red badge and grouped rows. */
-export function useNotificationSummary() {
+export function useNotificationSummary(enabled = true) {
   const token = useAuthStore((s) => s.accessToken);
   return useQuery({
     queryKey: KEYS.summary,
     queryFn: () => notificationApi.getSummary(),
-    enabled: !!token,
+    enabled: !!token && enabled,
     refetchInterval: POLL_MS,
     refetchOnWindowFocus: true,
   });
 }
 
 /** Recent notifications; mirrored into the zustand store the bell reads. */
-/** Paginated notifications; flattened into the zustand store the bell reads. */
-export function useNotificationFeed() {
+/**
+ * Paginated notifications; flattened into the zustand store the bell reads.
+ *
+ * Pass `enabled: false` while the dropdown is closed: the summary query keeps
+ * the unread badge live, so polling the (potentially multi-page) feed for a
+ * closed popover is wasted work.
+ */
+export function useNotificationFeed(enabled = true) {
   const token = useAuthStore((s) => s.accessToken);
   const setNotifications = useNotificationStore((s) => s.setNotifications);
 
@@ -203,7 +234,7 @@ export function useNotificationFeed() {
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,
-    enabled: !!token,
+    enabled: !!token && enabled,
     refetchInterval: POLL_MS,
     refetchOnWindowFocus: true,
   });

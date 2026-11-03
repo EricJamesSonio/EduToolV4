@@ -12,8 +12,6 @@ import { LevelService } from '@/modules/level/level.service';
 import { SubjectService } from '@/modules/subject/subject.service';
 import { GradingScaleService } from '../grading-scale/grading-scale.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
-import { SchoolProfileService } from '@/modules/school-profile/school-profile.service';
 import { ProgramService } from '@/modules/program/program.service';
 import { DatabaseService } from '@/core/database/database.provider';
 import {
@@ -41,13 +39,11 @@ export class SchoolYearService {
     private readonly gradingScaleService: GradingScaleService,
     private readonly auditLogService: AuditLogService,
     private readonly readinessService: SchoolYearReadinessService,
-    private readonly orgSeeder: OrgSeederService,
-    private readonly schoolProfileService: SchoolProfileService,
     private readonly programService: ProgramService,
     private readonly db: DatabaseService,
   ) {}
 
-    private deriveSchoolYearName(start_date?: string, end_date?: string): string {
+  private deriveSchoolYearName(start_date?: string, end_date?: string): string {
     if (!start_date || !end_date) {
       throw new BadRequestException(
         'Both start_date and end_date are required to generate the school year name.',
@@ -151,59 +147,15 @@ export class SchoolYearService {
     }
   }
 
-  /**
-   * If the org has "auto-seed new school years" enabled AND a School
-   * Profile with at least one configured department exists, seeds the new
-   * school year's structure (programs/courses/strands/levels/sections/
-   * subjects + grading scales/schemes) from that profile — mirroring the
-   * "Select All" flow in the Data Seeder. Semester templates and program
-   * calendars are intentionally skipped here since they need per-year dates
-   * the admin still has to supply.
-   *
-   * Never throws — a seeding failure must not block school year creation;
-   * it's surfaced via the returned warning string instead.
-   */
-  private async maybeAutoSeed(
-    orgId: string,
-    schoolYearId: string,
-    actorId: string,
-  ): Promise<{ seeded: boolean; warning?: string }> {
-    const org = await this.db.organization.findUnique({
-      where: { id: orgId },
-      select: { auto_seed_new_school_years: true },
-    });
-    if (!org?.auto_seed_new_school_years) return { seeded: false };
-
-    const profileByType = await this.schoolProfileService.getAllByType(orgId);
-    const programs = Object.keys(profileByType).filter(
-      (type) => !!profileByType[type],
-    );
-    if (programs.length === 0) return { seeded: false };
-
-    try {
-      await this.orgSeeder.seedOrg({
-        orgId,
-        actorId,
-        schoolYearId,
-        programs,
-        seedGradingScales: true,
-        seedGradingSchemes: true,
-        seedSemesterTemplates: false,
-        seedProgramCalendars: false,
-      });
-      return { seeded: true };
-    } catch (e: any) {
-      return {
-        seeded: false,
-        warning: `School year created, but automatic seeding from your School Profile failed: ${e?.message ?? 'unknown error'}. You can seed it manually from Data Seeder.`,
-      };
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // CRUD
   // ---------------------------------------------------------------------------
 
+  /**
+   * Creating a school year never seeds it. Seeding happens from
+   * School Profile -> Seed a School Year, where the academic calendar
+   * (and everything that depends on it) is configured at the same time.
+   */
   async create(
     orgId: string,
     dto: CreateSchoolYearDto,
@@ -214,7 +166,9 @@ export class SchoolYearService {
     this.validateNotInPast(dto.start_date, dto.end_date);
     await this.assertNoOverlap(orgId, dto.start_date, dto.end_date);
 
-    const name = dto.name?.trim() || this.deriveSchoolYearName(dto.start_date, dto.end_date);
+    const name =
+      dto.name?.trim() ||
+      this.deriveSchoolYearName(dto.start_date, dto.end_date);
 
     const short = this.isShortDuration(dto.start_date, dto.end_date);
 
@@ -236,12 +190,6 @@ export class SchoolYearService {
 
     await this.levelService.seedFromDefaults(orgId, schoolYear.id, {});
 
-    const autoSeedResult = await this.maybeAutoSeed(
-      orgId,
-      schoolYear.id,
-      actorId,
-    );
-
     this.auditLogService
       .logAdminAction({
         orgId,
@@ -253,20 +201,14 @@ export class SchoolYearService {
           name,
           start_date: dto.start_date,
           end_date: dto.end_date,
-          auto_seeded: autoSeedResult.seeded,
         },
       })
       .catch(() => {});
 
-    const warnings = [
-      short ? 'School year is shorter than 10 months.' : undefined,
-      autoSeedResult.warning,
-    ].filter(Boolean);
-
     return {
       data: schoolYear,
-      warning: warnings.length > 0 ? warnings.join(' ') : undefined,
-      seeded: autoSeedResult.seeded,
+      warning: short ? 'School year is shorter than 10 months.' : undefined,
+      seeded: false,
     };
   }
 
@@ -398,14 +340,13 @@ export class SchoolYearService {
     // Require the school year to be structurally ready before activation.
     await this.readinessService.assertReady(orgId, id);
 
-    // ✅ Null safety (fix TS error properly)
     if (!schoolYear.start_date) {
       throw new BadRequestException(
         'School year has no start date and cannot be activated.',
       );
     }
 
-    // 🔥 Prevent early activation, allow late activation
+    // Prevent early activation, allow late activation
     const today = new Date();
     const start = new Date(schoolYear.start_date);
 
@@ -418,7 +359,7 @@ export class SchoolYearService {
       );
     }
 
-    // ✅ Ensure only one active school year (safer than count)
+    // Ensure only one active school year
     const existingActive = await this.schoolYearRepository.findActive(orgId);
     if (existingActive) {
       throw new ConflictException(

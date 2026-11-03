@@ -43,7 +43,12 @@ export interface SchoolProfileDepartmentData {
     levels: SchoolProfileLevelData[];
   }>;
   levels: SchoolProfileLevelData[];
-  subjects: Array<{ id: string; name: string; subjectType: string }>;
+  subjects: Array<{
+    id: string;
+    name: string;
+    subjectType: string;
+    levelName?: string | null;
+  }>;
 }
 
 export interface SchoolProfileLevelData {
@@ -53,7 +58,12 @@ export interface SchoolProfileLevelData {
   name: string;
   orderIndex: number;
   sections: Array<{ id: string; name: string; capacity: number }>;
-  subjects: Array<{ id: string; name: string; subjectType: string }>;
+  subjects: Array<{
+    id: string;
+    name: string;
+    subjectType: string;
+    levelName?: string | null;
+  }>;
 }
 const VALID_DEPARTMENT_TYPES = new Set(PROGRAMS.map((p) => p.type));
 
@@ -173,6 +183,7 @@ export class SchoolProfileService {
               department_id: department.id,
               name: subjectDto.name,
               subject_type: subjectDto.subjectType,
+              level_name: subjectDto.levelName ?? null,
             })),
           });
         }

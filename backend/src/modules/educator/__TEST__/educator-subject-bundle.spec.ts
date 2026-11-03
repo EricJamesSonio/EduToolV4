@@ -77,7 +77,10 @@ const makeBundleService = (opts: {
     assertSubjectsInOrg: jest.fn().mockResolvedValue(undefined),
     replaceSet: jest.fn().mockResolvedValue(2),
     setSlots: jest.fn().mockResolvedValue(undefined),
-    replaceAllWithSlots: jest.fn().mockResolvedValue(undefined),
+    findGlobalKeys: jest.fn().mockResolvedValue([]),
+    upsertGlobalKeys: jest.fn().mockResolvedValue(undefined),
+    deleteGlobalKeys: jest.fn().mockResolvedValue(undefined),
+    replaceYearPicks: jest.fn().mockResolvedValue(undefined),
     acquireBundleLocks: jest.fn().mockResolvedValue(undefined),
     findByEducator:
       opts.linksSequence !== undefined
@@ -86,7 +89,6 @@ const makeBundleService = (opts: {
             .mockResolvedValueOnce(opts.linksSequence[0] ?? [])
             .mockResolvedValue(opts.linksSequence[1] ?? [])
         : jest.fn().mockResolvedValue(opts.links ?? []),
-    findSubjectIds: jest.fn().mockResolvedValue([]),
     findSectionHolder:
       opts.holderSequence !== undefined
         ? jest
@@ -154,17 +156,24 @@ const run = (
 ) => service.setBundle('org-1', 'ed-1', 'sy-1', subjectIds, assignments, 'actor-1');
 
 describe('setBundle', () => {
-  it('writes links and slots atomically and audits once', async () => {
+  it('writes global keys and year picks atomically and audits once', async () => {
     const { service, repo, audit, db } = makeBundleService();
     const out = await run(service);
     expect(out).toEqual({ count: 1, updated: 1, pickedMin: 120 });
     expect(db.$transaction).toHaveBeenCalledTimes(1);
-    expect(repo.replaceAllWithSlots).toHaveBeenCalledTimes(1);
+    expect(repo.upsertGlobalKeys).toHaveBeenCalledWith(
+      'org-1',
+      'ed-1',
+      [expect.objectContaining({ key: 's1|jhs|grade 7||' })],
+      expect.anything(),
+    );
+    expect(repo.deleteGlobalKeys).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).toHaveBeenCalledTimes(1);
     // Locks precede the atomic write (both repo-level, in call order).
     const lockOrder =
       repo.acquireBundleLocks.mock.invocationCallOrder[0] ?? 0;
     const writeOrder =
-      repo.replaceAllWithSlots.mock.invocationCallOrder[0] ?? 0;
+      repo.replaceYearPicks.mock.invocationCallOrder[0] ?? 0;
     expect(lockOrder).toBeGreaterThan(0);
     expect(writeOrder).toBeGreaterThan(lockOrder);
     expect(repo.acquireBundleLocks).toHaveBeenCalledWith(
@@ -180,11 +189,36 @@ describe('setBundle', () => {
     expect(repo.setSlots).not.toHaveBeenCalled();
   });
 
+  it('unticking removes the global key but scopes picks to the year', async () => {
+    const { service, repo } = makeBundleService();
+    repo.findGlobalKeys.mockResolvedValue([
+      { subject_key: 's1|jhs|grade 7||' },
+      { subject_key: 's-big|jhs|grade 7||' },
+    ]);
+    const out = await run(service, [], []);
+    expect(out).toEqual({ count: 0, updated: 0, pickedMin: 0 });
+    expect(repo.deleteGlobalKeys).toHaveBeenCalledWith(
+      'org-1',
+      'ed-1',
+      expect.arrayContaining(['s1|jhs|grade 7||', 's-big|jhs|grade 7||']),
+      expect.anything(),
+    );
+    // Picks replacement is scoped to this year's subjects only — other
+    // years' rows are never in the delete set.
+    expect(repo.replaceYearPicks).toHaveBeenCalledWith(
+      'org-1',
+      'ed-1',
+      ['s1', 's-big'],
+      [],
+      expect.anything(),
+    );
+  });
+
   it('accepts links-only bundles (parity with replaceSet)', async () => {
     const { service, repo } = makeBundleService();
     const out = await run(service, ['s1'], []);
     expect(out).toEqual({ count: 1, updated: 0, pickedMin: 0 });
-    expect(repo.replaceAllWithSlots).toHaveBeenCalledTimes(1);
+    expect(repo.replaceYearPicks).toHaveBeenCalledTimes(1);
   });
 
   it('rejects assignments for unlisted subjects (tick-first rule)', async () => {
@@ -195,7 +229,7 @@ describe('setBundle', () => {
       ]),
     ).rejects.toThrow(/before assigning slots/);
     expect(db.$transaction).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('rejects cross-org subjects (link-path org check)', async () => {
@@ -208,7 +242,7 @@ describe('setBundle', () => {
       /this organization/,
     );
     expect(db.$transaction).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('rejects missing sections (404)', async () => {
@@ -220,14 +254,14 @@ describe('setBundle', () => {
       ]),
     ).rejects.toThrow(/do not exist in this organization/);
     expect(db.$transaction).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('rejects subjects outside the school year', async () => {
     const { service, db, repo } = makeBundleService({ yearIds: ['s-other'] });
     await expect(run(service)).rejects.toThrow(/school year/);
     expect(db.$transaction).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('rejects sections outside the subject level', async () => {
@@ -238,7 +272,7 @@ describe('setBundle', () => {
       ]),
     ).rejects.toThrow(/does not belong to the level/);
     expect(db.$transaction).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('rejects slot positions beyond the weekly count', async () => {
@@ -249,7 +283,7 @@ describe('setBundle', () => {
       ]),
     ).rejects.toThrow(/does not exist/);
     expect(db.$transaction).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('rejects pairs held by another educator (409)', async () => {
@@ -258,7 +292,7 @@ describe('setBundle', () => {
     });
     await expect(run(service)).rejects.toThrow(/already assigned to Bob/);
     expect(db.$transaction).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('rejects over-capacity bundles with numbers', async () => {
@@ -277,7 +311,7 @@ describe('setBundle', () => {
     expect(db.$transaction).toHaveBeenCalledTimes(1);
     expect(tx.educatorSubject.deleteMany).not.toHaveBeenCalled();
     expect(tx.educatorSubject.createMany).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('aborts inside the transaction when a holder appears after the pre-check', async () => {
@@ -287,7 +321,7 @@ describe('setBundle', () => {
     await expect(run(service)).rejects.toThrow(/already assigned to Bob/);
     expect(tx.educatorSubject.deleteMany).not.toHaveBeenCalled();
     expect(tx.educatorSubject.createMany).not.toHaveBeenCalled();
-    expect(repo.replaceAllWithSlots).not.toHaveBeenCalled();
+    expect(repo.replaceYearPicks).not.toHaveBeenCalled();
   });
 
   it('re-checks capacity on fresh in-transaction links', async () => {

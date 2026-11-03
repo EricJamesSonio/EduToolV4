@@ -1,5 +1,6 @@
 import { NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EnrollmentService } from '../enrollment.service';
+import { SubjectPrerequisiteService } from '../../subject-prerequisite/subject-prerequisite.service';
 
 jest.mock('../enrollment-eligibility.util', () => ({
   resolveSubjectAcademicStructure: jest.fn(),
@@ -18,10 +19,9 @@ describe('EnrollmentService', () => {
   const semesterId = 'sem-1';
   const studentId = 'stu-1';
 
-  let gradingScaleRepo: { findByClassId: jest.Mock };
+  let prereqService: { checkEligibilityBatch: jest.Mock };
   beforeEach(() => {
     repo = {
-      getPrerequisitesWithGrades: jest.fn(),
       findClassEnrollmentContext: jest.fn(),
       findStudentAcademicStructure: jest.fn(),
       findDuplicate: jest.fn(),
@@ -36,49 +36,47 @@ describe('EnrollmentService', () => {
       findOneByStudentAndClass: jest.fn(),
     };
     db = {};
-    gradingScaleRepo = { findByClassId: jest.fn().mockResolvedValue(null) };
-    service = new EnrollmentService(repo, gradingScaleRepo as unknown as never, db);
+    prereqService = {
+      checkEligibilityBatch: jest.fn().mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      ),
+    };
+    service = new EnrollmentService(repo, prereqService as unknown as never, db);
     jest.clearAllMocks();
-    gradingScaleRepo.findByClassId.mockResolvedValue(null);
+    prereqService.checkEligibilityBatch.mockResolvedValue(
+      new Map([[subjectId, { eligible: true, missing: [] }]]),
+    );
     (resolveSubjectAcademicStructure as jest.Mock).mockResolvedValue({ programId: 'prog-1' });
     (isEligibleForClassStructure as jest.Mock).mockReturnValue(true);
   });
 
   describe('checkEligibility', () => {
-    it('returns eligible when no prerequisites', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([]);
-      expect(await service.checkEligibility(subjectId, studentId, orgId)).toEqual({ eligible: true, missing: [] });
+    it('delegates to subjectPrerequisiteService.checkEligibilityBatch', async () => {
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      );
+      const res = await service.checkEligibility(subjectId, studentId, orgId);
+      expect(prereqService.checkEligibilityBatch).toHaveBeenCalledWith([subjectId], studentId, orgId);
+      expect(res).toEqual({ eligible: true, missing: [] });
     });
-    it('reports not_taken when grade missing', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math 101', grade: null }]);
+
+    it('returns ineligible when subjectPrerequisiteService reports missing prereqs', async () => {
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([
+          [
+            subjectId,
+            {
+              eligible: false,
+              missing: [
+                { subject_id: 'pre-1', subject_name: 'Math 101', reason: 'not_taken' },
+              ],
+            },
+          ],
+        ]),
+      );
       const res = await service.checkEligibility(subjectId, studentId, orgId);
       expect(res.eligible).toBe(false);
       expect(res.missing[0].reason).toBe('not_taken');
-    });
-    it('reports not_locked when grade exists but not locked', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: false, final_score: 90, class: { id: 'class-1' } } }]);
-      const res = await service.checkEligibility(subjectId, studentId, orgId);
-      expect(res.missing[0].reason).toBe('not_locked');
-    });
-    it('reports not_passed when score < 75', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: true, final_score: 60, class: { id: 'class-1' } } }]);
-      const res = await service.checkEligibility(subjectId, studentId, orgId);
-      expect(res.missing[0].reason).toBe('not_passed');
-    });
-    it('passes when all locked and >=75', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: { is_locked: true, final_score: 80, class: { id: 'class-1' } } }]);
-      const res = await service.checkEligibility(subjectId, studentId, orgId);
-      expect(res.eligible).toBe(true);
-    });
-    it('handles mixed missing and passed', async () => {
-      repo.getPrerequisitesWithGrades.mockResolvedValue([
-        { subject_id: 'pre-1', subject_name: 'A', grade: { is_locked: true, final_score: 90, class: { id: 'class-1' } } },
-        { subject_id: 'pre-2', subject_name: 'B', grade: null },
-      ]);
-      const res = await service.checkEligibility(subjectId, studentId, orgId);
-      expect(res.eligible).toBe(false);
-      expect(res.missing).toHaveLength(1);
-      expect(res.missing[0].subject_id).toBe('pre-2');
     });
   });
 
@@ -105,21 +103,35 @@ describe('EnrollmentService', () => {
 
     it('throws BadRequest when prerequisite not met', async () => {
       mockAcademicEligible();
-      repo.getPrerequisitesWithGrades.mockResolvedValue([{ subject_id: 'pre-1', subject_name: 'Math', grade: null }]);
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([
+          [
+            subjectId,
+            {
+              eligible: false,
+              missing: [{ subject_id: 'pre-1', subject_name: 'Math', reason: 'not_taken' }],
+            },
+          ],
+        ]),
+      );
       await expect(service.enroll(classId, subjectId, semesterId, 30, studentId, orgId)).rejects.toBeInstanceOf(BadRequestException);
-      expect(repo.getPrerequisitesWithGrades).toHaveBeenCalled();
+      expect(prereqService.checkEligibilityBatch).toHaveBeenCalledWith([subjectId], studentId, orgId);
     });
 
     it('throws Conflict when duplicate subject+semester', async () => {
       mockAcademicEligible();
-      repo.getPrerequisitesWithGrades.mockResolvedValue([]);
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      );
       repo.findDuplicate.mockResolvedValue({ id: 'dup' });
       await expect(service.enroll(classId, subjectId, semesterId, 30, studentId, orgId)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('throws Conflict when already enrolled in same class (not removed)', async () => {
       mockAcademicEligible();
-      repo.getPrerequisitesWithGrades.mockResolvedValue([]);
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      );
       repo.findDuplicate.mockResolvedValue(null);
       repo.findByStudent.mockResolvedValue({ id: 'enr-1', status: 'active' });
       await expect(service.enroll(classId, subjectId, semesterId, 30, studentId, orgId)).rejects.toBeInstanceOf(ConflictException);
@@ -127,7 +139,9 @@ describe('EnrollmentService', () => {
 
     it('allows re-enroll when previous was removed', async () => {
       mockAcademicEligible();
-      repo.getPrerequisitesWithGrades.mockResolvedValue([]);
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      );
       repo.findDuplicate.mockResolvedValue(null);
       repo.findByStudent.mockResolvedValue({ id: 'enr-1', status: 'removed' });
       repo.countActive.mockResolvedValue(0);
@@ -139,7 +153,9 @@ describe('EnrollmentService', () => {
 
     it('returns overflow when capacity reached', async () => {
       mockAcademicEligible();
-      repo.getPrerequisitesWithGrades.mockResolvedValue([]);
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      );
       repo.findDuplicate.mockResolvedValue(null);
       repo.findByStudent.mockResolvedValue(null);
       repo.countActive.mockResolvedValue(30);
@@ -151,7 +167,9 @@ describe('EnrollmentService', () => {
 
     it('skips capacity check when capacity 0 (unlimited)', async () => {
       mockAcademicEligible();
-      repo.getPrerequisitesWithGrades.mockResolvedValue([]);
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      );
       repo.findDuplicate.mockResolvedValue(null);
       repo.findByStudent.mockResolvedValue(null);
       repo.create.mockResolvedValue({ id: 'enr-1' });
@@ -163,7 +181,9 @@ describe('EnrollmentService', () => {
 
     it('creates enrollment when all gates pass', async () => {
       mockAcademicEligible();
-      repo.getPrerequisitesWithGrades.mockResolvedValue([]);
+      prereqService.checkEligibilityBatch.mockResolvedValue(
+        new Map([[subjectId, { eligible: true, missing: [] }]]),
+      );
       repo.findDuplicate.mockResolvedValue(null);
       repo.findByStudent.mockResolvedValue(null);
       repo.countActive.mockResolvedValue(5);
@@ -220,6 +240,130 @@ describe('EnrollmentService', () => {
     it('countActive delegates', async () => {
       repo.countActive.mockResolvedValue(5);
       expect(await service.countActive(classId)).toBe(5);
+    });
+  });
+
+  describe('Prerequisite override semantics & path agreement', () => {
+    it('completed override with no grade allows checkEligibility and enroll to succeed', async () => {
+      const realPrereqRepo = {
+        getPrerequisitesWithGradesForSubjects: jest.fn().mockResolvedValue(
+          new Map([
+            [
+              subjectId,
+              [
+                {
+                  subject_id: 'pre-1',
+                  subject_name: 'Math',
+                  grade: null,
+                },
+              ],
+            ],
+          ]),
+        ),
+      };
+      const realDb = {
+        subjectCompletionOverride: {
+          findMany: jest.fn().mockResolvedValue([
+            { student_id: studentId, subject_id: 'pre-1', status: 'completed' },
+          ]),
+        },
+      };
+      const realPrereqService = new SubjectPrerequisiteService(
+        realPrereqRepo as any,
+        { findByClassId: jest.fn() } as any,
+        realDb as any,
+      );
+
+      const realEnrollmentService = new EnrollmentService(repo, realPrereqService, realDb as any);
+
+      // UI batch result
+      const batchResult = await realPrereqService.checkEligibilityBatch([subjectId], studentId, orgId);
+      const uiVerdict = batchResult.get(subjectId);
+      expect(uiVerdict?.eligible).toBe(true);
+
+      // checkEligibility result
+      const checkResult = await realEnrollmentService.checkEligibility(subjectId, studentId, orgId);
+      expect(checkResult.eligible).toBe(true);
+
+      // enroll() result
+      repo.findClassEnrollmentContext.mockResolvedValue({ subject_id: subjectId, school_year_id: 'sy-1', section_id: null });
+      repo.findStudentAcademicStructure.mockResolvedValue({ programId: 'prog-1' });
+      repo.findDuplicate.mockResolvedValue(null);
+      repo.findByStudent.mockResolvedValue(null);
+      repo.countActive.mockResolvedValue(0);
+      repo.create.mockResolvedValue({ id: 'enr-1', status: 'active' });
+
+      const enrollRes = await realEnrollmentService.enroll(classId, subjectId, semesterId, 30, studentId, orgId);
+      expect(enrollRes).toEqual({ id: 'enr-1', status: 'active' });
+
+      // Ensure UI batch result and enroll() result always agree
+      expect(uiVerdict?.eligible).toBe(checkResult.eligible);
+    });
+
+    it('pending override or no grade blocks checkEligibility and enroll', async () => {
+      const realPrereqRepo = {
+        getPrerequisitesWithGradesForSubjects: jest.fn().mockResolvedValue(
+          new Map([
+            [
+              subjectId,
+              [
+                {
+                  subject_id: 'pre-1',
+                  subject_name: 'Math',
+                  grade: null,
+                },
+              ],
+            ],
+          ]),
+        ),
+      };
+      // For pending override, DB query filtering for status: 'completed' yields empty array
+      const realDbPending = {
+        subjectCompletionOverride: {
+          findMany: jest.fn().mockImplementation(async ({ where }: any) => {
+            if (where.status === 'completed') return [];
+            return [{ student_id: studentId, subject_id: 'pre-1', status: 'pending' }];
+          }),
+        },
+      };
+      const realPrereqServicePending = new SubjectPrerequisiteService(
+        realPrereqRepo as any,
+        { findByClassId: jest.fn() } as any,
+        realDbPending as any,
+      );
+      const realEnrollmentServicePending = new EnrollmentService(repo, realPrereqServicePending, realDbPending as any);
+
+      // Pending override -> blocked
+      const checkPending = await realEnrollmentServicePending.checkEligibility(subjectId, studentId, orgId);
+      expect(checkPending.eligible).toBe(false);
+      expect(checkPending.missing[0].reason).toBe('not_taken');
+
+      repo.findClassEnrollmentContext.mockResolvedValue({ subject_id: subjectId, school_year_id: 'sy-1', section_id: null });
+      repo.findStudentAcademicStructure.mockResolvedValue({ programId: 'prog-1' });
+
+      await expect(
+        realEnrollmentServicePending.enroll(classId, subjectId, semesterId, 30, studentId, orgId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      // No override -> blocked
+      const realDbNoOverride = {
+        subjectCompletionOverride: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      };
+      const realPrereqServiceNoOverride = new SubjectPrerequisiteService(
+        realPrereqRepo as any,
+        { findByClassId: jest.fn() } as any,
+        realDbNoOverride as any,
+      );
+      const realEnrollmentServiceNoOverride = new EnrollmentService(repo, realPrereqServiceNoOverride, realDbNoOverride as any);
+
+      const checkNoOverride = await realEnrollmentServiceNoOverride.checkEligibility(subjectId, studentId, orgId);
+      expect(checkNoOverride.eligible).toBe(false);
+
+      await expect(
+        realEnrollmentServiceNoOverride.enroll(classId, subjectId, semesterId, 30, studentId, orgId),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });
