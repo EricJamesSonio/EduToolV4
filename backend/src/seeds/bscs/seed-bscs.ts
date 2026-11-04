@@ -1901,6 +1901,71 @@ async function closeEndedSemesterEnrollments(
   });
   return result.count;
 }
+const ensureCalendar = async (
+  orgId: string,
+  schoolYearId: string,
+  programId: string,
+  syStart: Date | null,
+  syEnd: Date | null,
+): Promise<SemesterWindows> => {
+  const windows = await ensureCalendarBase(
+    orgId,
+    schoolYearId,
+    programId,
+    syStart,
+    syEnd,
+  );
+
+  const calendar = await db.programCalendar.findFirst({
+    where: { program_id: programId, school_year_id: schoolYearId },
+    include: { breaks: true },
+  });
+  if (!calendar) return windows;
+
+  const labels = calendar.breaks.map((b) => b.label);
+  if (labels.includes('Sem 1') && labels.includes('Sem 2')) return windows;
+
+  const breakStart = new Date(windows.sem1.end.getTime() + DAY_MS);
+  const breakEnd = new Date(windows.sem2.start.getTime() - DAY_MS);
+
+  const rows = [
+    {
+      org_id: orgId,
+      calendar_id: calendar.id,
+      label: 'Sem 1',
+      start_date: windows.sem1.start,
+      end_date: windows.sem1.end,
+      order_index: 1,
+    },
+    ...(breakStart.getTime() <= breakEnd.getTime()
+      ? [
+          {
+            org_id: orgId,
+            calendar_id: calendar.id,
+            label: 'Semester Break',
+            start_date: breakStart,
+            end_date: breakEnd,
+            order_index: 2,
+          },
+        ]
+      : []),
+    {
+      org_id: orgId,
+      calendar_id: calendar.id,
+      label: 'Sem 2',
+      start_date: windows.sem2.start,
+      end_date: windows.sem2.end,
+      order_index: 3,
+    },
+  ];
+
+  await db.programCalendarBreak.deleteMany({
+    where: { calendar_id: calendar.id },
+  });
+  await db.programCalendarBreak.createMany({ data: rows });
+
+  return windows;
+};
 async function main(): Promise<void> {
   console.log('\nSEED BSCS - START\n');
 
