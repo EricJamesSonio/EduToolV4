@@ -81,9 +81,21 @@ export default function StudentDetailPage({
     queryKeys.admin.schoolYears.list(),
     schoolYearApi.getAll,
   );
+  const enrollmentYearIds = new Set(
+    studentEnrollmentsToScheduleClasses(enrollmentsRaw ?? [])
+      .map((c) => c.schoolYearId)
+      .filter((v): v is string => !!v),
+  );
+
+  const flaggedActiveYearId =
+    schoolYears?.find((sy) => sy.status === "active")?.id ?? null;
 
   const activeSchoolYearId =
-    schoolYears?.find((sy) => sy.status === "active")?.id ??
+    (flaggedActiveYearId && enrollmentYearIds.has(flaggedActiveYearId)
+      ? flaggedActiveYearId
+      : null) ??
+    schoolYears?.find((sy) => enrollmentYearIds.has(sy.id))?.id ??
+    flaggedActiveYearId ??
     schoolYears?.[0]?.id ??
     null;
 
