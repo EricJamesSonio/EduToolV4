@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { TemplateViewer } from "@/components/admin/grade-template/TemplateViewer";
 import { cn } from "@/lib/utils";
 import {
   colLetter,
@@ -15,6 +16,8 @@ import {
 } from "@/api/grade-template.api";
 
 const LIMIT = 60;
+
+type Mode = "file" | "roles";
 
 function roleOf(
   col: number,
@@ -46,7 +49,7 @@ function roleOf(
   return null;
 }
 
-export function TemplatePreview({
+function RolesGrid({
   templateId,
   refreshKey,
 }: {
@@ -211,6 +214,48 @@ export function TemplatePreview({
             Next <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>
+      )}
+    </div>
+  );
+}
+
+export function TemplatePreview({
+  templateId,
+  refreshKey,
+}: {
+  templateId: string;
+  refreshKey: number;
+}): React.ReactElement {
+  const [mode, setMode] = useState<Mode>("file");
+
+  const modes: Array<{ id: Mode; label: string }> = [
+    { id: "file", label: "As uploaded" },
+    { id: "roles", label: "Detected columns" },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="inline-flex gap-1 rounded-lg border p-1">
+        {modes.map((m) => (
+          <button
+            key={m.id}
+            onClick={() => setMode(m.id)}
+            className={cn(
+              "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+              mode === m.id
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "file" ? (
+        <TemplateViewer templateId={templateId} refreshKey={refreshKey} />
+      ) : (
+        <RolesGrid templateId={templateId} refreshKey={refreshKey} />
       )}
     </div>
   );
