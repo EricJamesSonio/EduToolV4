@@ -16,13 +16,15 @@ import { SystemDomainModule } from './domains/system/system-domain.module';
 import { PlatformDomainModule } from './domains/platform/platform-domain.module';
 import { SchedulerModule } from './core/scheduler/scheduler.module';
 
-import { HealthModule } from './modules/health/health.module';import { UploadModule } from './modules/upload/upload.module';
+import { HealthModule } from './modules/health/health.module';
+import { UploadModule } from './modules/upload/upload.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { PublicModule } from './modules/public/public.module';
 import { EnrollmentPortalModule } from './modules/enrollment-portal/enrollment-portal.module';
 import { ConcernModule } from './modules/concern/concern.module';
 import { GroupyModule } from './modules/groupy/groupy.module';
+import { GradeTemplateModule } from './modules/grade-template/grade-template.module';
 import { RequestIdMiddleware } from './core/middleware/request-id.middleware';
 
 @Module({
@@ -65,6 +67,7 @@ import { RequestIdMiddleware } from './core/middleware/request-id.middleware';
     EnrollmentPortalModule,
     ConcernModule,
     GroupyModule,
+    GradeTemplateModule,
 
     HealthModule,
     UploadModule,
