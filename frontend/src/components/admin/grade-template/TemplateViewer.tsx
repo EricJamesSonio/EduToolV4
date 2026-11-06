@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { colLetter, readErrorMessage } from "@/api/grade-template.api";
+import { readErrorMessage } from "@/api/grade-template.api";
 import {
   gradeTemplateViewApi,
   type SheetView,
@@ -15,12 +14,8 @@ import {
 } from "@/api/grade-template-view.api";
 
 const FULL_LIMIT = 20000;
-const PAGED_LIMIT = 100;
 const GRID = "1px solid #e5e7eb";
-const GUTTER = 44;
-const ALL = "__all__";
 
-type Size = "full" | "paged";
 type Zoom = "fit" | "actual";
 
 // `spill` = the next cell is empty, so unwrapped text may run over it the way
@@ -56,17 +51,15 @@ function cellCss(
   };
 }
 
-// One sheet drawn at its natural size, scaled down to the width of its
-// container in "fit" mode. `bare` removes the frame so several sheets can be
-// stacked flush inside one shared frame.
+// One sheet drawn exactly as stored in the file: no added column letters or
+// row numbers and no height cap. "fit" scales the whole sheet to the page
+// width so every column is visible; "actual" shows 100% and scrolls sideways.
 function SheetGrid({
   data,
   zoom,
-  bare,
 }: {
   data: SheetView;
   zoom: Zoom;
-  bare?: boolean;
 }): React.ReactElement {
   const outer = useRef<HTMLDivElement>(null);
   const table = useRef<HTMLTableElement>(null);
@@ -75,7 +68,7 @@ function SheetGrid({
 
   const totalWidth = data.cols
     .filter((c) => !c.hidden)
-    .reduce((n, c) => n + c.w, GUTTER);
+    .reduce((n, c) => n + c.w, 0);
 
   useEffect(() => {
     const o = outer.current;
@@ -93,25 +86,22 @@ function SheetGrid({
   }, [data]);
 
   const scale =
-    zoom === "fit" && avail > 0 ? Math.min(1, avail / totalWidth) : 1;
+    zoom === "fit" && avail > 0 && totalWidth > 0
+      ? Math.min(1, avail / totalWidth)
+      : 1;
 
   return (
     <div
       ref={outer}
       className={cn(
-        "bg-white text-black",
-        !bare && "rounded-lg border",
-        zoom === "fit"
-          ? "overflow-hidden"
-          : bare
-            ? undefined
-            : "overflow-x-auto",
+        "rounded-lg border bg-white text-black",
+        zoom === "fit" ? "overflow-hidden" : "overflow-x-auto",
       )}
     >
       <div
         style={{
           width: totalWidth * scale,
-          height: tableH > 0 ? tableH * scale : undefined,
+          height: scale < 1 && tableH > 0 ? tableH * scale : undefined,
         }}
       >
         <table
@@ -125,48 +115,14 @@ function SheetGrid({
           }}
         >
           <colgroup>
-            <col style={{ width: GUTTER }} />
             {data.cols.map((c, i) =>
               c.hidden ? null : <col key={i} style={{ width: c.w }} />,
             )}
           </colgroup>
-          <thead>
-            <tr>
-              <th style={{ background: "#f3f4f6", border: GRID }} />
-              {data.cols.map((c, i) =>
-                c.hidden ? null : (
-                  <th
-                    key={i}
-                    style={{
-                      background: "#f3f4f6",
-                      border: GRID,
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: "#6b7280",
-                      padding: "2px 4px",
-                    }}
-                  >
-                    {colLetter(i + 1)}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
           <tbody>
             {data.rows.map((r) =>
               r.hidden ? null : (
                 <tr key={r.row} style={{ height: r.h ?? 20 }}>
-                  <td
-                    style={{
-                      background: "#f3f4f6",
-                      border: GRID,
-                      fontSize: 11,
-                      color: "#6b7280",
-                      textAlign: "center",
-                    }}
-                  >
-                    {r.row}
-                  </td>
                   {r.cells.map((cell, i) => {
                     if (data.cols[i]?.hidden || cell.skip) return null;
                     const next = r.cells[i + 1];
@@ -208,44 +164,46 @@ export function TemplateViewer({
   templateId: string;
   refreshKey: number;
 }): React.ReactElement {
-  const [views, setViews] = useState<SheetView[]>([]);
+  const [view, setView] = useState<SheetView | null>(null);
   const [sheetInfo, setSheetInfo] = useState<
     Array<{ name: string; rowCount: number }>
   >([]);
-  const [sheet, setSheet] = useState<string>(ALL);
-  const [offset, setOffset] = useState(0);
-  const [size, setSize] = useState<Size>("full");
+  // null = not chosen yet; the first load picks the biggest sheet.
+  const [sheet, setSheet] = useState<string | null>(null);
   const [zoom, setZoom] = useState<Zoom>("fit");
   const [loading, setLoading] = useState(false);
-  const [jump, setJump] = useState("");
   const requestId = useRef(0);
-
-  const isAll = sheet === ALL;
-  const limit = size === "full" ? FULL_LIMIT : PAGED_LIMIT;
 
   const load = useCallback(async () => {
     const mine = ++requestId.current;
     setLoading(true);
     try {
-      let nextViews: SheetView[];
-      let nextInfo: Array<{ name: string; rowCount: number }>;
-
-      if (isAll) {
-        nextViews = await gradeTemplateViewApi.viewAll(templateId, refreshKey);
-        nextInfo = nextViews[0]?.sheetInfo ?? [];
-      } else {
-        const v = await gradeTemplateViewApi.view(
+      if (sheet === null) {
+        // Cheap first call just to learn the sheet list, then open the
+        // largest sheet (the template itself).
+        const probe = await gradeTemplateViewApi.view(
           templateId,
-          { sheet, offset, limit },
+          { offset: 0, limit: 1 },
           refreshKey,
         );
-        nextInfo = v.sheetInfo;
-        nextViews = [v];
+        if (mine !== requestId.current) return;
+        setSheetInfo(probe.sheetInfo);
+        const biggest = probe.sheetInfo.reduce(
+          (best, s) => (s.rowCount > best.rowCount ? s : best),
+          probe.sheetInfo[0] ?? { name: probe.sheetName, rowCount: 0 },
+        );
+        setSheet(biggest.name);
+        return;
       }
 
+      const v = await gradeTemplateViewApi.view(
+        templateId,
+        { sheet, offset: 0, limit: FULL_LIMIT },
+        refreshKey,
+      );
       if (mine !== requestId.current) return;
-      setSheetInfo(nextInfo);
-      setViews(nextViews);
+      setSheetInfo(v.sheetInfo);
+      setView(v);
     } catch (err) {
       if (mine === requestId.current) {
         toast.error(await readErrorMessage(err));
@@ -253,23 +211,13 @@ export function TemplateViewer({
     } finally {
       if (mine === requestId.current) setLoading(false);
     }
-  }, [templateId, sheet, offset, limit, isAll, refreshKey]);
+  }, [templateId, sheet, refreshKey]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const single = !isAll && views.length === 1 ? views[0] : null;
-  const truncated = isAll ? views.filter((v) => v.rowCount > v.last) : [];
-
-  const goTo = () => {
-    const n = Number(jump);
-    if (!Number.isInteger(n) || n < 1 || !single) return;
-    setOffset(Math.floor((Math.min(n, single.rowCount) - 1) / limit) * limit);
-    setJump("");
-  };
-
-  const needsPaging = !!single && single.rowCount > limit;
+  const truncated = !!view && view.rowCount > view.last;
 
   const tabClass = (active: boolean) =>
     cn(
@@ -290,24 +238,10 @@ export function TemplateViewer({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {sheetInfo.length > 0 && (
-          <button
-            onClick={() => {
-              setSheet(ALL);
-              setOffset(0);
-            }}
-            className={tabClass(isAll)}
-          >
-            All sheets
-          </button>
-        )}
         {sheetInfo.map((s) => (
           <button
             key={s.name}
-            onClick={() => {
-              setSheet(s.name);
-              setOffset(0);
-            }}
+            onClick={() => setSheet(s.name)}
             className={tabClass(sheet === s.name)}
           >
             {s.name}{" "}
@@ -316,43 +250,19 @@ export function TemplateViewer({
         ))}
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="inline-flex gap-1 rounded-lg border bg-background p-1">
-            <button
-              onClick={() => setZoom("fit")}
-              className={toggleClass(zoom === "fit")}
-            >
-              Fit to width
-            </button>
-            <button
-              onClick={() => setZoom("actual")}
-              className={toggleClass(zoom === "actual")}
-            >
-              100%
-            </button>
-          </div>
-
-          {!isAll && (
-            <div className="inline-flex gap-1 rounded-lg border bg-background p-1">
-              {(
-                [
-                  ["full", "Full sheet"],
-                  ["paged", `Paged (${PAGED_LIMIT} rows)`],
-                ] as Array<[Size, string]>
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => {
-                    setSize(id);
-                    setOffset(0);
-                  }}
-                  className={toggleClass(size === id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="ml-auto inline-flex gap-1 rounded-lg border bg-background p-1">
+          <button
+            onClick={() => setZoom("fit")}
+            className={toggleClass(zoom === "fit")}
+          >
+            Fit to width
+          </button>
+          <button
+            onClick={() => setZoom("actual")}
+            className={toggleClass(zoom === "actual")}
+          >
+            100%
+          </button>
         </div>
       </div>
 
@@ -360,70 +270,17 @@ export function TemplateViewer({
         The uploaded workbook as it was saved. Logos and images are not shown
         here but stay in the file.
         {zoom === "fit"
-          ? " Scaled to fit the page; choose 100% to read at actual size."
+          ? " Scaled so every column fits the page; choose 100% to read at actual size."
           : " Shown at actual size; scroll sideways for wide sheets."}
       </p>
 
-      {truncated.length > 0 && (
+      {truncated && view && (
         <p className="text-xs text-amber-600">
-          {truncated.map((v) => `${v.sheetName} (first ${v.last} of ${v.rowCount} rows)`).join(", ")}{" "}
-          is cut at the row limit. Open that sheet on its own to read the rest.
+          Showing the first {view.last} of {view.rowCount} rows (row limit).
         </p>
       )}
 
-      {isAll && views.length > 0 && (
-        <div
-          className={cn(
-            "overflow-hidden rounded-lg border bg-white",
-            zoom === "actual" && "overflow-x-auto",
-          )}
-        >
-          {views.map((v) => (
-            <SheetGrid key={v.sheetName} data={v} zoom={zoom} bare />
-          ))}
-        </div>
-      )}
-
-      {single && <SheetGrid data={single} zoom={zoom} />}
-
-      {single && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            Rows {single.first}-{single.last} of {single.rowCount}
-          </span>
-          {needsPaging && (
-            <>
-              <input
-                className="w-24 rounded-md border bg-background px-2 py-1 text-xs"
-                placeholder="Go to row"
-                value={jump}
-                onChange={(e) => setJump(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") goTo();
-                }}
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                className="ml-auto gap-1"
-                disabled={offset === 0 || loading}
-                onClick={() => setOffset(Math.max(0, offset - limit))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" /> Prev
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1"
-                disabled={offset + limit >= single.rowCount || loading}
-                onClick={() => setOffset(offset + limit)}
-              >
-                Next <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          )}
-        </div>
-      )}
+      {view && <SheetGrid key={view.sheetName} data={view} zoom={zoom} />}
     </div>
   );
 }

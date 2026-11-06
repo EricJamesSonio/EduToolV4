@@ -65,7 +65,7 @@ function EducatorDetailPageInner(): React.JSX.Element {
   // Semesters of the selected year only (both queries are year-scoped
   // server-side). Grouped rows carry program labels; dated rows drive the
   // today-default. The same physical row can sit under several programs, so
-  // options are deduped by semester id — it filters as one semester anyway.
+  // options are deduped by semester id - it filters as one semester anyway.
   const { data: datedSemestersRaw } = useSemestersByYear(schoolYearId);
   const { data: groupedRaw, isLoading: groupedLoading } = useAsyncQuery(
     queryKeys.admin.programs.semestersGrouped(schoolYearId ?? null),
@@ -102,7 +102,7 @@ function EducatorDetailPageInner(): React.JSX.Element {
   const semesterParam = semesterId !== ALL_SEMESTERS ? semesterId : undefined;
 
   // Keep the URL in sync (replace, no scroll, no history spam). The compare
-  // guards the replace → searchParams-change → effect loop.
+  // guards the replace -> searchParams-change -> effect loop.
   useEffect(() => {
     if (!schoolYearId) return;
     const params = new URLSearchParams();
@@ -116,7 +116,7 @@ function EducatorDetailPageInner(): React.JSX.Element {
 
   const handleSelectYear = (yearId: string) => {
     setSelectedSchoolYearId(yearId);
-    // Changing year invalidates whatever semester was selected — follow the
+    // Changing year invalidates whatever semester was selected - follow the
     // new year's default instead of pointing at a stale id.
     setSemesterOverride(null);
   };
@@ -129,7 +129,7 @@ function EducatorDetailPageInner(): React.JSX.Element {
   } | null>(null);
 
   const { data: educator, isLoading } = useEducator(id);
-    const [tab, setTab] = useState<"subjects" | "classes">("classes");
+  const [tab, setTab] = useState<"subjects" | "classes">("classes");
   // Global tab count: the Subjects tab never changes with the selectors.
   const { data: teachableSubjects } = useTeachableSubjects(id);
   const { data: assignedClasses } = useAsyncQuery(
@@ -208,19 +208,6 @@ function EducatorDetailPageInner(): React.JSX.Element {
         ]}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <SchoolYearSelector
-              schoolYears={schoolYears}
-              isLoading={schoolYearsLoading}
-              selectedId={schoolYearId ?? null}
-              onSelect={handleSelectYear}
-            />
-            <SemesterSelector
-              options={semesterOptions}
-              isLoading={groupedLoading}
-              selectedId={semesterId}
-              onSelect={setSemesterOverride}
-              disabled={!schoolYearId}
-            />
             <Button
               variant="outline"
               size="sm"
@@ -264,6 +251,27 @@ function EducatorDetailPageInner(): React.JSX.Element {
 
       {/* Assignments: subjects and classes */}
       <div className="rounded-lg border bg-card p-5">
+        {/* Filter bar: side by side on desktop, stacked on mobile */}
+        <div className="mb-4 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="w-full sm:w-auto">
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={schoolYearsLoading}
+              selectedId={schoolYearId ?? null}
+              onSelect={handleSelectYear}
+            />
+          </div>
+          <div className="w-full sm:w-auto">
+            <SemesterSelector
+              options={semesterOptions}
+              isLoading={groupedLoading}
+              selectedId={semesterId}
+              onSelect={setSemesterOverride}
+              disabled={!schoolYearId}
+            />
+          </div>
+        </div>
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as "subjects" | "classes")}>
           <TabsList>
             <TabsTrigger value="classes" className="px-3">
