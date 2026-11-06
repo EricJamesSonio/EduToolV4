@@ -22,4 +22,11 @@ export class GradeTemplateViewController {
   ) {
     return this.service.view(orgId, id, { sheet, offset, limit });
   }
+
+  // GET /grade-templates/:id/view-all
+  @Get(':id/view-all')
+  @Roles('admin')
+  viewAll(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
+    return this.service.viewAll(orgId, id);
+  }
 }
