@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -20,12 +21,45 @@ import {
 
 @Injectable()
 export class AttendanceService {
+  private readonly logger = new Logger(AttendanceService.name);
+
+  // Guards against two simultaneous first-opens creating duplicate sessions
+  // (attendance sessions have no unique key on class + date).
+  private readonly inflightGeneration = new Map<string, Promise<void>>();
+
   constructor(
     private readonly db: DatabaseService,
     private readonly attendanceRepo: AttendanceRepository,
     private readonly auditLog: AuditLogService,
     private readonly lessonService: LessonService,
   ) {}
+
+  // =========================================================
+  // ENSURE SESSIONS EXIST (lazy auto-generation)
+  // =========================================================
+  private async ensureSessions(classId: string, orgId: string): Promise<void> {
+    const existing = await this.attendanceRepo.findSessionsByClass(classId);
+    if (existing.length > 0) return;
+
+    let pending = this.inflightGeneration.get(classId);
+
+    if (!pending) {
+      pending = this.generateSessionsForClass(classId, orgId)
+        .catch((err: unknown) => {
+          this.logger.warn(
+            `Auto-generation of attendance sessions failed for class ${classId}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        })
+        .finally(() => {
+          this.inflightGeneration.delete(classId);
+        });
+      this.inflightGeneration.set(classId, pending);
+    }
+
+    await pending;
+  }
 
   // =========================================================
   // 🔥 MAIN FIXED GENERATOR (SYNCED WITH LESSON LOGIC)
@@ -230,6 +264,10 @@ export class AttendanceService {
   async getAttendanceGrid(classId: string, orgId: string) {
     await this.assertClassExists(classId, orgId);
 
+    // Sessions are built automatically from the program's term dates and the
+    // class schedule days; no need to visit the Lessons page first.
+    await this.ensureSessions(classId, orgId);
+
     // All enrolled students
     const enrollments = await this.db.enrollment.findMany({
       where: { class_id: classId, status: 'active' },
@@ -289,6 +327,8 @@ export class AttendanceService {
   // =========================================================
   async getSessions(classId: string, orgId: string, weekNumber?: number) {
     await this.assertClassExists(classId, orgId);
+
+    await this.ensureSessions(classId, orgId);
 
     const sessions = await this.attendanceRepo.findSessionsByClass(
       classId,

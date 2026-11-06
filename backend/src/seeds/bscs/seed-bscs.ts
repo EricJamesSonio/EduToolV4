@@ -16,43 +16,45 @@ import {
 import { seedId } from '../../modules/org-seeder/seed-id';
 import { SCALE_COLLEGE } from '../../modules/org-seeder/data/grading-scale.data';
 import { SCHEME_PRESETS } from '../../modules/org-seeder/data/grading-schemes.data';
-import { hhmmToScheduleDate } from '../../commons/utils/schedule-time.util';
+import {
+  hhmmToScheduleDate,
+  scheduleDateToMinutes,
+} from '../../commons/utils/schedule-time.util';
+import { ensureSemesterBreakRows } from './calendar-breaks';
 
 import {
+  CLASS_DAYS,
   COLLEGE_SCALE_NAME,
   COURSE,
+  CURRICULUM,
   DEFAULT_STUDENT_SECTION,
   ENROLL_STUDENTS_IN_CLASSES,
+  FULL_BLOCKS,
+  HALF_BLOCKS,
   IRREGULAR_EXTRA_SECTIONS,
   IRREGULAR_RATE_PERCENT,
   IRREGULAR_STUDENTS,
   LEGACY_SECTION_NAMES,
+  MINOR_SUBJECT_CODES,
+  POSTED_TIMETABLE_SEMESTER,
   RAW_STUDENT_NAMES,
   REGULAR_STUDENTS,
+  ROOM_POOLS,
   SCHEDULES,
   SECTIONS,
+  SEEDED_TERMS,
   SEMESTER_BREAK_DAYS,
   SEMESTER_BREAK_LABEL,
   SEMESTER_NAMES,
   SEMESTER_TEMPLATE_NAME,
   SEMESTER_TERM_NAMES,
-  WEEKDAY_NUMBER,
-  type ScheduleDef,
-} from './bscs.data';
-import { scheduleDateToMinutes } from '../../commons/utils/schedule-time.util';
-import {
-  CLASS_DAYS,
-  CURRICULUM,
-  FULL_BLOCKS,
-  HALF_BLOCKS,
-  POSTED_TIMETABLE_SEMESTER,
-  ROOM_POOLS,
   STUDENT_SEMESTER,
+  WEEKDAY_NUMBER,
   type CurriculumSubject,
+  type ScheduleDef,
   type TermLabel,
+  type Weekday,
 } from './bscs.data';
-import { SEEDED_TERMS } from './bscs.data';
-import { MINOR_SUBJECT_CODES } from './bscs.data';
 
 type OrgInfo = {
   id: string;
@@ -82,7 +84,31 @@ type SeededSemester = {
   end: Date;
 };
 
+type DbClient = Prisma.TransactionClient;
+
+type ScheduleRules = {
+  startMin: number;
+  endMin: number;
+  slotMinutes: number;
+  activeWeekdays: number[];
+  breaks: { label: string; startMin: number; endMin: number }[];
+};
+
+type SlotRow = {
+  classId: string;
+  label: string;
+  semesterId: string;
+  educatorId: string;
+  sectionId: string | null;
+  roomId: string | null;
+  weekday: number;
+  start: number;
+  end: number;
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const TEMPLATE_INCLUDE = {
   semesters: {
@@ -125,6 +151,33 @@ function splitRange(range: DateRange, count: number): DateRange[] {
       range.start.getTime() + Math.floor((total * (i + 1)) / count),
     ),
   }));
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function formatMinutes(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function hashString(value: string): number {
+  let hash = 5381;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash * 33) ^ value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function overlaps(a: ScheduleDef, b: ScheduleDef): boolean {
+  if (a.day !== b.day) return false;
+  return (
+    toMinutes(a.start) < toMinutes(b.end) &&
+    toMinutes(b.start) < toMinutes(a.end)
+  );
 }
 
 async function resolveOrg(): Promise<OrgInfo | null> {
@@ -179,6 +232,77 @@ async function resolveSchoolYear(orgId: string) {
     );
   }
   return found;
+}
+
+async function loadScheduleRules(orgId: string): Promise<ScheduleRules> {
+  const cfg = await db.orgScheduleConfig.upsert({
+    where: { org_id: orgId },
+    update: {},
+    create: {
+      org_id: orgId,
+      start_time: '07:00',
+      end_time: '17:00',
+      slot_duration: 30,
+    },
+  });
+
+  const breaks: ScheduleRules['breaks'] = [];
+  if (Array.isArray(cfg.breaks)) {
+    for (const raw of cfg.breaks) {
+      if (typeof raw !== 'object' || raw === null) continue;
+      const item = raw as unknown as {
+        label?: unknown;
+        start?: unknown;
+        end?: unknown;
+      };
+      if (typeof item.start !== 'string' || typeof item.end !== 'string') {
+        continue;
+      }
+      breaks.push({
+        label: typeof item.label === 'string' ? item.label : 'Break',
+        startMin: toMinutes(item.start),
+        endMin: toMinutes(item.end),
+      });
+    }
+  }
+
+  return {
+    startMin: toMinutes(cfg.start_time),
+    endMin: toMinutes(cfg.end_time),
+    slotMinutes: cfg.slot_duration > 0 ? cfg.slot_duration : 30,
+    activeWeekdays: cfg.active_weekdays,
+    breaks,
+  };
+}
+
+function ruleViolation(
+  day: Weekday,
+  start: string,
+  end: string,
+  rules: ScheduleRules,
+): string | null {
+  const weekday = WEEKDAY_NUMBER[day];
+  const s = toMinutes(start);
+  const e = toMinutes(end);
+  if (s >= e) return 'end time is not after start time';
+  if (s < rules.startMin || e > rules.endMin) {
+    return `outside the school window ${formatMinutes(rules.startMin)}-${formatMinutes(rules.endMin)}`;
+  }
+  if (
+    (s - rules.startMin) % rules.slotMinutes !== 0 ||
+    (e - rules.startMin) % rules.slotMinutes !== 0
+  ) {
+    return `not on the ${rules.slotMinutes}-minute slot grid`;
+  }
+  if (
+    rules.activeWeekdays.length > 0 &&
+    !rules.activeWeekdays.includes(weekday)
+  ) {
+    return `the school does not hold classes on ${day}`;
+  }
+  const hit = rules.breaks.find((b) => s < b.endMin && e > b.startMin);
+  if (hit) return `overlaps the ${hit.label} break`;
+  return null;
 }
 
 async function ensureProgram(
@@ -365,22 +489,11 @@ async function ensureCalendar(
     });
   }
 
-  let semesterBreak = calendar.breaks[0];
-  if (!semesterBreak) {
-    const span = calendar.end_date.getTime() - calendar.start_date.getTime();
-    const mid = calendar.start_date.getTime() + span / 2;
-    const breakStart = new Date(Math.floor(mid / DAY_MS) * DAY_MS);
-    semesterBreak = await db.programCalendarBreak.create({
-      data: {
-        org_id: ctx.orgId,
-        calendar_id: calendar.id,
-        label: SEMESTER_BREAK_LABEL,
-        start_date: breakStart,
-        end_date: addDays(breakStart, SEMESTER_BREAK_DAYS - 1),
-        order_index: 1,
-      },
-    });
-  }
+  const semesterBreak = await ensureSemesterBreakRows(
+    calendar,
+    SEMESTER_BREAK_LABEL,
+    SEMESTER_BREAK_DAYS,
+  );
 
   return [
     {
@@ -774,6 +887,7 @@ function generateEntry(
   sectionName: string,
   semester: number,
   plan: ScheduleDef[],
+  rules: ScheduleRules,
   avoid: ScheduleDef[] = [],
 ): ScheduleDef {
   const blocks = subject.halfBlock ? HALF_BLOCKS : FULL_BLOCKS;
@@ -782,6 +896,7 @@ function generateEntry(
 
   for (const day of CLASS_DAYS) {
     for (const block of blocks) {
+      if (ruleViolation(day, block.start, block.end, rules)) continue;
       for (const instructor of subject.instructors) {
         for (const room of rooms) {
           candidates.push({
@@ -814,11 +929,11 @@ function generateEntry(
     return entry;
   }
   throw new Error(
-    `No conflict-free slot was found for ${subject.code} in ${sectionName} (semester ${semester}).`,
+    `No conflict-free slot was found for ${subject.code} in ${sectionName} (semester ${semester}) within the organization schedule rules.`,
   );
 }
 
-function buildTimetable(): ScheduleDef[] {
+function buildTimetable(rules: ScheduleRules): ScheduleDef[] {
   const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
   const plan: ScheduleDef[] = [];
   const extraCodes = new Set(Object.values(IRREGULAR_STUDENTS).flat());
@@ -857,20 +972,220 @@ function buildTimetable(): ScheduleDef[] {
                   IRREGULAR_EXTRA_SECTIONS.includes(e.section),
               )
             : [];
-        plan.push(generateEntry(subject, section.name, semester, plan, avoid));
+        plan.push(
+          generateEntry(subject, section.name, semester, plan, rules, avoid),
+        );
       }
     }
   }
   return plan;
 }
 
+function assertNoScheduleConflicts(
+  plan: ScheduleDef[],
+  rules: ScheduleRules,
+): void {
+  const problems: string[] = [];
+  const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
+  const sectionLevel = new Map(
+    SECTIONS.map((s) => [s.name, s.levelName] as const),
+  );
+  const seen = new Set<string>();
+
+  for (const e of plan) {
+    const label = `${e.section} ${e.subject} (semester ${e.semester})`;
+    const subject = byCode.get(e.subject);
+    if (!subject) {
+      problems.push(`${label}: unknown subject code`);
+      continue;
+    }
+    if (!sectionLevel.has(e.section)) {
+      problems.push(`${label}: unknown section`);
+    } else if (sectionLevel.get(e.section) !== subject.levelName) {
+      problems.push(`${label}: subject belongs to ${subject.levelName}`);
+    }
+    if (subject.term !== SEMESTER_NAMES[e.semester - 1]) {
+      problems.push(`${label}: subject is offered in ${subject.term}`);
+    }
+
+    const key = `${e.section}|${e.subject}|${e.semester}`;
+    if (seen.has(key)) problems.push(`${label}: scheduled twice`);
+    seen.add(key);
+
+    const violation = ruleViolation(e.day, e.start, e.end, rules);
+    if (violation) {
+      problems.push(`${label} on ${e.day} ${e.start}-${e.end}: ${violation}`);
+    }
+  }
+
+  for (let i = 0; i < plan.length; i++) {
+    for (let j = i + 1; j < plan.length; j++) {
+      const a = plan[i];
+      const b = plan[j];
+      const reasons = clashReasons(a, b);
+      if (reasons.length > 0) {
+        problems.push(
+          `semester ${a.semester} ${a.day} ${a.start}-${a.end} / ${b.start}-${b.end} (${reasons.join(', ')}): ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
+        );
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(
+      `Timetable has problems, nothing was seeded:\n  - ${problems.join('\n  - ')}`,
+    );
+  }
+}
+
+function findRowConflicts(
+  rows: SlotRow[],
+  mustInvolve?: Set<string>,
+): string[] {
+  const problems: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const a = rows[i];
+      const b = rows[j];
+      if (a.classId === b.classId) continue;
+      if (
+        mustInvolve &&
+        !mustInvolve.has(a.classId) &&
+        !mustInvolve.has(b.classId)
+      ) {
+        continue;
+      }
+      if (a.semesterId !== b.semesterId || a.weekday !== b.weekday) continue;
+      if (!(a.start < b.end && b.start < a.end)) continue;
+
+      const reasons: string[] = [];
+      if (a.educatorId === b.educatorId) reasons.push('same educator');
+      if (a.sectionId && a.sectionId === b.sectionId) {
+        reasons.push('same section');
+      }
+      if (a.roomId && a.roomId === b.roomId) reasons.push('same room');
+      if (reasons.length > 0) {
+        const day = WEEKDAY_LABELS[a.weekday] ?? `weekday ${a.weekday}`;
+        problems.push(
+          `${day} ${formatMinutes(a.start)}-${formatMinutes(a.end)} (${reasons.join(', ')}): ${a.label} and ${b.label}`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
+function classIdFor(
+  ctx: Ctx,
+  sectionId: string,
+  subjectId: string,
+  semesterId: string,
+): string {
+  return seedId(
+    'class',
+    'bscs-curriculum',
+    sectionId,
+    subjectId,
+    semesterId,
+    ctx.schoolYearId,
+    ctx.orgId,
+  );
+}
+
+async function assertPlanFitsDatabase(
+  ctx: Ctx,
+  plan: ScheduleDef[],
+  semesterIds: Record<number, string>,
+  sections: Record<string, { id: string; capacity: number }>,
+  subjectIds: Record<string, string>,
+  educatorIds: Record<string, string>,
+  roomIds: Record<string, string>,
+): Promise<void> {
+  const planned: SlotRow[] = plan.map((e) => {
+    const section = sections[e.section];
+    const subjectId = subjectIds[e.subject];
+    const semesterId = semesterIds[e.semester];
+    return {
+      classId: classIdFor(ctx, section.id, subjectId, semesterId),
+      label: `${e.section} ${e.subject}`,
+      semesterId,
+      educatorId: educatorIds[e.instructor],
+      sectionId: section.id,
+      roomId: e.room ? roomIds[e.room] : null,
+      weekday: WEEKDAY_NUMBER[e.day],
+      start: toMinutes(e.start),
+      end: toMinutes(e.end),
+    };
+  });
+
+  const ownSectionIds = Object.values(sections).map((s) => s.id);
+  const educatorList = Object.values(educatorIds);
+  const roomList = Object.values(roomIds);
+
+  const existing = await db.class.findMany({
+    where: {
+      org_id: ctx.orgId,
+      school_year_id: ctx.schoolYearId,
+      deleted_at: null,
+      AND: [
+        { OR: [{ section_id: null }, { section_id: { notIn: ownSectionIds } }] },
+        {
+          OR: [
+            { educator_id: { in: educatorList } },
+            { schedules: { some: { room_id: { in: roomList } } } },
+          ],
+        },
+      ],
+    },
+    select: {
+      id: true,
+      semester_id: true,
+      educator_id: true,
+      section_id: true,
+      subject: { select: { name: true } },
+      schedules: {
+        select: {
+          weekday: true,
+          start_time: true,
+          end_time: true,
+          room_id: true,
+        },
+      },
+    },
+  });
+
+  const existingRows: SlotRow[] = existing.flatMap((c) =>
+    c.schedules.map((s) => ({
+      classId: c.id,
+      label: `existing class ${c.subject.name}`,
+      semesterId: c.semester_id,
+      educatorId: c.educator_id,
+      sectionId: c.section_id,
+      roomId: s.room_id,
+      weekday: s.weekday,
+      start: scheduleDateToMinutes(s.start_time),
+      end: scheduleDateToMinutes(s.end_time),
+    })),
+  );
+
+  const own = new Set(planned.map((r) => r.classId));
+  const problems = findRowConflicts([...planned, ...existingRows], own);
+  if (problems.length > 0) {
+    throw new Error(
+      `The planned timetable conflicts with classes already in the database, no classes were written:\n  - ${problems.join('\n  - ')}`,
+    );
+  }
+}
+
 async function verifyNoDbConflicts(
+  client: DbClient,
   ctx: Ctx,
   educatorIds: string[],
   sectionIds: string[],
   roomIds: string[],
+  ownClassIds: Set<string>,
 ): Promise<void> {
-  const classes = await db.class.findMany({
+  const classes = await client.class.findMany({
     where: {
       org_id: ctx.orgId,
       school_year_id: ctx.schoolYearId,
@@ -898,7 +1213,7 @@ async function verifyNoDbConflicts(
     },
   });
 
-  const rows = classes.flatMap((c) =>
+  const rows: SlotRow[] = classes.flatMap((c) =>
     c.schedules.map((s) => ({
       classId: c.id,
       label: c.subject.name,
@@ -912,30 +1227,10 @@ async function verifyNoDbConflicts(
     })),
   );
 
-  const problems: string[] = [];
-  for (let i = 0; i < rows.length; i++) {
-    for (let j = i + 1; j < rows.length; j++) {
-      const a = rows[i];
-      const b = rows[j];
-      if (a.classId === b.classId) continue;
-      if (a.semesterId !== b.semesterId || a.weekday !== b.weekday) continue;
-      if (!(a.start < b.end && b.start < a.end)) continue;
-
-      const reasons: string[] = [];
-      if (a.educatorId === b.educatorId) reasons.push('same educator');
-      if (a.sectionId && a.sectionId === b.sectionId) reasons.push('same section');
-      if (a.roomId && a.roomId === b.roomId) reasons.push('same room');
-      if (reasons.length > 0) {
-        problems.push(
-          `weekday ${a.weekday} (${reasons.join(', ')}): ${a.label} and ${b.label}`,
-        );
-      }
-    }
-  }
-
+  const problems = findRowConflicts(rows, ownClassIds);
   if (problems.length > 0) {
     throw new Error(
-      `Schedule conflicts exist in the database, students were not seeded:\n  - ${problems.join('\n  - ')}`,
+      `Schedule conflicts found after writing classes, everything was rolled back:\n  - ${problems.join('\n  - ')}`,
     );
   }
 }
@@ -944,7 +1239,8 @@ async function seedPrerequisites(
   ctx: Ctx,
   subjectIds: Record<string, string>,
 ): Promise<number> {
-  const rows: { org_id: string; subject_id: string; prerequisite_id: string }[] = [];
+  const rows: { org_id: string; subject_id: string; prerequisite_id: string }[] =
+    [];
   for (const s of CURRICULUM) {
     if (!SEEDED_TERMS.includes(s.term)) continue;
     for (const pre of s.prerequisites) {
@@ -956,7 +1252,9 @@ async function seedPrerequisites(
     }
   }
 
-  const wanted = new Set(rows.map((r) => `${r.subject_id}|${r.prerequisite_id}`));
+  const wanted = new Set(
+    rows.map((r) => `${r.subject_id}|${r.prerequisite_id}`),
+  );
   const existing = await db.subjectPrerequisite.findMany({
     where: {
       org_id: ctx.orgId,
@@ -1064,6 +1362,7 @@ function assertPrerequisitesMet(
     );
   }
 }
+
 async function seedRooms(
   orgId: string,
   plan: ScheduleDef[],
@@ -1170,6 +1469,7 @@ async function retireUnseededSubject(
     }
   }
 }
+
 async function syncMinorSharing(
   ctx: Ctx,
   subjectId: string,
@@ -1196,6 +1496,7 @@ async function syncMinorSharing(
     await db.subjectSharing.delete({ where: { id: existing.id } });
   }
 }
+
 async function seedSubjects(
   ctx: Ctx,
   levelIds: Record<string, string>,
@@ -1289,6 +1590,7 @@ type StudentPlan = {
 };
 
 async function seedClasses(
+  client: DbClient,
   ctx: Ctx,
   semesterIds: Record<number, string>,
   sections: Record<string, { id: string; capacity: number }>,
@@ -1304,15 +1606,7 @@ async function seedClasses(
     const subjectId = subjectIds[e.subject];
     const semesterId = semesterIds[e.semester];
     const educatorId = educatorIds[e.instructor];
-    const classId = seedId(
-      'class',
-      'bscs-curriculum',
-      section.id,
-      subjectId,
-      semesterId,
-      ctx.schoolYearId,
-      ctx.orgId,
-    );
+    const classId = classIdFor(ctx, section.id, subjectId, semesterId);
 
     refs.push({ classId, sectionName: e.section, def: e });
 
@@ -1324,13 +1618,13 @@ async function seedClasses(
       room_id: e.room ? roomIds[e.room] : null,
     };
 
-    const existing = await db.class.findFirst({
+    const existing = await client.class.findFirst({
       where: { id: classId },
       select: { id: true },
     });
 
     if (existing) {
-      await db.class.update({
+      await client.class.update({
         where: { id: classId },
         data: {
           subject_id: subjectId,
@@ -1341,14 +1635,14 @@ async function seedClasses(
           deleted_at: null,
         },
       });
-      await db.classSchedule.deleteMany({ where: { class_id: classId } });
-      await db.classSchedule.create({
+      await client.classSchedule.deleteMany({ where: { class_id: classId } });
+      await client.classSchedule.create({
         data: { class_id: classId, ...schedule },
       });
       continue;
     }
 
-    await db.class.create({
+    await client.class.create({
       data: {
         id: classId,
         org_id: ctx.orgId,
@@ -1409,27 +1703,6 @@ function emailLocalPart(name: string): string {
   return normalizeKey(name)
     .replace(/[^a-z0-9]+/g, '.')
     .replace(/^\.|\.$/g, '');
-}
-
-function hashString(value: string): number {
-  let hash = 5381;
-  for (let i = 0; i < value.length; i++) {
-    hash = ((hash * 33) ^ value.charCodeAt(i)) >>> 0;
-  }
-  return hash;
-}
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function overlaps(a: ScheduleDef, b: ScheduleDef): boolean {
-  if (a.day !== b.day) return false;
-  return (
-    toMinutes(a.start) < toMinutes(b.end) &&
-    toMinutes(b.start) < toMinutes(a.end)
-  );
 }
 
 function pickRandomExtras(
@@ -1538,9 +1811,7 @@ async function seedStudents(
   sectionId: string,
   plans: Map<string, StudentPlan>,
   allClassIds: string[],
-  passwordHash: string
-
-,
+  passwordHash: string,
   credits: Map<string, { taken: string[]; credited: string[] }>,
   subjectIds: Record<string, string>,
 ): Promise<{
@@ -1724,71 +1995,14 @@ async function seedStudents(
   return { created, reused, classEnrollments, creditsAdded };
 }
 
-function assertNoScheduleConflicts(plan: ScheduleDef[]): void {
-  const problems: string[] = [];
-  const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
-  const sectionLevel = new Map(SECTIONS.map((s) => [s.name, s.levelName] as const));
-  const seen = new Set<string>();
-
-  for (const e of plan) {
-    const label = `${e.section} ${e.subject} (semester ${e.semester})`;
-    const subject = byCode.get(e.subject);
-    if (!subject) {
-      problems.push(`${label}: unknown subject code`);
-      continue;
-    }
-    if (!sectionLevel.has(e.section)) {
-      problems.push(`${label}: unknown section`);
-    } else if (sectionLevel.get(e.section) !== subject.levelName) {
-      problems.push(`${label}: subject belongs to ${subject.levelName}`);
-    }
-    if (subject.term !== SEMESTER_NAMES[e.semester - 1]) {
-      problems.push(`${label}: subject is offered in ${subject.term}`);
-    }
-
-    const key = `${e.section}|${e.subject}|${e.semester}`;
-    if (seen.has(key)) problems.push(`${label}: scheduled twice`);
-    seen.add(key);
-
-    const start = toMinutes(e.start);
-    const end = toMinutes(e.end);
-    if (start >= end) {
-      problems.push(`${label}: end time is not after start time`);
-    }
-    if (start < 7 * 60 || end > 17 * 60 || start % 30 !== 0 || end % 30 !== 0) {
-      problems.push(
-        `${label}: outside the 07:00-17:00 school window or the 30-minute grid`,
-      );
-    }
-  }
-
-  for (let i = 0; i < plan.length; i++) {
-    for (let j = i + 1; j < plan.length; j++) {
-      const a = plan[i];
-      const b = plan[j];
-      const reasons = clashReasons(a, b);
-      if (reasons.length > 0) {
-        problems.push(
-          `semester ${a.semester} ${a.day} ${a.start}-${a.end} / ${b.start}-${b.end} (${reasons.join(', ')}): ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
-        );
-      }
-    }
-  }
-
-  if (problems.length > 0) {
-    throw new Error(
-      `Timetable has problems, nothing was seeded:\n  - ${problems.join('\n  - ')}`,
-    );
-  }
-}
-
 async function retireStaleClasses(
+  client: DbClient,
   ctx: Ctx,
   sections: Record<string, { id: string; capacity: number }>,
   keepClassIds: string[],
 ): Promise<number> {
   const sectionIds = Object.values(sections).map((s) => s.id);
-  const stale = await db.class.findMany({
+  const stale = await client.class.findMany({
     where: {
       org_id: ctx.orgId,
       school_year_id: ctx.schoolYearId,
@@ -1801,10 +2015,10 @@ async function retireStaleClasses(
   if (stale.length === 0) return 0;
 
   const staleIds = stale.map((c) => c.id);
-  await db.enrollment.deleteMany({
+  await client.enrollment.deleteMany({
     where: { org_id: ctx.orgId, class_id: { in: staleIds } },
   });
-  await db.class.updateMany({
+  await client.class.updateMany({
     where: { id: { in: staleIds } },
     data: { deleted_at: new Date() },
   });
@@ -1822,7 +2036,9 @@ function assertSemesterOpenForEnrollment(
 ): void {
   const current = semesters[target - 1];
   if (!current) {
-    throw new Error(`Semester ${target} does not exist, students were not enrolled.`);
+    throw new Error(
+      `Semester ${target} does not exist, students were not enrolled.`,
+    );
   }
   if (current.end.getTime() < now.getTime()) {
     throw new Error(
@@ -1860,7 +2076,10 @@ function assertStudentPlans(
     }
     for (let i = 0; i < defs.length; i++) {
       for (let j = i + 1; j < defs.length; j++) {
-        if (defs[i].semester === defs[j].semester && overlaps(defs[i], defs[j])) {
+        if (
+          defs[i].semester === defs[j].semester &&
+          overlaps(defs[i], defs[j])
+        ) {
           problems.push(
             `${name}: ${defs[i].subject} overlaps ${defs[j].subject} on ${defs[i].day}`,
           );
@@ -1901,83 +2120,11 @@ async function closeEndedSemesterEnrollments(
   });
   return result.count;
 }
-const ensureCalendar = async (
-  orgId: string,
-  schoolYearId: string,
-  programId: string,
-  syStart: Date | null,
-  syEnd: Date | null,
-): Promise<SemesterWindows> => {
-  const windows = await ensureCalendarBase(
-    orgId,
-    schoolYearId,
-    programId,
-    syStart,
-    syEnd,
-  );
 
-  const calendar = await db.programCalendar.findFirst({
-    where: { program_id: programId, school_year_id: schoolYearId },
-    include: { breaks: true },
-  });
-  if (!calendar) return windows;
-
-  const labels = calendar.breaks.map((b) => b.label);
-  if (labels.includes('Sem 1') && labels.includes('Sem 2')) return windows;
-
-  const breakStart = new Date(windows.sem1.end.getTime() + DAY_MS);
-  const breakEnd = new Date(windows.sem2.start.getTime() - DAY_MS);
-
-  const rows = [
-    {
-      org_id: orgId,
-      calendar_id: calendar.id,
-      label: 'Sem 1',
-      start_date: windows.sem1.start,
-      end_date: windows.sem1.end,
-      order_index: 1,
-    },
-    ...(breakStart.getTime() <= breakEnd.getTime()
-      ? [
-          {
-            org_id: orgId,
-            calendar_id: calendar.id,
-            label: 'Semester Break',
-            start_date: breakStart,
-            end_date: breakEnd,
-            order_index: 2,
-          },
-        ]
-      : []),
-    {
-      org_id: orgId,
-      calendar_id: calendar.id,
-      label: 'Sem 2',
-      start_date: windows.sem2.start,
-      end_date: windows.sem2.end,
-      order_index: 3,
-    },
-  ];
-
-  await db.programCalendarBreak.deleteMany({
-    where: { calendar_id: calendar.id },
-  });
-  await db.programCalendarBreak.createMany({ data: rows });
-
-  return windows;
-};
 async function main(): Promise<void> {
   console.log('\nSEED BSCS - START\n');
 
   validateCurriculum();
-  const timetable = buildTimetable();
-  assertNoScheduleConflicts(timetable);
-  console.log(
-    `  curriculum   : ${CURRICULUM.length} subjects, prerequisites verified`,
-  );
-  console.log(
-    `  timetable    : ${timetable.length} classes planned, no schedule conflicts`,
-  );
 
   const studentSection =
     readOption('section', 'BSCS_STUDENT_SECTION') ?? DEFAULT_STUDENT_SECTION;
@@ -1998,6 +2145,20 @@ async function main(): Promise<void> {
   console.log(`  organization : ${describeOrg(org)}`);
   console.log(`  school year  : ${schoolYear.name} (${schoolYear.status})`);
 
+  const rules = await loadScheduleRules(org.id);
+  console.log(
+    `  schedule     : ${formatMinutes(rules.startMin)}-${formatMinutes(rules.endMin)}, ${rules.slotMinutes}-min slots, ${rules.breaks.length} break(s)`,
+  );
+
+  const timetable = buildTimetable(rules);
+  assertNoScheduleConflicts(timetable, rules);
+  console.log(
+    `  curriculum   : ${CURRICULUM.length} subjects, prerequisites verified`,
+  );
+  console.log(
+    `  timetable    : ${timetable.length} classes planned, no schedule conflicts`,
+  );
+
   const syStart = schoolYear.start_date as Date;
   const syEnd = schoolYear.end_date ?? addDays(syStart, 300);
 
@@ -2006,17 +2167,6 @@ async function main(): Promise<void> {
 
   const programId = await ensureProgram(org.id, schoolYear.id);
   const courseId = await ensureCourse(org.id, schoolYear.id, programId);
-
-  await db.orgScheduleConfig.upsert({
-    where: { org_id: org.id },
-    update: {},
-    create: {
-      org_id: org.id,
-      start_time: '07:00',
-      end_time: '17:00',
-      slot_duration: 30,
-    },
-  });
 
   const ctx: Ctx = {
     orgId: org.id,
@@ -2046,6 +2196,13 @@ async function main(): Promise<void> {
   console.log(`  sections     : ${Object.keys(sections).length}`);
 
   const semesterRanges = await ensureCalendar(ctx, syStart, syEnd);
+  for (const range of semesterRanges) {
+    if (range.start.getTime() > range.end.getTime()) {
+      throw new Error(
+        `Calendar produced an invalid semester range (${formatDay(range.start)} -> ${formatDay(range.end)}). Check the semester break.`,
+      );
+    }
+  }
   console.log('  calendar     : 2 semesters with 1 semester break');
 
   const semesters = await ensureSemesters(ctx, semesterRanges);
@@ -2058,7 +2215,7 @@ async function main(): Promise<void> {
   };
   for (const s of semesters) {
     console.log(
-      `  semester     : ${s.name} (${s.start.toISOString().slice(0, 10)} -> ${s.end.toISOString().slice(0, 10)})`,
+      `  semester     : ${s.name} (${formatDay(s.start)} -> ${formatDay(s.end)})`,
     );
   }
 
@@ -2096,34 +2253,59 @@ async function main(): Promise<void> {
   );
   console.log(`  teachable    : ${teachable} educator-subject links`);
 
-  const classRefs = await seedClasses(
+  await assertPlanFitsDatabase(
     ctx,
+    timetable,
     semesterIds,
     sections,
     subjectIds,
     educatorIds,
     roomIds,
-    timetable,
   );
+  console.log('  conflicts    : planned timetable fits the existing database');
+
+  const sectionIdList = Object.values(sections).map((s) => s.id);
+  const classResult = await db.$transaction(
+    async (tx) => {
+      const refs = await seedClasses(
+        tx,
+        ctx,
+        semesterIds,
+        sections,
+        subjectIds,
+        educatorIds,
+        roomIds,
+        timetable,
+      );
+      const keepIds = refs.map((r) => r.classId);
+      const retiredCount = await retireStaleClasses(
+        tx,
+        ctx,
+        sections,
+        keepIds,
+      );
+      await verifyNoDbConflicts(
+        tx,
+        ctx,
+        Object.values(educatorIds),
+        sectionIdList,
+        Object.values(roomIds),
+        new Set(keepIds),
+      );
+      return { refs, retiredCount };
+    },
+    { timeout: 180000, maxWait: 20000 },
+  );
+
+  const classRefs = classResult.refs;
   console.log(
     `  classes      : ${classRefs.length} (1st sem ${classRefs.filter((r) => r.def.semester === 1).length}, 2nd sem ${classRefs.filter((r) => r.def.semester === 2).length})`,
   );
-
-  const retired = await retireStaleClasses(
-    ctx,
-    sections,
-    classRefs.map((r) => r.classId),
-  );
-  if (retired > 0) {
-    console.log(`  retired      : ${retired} old class(es) no longer in the timetable`);
+  if (classResult.retiredCount > 0) {
+    console.log(
+      `  retired      : ${classResult.retiredCount} old class(es) no longer in the timetable`,
+    );
   }
-
-  await verifyNoDbConflicts(
-    ctx,
-    Object.values(educatorIds),
-    Object.values(sections).map((s) => s.id),
-    Object.values(roomIds),
-  );
   console.log('  conflicts    : none in the database');
 
   const schemesCreated = await ensureClassGradingSchemes(
