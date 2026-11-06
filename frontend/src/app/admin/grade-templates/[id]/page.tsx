@@ -183,54 +183,75 @@ export default function GradeTemplateDetailPage(): React.ReactElement {
         }
       />
 
-      <div className="flex gap-1 border-b">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors",
-              tab === t.id
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "sheet" && (
-        <TemplatePreview templateId={template.id} refreshKey={mapVersion} />
-      )}
-
-      {tab === "map" && (
-        <div className="space-y-3">
-          <p className="text-xs text-amber-600">
-            Change the mapping before educators send their grades. Grades
-            already written stay where they are until an educator sends again.
-          </p>
-          <TemplateMapper
-            templateId={template.id}
-            onSaved={(a) => {
-              setAnalysis(a);
-              setMapVersion((v) => v + 1);
-            }}
-          />
+      <div className="rounded-xl border bg-card shadow-sm">
+        <div className="flex gap-1 border-b px-3 pt-2">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+                tab === t.id
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-      )}
 
-      {tab === "progress" && (
-        <div className="space-y-4">
-          {progressLoading && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading...
+        <div className="space-y-4 p-4 sm:p-5">
+          {tab === "sheet" && (
+            <TemplatePreview templateId={template.id} refreshKey={mapVersion} />
+          )}
+
+          {tab === "map" && (
+            <div className="space-y-3">
+              <p className="text-xs text-amber-600">
+                Change the mapping before educators send their grades. Grades
+                already written stay where they are until an educator sends
+                again.
+              </p>
+              <TemplateMapper
+                templateId={template.id}
+                onSaved={(a) => {
+                  setAnalysis(a);
+                  setMapVersion((v) => v + 1);
+                }}
+              />
             </div>
           )}
-          {progress && <ProgressPanel progress={progress} />}
-          {analysis && <AnalysisView analysis={analysis} />}
+
+          {tab === "progress" && (
+            <div className="space-y-4">
+              {progressLoading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading...
+                </div>
+              )}
+              {progress && <ProgressPanel progress={progress} />}
+              {analysis && <AnalysisView analysis={analysis} />}
+            </div>
+          )}
         </div>
-      )}
+      </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete template"
+        destructive
+        message={
+          <span>
+            Delete &quot;{template.name}&quot; and all grades collected in it?
+            Download the master first if you still need it.
+          </span>
+        }
+        confirmLabel={deleting ? "Deleting..." : "Delete"}
+        onConfirm={handleDelete}
+        isLoading={deleting}
+      />
     </div>
   );
 }
