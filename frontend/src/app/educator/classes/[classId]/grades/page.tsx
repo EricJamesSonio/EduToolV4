@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Lock, Loader2, RefreshCw,
-  LayoutGrid, List, Clock, Unlock, Users,
+  LayoutGrid, List, Clock, Unlock, Users, FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -168,6 +168,12 @@ export default function GradesPage() {
               <Button size="sm" variant="outline" className="gap-1.5">
                 <Users className="h-3.5 w-3.5" />
                 View Grades
+              </Button>
+            </Link>
+            <Link href="/educator/grade-templates">
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Grade Templates
               </Button>
             </Link>
             {!isClassLocked && (
