@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,6 +20,10 @@ import {
 const FIELD =
   "w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary";
 
+const MAX_SLOTS = 20;
+
+type SlotKey = "nameCols" | "subjectCols" | "termSlots";
+
 // 0 means "not used" in every column slot.
 interface Draft {
   headerRow: number;
@@ -36,7 +40,7 @@ function emptyDraft(headerRow: number): Draft {
   return {
     headerRow,
     idCol: 0,
-    nameCols: [],
+    nameCols: [0],
     subjectCols: [],
     termSlots: [],
     finalCol: 0,
@@ -48,26 +52,41 @@ function emptyDraft(headerRow: number): Draft {
 function toDraft(m: SheetMapping | null, headerRow: number): Draft {
   if (!m) return emptyDraft(headerRow);
   const max = m.termCols.reduce((n, t) => Math.max(n, t.termIndex), 0);
-  const slots = Array.from({ length: max }, () => 0);
-  for (const t of m.termCols) slots[t.termIndex - 1] = t.col;
+  const termSlots = Array.from({ length: max }, () => 0);
+  for (const t of m.termCols) termSlots[t.termIndex - 1] = t.col;
   return {
     headerRow: m.headerRow,
     idCol: m.idCol ?? 0,
-    nameCols: m.nameCols,
+    nameCols: m.nameCols.length > 0 ? m.nameCols : [0],
     subjectCols: m.subjectCols,
-    termSlots: slots,
+    termSlots,
     finalCol: m.finalCol ?? 0,
     remarkCol: m.remarkCol ?? 0,
     valueMode: m.valueMode ?? "",
   };
 }
 
+function usedColumns(d: Draft): number[] {
+  return [
+    d.idCol,
+    d.finalCol,
+    d.remarkCol,
+    ...d.nameCols,
+    ...d.subjectCols,
+    ...d.termSlots,
+  ].filter((c) => c > 0);
+}
+
+function pickedColumns(slots: number[]): number[] {
+  return [...new Set(slots.filter((c) => c > 0))];
+}
+
 function toMapping(d: Draft): SheetMapping {
   return {
     headerRow: d.headerRow,
     idCol: d.idCol || null,
-    nameCols: d.nameCols,
-    subjectCols: d.subjectCols,
+    nameCols: pickedColumns(d.nameCols),
+    subjectCols: pickedColumns(d.subjectCols),
     termCols: d.termSlots
       .map((col, i) => ({ col, termIndex: i + 1 }))
       .filter((t) => t.col > 0),
@@ -87,12 +106,14 @@ function ColSelect({
   hint,
   value,
   columns,
+  taken,
   onChange,
 }: {
   label: string;
   hint?: string;
   value: number;
   columns: MappingColumn[];
+  taken: Set<number>;
   onChange: (v: number) => void;
 }): React.ReactElement {
   return (
@@ -105,51 +126,85 @@ function ColSelect({
       >
         <option value={0}>— not used —</option>
         {columns.map((c) => (
-          <option key={c.col} value={c.col}>
+          <option
+            key={c.col}
+            value={c.col}
+            disabled={taken.has(c.col) && c.col !== value}
+          >
             {optionLabel(c)}
           </option>
         ))}
       </select>
-      {hint && <span className="block font-normal text-muted-foreground">{hint}</span>}
+      {hint && (
+        <span className="block font-normal text-muted-foreground">{hint}</span>
+      )}
     </label>
   );
 }
 
-function ColChips({
-  label,
+// A growable list of column dropdowns (terms, name parts, subject parts).
+function SlotList({
+  title,
+  itemLabel,
+  addLabel,
   hint,
-  selected,
+  slots,
   columns,
-  onToggle,
+  taken,
+  min = 0,
+  onChange,
 }: {
-  label: string;
+  title: string;
+  itemLabel: string;
+  addLabel: string;
   hint?: string;
-  selected: number[];
+  slots: number[];
   columns: MappingColumn[];
-  onToggle: (col: number) => void;
+  taken: Set<number>;
+  min?: number;
+  onChange: (slots: number[]) => void;
 }): React.ReactElement {
   return (
-    <div className="space-y-1 text-xs font-medium">
-      <p>{label}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {columns.map((c) => (
-          <button
-            key={c.col}
-            type="button"
-            onClick={() => onToggle(c.col)}
-            className={cn(
-              "rounded-md border px-2 py-1 text-[11px] font-normal transition-colors",
-              selected.includes(c.col)
-                ? "border-primary bg-primary text-primary-foreground"
-                : "bg-muted/40 text-muted-foreground hover:text-foreground",
-            )}
-            title={c.sample ? `e.g. ${c.sample}` : undefined}
+    <div className="space-y-2">
+      <p className="text-xs font-medium">{title}</p>
+      {slots.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {slots.map((col, i) => (
+            <ColSelect
+              key={i}
+              label={`${itemLabel} ${i + 1}`}
+              value={col}
+              columns={columns}
+              taken={taken}
+              onChange={(v) =>
+                onChange(slots.map((x, j) => (j === i ? v : x)))
+              }
+            />
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1"
+          onClick={() => onChange([...slots, 0])}
+          disabled={slots.length >= MAX_SLOTS}
+        >
+          <Plus className="h-3.5 w-3.5" /> {addLabel}
+        </Button>
+        {slots.length > min && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="gap-1"
+            onClick={() => onChange(slots.slice(0, -1))}
           >
-            {colLetter(c.col)} · {c.header || "(blank)"}
-          </button>
-        ))}
+            <X className="h-3.5 w-3.5" /> Remove last
+          </Button>
+        )}
       </div>
-      {hint && <span className="block font-normal text-muted-foreground">{hint}</span>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -195,6 +250,19 @@ export function TemplateMapper({
     void load();
   }, [load]);
 
+  const taken = useMemo(
+    () => new Set(draft ? usedColumns(draft) : []),
+    [draft],
+  );
+
+  const columns = useMemo(
+    () =>
+      (info?.columns ?? []).filter(
+        (c) => c.header !== "" || c.sample !== "" || taken.has(c.col),
+      ),
+    [info, taken],
+  );
+
   if (!info || !draft) {
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -204,21 +272,8 @@ export function TemplateMapper({
   }
 
   const patch = (p: Partial<Draft>) => setDraft({ ...draft, ...p });
-
-  const used = new Set<number>([
-    draft.idCol,
-    draft.finalCol,
-    draft.remarkCol,
-    ...draft.nameCols,
-    ...draft.subjectCols,
-    ...draft.termSlots,
-  ]);
-  const columns = info.columns.filter(
-    (c) => c.header !== "" || c.sample !== "" || used.has(c.col),
-  );
-
-  const toggle = (list: number[], col: number): number[] =>
-    list.includes(col) ? list.filter((c) => c !== col) : [...list, col];
+  const setSlots = (key: SlotKey, slots: number[]) =>
+    setDraft({ ...draft, [key]: slots });
 
   const applyHeaderRow = () => {
     const n = Number(headerInput);
@@ -229,33 +284,15 @@ export function TemplateMapper({
     void load(info.sheetName, n, true);
   };
 
-  const save = async () => {
+  const persist = async (mapping: SheetMapping | null, message: string) => {
     setSaving(true);
     try {
       const analysis = await gradeTemplateApi.saveMapping(
         templateId,
         info.sheetName,
-        toMapping(draft),
+        mapping,
       );
-      toast.success("Mapping saved.");
-      onSaved(analysis);
-      await load(info.sheetName);
-    } catch (err) {
-      toast.error(await readErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const reset = async () => {
-    setSaving(true);
-    try {
-      const analysis = await gradeTemplateApi.saveMapping(
-        templateId,
-        info.sheetName,
-        null,
-      );
-      toast.success("Back to auto-detect.");
+      toast.success(message);
       onSaved(analysis);
       await load(info.sheetName);
     } catch (err) {
@@ -330,6 +367,7 @@ export function TemplateMapper({
           hint="Students are matched by this. Leave empty to match by name."
           value={draft.idCol}
           columns={columns}
+          taken={taken}
           onChange={(v) => patch({ idCol: v })}
         />
         <ColSelect
@@ -337,12 +375,14 @@ export function TemplateMapper({
           hint="Weighted average of the term scores, using the template's term-weight row when it has one."
           value={draft.finalCol}
           columns={columns}
+          taken={taken}
           onChange={(v) => patch({ finalCol: v })}
         />
         <ColSelect
           label="Remarks column"
           value={draft.remarkCol}
           columns={columns}
+          taken={taken}
           onChange={(v) => patch({ remarkCol: v })}
         />
         <label className="space-y-1 text-xs font-medium">
@@ -361,61 +401,38 @@ export function TemplateMapper({
         </label>
       </div>
 
-      <ColChips
-        label="Student name column(s)"
-        hint="Pick more than one if the name is split (last name, first name)."
-        selected={draft.nameCols}
+      <SlotList
+        title="Student name column(s)"
+        itemLabel="Name column"
+        addLabel="Add name column"
+        hint="Add more than one if the name is split (last name, first name)."
+        slots={draft.nameCols}
         columns={columns}
-        onToggle={(c) => patch({ nameCols: toggle(draft.nameCols, c) })}
+        taken={taken}
+        min={1}
+        onChange={(s) => setSlots("nameCols", s)}
       />
 
-      <ColChips
-        label="Subject column(s)"
+      <SlotList
+        title="Subject column(s)"
+        itemLabel="Subject column"
+        addLabel="Add subject column"
         hint="Needed when one sheet lists several subjects: each row is matched to the educator's subject by its code or title."
-        selected={draft.subjectCols}
+        slots={draft.subjectCols}
         columns={columns}
-        onToggle={(c) => patch({ subjectCols: toggle(draft.subjectCols, c) })}
+        taken={taken}
+        onChange={(s) => setSlots("subjectCols", s)}
       />
 
-      <div className="space-y-2">
-        <p className="text-xs font-medium">Term columns</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {draft.termSlots.map((col, i) => (
-            <ColSelect
-              key={i}
-              label={`Term ${i + 1}`}
-              value={col}
-              columns={columns}
-              onChange={(v) =>
-                patch({
-                  termSlots: draft.termSlots.map((x, j) => (j === i ? v : x)),
-                })
-              }
-            />
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1"
-            onClick={() => patch({ termSlots: [...draft.termSlots, 0] })}
-            disabled={draft.termSlots.length >= 20}
-          >
-            <Plus className="h-3.5 w-3.5" /> Add term column
-          </Button>
-          {draft.termSlots.length > 0 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1"
-              onClick={() => patch({ termSlots: draft.termSlots.slice(0, -1) })}
-            >
-              <X className="h-3.5 w-3.5" /> Remove last
-            </Button>
-          )}
-        </div>
-      </div>
+      <SlotList
+        title="Term columns"
+        itemLabel="Term"
+        addLabel="Add term column"
+        slots={draft.termSlots}
+        columns={columns}
+        taken={taken}
+        onChange={(s) => setSlots("termSlots", s)}
+      />
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-4">
         <Button
@@ -432,7 +449,7 @@ export function TemplateMapper({
             variant="ghost"
             className="text-destructive"
             disabled={saving}
-            onClick={() => void reset()}
+            onClick={() => void persist(null, "Back to auto-detect.")}
           >
             Reset to auto-detect
           </Button>
@@ -441,7 +458,7 @@ export function TemplateMapper({
           size="sm"
           className="ml-auto gap-1.5"
           disabled={saving}
-          onClick={() => void save()}
+          onClick={() => void persist(toMapping(draft), "Mapping saved.")}
         >
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Save mapping
