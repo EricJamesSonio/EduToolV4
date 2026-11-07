@@ -44,6 +44,10 @@ export const MEETING_SOCKET_LIMITS: Record<string, SocketRateLimitOptions> = {
   signaling: { capacity: 40, refillMs: 10_000 },
 };
 
+// How long an emptied ephemeral (Groupy) meeting survives before it is
+// hard-deleted, so a page refresh or brief reconnect does not destroy it.
+const EPHEMERAL_CLEANUP_GRACE_MS = 10_000;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AuthPayload {
@@ -83,14 +87,36 @@ class RoomState {
   // Guards against re-announcing on socket reconnect / page refresh.
   announcedJoins = new Set<string>();
 
+  // One entry per user: the same account connected through two sockets
+  // (refresh, reconnect, second tab) must not appear twice.
   getParticipantList() {
-    return Array.from(this.participants.values()).map((p) => ({
-      userId: p.userId,
-      name: p.name,
-      role: p.role,
-      handRaised: p.handRaised,
-      joinedAt: p.joinedAt,
-    }));
+    const byUser = new Map<
+      string,
+      {
+        userId: string;
+        name: string;
+        role: string;
+        handRaised: boolean;
+        joinedAt: Date;
+      }
+    >();
+
+    for (const p of this.participants.values()) {
+      const existing = byUser.get(p.userId);
+      if (existing) {
+        existing.handRaised = existing.handRaised || p.handRaised;
+        continue;
+      }
+      byUser.set(p.userId, {
+        userId: p.userId,
+        name: p.name,
+        role: p.role,
+        handRaised: p.handRaised,
+        joinedAt: p.joinedAt,
+      });
+    }
+
+    return Array.from(byUser.values());
   }
 }
 
@@ -112,6 +138,9 @@ export class MeetingGateway
 
   // meetingId → RoomState
   private rooms = new Map<string, RoomState>();
+
+  // meetingId → pending cleanup timer for an emptied ephemeral meeting
+  private emptyRoomTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   // Phase 2: shared token-bucket limiter (one instance per gateway).
   private readonly rateLimiter = new SocketRateLimiter();
@@ -201,6 +230,9 @@ export class MeetingGateway
         return this.kick(client, 'Not authorized for this meeting');
       }
 
+      // Someone is (re)joining, so a pending empty-room cleanup must not fire.
+      this.cancelEphemeralCleanup(meetingId);
+
       // Resolve display name
       const account = await this.db.account.findFirst({
         where: { id: payload.sub },
@@ -256,27 +288,27 @@ export class MeetingGateway
         }
       }
 
-// Send room state to the joining client
-const rows = await this.db.meetingChatMessage.findMany({
-  where: { meeting_id: meetingId, org_id: payload.org_id },
-  orderBy: { created_at: 'desc' },
-  take: 50,
-});
-const chatHistory: ChatMessage[] = rows.reverse().map((r) => ({
-  id: r.id,
-  senderId: r.sender_id,
-  senderName: r.sender_name,
-  message: r.message,
-  createdAt: r.created_at.toISOString(),
-}));
+      // Send room state to the joining client
+      const rows = await this.db.meetingChatMessage.findMany({
+        where: { meeting_id: meetingId, org_id: payload.org_id },
+        orderBy: { created_at: 'desc' },
+        take: 50,
+      });
+      const chatHistory: ChatMessage[] = rows.reverse().map((r) => ({
+        id: r.id,
+        senderId: r.sender_id,
+        senderName: r.sender_name,
+        message: r.message,
+        createdAt: r.created_at.toISOString(),
+      }));
 
-client.emit('room:state', {
-  participants: room.getParticipantList(),
-  chatHistory,
-  currentSlide: room.currentSlide,
-  isPresenting: room.isPresenting,
-  presentationId: room.presentationId,
-});
+      client.emit('room:state', {
+        participants: room.getParticipantList(),
+        chatHistory,
+        currentSlide: room.currentSlide,
+        isPresenting: room.isPresenting,
+        presentationId: room.presentationId,
+      });
 
       // Notify others (broadcast excludes the joiner, who already got room:state)
       client.broadcast.to(meetingId).emit('room:participant_joined', {
@@ -319,14 +351,47 @@ client.emit('room:state', {
     if (room.participants.size === 0) {
       this.rooms.delete(meetingId);
 
-      // Ephemeral (Groupy) meetings are discarded once everyone leaves.
+      // Ephemeral (Groupy) meetings are discarded once everyone leaves, after
+      // a short grace window so a refresh or reconnect can still rejoin.
       const auth = client.data?.auth as AuthPayload | undefined;
       if (auth?.org_id) {
-        const meeting = await this.meetingRepo.findById(meetingId, auth.org_id);
-        if (meeting?.is_ephemeral) {
-          await this.meetingRepo.hardDelete(meetingId);
-        }
+        this.scheduleEphemeralCleanup(meetingId, auth.org_id);
       }
+    }
+  }
+
+  // ── Empty-room cleanup ────────────────────────────────────────────────────
+
+  private scheduleEphemeralCleanup(meetingId: string, orgId: string) {
+    this.cancelEphemeralCleanup(meetingId);
+
+    const timer = setTimeout(() => {
+      this.emptyRoomTimers.delete(meetingId);
+      void this.cleanupEphemeralMeeting(meetingId, orgId);
+    }, EPHEMERAL_CLEANUP_GRACE_MS);
+
+    timer.unref?.();
+    this.emptyRoomTimers.set(meetingId, timer);
+  }
+
+  private cancelEphemeralCleanup(meetingId: string) {
+    const timer = this.emptyRoomTimers.get(meetingId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.emptyRoomTimers.delete(meetingId);
+  }
+
+  private async cleanupEphemeralMeeting(meetingId: string, orgId: string) {
+    // Someone rejoined during the grace window.
+    if (this.rooms.has(meetingId)) return;
+
+    try {
+      const meeting = await this.meetingRepo.findById(meetingId, orgId);
+      if (meeting?.is_ephemeral) {
+        await this.meetingRepo.hardDelete(meetingId);
+      }
+    } catch (err) {
+      this.logger.error(`[${meetingId}] ephemeral cleanup failed: ${err}`);
     }
   }
 
@@ -348,31 +413,37 @@ client.emit('room:state', {
     const text = data.message.trim();
     if (!text) return;
 
-    // Persist to DB
-    const saved = await this.db.meetingChatMessage.create({
-      data: {
-        org_id: auth.org_id,
-        meeting_id: meetingId,
-        sender_id: auth.sub,
-        sender_name: client.data.name,
+    try {
+      // Persist to DB
+      const saved = await this.db.meetingChatMessage.create({
+        data: {
+          org_id: auth.org_id,
+          meeting_id: meetingId,
+          sender_id: auth.sub,
+          sender_name: client.data.name,
+          message: text,
+        },
+      });
+
+      const msg: ChatMessage = {
+        id: saved.id,
+        senderId: auth.sub,
+        senderName: client.data.name,
         message: text,
-      },
-    });
+        createdAt: saved.created_at.toISOString(),
+      };
 
-    const msg: ChatMessage = {
-      id: saved.id,
-      senderId: auth.sub,
-      senderName: client.data.name,
-      message: text,
-      createdAt: saved.created_at.toISOString(),
-    };
+      // Cache in room state
+      const room = this.rooms.get(meetingId);
+      if (room) room.chatHistory.push(msg);
 
-    // Cache in room state
-    const room = this.rooms.get(meetingId);
-    if (room) room.chatHistory.push(msg);
-
-    // Broadcast to everyone except the sender (sender uses its optimistic copy)
-   this.server.to(meetingId).emit('chat:message', msg);
+      // Broadcast to everyone including the sender; the client drops its
+      // optimistic copy once the server copy arrives.
+      this.server.to(meetingId).emit('chat:message', msg);
+    } catch (err) {
+      this.logger.error(`[${meetingId}] failed to save chat message: ${err}`);
+      client.emit('chat:error', { message: 'Message could not be sent.' });
+    }
   }
 
   // ── Raise hand ────────────────────────────────────────────────────────────
