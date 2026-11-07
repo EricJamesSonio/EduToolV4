@@ -16,6 +16,7 @@ export class OrgEnrollmentSettingRepository {
     data: {
       require_semester_reenrollment?: boolean;
       auto_unenroll_on_year_end?: boolean;
+      allow_educator_scheme_override?: boolean;
     },
   ) {
     return this.db.orgEnrollmentSetting.upsert({
@@ -26,6 +27,8 @@ export class OrgEnrollmentSettingRepository {
         require_semester_reenrollment:
           data.require_semester_reenrollment ?? false,
         auto_unenroll_on_year_end: data.auto_unenroll_on_year_end ?? true,
+        allow_educator_scheme_override:
+          data.allow_educator_scheme_override ?? true,
       },
     });
   }
