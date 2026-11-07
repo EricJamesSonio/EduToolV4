@@ -11,3 +11,4 @@ export { EmptyState } from "./EmptyState";
 export { StatsBar } from "./StatsBar";
 export { ReadinessDialog } from "./ReadinessDialog";
 export { RequestUnlockDialog } from "./RequestUnlockDialog";
+export { SubmitGradesDialog } from "./SubmitGradesDialog";
