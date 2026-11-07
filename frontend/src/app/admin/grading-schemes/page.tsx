@@ -18,6 +18,7 @@ import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 
 import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
 import { TemplateAssignmentPanel } from "@/components/admin/grading-scheme-template/TemplateAssignmentPanel";
+import { EducatorOverrideSettingCard } from "@/components/admin/grading-scheme/EducatorOverrideSettingCard";
 import { TemplateFormDialog } from "@/components/shared/grading-scheme/TemplateFormDialog";
 
 import {
@@ -187,6 +188,9 @@ export default function GradingSchemesPage(): React.JSX.Element {
         title="Grading Scheme Templates"
         actions={<HelpGuide slug="admin_grading_schemes" />}
       />
+
+      {/* ================= EDUCATOR PERMISSIONS ================= */}
+      <EducatorOverrideSettingCard />
 
       {isLoading ? (
         <div className="space-y-4">
