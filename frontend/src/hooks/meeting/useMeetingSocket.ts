@@ -13,7 +13,6 @@ interface UseMeetingSocketProps {
   token: string;
 }
 
-// ── New: incoming reaction & hand-raise payloads ──────────────────────────────
 export interface IncomingReaction {
   emoji: string;
   /** unique id so the overlay can deduplicate */
@@ -75,197 +74,172 @@ export const useMeetingSocket = ({
 
   // Track previous participants to detect hand-raise changes
   const prevParticipantsRef = useRef<MeetingParticipant[]>([]);
-  // Timer for self-echo fallback — cancelled if server echoes back first
-  const selfEchoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!meetingId || !token) return;
 
-let isActive = true;
-let socket: Socket | null = null;
+    let isActive = true;
+    let socket: Socket | null = null;
 
-// Reset ephemeral overlay state for the new session.
-// Without this, the last reaction/hand-raise from the PREVIOUS session
-// lingers in state and re-triggers ReactionOverlay on rejoin.
-setLatestReaction(null);
-setLatestHandRaise(null);
-setMeetingEnded(false);
-prevParticipantsRef.current = [];
+    // Reset ephemeral overlay state for the new session.
+    // Without this, the last reaction/hand-raise from the PREVIOUS session
+    // lingers in state and re-triggers ReactionOverlay on rejoin.
+    setLatestReaction(null);
+    setLatestHandRaise(null);
+    setMeetingEnded(false);
+    prevParticipantsRef.current = [];
 
-void (async () => {
-  const { io } = await import("socket.io-client");
+    void (async () => {
+      const { io } = await import("socket.io-client");
 
-  if (!isActive) return;
-
-  socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
-      auth: { token },
-      query: { meetingId },
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      if (isActive) setConnected(true);
-    });
-
-    socket.on("disconnect", () => {
-      if (isActive) setConnected(false);
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("Socket connect error:", err.message);
-    });
-
-    socket.on(
-      "room:state",
-      (data: {
-        participants: MeetingParticipant[];
-        chatHistory: ChatMessage[];
-        currentSlide: number;
-        isPresenting: boolean;
-        presentationId?: string | null;
-      }) => {
-        if (!isActive) return;
-        setParticipants(data.participants || []);
-        prevParticipantsRef.current = data.participants || [];
-        setChat(data.chatHistory || []);
-        setCurrentSlide(data.currentSlide ?? 0);
-        setIsPresenting(data.isPresenting ?? false);
-        setPresentationId(data.presentationId ?? null);
-      }
-    );
-
-    socket.on(
-      "room:participant_joined",
-      (data: { participants: MeetingParticipant[] }) => {
-        if (!isActive) return;
-        setParticipants(data.participants || []);
-        prevParticipantsRef.current = data.participants || [];
-      }
-    );
-
-    socket.on(
-      "room:participant_left",
-      (data: { participants: MeetingParticipant[] }) => {
-        if (!isActive) return;
-        setParticipants(data.participants || []);
-        prevParticipantsRef.current = data.participants || [];
-      }
-    );
-
-    socket.on("chat:message", (msg: ChatMessage) => {
       if (!isActive) return;
-      setChat((prev) => [...prev, msg]);
-    });
 
-    // ── Hand raise: detect newly raised hands by diffing participants ─────────
-    socket.on(
-      "hand:update",
-      (data: { participants: MeetingParticipant[] }) => {
+      socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
+        auth: { token },
+        query: { meetingId },
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      });
+
+      socketRef.current = socket;
+
+      socket.on("connect", () => {
+        if (isActive) setConnected(true);
+      });
+
+      socket.on("disconnect", () => {
+        if (isActive) setConnected(false);
+      });
+
+      socket.on("connect_error", (err) => {
+        console.error("Socket connect error:", err.message);
+      });
+
+      socket.on("error", (err: { message?: string }) => {
+        console.error("Meeting socket error:", err?.message ?? err);
+      });
+
+      socket.on(
+        "room:state",
+        (data: {
+          participants: MeetingParticipant[];
+          chatHistory: ChatMessage[];
+          currentSlide: number;
+          isPresenting: boolean;
+          presentationId?: string | null;
+        }) => {
+          if (!isActive) return;
+          setParticipants(data.participants || []);
+          prevParticipantsRef.current = data.participants || [];
+          setChat(data.chatHistory || []);
+          setCurrentSlide(data.currentSlide ?? 0);
+          setIsPresenting(data.isPresenting ?? false);
+          setPresentationId(data.presentationId ?? null);
+        }
+      );
+
+      socket.on(
+        "room:participant_joined",
+        (data: { participants: MeetingParticipant[] }) => {
+          if (!isActive) return;
+          setParticipants(data.participants || []);
+          prevParticipantsRef.current = data.participants || [];
+        }
+      );
+
+      socket.on(
+        "room:participant_left",
+        (data: { participants: MeetingParticipant[] }) => {
+          if (!isActive) return;
+          setParticipants(data.participants || []);
+          prevParticipantsRef.current = data.participants || [];
+        }
+      );
+
+      socket.on("chat:message", (msg: ChatMessage) => {
         if (!isActive) return;
+        setChat((prev) => [...prev, msg]);
+      });
 
-        const incoming = data.participants || [];
-        const prev     = prevParticipantsRef.current;
+      // Hand raise: detect newly raised hands by diffing participants.
+      socket.on(
+        "hand:update",
+        (data: { participants: MeetingParticipant[] }) => {
+          if (!isActive) return;
 
-        // Find someone who just raised their hand (wasn't raised before, now is)
-        const newRaise = incoming.find((p) => {
-          if (!p.handRaised) return false;
-          const old = prev.find((o) => o.userId === p.userId);
-          return !old?.handRaised;
-        });
+          const incoming = data.participants || [];
+          const prev     = prevParticipantsRef.current;
 
-        if (newRaise) {
-          setLatestHandRaise({
-            userId: newRaise.userId,
-            name:   newRaise.name,
-            id:     `${newRaise.userId}-${Date.now()}`,
+          const newRaise = incoming.find((p) => {
+            if (!p.handRaised) return false;
+            const old = prev.find((o) => o.userId === p.userId);
+            return !old?.handRaised;
+          });
+
+          if (newRaise) {
+            setLatestHandRaise({
+              userId: newRaise.userId,
+              name:   newRaise.name,
+              id:     `${newRaise.userId}-${Date.now()}`,
+            });
+          }
+
+          prevParticipantsRef.current = incoming;
+          setParticipants(incoming);
+        }
+      );
+
+      // The server broadcasts reactions to everyone except the sender.
+      socket.on(
+        "reaction:received",
+        (data: { emoji: string; userId: string; name: string }) => {
+          if (!isActive) return;
+          setLatestReaction({
+            emoji:      data.emoji,
+            id:         `${data.userId}-${Date.now()}-${Math.random()}`,
+            senderName: data.name,
           });
         }
+      );
 
-        prevParticipantsRef.current = incoming;
-        setParticipants(incoming);
-      }
-    );
-
-    // ── Incoming reaction from server broadcast ───────────────────────────────
-    // The server should broadcast a "reaction:received" event to all room members.
-    // Payload: { emoji: string, senderId: string, senderName?: string }
-    socket.on(
-      "reaction:received",
-      (data: { emoji: string; userId: string; name: string }) => {
+      socket.on("lesson:slide_sync", (data: { slide: number }) => {
         if (!isActive) return;
-        if (selfEchoTimerRef.current) {
-          clearTimeout(selfEchoTimerRef.current);
-          selfEchoTimerRef.current = null;
+        setCurrentSlide(data.slide);
+      });
+
+      socket.on(
+        "lesson:presentation_started",
+        (data: { currentSlide: number; presentationId?: string }) => {
+          if (!isActive) return;
+          setIsPresenting(true);
+          setCurrentSlide(data.currentSlide);
+          if (data.presentationId) setPresentationId(data.presentationId);
         }
-        setLatestReaction({
-          emoji:      data.emoji,
-          id:         `${data.userId}-${Date.now()}-${Math.random()}`,
-          senderName: data.name,
-        });
-      }
-    );
+      );
 
-    // Fallback: some backends echo the sender's own event as "reaction:send"
-    socket.on(
-      "reaction:send",
-      (data: { emoji: string; userId?: string; name?: string }) => {
+      socket.on("lesson:presentation_stopped", () => {
         if (!isActive) return;
-        if (selfEchoTimerRef.current) {
-          clearTimeout(selfEchoTimerRef.current);
-          selfEchoTimerRef.current = null;
-        }
-        setLatestReaction({
-          emoji:      data.emoji,
-          id:         `echo-${Date.now()}-${Math.random()}`,
-          senderName: data.name ?? "Someone",
-        });
-      }
-    );
+        setIsPresenting(false);
+        setPresentationId(null);
+      });
 
-    socket.on("lesson:slide_sync", (data: { slide: number }) => {
-      if (!isActive) return;
-      setCurrentSlide(data.slide);
-    });
-
-    socket.on(
-      "lesson:presentation_started",
-      (data: { currentSlide: number; presentationId?: string }) => {
+      // The host ended the meeting — force everyone out of the room immediately.
+      socket.on("meeting:ended", () => {
         if (!isActive) return;
-        setIsPresenting(true);
-        setCurrentSlide(data.currentSlide);
-        if (data.presentationId) setPresentationId(data.presentationId);
-      }
-    );
+        setMeetingEnded(true);
+      });
+    })();
 
-    socket.on("lesson:presentation_stopped", () => {
-      if (!isActive) return;
-      setIsPresenting(false);
-      setPresentationId(null);
-    });
-
-    // The host ended the meeting — force everyone out of the room immediately.
-    socket.on("meeting:ended", () => {
-      if (!isActive) return;
-      setMeetingEnded(true);
-    });
-
-})();
-
-return () => {
-  isActive = false;
-  if (selfEchoTimerRef.current) {       // ← ADD: cancel any pending self-echo
-    clearTimeout(selfEchoTimerRef.current);
-    selfEchoTimerRef.current = null;
-  }
-  socket?.disconnect();
-  socketRef.current = null;
-  setConnected(false);
-};
+    return () => {
+      isActive = false;
+      socket?.removeAllListeners();
+      socket?.disconnect();
+      socketRef.current = null;
+      setConnected(false);
+    };
   }, [meetingId, token]);
 
   const sendChat = useCallback((message: string): void => {
@@ -281,56 +255,35 @@ return () => {
   }, []);
 
   const sendReaction = useCallback((emoji: string): void => {
-    // Cancel any pending self-echo timer from a previous rapid call
-    if (selfEchoTimerRef.current) {
-      clearTimeout(selfEchoTimerRef.current);
-      selfEchoTimerRef.current = null;
-    }
-
-    const selfId = `self-${Date.now()}-${Math.random()}`;
     socketRef.current?.emit("reaction:send", { emoji });
 
-    // If the server echoes back to the sender, the socket listener will fire
-    // and seenEmojiIds in the overlay will block this self-id (different id anyway).
-    // We set a short grace period — if no echo arrives within 400ms we show it
-    // ourselves so the sender always sees their own reaction.
-    const timer = setTimeout(() => {
-      setLatestReaction({
-        emoji,
-        id:         selfId,
-        senderName: "You",
-      });
-    }, 400);
-
-    // Store timer so the socket listener can cancel it on echo arrival
-    selfEchoTimerRef.current = timer;
+    // The server does not echo to the sender, so show the sender's own
+    // reaction immediately.
+    setLatestReaction({
+      emoji,
+      id:         `self-${Date.now()}-${Math.random()}`,
+      senderName: "You",
+    });
   }, []);
 
-const changeSlide = useCallback((slide: number): void => {
-  setCurrentSlide(slide); // optimistic: server doesn't echo to sender
-  socketRef.current?.emit("lesson:slide_change", { slide });
-}, []);
+  const changeSlide = useCallback((slide: number): void => {
+    setCurrentSlide(slide); // optimistic: server doesn't echo to sender
+    socketRef.current?.emit("lesson:slide_change", { slide });
+  }, []);
 
-const startPresentation = useCallback((presentationId?: string): void => {
-  setIsPresenting(true); // optimistic: server doesn't echo to sender
-  if (presentationId) setPresentationId(presentationId);
-  socketRef.current?.emit("lesson:presentation_start", { presentationId });
-}, []);
+  const startPresentation = useCallback((presentationId?: string): void => {
+    setIsPresenting(true); // optimistic: server doesn't echo to sender
+    if (presentationId) setPresentationId(presentationId);
+    socketRef.current?.emit("lesson:presentation_start", { presentationId });
+  }, []);
 
-const stopPresentation = useCallback((): void => {
-  setIsPresenting(false);
-  setPresentationId(null);
-  socketRef.current?.emit("lesson:presentation_stop");
-}, []);
+  const stopPresentation = useCallback((): void => {
+    setIsPresenting(false);
+    setPresentationId(null);
+    socketRef.current?.emit("lesson:presentation_stop");
+  }, []);
 
-  // ── Ephemeral state reset ──────────────────────────────────────────────────
-  // Used when re-entering an already-running meeting so stale reactions /
-  // hand-raises from the previous room session never leak into the overlay.
   const clearLatestReaction = useCallback(() => {
-    if (selfEchoTimerRef.current) {
-      clearTimeout(selfEchoTimerRef.current);
-      selfEchoTimerRef.current = null;
-    }
     setLatestReaction(null);
   }, []);
 
