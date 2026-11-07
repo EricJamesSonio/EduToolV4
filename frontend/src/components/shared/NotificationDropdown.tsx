@@ -23,10 +23,13 @@ import {
   useNotificationFeed,
   useNotificationSummary,
 } from "@/hooks/useNotifications";
+import { useNotificationStream } from "@/hooks/useNotificationStream";
 
 export function NotificationDropdown(): React.JSX.Element {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  useNotificationStream();
 
   const feed = useNotificationFeed(open);
   const { data: summary } = useNotificationSummary();
