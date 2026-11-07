@@ -103,7 +103,7 @@ export default function NewAssessmentPage() {
   const isSystem = state.gradingMode === "system" || state.gradingMode === "hybrid";
 
   const systemSteps = ["Select Lesson", "View Concepts", "Configuration", "Generate", "Review Questions", "Set Dates & Assign"];
-  const manualSteps = ["Type & Instructions", "Items & Dates"];
+  const manualSteps = ["Type & Instructions", "Dates & Assign"];
   const allSteps = ["Grading Mode", ...(isManual ? manualSteps : systemSteps)];
 
   const { data: termOptions = [] } = useAsyncQuery(
@@ -263,13 +263,13 @@ export default function NewAssessmentPage() {
 
         {isManual && step === 1 && (
           <div className="space-y-6">
-            <ManualStep1 type={state.type} title={state.title} manualInstructions={state.manualInstructions} schemeTypes={schemeTypes} onChange={(u) => patch(u)} onNext={next} />
+            <ManualStep1 type={state.type} title={state.title} totalItems={state.totalItems} manualInstructions={state.manualInstructions} schemeTypes={schemeTypes} onChange={(u) => patch(u)} onNext={next} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to grading mode</Button>
           </div>
         )}
         {isManual && step === 2 && (
           <div className="space-y-6">
-            <ManualStep2 classId={classId} totalItems={state.totalItems} weekNumber={state.weekNumber}
+            <ManualStep2 classId={classId} weekNumber={state.weekNumber}
               releaseDate={state.releaseDate} endDate={state.endDate}
               selectedStudentIds={state.selectedStudentIds}
               selectedTermId={state.selectedTermId}
