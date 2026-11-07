@@ -26,6 +26,9 @@ import {
   type SidePanelType,
 } from "@/components/educator/meeting-room";
 import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
+import { MeetingConfirmDialog } from "@/components/meeting/MeetingConfirmDialog";
+import { isMeetingVideoLocked } from "@/components/meeting/meeting-video-lock";
+import { readMeetingMediaPrefs } from "@/utils/meetingMediaPrefs";
 import {
   Hand, MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation as PresentationIcon,
 } from "lucide-react";
@@ -149,8 +152,8 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { presentation, selectPresentation, clearPresentation } = useMeetingPresentation(classId, meetingCtx.presentationId);
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [micOn,         setMicOn]         = useState(true);
-  const [camOn,         setCamOn]         = useState(true);
+  const [micOn,         setMicOn]         = useState(() => readMeetingMediaPrefs().micOn);
+  const [camOn,         setCamOn]         = useState(() => readMeetingMediaPrefs().camOn);
   const [handRaised,    setHandRaised]    = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [sidePanel,     setSidePanel]     = useState<SidePanelType>(null);
@@ -160,27 +163,33 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const [overflowOpen,  setOverflowOpen]  = useState(false);
   const [mobileSlidesOpen, setMobileSlidesOpen] = useState(false);
   const [featuredUid,   setFeaturedUid]   = useState<string | number | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"leave" | "end" | null>(null);
 
   const pendingRequests = meeting?.joinRequests.filter((r) => r.status === "pending") ?? [];
 
   // ── Video track replay ────────────────────────────────────────────────────
+  // Skipped while an All Cameras / single-camera overlay owns the tracks.
   useEffect(() => {
     if (!localVideo) return;
-    const id  = localExpanded ? "local-video-grid" : "local-video-pip";
     const raf = requestAnimationFrame(() => {
+      if (isMeetingVideoLocked()) return;
+      const id = document.getElementById("local-video-grid")
+        ? "local-video-grid"
+        : "local-video-pip";
       if (document.getElementById(id)) localVideo.play(id);
     });
     return () => cancelAnimationFrame(raf);
-  }, [localVideo, localExpanded, isPresenting]);
+  }, [localVideo, localExpanded, isPresenting, isFullscreen]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
+      if (isMeetingVideoLocked()) return;
       remoteUsers.forEach((user) => {
         if (user.videoTrack) user.videoTrack.play(`remote-${user.uid}`);
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [isPresenting, featuredUid, remoteUsers]);
+  }, [isPresenting, featuredUid, remoteUsers, isFullscreen]);
 
   // If the promoted participant leaves, exit "featured" so the main monitor
   // isn't left pointing at a dead element.
@@ -349,6 +358,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             remoteUsers={remoteUsers}
             onExpand={() => setLocalExpanded(true)}
             onCollapse={() => setLocalExpanded(false)}
+            isFullscreen={isFullscreen}
           />
         )}
 
@@ -542,8 +552,33 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         onToggleFullscreen={handleToggleFullscreen}
         onToggleSidePanel={handleTogglePanel}
         onToggleOverflow={() => setOverflowOpen((v) => !v)}
-        onLeave={handleLeave}
-        onEnd={handleEndMeeting}
+        onLeave={() => setConfirmAction("leave")}
+        onEnd={() => setConfirmAction("end")}
+      />
+
+      <MeetingConfirmDialog
+        open={confirmAction === "leave"}
+        title="Leave this meeting?"
+        description="The meeting keeps running for everyone else. You can rejoin while it is still open."
+        confirmLabel="Leave"
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          setConfirmAction(null);
+          handleLeave();
+        }}
+      />
+
+      <MeetingConfirmDialog
+        open={confirmAction === "end"}
+        title="End the meeting for everyone?"
+        description="Every participant will be disconnected and the meeting will be closed. This cannot be undone."
+        confirmLabel="End meeting"
+        loading={endMeetingMutation.isPending}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          setConfirmAction(null);
+          handleEndMeeting();
+        }}
       />
 
       {!isGroupyRoom && (
