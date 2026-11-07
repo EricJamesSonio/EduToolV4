@@ -27,10 +27,11 @@ import {
 } from "@/components/educator/meeting-room";
 import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
 import { MeetingConfirmDialog } from "@/components/meeting/MeetingConfirmDialog";
+import { MeetingPreJoin } from "@/components/meeting/MeetingPreJoin";
 import { isMeetingVideoLocked } from "@/components/meeting/meeting-video-lock";
 import { readMeetingMediaPrefs } from "@/utils/meetingMediaPrefs";
 import {
-  Hand, MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation as PresentationIcon,
+  MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation as PresentationIcon,
 } from "lucide-react";
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
 import { useMeetingAttendance } from "@/hooks/meeting/useMeetingAttendance";
@@ -62,11 +63,17 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const currentUserId               = currentUser?.id ?? "";
   const currentUserName             = currentUser?.fullName ?? "You";
 
+  // The pre-join lobby is skipped when returning to a meeting that is
+  // already running (for example from the minimized player).
+  const [lobbyDone, setLobbyDone] = useState(
+    () => meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId,
+  );
+
   // ── Join / leave ──────────────────────────────────────────────────────────
   const didClearStale = useRef(false);
 
   useEffect(() => {
-    if (!tokenData) return;
+    if (!tokenData || !lobbyDone) return;
     if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
       meetingCtx.maximize();
       // Clear stale reaction/hand-raise state only once per mount, when
@@ -88,14 +95,14 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
       });
     }
     return () => { meetingCtx.minimize(); };
-  }, [tokenData]);
+  }, [tokenData, lobbyDone]);
 
   const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
   const {
     connected, participants, chat, currentSlide, isPresenting,
-    sendChat, raiseHand, lowerHand, sendReaction,
+    sendChat, sendReaction,
     startPresentation, stopPresentation, changeSlide,
-    latestReaction, latestHandRaise,
+    latestReaction, recentReactions, latestHandRaise,
   } = meetingCtx;
 
   // ── Groupy rooms: trip back to the class chat when the meeting ends ───────
@@ -154,7 +161,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   // ── UI state ──────────────────────────────────────────────────────────────
   const [micOn,         setMicOn]         = useState(() => readMeetingMediaPrefs().micOn);
   const [camOn,         setCamOn]         = useState(() => readMeetingMediaPrefs().camOn);
-  const [handRaised,    setHandRaised]    = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [sidePanel,     setSidePanel]     = useState<SidePanelType>(null);
   const [showPresModal, setShowPresModal] = useState(false);
@@ -179,7 +185,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
       if (document.getElementById(id)) localVideo.play(id);
     });
     return () => cancelAnimationFrame(raf);
-  }, [localVideo, localExpanded, isPresenting, isFullscreen]);
+  }, [localVideo, localExpanded, isPresenting, isFullscreen, lobbyDone]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
@@ -189,7 +195,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [isPresenting, featuredUid, remoteUsers, isFullscreen]);
+  }, [isPresenting, featuredUid, remoteUsers, isFullscreen, lobbyDone]);
 
   // If the promoted participant leaves, exit "featured" so the main monitor
   // isn't left pointing at a dead element.
@@ -230,9 +236,15 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleLobbyJoin = () => {
+    const prefs = readMeetingMediaPrefs();
+    setMicOn(prefs.micOn);
+    setCamOn(prefs.camOn);
+    setLobbyDone(true);
+  };
+
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
   const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
-  const handleToggleHand  = () => { if (handRaised) lowerHand(); else raiseHand(); setHandRaised((v) => !v); };
   const handleTogglePanel = (panel: NonNullable<SidePanelType>) =>
     setSidePanel((p) => (p === panel ? null : isGroupyRoom && panel !== "participants" ? p : panel));
   const handleRespond     = (reqId: string, status: "accepted" | "declined") => respondMutation.mutate({ reqId, status });
@@ -324,6 +336,17 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     );
   }
 
+  if (!lobbyDone) {
+    return (
+      <MeetingPreJoin
+        userName={currentUserName}
+        roleLabel="Host"
+        onJoin={handleLobbyJoin}
+        onCancel={() => router.push(backUrl)}
+      />
+    );
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={cn(
@@ -364,6 +387,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
 
         <ReactionOverlay
           incomingEmoji={latestReaction ?? null}
+          incomingEmojis={recentReactions}
           incomingHandRaise={latestHandRaise ?? null}
         />
 
@@ -509,16 +533,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             },
           },
           {
-            key: "hand",
-            label: handRaised ? "Lower" : "Hand",
-            icon: Hand,
-            active: handRaised,
-            onClick: () => {
-              setOverflowOpen(false);
-              handleToggleHand();
-            },
-          },
-          {
             key: "fullscreen",
             label: isFullscreen ? "Exit Full" : "Fullscreen",
             icon: isFullscreen ? Minimize : Maximize,
@@ -534,7 +548,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         connected={connected}
         micOn={micOn}
         camOn={camOn}
-        handRaised={handRaised}
         isPresenting={isPresenting}
         isFullscreen={isFullscreen}
         showReactions={showReactions}
@@ -546,7 +559,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         simplified={isGroupyRoom}
         onToggleMic={handleToggleMic}
         onToggleCam={handleToggleCam}
-        onToggleHand={handleToggleHand}
         onToggleReactions={() => setShowReactions((v) => !v)}
         onTogglePresentation={() => !isGroupyRoom && (isPresenting ? handleStopPresentation() : setShowPresModal(true))}
         onToggleFullscreen={handleToggleFullscreen}
