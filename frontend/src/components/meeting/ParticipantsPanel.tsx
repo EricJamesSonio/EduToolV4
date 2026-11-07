@@ -3,6 +3,13 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useMeeting } from "@/hooks/meeting/MeetingContext";
+import { useMeetingPresentation } from "@/hooks/meeting/useMeetingPresentation";
+import SlideViewer from "@/components/meeting/SlideViewer";
+import { getMeetingTileRects } from "./meeting-tile-layout";
+import { lockMeetingVideo } from "./meeting-video-lock";
+import type { Presentation } from "@/types/educator/presentation.types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -28,25 +35,94 @@ interface ParticipantsPanelProps {
   localVideo?: { play: (id: string) => void } | null;
 }
 
+const SLIDE_BASE_WIDTH = 1280;
+const SLIDE_BASE_HEIGHT = 720;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Agora uid is a number; socket userId is a string UUID.
- *  We store the mapping via a data attribute on the DOM node when joining.
- *  As a fallback we match by index order in remoteUsers. */
-function findRemoteUser(
-  participant: Participant,
-  remoteUsers: IAgoraRTCRemoteUser[],
-): IAgoraRTCRemoteUser | undefined {
-  // Try matching via dataset stored on the remote video div
-  const el = document.querySelector<HTMLDivElement>(
-    `[data-user-id="${participant.userId}"]`,
-  );
-  if (el) {
-    const uid = el.dataset.uid;
-    if (uid) return remoteUsers.find((u) => String(u.uid) === uid);
+function getDesktopGridCols(count: number): number {
+  if (count <= 2) return 2;
+  if (count <= 4) return 2;
+  if (count <= 9) return 3;
+  return 4;
+}
+
+// ── Presentation tile (used inside the All Cameras grid) ─────────────────────
+
+function PresentationTile({
+  presentation,
+  slideIndex,
+}: {
+  presentation: Presentation;
+  slideIndex: number;
+}) {
+  const isMobile = useMediaQuery("(max-width: 639px)");
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  const totalSlides = presentation.slides.length;
+  const safeIndex =
+    totalSlides > 0 ? Math.min(Math.max(slideIndex, 0), totalSlides - 1) : 0;
+  const slide = presentation.slides[safeIndex] ?? null;
+  const template = presentation.template ?? "green";
+
+  useEffect(() => {
+    if (isMobile) return;
+    const el = boxRef.current;
+    if (!el) return;
+
+    const apply = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w <= 0 || h <= 0) return;
+      setScale(Math.min(w / SLIDE_BASE_WIDTH, h / SLIDE_BASE_HEIGHT));
+    };
+
+    apply();
+
+    const observer =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+    observer?.observe(el);
+
+    return () => observer?.disconnect();
+  }, [isMobile]);
+
+  if (isMobile) {
+    return (
+      <div className="absolute inset-0 flex">
+        <SlideViewer
+          slide={slide}
+          template={template}
+          slideNumber={safeIndex}
+          totalSlides={totalSlides}
+        />
+      </div>
+    );
   }
-  // Fallback: match by participant index among non-local participants
-  return undefined;
+
+  return (
+    <div ref={boxRef} className="absolute inset-0 overflow-hidden bg-zinc-900">
+      <div
+        className="flex"
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: SLIDE_BASE_WIDTH,
+          height: SLIDE_BASE_HEIGHT,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: "center center",
+        }}
+      >
+        <SlideViewer
+          slide={slide}
+          template={template}
+          slideNumber={safeIndex}
+          totalSlides={totalSlides}
+        />
+      </div>
+    </div>
+  );
 }
 
 // ── Single camera fullscreen view ─────────────────────────────────────────────
@@ -66,6 +142,10 @@ function FullscreenView({
 }) {
   const videoId = `fs-video-${participant.userId}`;
   const isLocal = participant.userId === currentUserId;
+
+  // While this overlay is open the room must not pull tracks back to the
+  // main stage.
+  useEffect(() => lockMeetingVideo(), []);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
@@ -107,7 +187,7 @@ function FullscreenView({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] bg-black flex flex-col"
+      className="fixed inset-x-0 top-0 bottom-[var(--meeting-controls-h,0px)] z-[9999] bg-black flex flex-col"
       onClick={onClose}
     >
       {/* Header */}
@@ -136,7 +216,7 @@ function FullscreenView({
 
       {/* Click outside hint */}
       <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/40 text-xs pointer-events-none">
-        Click anywhere outside to close
+        Tap outside the video to close
       </p>
     </div>
   );
@@ -159,6 +239,15 @@ function GridView({
   currentUserName: string;
   onClose: () => void;
 }) {
+  const isMobile = useMediaQuery("(max-width: 639px)");
+  const meetingCtx = useMeeting();
+  const { presentation } = useMeetingPresentation(
+    meetingCtx.classId,
+    meetingCtx.presentationId,
+  );
+
+  const showPresentation = meetingCtx.isPresenting && !!presentation;
+
   // Build a combined list: local user first, then others
   const allSlots = [
     { userId: currentUserId, name: currentUserName, isLocal: true },
@@ -166,6 +255,11 @@ function GridView({
       .filter((p) => p.userId !== currentUserId)
       .map((p) => ({ userId: p.userId, name: p.name, isLocal: false })),
   ];
+
+  // While this overlay is open the room must not pull tracks back to the
+  // main stage (it does that whenever the remote user list or the
+  // presentation state changes).
+  useEffect(() => lockMeetingVideo(), []);
 
   // Re-target every track back to its main room element when the grid closes.
   // play() moves a track to a new element, so without this restore the local
@@ -186,33 +280,33 @@ function GridView({
     };
   }, []);
 
+  // Keep every tile attached to its video, including when the remote user
+  // list, the local track or the participant list changes while open.
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
-      // Play local
       localVideo?.play(`grid-video-${currentUserId}`);
 
-      // Play remote — best-effort: iterate remoteUsers in order and
-      // assign to non-local slots in order
-      const nonLocalSlots = allSlots.filter((s) => !s.isLocal);
+      const others = participants.filter((p) => p.userId !== currentUserId);
       remoteUsers.forEach((ru, i) => {
-        const slot = nonLocalSlots[i];
+        const slot = others[i];
         if (slot) ru.videoTrack?.play(`grid-video-${slot.userId}`);
       });
     });
     return () => cancelAnimationFrame(raf);
+  }, [remoteUsers, localVideo, participants, currentUserId]);
 
-  }, [remoteUsers.length]);
-
-  const cols =
-    allSlots.length <= 1 ? 1
-    : allSlots.length <= 4 ? 2
-    : allSlots.length <= 9 ? 3
-    : 4;
+  const tileCount = allSlots.length + (showPresentation ? 1 : 0);
+  const rects = getMeetingTileRects(
+    tileCount,
+    isMobile ? undefined : getDesktopGridCols(tileCount),
+  );
+  const cameraOffset = showPresentation ? 1 : 0;
+  const presentationRect = showPresentation ? rects[0] : undefined;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-zinc-950 flex flex-col">
+    <div className="fixed inset-x-0 top-0 bottom-[var(--meeting-controls-h,0px)] z-[9999] bg-zinc-950 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-white/10 shrink-0">
         <span className="text-white font-semibold text-base">
           All Cameras ({allSlots.length})
         </span>
@@ -225,41 +319,70 @@ function GridView({
         </button>
       </div>
 
-      {/* Grid */}
-      <div
-        className="flex-1 p-3 overflow-auto"
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${cols}, 1fr)`,
-          gap: "8px",
-        }}
-      >
-        {allSlots.map((slot) => (
+      <div className="relative flex-1 min-h-0">
+        {showPresentation && presentation && presentationRect && (
           <div
-            key={slot.userId}
-            className="relative rounded-xl overflow-hidden bg-zinc-800"
-            style={{ aspectRatio: "16/9" }}
+            className="absolute p-1"
+            style={{
+              left: `${presentationRect.x}%`,
+              top: `${presentationRect.y}%`,
+              width: `${presentationRect.w}%`,
+              height: `${presentationRect.h}%`,
+            }}
           >
-            <div
-              id={`grid-video-${slot.userId}`}
-              className="absolute inset-0"
-            />
-            {/* Name badge */}
-            <div
-              className="absolute bottom-0 left-0 right-0 px-3 py-2"
-              style={{
-                background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)",
-              }}
-            >
-              <span className="text-white text-sm font-medium">
-                {slot.name}
-                {slot.isLocal && (
-                  <span className="ml-1.5 text-xs text-white/50">(You)</span>
-                )}
-              </span>
+            <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-800">
+              <PresentationTile
+                presentation={presentation}
+                slideIndex={meetingCtx.currentSlide}
+              />
+              <div
+                className="absolute bottom-0 left-0 right-0 px-3 py-2 pointer-events-none z-10"
+                style={{
+                  background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)",
+                }}
+              >
+                <span className="text-white text-sm font-medium">Presentation</span>
+              </div>
             </div>
           </div>
-        ))}
+        )}
+
+        {allSlots.map((slot, index) => {
+          const rect = rects[index + cameraOffset];
+          if (!rect) return null;
+          return (
+            <div
+              key={slot.userId}
+              className="absolute p-1"
+              style={{
+                left: `${rect.x}%`,
+                top: `${rect.y}%`,
+                width: `${rect.w}%`,
+                height: `${rect.h}%`,
+              }}
+            >
+              <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-800">
+                <div
+                  id={`grid-video-${slot.userId}`}
+                  className="absolute inset-0"
+                />
+                <div
+                  className="absolute bottom-0 left-0 right-0 px-3 py-2 pointer-events-none"
+                  style={{
+                    background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)",
+                  }}
+                >
+                  <span className="text-white text-sm font-medium">
+                    {slot.name}
+                    {slot.isLocal && (
+                      <span className="ml-1.5 text-xs text-white/50">(You)</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -375,8 +498,9 @@ export function ParticipantsPanel({
             <div
               key={p.userId}
               onContextMenu={(e) => handleRightClick(e, p)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40 cursor-context-menu select-none"
-              title="Right-click for camera options"
+              onClick={() => setFullscreenTarget(p)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40 cursor-pointer select-none"
+              title="Tap to view camera"
             >
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                 {p.name[0]?.toUpperCase()}

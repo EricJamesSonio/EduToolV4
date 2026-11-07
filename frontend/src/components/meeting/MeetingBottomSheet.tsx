@@ -15,6 +15,7 @@ interface MeetingBottomSheetProps {
  * Mobile-only slide-up drawer used for secondary meeting content
  * (chat, participants, slides, overflow menu). Renders nothing on
  * tablet/desktop — those sizes use the inline sidebar/rail instead.
+ * It stops above the controls bar so the call controls stay reachable.
  */
 export function MeetingBottomSheet({
   open,
@@ -26,7 +27,11 @@ export function MeetingBottomSheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] sm:hidden" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-x-0 top-0 bottom-[var(--meeting-controls-h,0px)] z-[60] sm:hidden"
+      role="dialog"
+      aria-modal="true"
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 animate-[meeting-fade-in_150ms_ease-out]"
@@ -35,7 +40,7 @@ export function MeetingBottomSheet({
       />
 
       {/* Sheet */}
-      <div className="absolute inset-x-0 bottom-0 max-h-[78vh] rounded-t-2xl border-t border-border bg-card shadow-2xl flex flex-col animate-[meeting-sheet-up_250ms_ease-out]">
+      <div className="absolute inset-x-0 bottom-0 max-h-[70vh] rounded-t-2xl border-t border-border bg-card shadow-2xl flex flex-col animate-[meeting-sheet-up_250ms_ease-out]">
         {/* Drag handle */}
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
         {title && (
