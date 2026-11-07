@@ -8,4 +8,8 @@ export class UpsertOrgEnrollmentSettingDto {
   @IsOptional()
   @IsBoolean()
   auto_unenroll_on_year_end?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allow_educator_scheme_override?: boolean;
 }
