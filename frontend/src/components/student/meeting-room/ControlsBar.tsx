@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import {
   Mic, MicOff, Video, VideoOff, Hand,
   MessageSquare, Users, LogOut, Smile, Maximize, Minimize, MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMeetingControlsHeight } from "@/hooks/meeting/useMeetingControlsHeight";
 import type { SidePanelType } from "./types";
 
 interface ControlBtn {
@@ -63,8 +65,14 @@ export function ControlsBar({
   onToggleMic, onToggleCam, onToggleHand, onToggleReactions,
   onToggleFullscreen, onToggleSidePanel, onToggleOverflow, onLeave,
 }: ControlsBarProps) {
+  const barRef = useRef<HTMLDivElement>(null);
+  useMeetingControlsHeight(barRef);
+
   return (
-    <div className="meeting-controls relative shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-border bg-card px-2 py-1">
+    <div
+      ref={barRef}
+      className="meeting-controls relative z-[57] shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-border bg-card px-2 py-1"
+    >
       {/* Connection status */}
       <div className={cn(
         "meeting-status absolute left-3 flex items-center gap-1.5 text-[11px]",
