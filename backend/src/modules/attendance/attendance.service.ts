@@ -16,6 +16,7 @@ import { LessonService } from '../lesson/lesson.service';
 import {
   calendarDateOf,
   calendarDateToUtc,
+  endOfDayInZone,
   weekdayOccurrencesInZone,
 } from '@/commons/utils/datetime.util';
 
@@ -410,6 +411,8 @@ export class AttendanceService {
       throw new NotFoundException('Session not found.');
     }
 
+    this.assertSessionNotFuture(session.date);
+
     const enrollments = await this.db.enrollment.findMany({
       where: { class_id: classId, status: 'active' },
       select: { student_id: true },
@@ -469,6 +472,8 @@ export class AttendanceService {
     if (!session || session.class_id !== classId) {
       throw new NotFoundException('Session not found.');
     }
+
+    this.assertSessionNotFuture(session.date);
 
     const record = await this.attendanceRepo.findRecordById(recordId);
 
@@ -638,6 +643,16 @@ export class AttendanceService {
   // =========================================================
   // HELPERS
   // =========================================================
+  private assertSessionNotFuture(sessionDate: Date): void {
+    // Session dates are stored at UTC midnight of the Manila school day, so a
+    // session is only "future" once its day lies beyond the end of today.
+    if (sessionDate.getTime() > endOfDayInZone(new Date()).getTime()) {
+      throw new BadRequestException(
+        'Attendance cannot be changed for a session that has not happened yet.',
+      );
+    }
+  }
+
   private async assertClassExists(classId: string, orgId: string) {
     const cls = await this.db.class.findFirst({
       where: { id: classId, org_id: orgId, deleted_at: null },
