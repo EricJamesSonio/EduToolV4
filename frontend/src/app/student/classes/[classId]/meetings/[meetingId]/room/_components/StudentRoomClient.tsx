@@ -18,9 +18,11 @@ import {
   type SidePanelType,
 } from "@/components/student/meeting-room";
 import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
+import { MeetingConfirmDialog } from "@/components/meeting/MeetingConfirmDialog";
+import { isMeetingVideoLocked } from "@/components/meeting/meeting-video-lock";
+import { readMeetingMediaPrefs } from "@/utils/meetingMediaPrefs";
 import { Hand, MessageSquare, Presentation, Users, Smile, Maximize, Minimize } from "lucide-react";
 
-// ── NEW: import the overlay ───────────────────────────────────────────────────
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
 import { groupyApi } from "@/api/shared/groupy.api";
 
@@ -78,7 +80,6 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const {
     connected, participants, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
-    // ── NEW ──
     latestReaction, latestHandRaise,
   } = meetingCtx;
 
@@ -89,8 +90,8 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   });
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [micOn,         setMicOn]         = useState(true);
-  const [camOn,         setCamOn]         = useState(true);
+  const [micOn,         setMicOn]         = useState(() => readMeetingMediaPrefs().micOn);
+  const [camOn,         setCamOn]         = useState(() => readMeetingMediaPrefs().camOn);
   const [handRaised,    setHandRaised]    = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [isFullscreen,  setIsFullscreen]  = useState(true);
@@ -98,24 +99,28 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const [overflowOpen,  setOverflowOpen]  = useState(false);
   const [mobileSlidesOpen, setMobileSlidesOpen] = useState(false);
   const [featuredUid,   setFeaturedUid]   = useState<string | number | null>(null);
+  const [confirmLeave,  setConfirmLeave]  = useState(false);
 
   // ── Video track replay ────────────────────────────────────────────────────
+  // Skipped while an All Cameras / single-camera overlay owns the tracks.
   useEffect(() => {
     if (!localVideo) return;
     const raf = requestAnimationFrame(() => {
+      if (isMeetingVideoLocked()) return;
       if (document.getElementById("local-video-pip")) localVideo.play("local-video-pip");
     });
     return () => cancelAnimationFrame(raf);
-  }, [localVideo, isPresenting]);
+  }, [localVideo, isPresenting, isFullscreen]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
+      if (isMeetingVideoLocked()) return;
       remoteUsers.forEach((user) => {
         if (user.videoTrack) user.videoTrack.play(`remote-${user.uid}`);
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [isPresenting, featuredUid, remoteUsers]);
+  }, [isPresenting, featuredUid, remoteUsers, isFullscreen]);
 
   // If the promoted participant leaves, exit "featured".
   useEffect(() => {
@@ -237,7 +242,13 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
             isFullscreen={isFullscreen}
           />
         ) : (
-          <VideoGrid joined={joined} remoteUsers={remoteUsers} />
+          <VideoGrid
+            joined={joined}
+            remoteUsers={remoteUsers}
+            camOn={camOn}
+            micOn={micOn}
+            isFullscreen={isFullscreen}
+          />
         )}
 
         {/* ── Reaction & hand-raise overlay ── */}
@@ -252,13 +263,13 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
               <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
             ) : (
               <ParticipantsPanel
-  participants={participants}
-  remoteUsers={remoteUsers}
-  currentUserId={currentUserId}
-  currentUserName={currentUserName}
-  localVideo={localVideo}
-  role="student"
-/>
+                participants={participants}
+                remoteUsers={remoteUsers}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                localVideo={localVideo}
+                role="student"
+              />
             )}
           </SidePanel>
         )}
@@ -354,7 +365,19 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         onToggleFullscreen={handleToggleFullscreen}
         onToggleSidePanel={handleTogglePanel}
         onToggleOverflow={() => setOverflowOpen((v) => !v)}
-        onLeave={handleLeave}
+        onLeave={() => setConfirmLeave(true)}
+      />
+
+      <MeetingConfirmDialog
+        open={confirmLeave}
+        title="Leave this meeting?"
+        description="The meeting keeps running for everyone else. You can rejoin while it is still open."
+        confirmLabel="Leave"
+        onCancel={() => setConfirmLeave(false)}
+        onConfirm={() => {
+          setConfirmLeave(false);
+          handleLeave();
+        }}
       />
     </div>
   );
