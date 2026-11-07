@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { Check, UserPlus, X } from "lucide-react";
+import { EmptyState } from "@/components/shared/EmptyState";
 import type { EnrolledStudent } from "@/types/educator/meeting.types";
 
 interface JoinRequest {
@@ -18,8 +19,13 @@ interface JoinRequestsPanelProps {
 export function JoinRequestsPanel({ requests, students, onRespond, isPending }: JoinRequestsPanelProps) {
   if (requests.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        No pending join requests
+      <div className="flex h-full items-center justify-center p-3">
+        <EmptyState
+          icon={UserPlus}
+          title="No pending requests"
+          description="Students who ask to join this meeting will appear here."
+          className="min-h-0 border-dashed bg-transparent py-8 md:min-h-0"
+        />
       </div>
     );
   }
