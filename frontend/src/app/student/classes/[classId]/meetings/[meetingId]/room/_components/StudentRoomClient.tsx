@@ -19,6 +19,7 @@ import {
 } from "@/components/student/meeting-room";
 import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
 import { MeetingConfirmDialog } from "@/components/meeting/MeetingConfirmDialog";
+import { MeetingPreJoin } from "@/components/meeting/MeetingPreJoin";
 import { isMeetingVideoLocked } from "@/components/meeting/meeting-video-lock";
 import { readMeetingMediaPrefs } from "@/utils/meetingMediaPrefs";
 import { Hand, MessageSquare, Presentation, Users, Smile, Maximize, Minimize } from "lucide-react";
@@ -47,11 +48,17 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const currentUserId   = currentUser?.id ?? "";
   const currentUserName = currentUser?.fullName ?? "You";
 
+  // The pre-join lobby is skipped when returning to a meeting that is
+  // already running (for example from the minimized player).
+  const [lobbyDone, setLobbyDone] = useState(
+    () => meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId,
+  );
+
   // ── Join / leave ──────────────────────────────────────────────────────────
   const didClearStale = useRef(false);
 
   useEffect(() => {
-    if (!tokenData) return;
+    if (!tokenData || !lobbyDone) return;
     if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
       meetingCtx.maximize();
       // Clear stale reaction/hand-raise state only once per mount, when
@@ -74,13 +81,13 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
     }
     return () => { meetingCtx.minimize(); };
 
-  }, [tokenData]);
+  }, [tokenData, lobbyDone]);
 
   const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
   const {
     connected, participants, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
-    latestReaction, latestHandRaise,
+    latestReaction, recentReactions, latestHandRaise,
   } = meetingCtx;
 
   const { presentation, isLoading, isError } = useMeetingPresentation(classId, presentationId);
@@ -110,7 +117,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
       if (document.getElementById("local-video-pip")) localVideo.play("local-video-pip");
     });
     return () => cancelAnimationFrame(raf);
-  }, [localVideo, isPresenting, isFullscreen]);
+  }, [localVideo, isPresenting, isFullscreen, lobbyDone]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
@@ -120,7 +127,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [isPresenting, featuredUid, remoteUsers, isFullscreen]);
+  }, [isPresenting, featuredUid, remoteUsers, isFullscreen, lobbyDone]);
 
   // If the promoted participant leaves, exit "featured".
   useEffect(() => {
@@ -171,6 +178,13 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   }, [meetingCtx.meetingEnded, backUrl]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleLobbyJoin = () => {
+    const prefs = readMeetingMediaPrefs();
+    setMicOn(prefs.micOn);
+    setCamOn(prefs.camOn);
+    setLobbyDone(true);
+  };
+
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
   const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
   const handleToggleHand  = () => { if (handRaised) lowerHand(); else raiseHand(); setHandRaised((v) => !v); };
@@ -217,6 +231,17 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
     );
   }
 
+  if (!lobbyDone) {
+    return (
+      <MeetingPreJoin
+        userName={currentUserName}
+        roleLabel="Student"
+        onJoin={handleLobbyJoin}
+        onCancel={() => router.push(backUrl)}
+      />
+    );
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={cn(
@@ -254,6 +279,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         {/* ── Reaction & hand-raise overlay ── */}
         <ReactionOverlay
           incomingEmoji={latestReaction ?? null}
+          incomingEmojis={recentReactions}
           incomingHandRaise={latestHandRaise ?? null}
         />
 
