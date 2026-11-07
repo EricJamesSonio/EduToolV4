@@ -38,6 +38,17 @@ export class GradingSchemeController {
     return this.service.findByClass(classId, orgId);
   }
 
+  // educator/admin: can this user edit the class scheme, and if not, why
+  @Get('class/:classId/status')
+  @Roles('admin', 'educator')
+  async getClassStatus(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    return this.service.getClassStatus(classId, orgId, role);
+  }
+
   // educator: get allowed assessment types based on scheme
   @Get('class/:classId/allowed-types')
   @Roles('admin', 'educator')
@@ -53,21 +64,23 @@ export class GradingSchemeController {
   @Roles('admin', 'educator')
   async create(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('role') role: string,
     @Body() dto: CreateGradingSchemeDto,
   ) {
-    return this.service.create(orgId, dto);
+    return this.service.create(orgId, dto, role);
   }
 
-  // educator/admin: update existing scheme (allowed even with assessments)
+  // educator/admin: update existing scheme (blocked once the semester starts)
   @Patch(':id')
   @Roles('admin', 'educator')
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') actorId: string,
+    @CurrentUser('role') role: string,
     @Body() dto: UpdateGradingSchemeDto,
   ) {
-    return this.service.update(id, orgId, dto, actorId);
+    return this.service.update(id, orgId, dto, actorId, role);
   }
 
   // admin: apply a template to a single class
