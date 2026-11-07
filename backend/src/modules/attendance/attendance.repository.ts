@@ -194,9 +194,9 @@ export class AttendanceRepository {
     student_id: string;
     date: Date;
   }) {
-    // TICK-INFRA-017: match the submission's Manila school day. The old
-    // local-midnight window missed sessions whenever the server zone put
-    // the submission on a different day.
+    // TICK-INFRA-017: match the Manila school day of the given instant. The
+    // old local-midnight window missed sessions whenever the server zone put
+    // the instant on a different day.
     const session = await this.db.attendanceSession.findFirst({
       where: {
         class_id: data.class_id,
@@ -208,6 +208,13 @@ export class AttendanceRepository {
     });
 
     if (!session) return null;
+
+    // Never overwrite a status the educator set deliberately (late, excused).
+    const existing = await this.findRecordBySessionAndStudent(
+      session.id,
+      data.student_id,
+    );
+    if (existing && existing.status !== 'absent') return existing;
 
     return this.upsertRecord({
       org_id: data.org_id,
