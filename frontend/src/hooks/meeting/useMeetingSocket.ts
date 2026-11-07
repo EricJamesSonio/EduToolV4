@@ -15,9 +15,11 @@ interface UseMeetingSocketProps {
 
 export interface IncomingReaction {
   emoji: string;
-  /** unique id so the overlay can deduplicate */
+  /** shared id (stamped by the server) so every client places it identically */
   id: string;
   senderName: string;
+  /** client clock time the event arrived, used to skip stale events on re-mount */
+  receivedAt?: number;
 }
 
 export interface IncomingHandRaise {
@@ -26,6 +28,8 @@ export interface IncomingHandRaise {
   /** unique timestamp-based id so the overlay can skip stale events on re-mount */
   id: string;
 }
+
+const MAX_RECENT_REACTIONS = 20;
 
 interface UseMeetingSocketReturn {
   socket: Socket | null;
@@ -37,6 +41,8 @@ interface UseMeetingSocketReturn {
   presentationId: string | null;
   /** Latest reaction received from ANY participant (including self) */
   latestReaction: IncomingReaction | null;
+  /** Recent reactions, so several arriving at once are never dropped */
+  recentReactions: IncomingReaction[];
   /** Latest hand-raise event (fires when a participant raises their hand) */
   latestHandRaise: IncomingHandRaise | null;
   /** True once the host ends the meeting — all connected clients must exit. */
@@ -50,7 +56,7 @@ interface UseMeetingSocketReturn {
   changeSlide: (slide: number) => void;
   startPresentation: (presentationId?: string) => void;
   stopPresentation: () => void;
-  /** Clear the last received reaction (used on meeting re-entry) */
+  /** Clear received reactions (used on meeting re-entry) */
   clearLatestReaction: () => void;
   /** Clear the last hand-raise event (used on meeting re-entry) */
   clearLatestHandRaise: () => void;
@@ -69,11 +75,14 @@ export const useMeetingSocket = ({
   const [isPresenting,     setIsPresenting]      = useState(false);
   const [presentationId,   setPresentationId]    = useState<string | null>(null);
   const [latestReaction,   setLatestReaction]    = useState<IncomingReaction | null>(null);
+  const [recentReactions,  setRecentReactions]   = useState<IncomingReaction[]>([]);
   const [latestHandRaise,  setLatestHandRaise]   = useState<IncomingHandRaise | null>(null);
   const [meetingEnded,     setMeetingEnded]      = useState(false);
 
   // Track previous participants to detect hand-raise changes
   const prevParticipantsRef = useRef<MeetingParticipant[]>([]);
+  // The server tells us who we are, so our own events can read "You".
+  const selfUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!meetingId || !token) return;
@@ -85,9 +94,11 @@ export const useMeetingSocket = ({
     // Without this, the last reaction/hand-raise from the PREVIOUS session
     // lingers in state and re-triggers ReactionOverlay on rejoin.
     setLatestReaction(null);
+    setRecentReactions([]);
     setLatestHandRaise(null);
     setMeetingEnded(false);
     prevParticipantsRef.current = [];
+    selfUserIdRef.current = null;
 
     void (async () => {
       const { io } = await import("socket.io-client");
@@ -130,8 +141,10 @@ export const useMeetingSocket = ({
           currentSlide: number;
           isPresenting: boolean;
           presentationId?: string | null;
+          selfUserId?: string;
         }) => {
           if (!isActive) return;
+          if (data.selfUserId) selfUserIdRef.current = data.selfUserId;
           setParticipants(data.participants || []);
           prevParticipantsRef.current = data.participants || [];
           setChat(data.chatHistory || []);
@@ -164,7 +177,8 @@ export const useMeetingSocket = ({
         setChat((prev) => [...prev, msg]);
       });
 
-      // Hand raise: detect newly raised hands by diffing participants.
+      // Hand raise: the server now sends this to everyone including the
+      // sender. Detect newly raised hands by diffing participants.
       socket.on(
         "hand:update",
         (data: { participants: MeetingParticipant[] }) => {
@@ -180,9 +194,11 @@ export const useMeetingSocket = ({
           });
 
           if (newRaise) {
+            const isSelf =
+              !!selfUserIdRef.current && newRaise.userId === selfUserIdRef.current;
             setLatestHandRaise({
               userId: newRaise.userId,
-              name:   newRaise.name,
+              name:   isSelf ? "You" : newRaise.name,
               id:     `${newRaise.userId}-${Date.now()}`,
             });
           }
@@ -192,16 +208,27 @@ export const useMeetingSocket = ({
         }
       );
 
-      // The server broadcasts reactions to everyone except the sender.
+      // The server stamps every reaction with one id and sends it to everyone
+      // including the sender, so all clients show it the same way.
       socket.on(
         "reaction:received",
-        (data: { emoji: string; userId: string; name: string }) => {
+        (data: { id?: string; emoji: string; userId: string; name: string }) => {
           if (!isActive) return;
-          setLatestReaction({
+
+          const isSelf =
+            !!selfUserIdRef.current && data.userId === selfUserIdRef.current;
+
+          const entry: IncomingReaction = {
             emoji:      data.emoji,
-            id:         `${data.userId}-${Date.now()}-${Math.random()}`,
-            senderName: data.name,
-          });
+            id:         data.id ?? `${data.userId}-${Date.now()}-${Math.random()}`,
+            senderName: isSelf ? "You" : data.name,
+            receivedAt: Date.now(),
+          };
+
+          setLatestReaction(entry);
+          setRecentReactions((prev) =>
+            [...prev, entry].slice(-MAX_RECENT_REACTIONS),
+          );
         }
       );
 
@@ -255,15 +282,8 @@ export const useMeetingSocket = ({
   }, []);
 
   const sendReaction = useCallback((emoji: string): void => {
+    // The server echoes the reaction back to everyone, including us.
     socketRef.current?.emit("reaction:send", { emoji });
-
-    // The server does not echo to the sender, so show the sender's own
-    // reaction immediately.
-    setLatestReaction({
-      emoji,
-      id:         `self-${Date.now()}-${Math.random()}`,
-      senderName: "You",
-    });
   }, []);
 
   const changeSlide = useCallback((slide: number): void => {
@@ -285,6 +305,7 @@ export const useMeetingSocket = ({
 
   const clearLatestReaction = useCallback(() => {
     setLatestReaction(null);
+    setRecentReactions([]);
   }, []);
 
   const clearLatestHandRaise = useCallback(() => {
@@ -304,6 +325,7 @@ export const useMeetingSocket = ({
     isPresenting,
     presentationId,
     latestReaction,
+    recentReactions,
     latestHandRaise,
     meetingEnded,
     clearMeetingEnded,
