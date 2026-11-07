@@ -220,8 +220,7 @@ export function LessonForm({
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
           placeholder="Write or paste the lesson content (minimum 10 words)..."
-          rows={14}
-          className="min-h-[320px] leading-relaxed"
+          className="h-[min(60vh,520px)] min-h-[200px] max-h-[60vh] resize-none overflow-y-auto leading-relaxed [field-sizing:fixed]"
         />
 
         <p className="text-xs text-muted-foreground">
@@ -237,7 +236,7 @@ export function LessonForm({
         )}
 
         {showPreview && (
-          <div className="rounded-md border bg-background p-4">
+          <div className="max-h-[60vh] overflow-y-auto rounded-md border bg-background p-4">
             <LessonContent content={detail} />
           </div>
         )}
