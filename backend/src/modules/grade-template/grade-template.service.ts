@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -51,6 +52,7 @@ const CLASS_SELECT = {
   id: true,
   section_id: true,
   school_year_id: true,
+  semester_id: true,
   subject: {
     select: {
       id: true,
@@ -64,10 +66,14 @@ const CLASS_SELECT = {
   },
 } as const;
 
+const SEMESTER_NOT_ENDED =
+  'Grades can only be submitted at the end of the semester.';
+
 interface ClassRow {
   id: string;
   section_id: string | null;
   school_year_id: string;
+  semester_id: string;
   subject: {
     id: string;
     name: string;
@@ -88,6 +94,19 @@ interface MetaRow {
   created_at: Date;
   updated_at: Date;
   _count: { submissions: number };
+}
+
+interface ClassWrite {
+  classId: string;
+  subjectName: string;
+  rowsWritten: number;
+  ungraded: number;
+  unmatched: number;
+}
+
+interface MasterWrite {
+  classes: ClassWrite[];
+  ambiguousRows: number;
 }
 
 function resolveProgramId(subject: ClassRow['subject']): string | null {
@@ -568,6 +587,8 @@ export class GradeTemplateService {
     return out;
   }
 
+  // Always built from the current grades, so the educator's copy is up to
+  // date every time it is downloaded.
   async downloadMine(orgId: string, educatorId: string, templateId: string) {
     const prepared = await this.prepare(orgId, educatorId, templateId);
     const wb = await loadWorkbook(prepared.fileData);
@@ -587,10 +608,197 @@ export class GradeTemplateService {
     };
   }
 
+  /** Writes every class of this educator whose semester has ended. */
   async submitMine(orgId: string, educatorId: string, templateId: string) {
     const prepared = await this.prepare(orgId, educatorId, templateId);
+    const ended = await this.endedClassIds(orgId, prepared.classes);
+    const eligible = prepared.fillClasses.filter((c) => ended.has(c.classId));
+    if (eligible.length === 0) throw new ForbiddenException(SEMESTER_NOT_ENDED);
 
-    const result = await this.db.$transaction(
+    const result = await this.writeToMaster(
+      orgId,
+      educatorId,
+      templateId,
+      eligible,
+    );
+    if (!result) {
+      throw new BadRequestException(
+        'None of your students were found in this template, so nothing was sent.',
+      );
+    }
+
+    const totalRowsWritten = this.sumRows(result.classes);
+    this.auditLog
+      .logActivityEvent({
+        orgId,
+        actorId: educatorId,
+        action: 'grade_template_submitted',
+        entityType: 'grade_template',
+        entityId: templateId,
+        metadata: { classes: result.classes.length, rowsWritten: totalRowsWritten },
+      })
+      .catch(() => {});
+
+    return {
+      totalRowsWritten,
+      ambiguousRows: result.ambiguousRows,
+      classes: result.classes,
+    };
+  }
+
+  /** What the Submit Grades dialog needs: window, templates and ungraded students. */
+  async classSubmissionStatus(
+    orgId: string,
+    educatorId: string,
+    classId: string,
+  ) {
+    const cls = await this.ownedClass(orgId, educatorId, classId);
+
+    const [semester, templates, submissions, terms, enrollments, grades] =
+      await Promise.all([
+        this.db.semester.findFirst({
+          where: { id: cls.semester_id, org_id: orgId },
+          select: { name: true, end_date: true },
+        }),
+        this.templatesFor(orgId, cls),
+        this.db.gradeTemplateSubmission.findMany({
+          where: { org_id: orgId, class_id: cls.id },
+          select: { submitted_at: true },
+        }),
+        this.gradeRepo.findTemplateTermsByClass(cls.id, orgId),
+        this.db.enrollment.findMany({
+          where: { org_id: orgId, class_id: cls.id, status: 'active' },
+          select: { student_id: true },
+        }),
+        this.db.grade.findMany({
+          where: { org_id: orgId, class_id: cls.id },
+          select: { student_id: true, term_id: true },
+        }),
+      ]);
+
+    const studentIds = [...new Set(enrollments.map((e) => e.student_id))];
+    const profiles = await this.gradeRepo.findStudentProfiles(studentIds);
+
+    const gradedTerms = new Map<string, Set<string>>();
+    for (const g of grades) {
+      const set = gradedTerms.get(g.student_id) ?? new Set<string>();
+      set.add(g.term_id);
+      gradedTerms.set(g.student_id, set);
+    }
+
+    const ungraded = studentIds
+      .map((studentId) => {
+        const done = gradedTerms.get(studentId);
+        const missingTerms = terms
+          .filter((t) => !done?.has(t.id))
+          .map((t) => t.name);
+        return {
+          studentId,
+          name: profiles.get(studentId)?.name ?? 'Unknown',
+          code: profiles.get(studentId)?.code ?? '',
+          missingTerms,
+        };
+      })
+      .filter((s) => terms.length > 0 && s.missingTerms.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const latest = submissions.reduce<Date | null>(
+      (best, s) => (!best || s.submitted_at > best ? s.submitted_at : best),
+      null,
+    );
+
+    return {
+      classId: cls.id,
+      semesterName: semester?.name ?? null,
+      semesterEndDate: semester?.end_date ?? null,
+      canSubmit: !!semester && Date.now() >= semester.end_date.getTime(),
+      templateCount: templates.length,
+      submittedAt: latest,
+      totalStudents: studentIds.length,
+      ungraded,
+    };
+  }
+
+  /** Writes one class's current grades into every template that applies to it. */
+  async submitClass(orgId: string, educatorId: string, classId: string) {
+    const cls = await this.ownedClass(orgId, educatorId, classId);
+
+    const ended = await this.endedClassIds(orgId, [cls]);
+    if (!ended.has(cls.id)) throw new ForbiddenException(SEMESTER_NOT_ENDED);
+
+    const templates = await this.templatesFor(orgId, cls);
+    if (templates.length === 0) {
+      throw new BadRequestException(
+        'No grade template has been shared for this class yet.',
+      );
+    }
+
+    const [fill] = await this.buildFillClasses(orgId, [cls]);
+
+    let templatesUpdated = 0;
+    let rowsWritten = 0;
+    let ambiguousRows = 0;
+    let ungraded = 0;
+    let unmatched = 0;
+    for (const template of templates) {
+      const res = await this.writeToMaster(orgId, educatorId, template.id, [
+        fill,
+      ]);
+      if (!res) continue;
+      const written = res.classes[0];
+      if (templatesUpdated === 0 && written) {
+        ungraded = written.ungraded;
+        unmatched = written.unmatched;
+      }
+      templatesUpdated += 1;
+      rowsWritten += written?.rowsWritten ?? 0;
+      ambiguousRows += res.ambiguousRows;
+    }
+
+    if (templatesUpdated === 0) {
+      throw new BadRequestException(
+        'None of this class\'s students were found in the grade template, so nothing was sent.',
+      );
+    }
+
+    this.auditLog
+      .logActivityEvent({
+        orgId,
+        actorId: educatorId,
+        action: 'class_grades_submitted',
+        entityType: 'class',
+        entityId: classId,
+        metadata: { templatesUpdated, rowsWritten, ungraded },
+      })
+      .catch(() => {});
+
+    return { templatesUpdated, rowsWritten, ambiguousRows, ungraded, unmatched };
+  }
+
+  // ───────────────────────── INTERNALS ─────────────────────────
+
+  private sumRows(classes: ClassWrite[]): number {
+    return classes.reduce((n, c) => n + c.rowsWritten, 0);
+  }
+
+  private countMatched(plan: FillPlan): number {
+    let n = 0;
+    for (const set of plan.matchedStudents.values()) n += set.size;
+    return n;
+  }
+
+  /**
+   * Fills the master workbook for the given classes inside one transaction.
+   * Returns null when none of their students were found in the template
+   * (nothing is written in that case).
+   */
+  private async writeToMaster(
+    orgId: string,
+    educatorId: string,
+    templateId: string,
+    fillClasses: FillClass[],
+  ): Promise<MasterWrite | null> {
+    return this.db.$transaction(
       async (tx) => {
         // One writer at a time per master workbook, or concurrent submissions
         // would overwrite each other's changes.
@@ -606,12 +814,9 @@ export class GradeTemplateService {
 
         const wb = await loadWorkbook(Buffer.from(fresh.file_data));
         const layouts = detectLayouts(wb, parseConfig(fresh.config));
-        const plan = planFills(wb, layouts, prepared.fillClasses);
-        if (this.countMatched(plan) === 0) {
-          throw new BadRequestException(
-            'None of your students were found in this template, so nothing was sent.',
-          );
-        }
+        const plan = planFills(wb, layouts, fillClasses);
+        if (this.countMatched(plan) === 0) return null;
+
         applyFillOps(wb, plan.ops);
         const out = await writeWorkbook(wb);
         await tx.gradeTemplate.update({
@@ -619,7 +824,7 @@ export class GradeTemplateService {
           data: { file_data: out },
         });
 
-        const classes = prepared.fillClasses.map((c) => {
+        const classes: ClassWrite[] = fillClasses.map((c) => {
           const matched = plan.matchedStudents.get(c.classId)?.size ?? 0;
           const written = plan.writtenStudents.get(c.classId)?.size ?? 0;
           return {
@@ -662,34 +867,55 @@ export class GradeTemplateService {
       },
       { timeout: 30_000, maxWait: 10_000 },
     );
-
-    this.auditLog
-      .logActivityEvent({
-        orgId,
-        actorId: educatorId,
-        action: 'grade_template_submitted',
-        entityType: 'grade_template',
-        entityId: templateId,
-        metadata: {
-          classes: result.classes.length,
-          rowsWritten: result.classes.reduce((n, c) => n + c.rowsWritten, 0),
-        },
-      })
-      .catch(() => {});
-
-    return {
-      totalRowsWritten: result.classes.reduce((n, c) => n + c.rowsWritten, 0),
-      ambiguousRows: result.ambiguousRows,
-      classes: result.classes,
-    };
   }
 
-  // ───────────────────────── INTERNALS ─────────────────────────
+  /** Class ids whose semester has reached its end date. */
+  private async endedClassIds(
+    orgId: string,
+    classes: ClassRow[],
+  ): Promise<Set<string>> {
+    const semesterIds = [...new Set(classes.map((c) => c.semester_id))];
+    if (semesterIds.length === 0) return new Set();
+    const semesters = await this.db.semester.findMany({
+      where: { org_id: orgId, id: { in: semesterIds } },
+      select: { id: true, end_date: true },
+    });
+    const endAt = new Map(semesters.map((s) => [s.id, s.end_date.getTime()]));
+    const now = Date.now();
+    return new Set(
+      classes
+        .filter((c) => {
+          const end = endAt.get(c.semester_id);
+          return end !== undefined && now >= end;
+        })
+        .map((c) => c.id),
+    );
+  }
 
-  private countMatched(plan: FillPlan): number {
-    let n = 0;
-    for (const set of plan.matchedStudents.values()) n += set.size;
-    return n;
+  private async ownedClass(
+    orgId: string,
+    educatorId: string,
+    classId: string,
+  ): Promise<ClassRow> {
+    const cls = (await this.db.class.findFirst({
+      where: {
+        id: classId,
+        org_id: orgId,
+        educator_id: educatorId,
+        deleted_at: null,
+      },
+      select: CLASS_SELECT,
+    })) as unknown as ClassRow | null;
+    if (!cls) throw new NotFoundException('Class not found.');
+    return cls;
+  }
+
+  private async templatesFor(orgId: string, cls: ClassRow) {
+    const templates = await this.db.gradeTemplate.findMany({
+      where: { org_id: orgId, school_year_id: cls.school_year_id },
+      select: { id: true, program_id: true },
+    });
+    return templates.filter((t) => appliesTo(t, cls));
   }
 
   private async openTemplate(
@@ -767,6 +993,7 @@ export class GradeTemplateService {
       fileName: template.file_name,
       fileData: Buffer.from(template.file_data),
       config: parseConfig(template.config),
+      classes,
       fillClasses: await this.buildFillClasses(orgId, classes),
     };
   }
@@ -799,6 +1026,26 @@ export class GradeTemplateService {
       ...new Set(enrollments.map((e) => e.student_id)),
     ]);
 
+    // Group once instead of filtering the full lists for every class.
+    const enrolledByClass = new Map<string, string[]>();
+    for (const e of enrollments) {
+      const list = enrolledByClass.get(e.class_id) ?? [];
+      list.push(e.student_id);
+      enrolledByClass.set(e.class_id, list);
+    }
+    const gradesByClass = new Map<
+      string,
+      Map<string, { score: number; grade: string }>
+    >();
+    for (const g of grades) {
+      const map = gradesByClass.get(g.class_id) ?? new Map();
+      map.set(`${g.student_id}:${g.term_id}`, {
+        score: g.final_score,
+        grade: g.final_grade,
+      });
+      gradesByClass.set(g.class_id, map);
+    }
+
     const scaleCache = new Map<string, GradeRangeLite[]>();
     const out: FillClass[] = [];
 
@@ -822,11 +1069,7 @@ export class GradeTemplateService {
         );
       }
 
-      const studentIds = [
-        ...new Set(
-          enrollments.filter((e) => e.class_id === cls.id).map((e) => e.student_id),
-        ),
-      ];
+      const studentIds = [...new Set(enrolledByClass.get(cls.id) ?? [])];
       const byId = new Map<string, string>();
       const nameCount = new Map<string, number>();
       const nameOwner = new Map<string, string>();
@@ -846,15 +1089,6 @@ export class GradeTemplateService {
         if (nameCount.get(key) === 1) byName.set(key, sid);
       }
 
-      const gradeMap = new Map<string, { score: number; grade: string }>();
-      for (const g of grades) {
-        if (g.class_id !== cls.id) continue;
-        gradeMap.set(`${g.student_id}:${g.term_id}`, {
-          score: g.final_score,
-          grade: g.final_grade,
-        });
-      }
-
       const subjectKeys = [cls.subject.name, cls.subject.code ?? '']
         .map((s) => normalizeHeader(s))
         .filter((s) => s.length >= 3);
@@ -867,7 +1101,7 @@ export class GradeTemplateService {
         studentIds,
         byId,
         byName,
-        grades: gradeMap,
+        grades: gradesByClass.get(cls.id) ?? new Map(),
         ranges: scaleCache.get(scaleKey) ?? [],
       });
     }

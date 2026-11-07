@@ -77,6 +77,28 @@ export class GradeTemplateController {
     return this.service.submitMine(orgId, educatorId, id);
   }
 
+  // GET /grade-templates/class/:classId/submission-status
+  @Get('class/:classId/submission-status')
+  @Roles('educator')
+  classSubmissionStatus(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.classSubmissionStatus(orgId, educatorId, classId);
+  }
+
+  // POST /grade-templates/class/:classId/submit
+  @Post('class/:classId/submit')
+  @Roles('educator')
+  submitClass(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.submitClass(orgId, educatorId, classId);
+  }
+
   // ── Admin routes ──
 
   // GET /grade-templates/programs?schoolYearId=
