@@ -19,6 +19,13 @@ import {
 } from './entity/grading-scale.entity';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
+import {
+  findEndedSemesterClassIds,
+  isSemesterInProgress,
+} from '@/commons/utils/semester-lock.util';
+
+const SCALE_LOCKED_MESSAGE =
+  'The grading scale cannot be changed while a semester of this department is in progress. It can be changed again after the semester ends, before the next one starts.';
 
 @Injectable()
 export class GradingScaleService {
@@ -45,6 +52,48 @@ export class GradingScaleService {
     } catch {
       // Grades refresh must never fail the scale save itself.
     }
+  }
+
+  /**
+   * A scale assignment is per department per school year, so it is frozen
+   * while any semester of that department in that year is running.
+   */
+  private async isProgramYearLocked(
+    orgId: string,
+    programId: string,
+    schoolYearId: string,
+  ): Promise<boolean> {
+    const semesters = await this.db.semester.findMany({
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        school_year_id: schoolYearId,
+      },
+      select: { start_date: true, end_date: true },
+    });
+    return semesters.some((s) => isSemesterInProgress(s.start_date, s.end_date));
+  }
+
+  private async isScaleInLockedUse(
+    orgId: string,
+    scaleId: string,
+  ): Promise<boolean> {
+    const assignments = await this.assignmentRepository.findByScaleId(scaleId);
+    for (const a of assignments) {
+      if (await this.isProgramYearLocked(orgId, a.program_id, a.school_year_id)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Classes whose semester already ended keep the grades they ended with. */
+  private async excludeEndedSemesterClasses(
+    orgId: string,
+    classIds: string[],
+  ): Promise<string[]> {
+    const ended = await findEndedSemesterClassIds(this.db, orgId, classIds);
+    return classIds.filter((id) => !ended.has(id));
   }
 
   /** Class ids under a program (direct + via course/strand/level subjects). */
@@ -233,11 +282,14 @@ export class GradingScaleService {
       throw new NotFoundException('Grading scale not found.');
     }
 
-    // Locks no longer block edits: admin may change ranges even after
-    // grades exist / school year started. is_locked stays as audit only.
-
     if (dto.ranges) {
       this.validateRanges(dto.ranges);
+
+      // Changing the ranges changes grades, so it is blocked while a
+      // semester that uses this scale is running.
+      if (await this.isScaleInLockedUse(orgId, id)) {
+        throw new ConflictException(SCALE_LOCKED_MESSAGE);
+      }
     }
 
     const updated = await this.gradingScaleRepository.update(id, {
@@ -248,13 +300,16 @@ export class GradingScaleService {
     await this.gradingScaleRepository.invalidateScaleCache(orgId);
 
     if (dto.ranges && actorId) {
-      const assignments =
-        await this.assignmentRepository.findByScaleId(id);
+      const assignments = await this.assignmentRepository.findByScaleId(id);
       for (const a of assignments) {
-        const classIds = await this.findClassIdsForProgram(
+        const allClassIds = await this.findClassIdsForProgram(
           orgId,
-          (a as unknown as { program_id: string }).program_id,
-          (a as unknown as { school_year_id: string }).school_year_id,
+          a.program_id,
+          a.school_year_id,
+        );
+        const classIds = await this.excludeEndedSemesterClasses(
+          orgId,
+          allClassIds,
         );
         for (const classId of classIds) {
           await this.refreshBestEffort(
@@ -305,8 +360,11 @@ export class GradingScaleService {
       throw new NotFoundException('Grading scale not found.');
     }
 
-    // Locks and existing grades no longer block delete: admin may freely
-    // replace scales even after the school year started.
+    // Deleting also drops every assignment of this scale, so it is blocked
+    // while a running semester depends on it.
+    if (await this.isScaleInLockedUse(orgId, id)) {
+      throw new ConflictException(SCALE_LOCKED_MESSAGE);
+    }
 
     await this.gradingScaleRepository.delete(id);
     await this.gradingScaleRepository.invalidateScaleCache(orgId);
@@ -384,6 +442,21 @@ export class GradingScaleService {
       );
     }
 
+    // First-time assignment is always allowed. Replacing an existing one is
+    // blocked while a semester of this department is in progress.
+    const existing = await this.assignmentRepository.findByProgramAndYear(
+      orgId,
+      programId,
+      schoolYearId,
+    );
+    if (
+      existing &&
+      existing.grading_scale_id !== scaleId &&
+      (await this.isProgramYearLocked(orgId, programId, schoolYearId))
+    ) {
+      throw new ConflictException(SCALE_LOCKED_MESSAGE);
+    }
+
     await this.assignmentRepository.upsert(
       orgId,
       scaleId,
@@ -394,10 +467,14 @@ export class GradingScaleService {
     await this.gradingScaleRepository.invalidateScaleCache(orgId);
 
     if (actorId) {
-      const classIds = await this.findClassIdsForProgram(
+      const allClassIds = await this.findClassIdsForProgram(
         orgId,
         programId,
         schoolYearId,
+      );
+      const classIds = await this.excludeEndedSemesterClasses(
+        orgId,
+        allClassIds,
       );
       for (const classId of classIds) {
         await this.refreshBestEffort(
@@ -434,6 +511,18 @@ export class GradingScaleService {
     programId: string,
     schoolYearId: string,
   ): Promise<void> {
+    const existing = await this.assignmentRepository.findByProgramAndYear(
+      orgId,
+      programId,
+      schoolYearId,
+    );
+    if (
+      existing &&
+      (await this.isProgramYearLocked(orgId, programId, schoolYearId))
+    ) {
+      throw new ConflictException(SCALE_LOCKED_MESSAGE);
+    }
+
     await this.assignmentRepository.remove(orgId, programId, schoolYearId);
     await this.gradingScaleRepository.invalidateScaleCache(orgId);
   }
