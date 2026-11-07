@@ -1,13 +1,12 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
   useLesson,
   useUpdateLesson,
   useDeleteLesson,
-  useTriggerExtraction,
   useConceptBuild,
 } from "@/hooks/educator/useLessons";
 import { usePresentationByLesson } from "@/hooks/educator/usePresentations";
@@ -29,8 +28,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UpdateLessonRequest, CreateLessonRequest } from "@/api/educator/lesson.api";
-import { Pencil, Trash2, Loader2, RotateCcw, Presentation } from "lucide-react";
+import { CreateLessonRequest } from "@/api/educator/lesson.api";
+import { Pencil, Trash2, Loader2, Presentation } from "lucide-react";
 
 export default function LessonDetailPage(): React.JSX.Element {
   const params = useParams();
@@ -39,17 +38,13 @@ export default function LessonDetailPage(): React.JSX.Element {
   const classId = params.classId as string;
   const lessonId = params.lessonId as string;
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [showReExtractBanner, setShowReExtractBanner] = useState(false);
-  const [isBuilding, setIsBuilding] = useState(
-    searchParams.get("extracting") === "true",
-  );
+  const shouldAutoBuild = searchParams.get("build") === "true";
+  const autoBuildStarted = useRef(false);
 
-  const {
-    data: lesson,
-    isLoading,
-    refetch,
-  } = useLesson(classId, lessonId, isBuilding);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(shouldAutoBuild);
+
+  const { data: lesson, isLoading, refetch } = useLesson(classId, lessonId);
 
   const { data: existingPresentation } = usePresentationByLesson(classId, lessonId);
 
@@ -58,36 +53,46 @@ export default function LessonDetailPage(): React.JSX.Element {
     useUpdateLesson(classId);
   const { mutateAsync: deleteLesson, isPending: isDeleting } =
     useDeleteLesson(classId);
-  const { mutateAsync: triggerExtraction, isPending: isTriggering } =
-    useTriggerExtraction(classId);
   const { mutateAsync: conceptBuild, isPending: isConceptBuilding } =
     useConceptBuild(classId);
 
-  const isExtracting = isBuilding || isTriggering || isConceptBuilding;
+  const isExtracting = isBuilding || isConceptBuilding;
 
-  // Poll when building
+  const runBuild = useCallback(
+    async (detail: string): Promise<void> => {
+      setIsBuilding(true);
+      try {
+        await conceptBuild({ lessonId, detail });
+      } catch {
+        // the mutation hook already shows the error toast
+      } finally {
+        setIsBuilding(false);
+        refetch();
+      }
+    },
+    [conceptBuild, lessonId, refetch],
+  );
+
   useEffect(() => {
-    if (!isBuilding) return;
-    if (lesson?.concept) {
+    if (!shouldAutoBuild || autoBuildStarted.current || !lesson) return;
+    autoBuildStarted.current = true;
+    router.replace(`/educator/classes/${classId}/lessons/${lessonId}`);
+    if (!lesson.detail) {
       setIsBuilding(false);
       return;
     }
-    const timer = setInterval(() => refetch(), 3000);
-    return () => clearInterval(timer);
-  }, [isBuilding, lesson?.concept, refetch]);
+    void runBuild(lesson.detail);
+  }, [shouldAutoBuild, lesson, router, classId, lessonId, runBuild]);
 
   async function handleUpdate(data: CreateLessonRequest): Promise<void> {
     const detailChanged =
       data.detail !== undefined && data.detail !== lesson?.detail;
-    const hasExistingBuild = lesson?.concept !== null;
 
     await updateLesson({ lessonId, data });
     setIsEditing(false);
 
-    if (detailChanged && hasExistingBuild) {
-      setShowReExtractBanner(true);
-    } else {
-      toast.success("Lesson updated.");
+    if (detailChanged && data.detail) {
+      await runBuild(data.detail);
     }
   }
 
@@ -97,21 +102,7 @@ export default function LessonDetailPage(): React.JSX.Element {
       toast.error("Lesson has no content to build from.");
       return;
     }
-    setIsBuilding(true);
-    await conceptBuild({ lessonId, detail });
-    refetch();
-  }
-
-  async function handleReExtract(): Promise<void> {
-    const detail = lesson?.detail;
-    if (!detail) {
-      toast.error("Lesson has no content to extract.");
-      return;
-    }
-    setIsBuilding(true);
-    setShowReExtractBanner(false);
-    await triggerExtraction({ lessonId, detail });
-    refetch();
+    await runBuild(detail);
   }
 
   async function handleDelete(): Promise<void> {
@@ -183,77 +174,41 @@ export default function LessonDetailPage(): React.JSX.Element {
                     Delete Lesson
                   </AlertDialogAction>
                 </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              </AlertDialogContent>
+            </AlertDialog>
 
-              {existingPresentation ? (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() =>
-                    router.push(
-                      `/educator/classes/${classId}/presentations/${existingPresentation.id}/view`
-                    )
-                  }
-                >
-                  <Presentation className="h-3.5 w-3.5" />
-                  View Presentation
-                </Button>
-              ) : (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() =>
-                    router.push(
-                      `/educator/classes/${classId}/presentations/new?lessonId=${lessonId}`
-                    )
-                  }
-                >
-                  <Presentation className="h-3.5 w-3.5" />
-                  Create Presentation
-                </Button>
-              )}
-            </>
-          }
-        />
-
-      {/* Re-extract banner */}
-      {showReExtractBanner && (
-        <div className="rounded-lg border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] p-4 text-sm space-y-2">
-          <p className="font-medium text-amber-800">
-            Content updated. Re-extract concepts?
-          </p>
-          <p className="text-amber-700 text-xs">
-            Re-extraction does not affect already-generated assessments.
-          </p>
-          <div className="flex gap-2 pt-1">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-100"
-              onClick={handleReExtract}
-              disabled={isExtracting}
-            >
-              {isExtracting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RotateCcw className="h-3.5 w-3.5" />
-              )}
-              Re-extract
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-amber-700"
-              onClick={() => setShowReExtractBanner(false)}
-            >
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      )}
+            {existingPresentation ? (
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-1.5"
+                onClick={() =>
+                  router.push(
+                    `/educator/classes/${classId}/presentations/${existingPresentation.id}/view`
+                  )
+                }
+              >
+                <Presentation className="h-3.5 w-3.5" />
+                View Presentation
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-1.5"
+                onClick={() =>
+                  router.push(
+                    `/educator/classes/${classId}/presentations/new?lessonId=${lessonId}`
+                  )
+                }
+              >
+                <Presentation className="h-3.5 w-3.5" />
+                Create Presentation
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Form (edit) or read-only view */}
       {isEditing ? (
@@ -268,7 +223,7 @@ export default function LessonDetailPage(): React.JSX.Element {
             ]
           }
           lesson={lesson}
-          isLoading={isUpdating}
+          isLoading={isUpdating || isExtracting}
           onSubmit={handleUpdate}
         />
       ) : (
@@ -289,7 +244,9 @@ export default function LessonDetailPage(): React.JSX.Element {
           </div>
           <div className="px-6 py-4 space-y-3">
             <span className="text-sm text-muted-foreground">Lesson Detail</span>
-            <LessonContent content={lesson.detail} />
+            <div className="max-h-[60vh] overflow-y-auto pr-2">
+              <LessonContent content={lesson.detail} />
+            </div>
           </div>
         </div>
       )}
@@ -300,7 +257,7 @@ export default function LessonDetailPage(): React.JSX.Element {
         <ConceptBuildViewer
           classId={classId}
           lessonId={lessonId}
-          concept={lesson.concept}
+          concept={isExtracting ? null : lesson.concept}
           onBuildConcepts={
             !isEditing && !isExtracting ? handleBuildConcepts : undefined
           }
