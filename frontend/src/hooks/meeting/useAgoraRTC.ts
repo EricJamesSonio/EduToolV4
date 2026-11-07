@@ -152,11 +152,13 @@ export const useAgoraRTC = ({
         return;
       }
 
-      // Restore the user's last mic/camera choice so a reload does not
-      // silently turn them back on.
-      const mediaPrefs = readMeetingMediaPrefs();
-      if (!mediaPrefs.micOn) await micTrack.setEnabled(false);
-      if (!mediaPrefs.camOn) await camTrack.setEnabled(false);
+      localAudioRef.current = micTrack;
+      localVideoRef.current = camTrack;
+      cameraTrackRef.current = camTrack;
+
+      // Tracks must be enabled while publishing; the saved mic/camera choice
+      // is applied right after.
+      await meetingClient.publish([micTrack, camTrack]);
 
       if (cancelled) {
         micTrack.close();
@@ -165,11 +167,14 @@ export const useAgoraRTC = ({
         return;
       }
 
-      localAudioRef.current = micTrack;
-      localVideoRef.current = camTrack;
-      cameraTrackRef.current = camTrack;
+      const mediaPrefs = readMeetingMediaPrefs();
 
-      await meetingClient.publish([micTrack, camTrack]);
+      try {
+        if (!mediaPrefs.micOn) await micTrack.setEnabled(false);
+        if (!mediaPrefs.camOn) await camTrack.setEnabled(false);
+      } catch (error) {
+        console.error("Failed to restore mic/camera state:", error);
+      }
 
       if (cancelled) {
         micTrack.close();
@@ -257,8 +262,16 @@ export const useAgoraRTC = ({
 
     if (!cameraTrack || clientRef.current !== client) return;
 
+    // A disabled track cannot be published: enable it for the publish, then
+    // put it back to the state the user chose.
+    const wasEnabled = cameraTrack.enabled;
+
     try {
+      if (!wasEnabled) await cameraTrack.setEnabled(true);
+
       await client.publish(cameraTrack);
+
+      if (!wasEnabled) await cameraTrack.setEnabled(false);
 
       if (clientRef.current !== client) return;
 
