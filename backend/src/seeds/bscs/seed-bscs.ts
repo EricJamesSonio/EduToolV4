@@ -106,7 +106,16 @@ type SlotRow = {
   end: number;
 };
 
+type TimetableTask = {
+  subject: CurriculumSubject;
+  sectionName: string;
+  semester: number;
+  rank: number;
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const MAX_TIMETABLE_ATTEMPTS = 300;
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -874,12 +883,19 @@ function validateCurriculum(): void {
 }
 
 function clashReasons(a: ScheduleDef, b: ScheduleDef): string[] {
-  if (a.semester !== b.semester || !overlaps(a, b)) return [];
+  if (!overlaps(a, b)) return [];
   const reasons: string[] = [];
   if (a.section === b.section) reasons.push(`section ${a.section}`);
   if (a.instructor === b.instructor) reasons.push(`instructor ${a.instructor}`);
   if (a.room && a.room === b.room) reasons.push(`room ${a.room}`);
   return reasons;
+}
+
+function hasClash(a: ScheduleDef, b: ScheduleDef): boolean {
+  if (!overlaps(a, b)) return false;
+  if (a.section === b.section) return true;
+  if (a.instructor === b.instructor) return true;
+  return a.room !== null && a.room === b.room;
 }
 
 function generateEntry(
@@ -888,6 +904,7 @@ function generateEntry(
   semester: number,
   plan: ScheduleDef[],
   rules: ScheduleRules,
+  salt: number,
   avoid: ScheduleDef[] = [],
 ): ScheduleDef {
   const blocks = subject.halfBlock ? HALF_BLOCKS : FULL_BLOCKS;
@@ -911,7 +928,7 @@ function generateEntry(
               semester,
             },
             rank: hashString(
-              `${sectionName}:${semester}:${subject.code}:${day}:${block.start}:${instructor}:${room}`,
+              `${salt}:${sectionName}:${semester}:${subject.code}:${day}:${block.start}:${instructor}:${room}`,
             ),
           });
         }
@@ -921,10 +938,7 @@ function generateEntry(
   candidates.sort((a, b) => a.rank - b.rank);
 
   for (const { entry } of candidates) {
-    const clashes = plan.some(
-      (existing) => clashReasons(existing, entry).length > 0,
-    );
-    if (clashes) continue;
+    if (plan.some((existing) => hasClash(existing, entry))) continue;
     if (avoid.some((other) => overlaps(other, entry))) continue;
     return entry;
   }
@@ -933,52 +947,127 @@ function generateEntry(
   );
 }
 
-function buildTimetable(rules: ScheduleRules): ScheduleDef[] {
-  const byCode = new Map(CURRICULUM.map((s) => [s.code, s] as const));
-  const plan: ScheduleDef[] = [];
-  const extraCodes = new Set(Object.values(IRREGULAR_STUDENTS).flat());
-
-  for (const posted of SCHEDULES) {
-    if (!byCode.has(posted.subject)) {
-      throw new Error(
-        `Posted timetable uses unknown subject code "${posted.subject}".`,
-      );
-    }
-    plan.push({ ...posted, semester: POSTED_TIMETABLE_SEMESTER });
+function avoidList(
+  sectionName: string,
+  subjectCode: string,
+  semester: number,
+  plan: ScheduleDef[],
+  extraCodes: Set<string>,
+): ScheduleDef[] {
+  if (semester !== STUDENT_SEMESTER) return [];
+  if (sectionName === DEFAULT_STUDENT_SECTION) {
+    return plan.filter(
+      (e) =>
+        e.semester === semester &&
+        extraCodes.has(e.subject) &&
+        IRREGULAR_EXTRA_SECTIONS.includes(e.section),
+    );
   }
+  if (
+    extraCodes.has(subjectCode) &&
+    IRREGULAR_EXTRA_SECTIONS.includes(sectionName)
+  ) {
+    return plan.filter(
+      (e) => e.semester === semester && e.section === DEFAULT_STUDENT_SECTION,
+    );
+  }
+  return [];
+}
+
+function buildTimetableAttempt(
+  posted: ScheduleDef[],
+  rules: ScheduleRules,
+  salt: number,
+): ScheduleDef[] {
+  const plan: ScheduleDef[] = [...posted];
+  const extraCodes = new Set(Object.values(IRREGULAR_STUDENTS).flat());
+  const tasks: TimetableTask[] = [];
 
   for (const section of SECTIONS) {
     for (const semester of [1, 2]) {
       const label = SEMESTER_NAMES[semester - 1];
-      const required = CURRICULUM.filter(
-        (s) => s.levelName === section.levelName && s.term === label,
-      );
-      for (const subject of required) {
-        const scheduled = plan.some(
+      for (const subject of CURRICULUM) {
+        if (subject.levelName !== section.levelName) continue;
+        if (subject.term !== label) continue;
+        const scheduled = posted.some(
           (e) =>
             e.section === section.name &&
             e.subject === subject.code &&
             e.semester === semester,
         );
         if (scheduled) continue;
-
-        const avoid =
-          section.name === DEFAULT_STUDENT_SECTION &&
-          semester === STUDENT_SEMESTER
-            ? plan.filter(
-                (e) =>
-                  e.semester === semester &&
-                  extraCodes.has(e.subject) &&
-                  IRREGULAR_EXTRA_SECTIONS.includes(e.section),
-              )
-            : [];
-        plan.push(
-          generateEntry(subject, section.name, semester, plan, rules, avoid),
-        );
+        tasks.push({
+          subject,
+          sectionName: section.name,
+          semester,
+          rank: hashString(
+            `${salt}:${section.name}:${semester}:${subject.code}`,
+          ),
+        });
       }
     }
   }
+
+  tasks.sort((a, b) => {
+    const byInstructors =
+      a.subject.instructors.length - b.subject.instructors.length;
+    if (byInstructors !== 0) return byInstructors;
+    const byBlock =
+      Number(Boolean(a.subject.halfBlock)) -
+      Number(Boolean(b.subject.halfBlock));
+    if (byBlock !== 0) return byBlock;
+    return a.rank - b.rank;
+  });
+
+  for (const task of tasks) {
+    const avoid = avoidList(
+      task.sectionName,
+      task.subject.code,
+      task.semester,
+      plan,
+      extraCodes,
+    );
+    plan.push(
+      generateEntry(
+        task.subject,
+        task.sectionName,
+        task.semester,
+        plan,
+        rules,
+        salt,
+        avoid,
+      ),
+    );
+  }
   return plan;
+}
+
+function buildTimetable(rules: ScheduleRules): ScheduleDef[] {
+  const knownCodes = new Set(CURRICULUM.map((s) => s.code));
+  const posted: ScheduleDef[] = SCHEDULES.map((p) => {
+    if (!knownCodes.has(p.subject)) {
+      throw new Error(
+        `Posted timetable uses unknown subject code "${p.subject}".`,
+      );
+    }
+    return { ...p, semester: POSTED_TIMETABLE_SEMESTER };
+  });
+  assertNoScheduleConflicts(posted, rules);
+
+  let lastProblem = 'unknown problem';
+  for (let salt = 0; salt < MAX_TIMETABLE_ATTEMPTS; salt++) {
+    try {
+      const plan = buildTimetableAttempt(posted, rules, salt);
+      assertNoScheduleConflicts(plan, rules);
+      return plan;
+    } catch (e) {
+      lastProblem = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  throw new Error(
+    `No conflict-free BSCS timetable exists for the current data and schedule rules after ${MAX_TIMETABLE_ATTEMPTS} attempts, nothing was seeded. Last problem: ${lastProblem}`,
+  );
 }
 
 function assertNoScheduleConflicts(
@@ -1025,7 +1114,7 @@ function assertNoScheduleConflicts(
       const reasons = clashReasons(a, b);
       if (reasons.length > 0) {
         problems.push(
-          `semester ${a.semester} ${a.day} ${a.start}-${a.end} / ${b.start}-${b.end} (${reasons.join(', ')}): ${a.section} ${a.subject} and ${b.section} ${b.subject}`,
+          `${a.day} ${a.start}-${a.end} vs ${b.start}-${b.end} (${reasons.join(', ')}): ${a.section} ${a.subject} (sem ${a.semester}) and ${b.section} ${b.subject} (sem ${b.semester})`,
         );
       }
     }
@@ -1055,7 +1144,7 @@ function findRowConflicts(
       ) {
         continue;
       }
-      if (a.semesterId !== b.semesterId || a.weekday !== b.weekday) continue;
+      if (a.weekday !== b.weekday) continue;
       if (!(a.start < b.end && b.start < a.end)) continue;
 
       const reasons: string[] = [];
@@ -1067,7 +1156,7 @@ function findRowConflicts(
       if (reasons.length > 0) {
         const day = WEEKDAY_LABELS[a.weekday] ?? `weekday ${a.weekday}`;
         problems.push(
-          `${day} ${formatMinutes(a.start)}-${formatMinutes(a.end)} (${reasons.join(', ')}): ${a.label} and ${b.label}`,
+          `${day} ${formatMinutes(a.start)}-${formatMinutes(a.end)} vs ${formatMinutes(b.start)}-${formatMinutes(b.end)} (${reasons.join(', ')}): ${a.label} and ${b.label}`,
         );
       }
     }
@@ -1107,7 +1196,7 @@ async function assertPlanFitsDatabase(
     const semesterId = semesterIds[e.semester];
     return {
       classId: classIdFor(ctx, section.id, subjectId, semesterId),
-      label: `${e.section} ${e.subject}`,
+      label: `${e.section} ${e.subject} (sem ${e.semester})`,
       semesterId,
       educatorId: educatorIds[e.instructor],
       sectionId: section.id,
@@ -1128,7 +1217,9 @@ async function assertPlanFitsDatabase(
       school_year_id: ctx.schoolYearId,
       deleted_at: null,
       AND: [
-        { OR: [{ section_id: null }, { section_id: { notIn: ownSectionIds } }] },
+        {
+          OR: [{ section_id: null }, { section_id: { notIn: ownSectionIds } }],
+        },
         {
           OR: [
             { educator_id: { in: educatorList } },
@@ -2156,7 +2247,7 @@ async function main(): Promise<void> {
     `  curriculum   : ${CURRICULUM.length} subjects, prerequisites verified`,
   );
   console.log(
-    `  timetable    : ${timetable.length} classes planned, no schedule conflicts`,
+    `  timetable    : ${timetable.length} classes planned, no conflicts across both semesters`,
   );
 
   const syStart = schoolYear.start_date as Date;
