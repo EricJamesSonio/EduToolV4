@@ -308,6 +308,7 @@ export class MeetingGateway
         currentSlide: room.currentSlide,
         isPresenting: room.isPresenting,
         presentationId: room.presentationId,
+        selfUserId: payload.sub,
       });
 
       // Notify others (broadcast excludes the joiner, who already got room:state)
@@ -463,6 +464,9 @@ export class MeetingGateway
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || !auth) return;
 
+    // Only students raise hands; the educator runs the room.
+    if (auth.role !== 'student') return;
+
     // Phase 2: hand toggles fan out the full participant list — throttle them.
     if (this.hitRateLimit(client, 'hand')) return;
 
@@ -472,7 +476,9 @@ export class MeetingGateway
 
     participant.handRaised = raised;
 
-    client.broadcast.to(meetingId).emit('hand:update', {
+    // Sent to everyone including the sender, so the student also sees their
+    // own raised hand ("You") and their own entry in the people list.
+    this.server.to(meetingId).emit('hand:update', {
       userId: auth.sub,
       name: client.data.name,
       handRaised: raised,
@@ -497,7 +503,12 @@ export class MeetingGateway
     if (!this.isValidDto(MeetingReactionDto, data)) return;
     const emoji = data.emoji;
 
-    client.broadcast.to(meetingId).emit('reaction:received', {
+    // One shared id for every client, so the reaction lands in the same lane
+    // for everyone. Sent to the sender too.
+    const id = `${auth.sub}-${Date.now()}-${Math.random()}`;
+
+    this.server.to(meetingId).emit('reaction:received', {
+      id,
       userId: auth.sub,
       name: client.data.name,
       emoji,
