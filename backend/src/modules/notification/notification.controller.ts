@@ -6,19 +6,61 @@ import {
   Delete,
   Param,
   Query,
+  Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { NotificationService } from './notification.service';
+import { NotificationEventsService } from './notification-events.service';
 import { QueryNotificationDto } from './dto/notification.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
+const HEARTBEAT_MS = 25_000;
+
 @Controller('notifications')
 @UseGuards(AuthGuard)
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly events: NotificationEventsService,
+  ) {}
+
+  /**
+   * GET /notifications/stream
+   * Server-sent events: pushes every new notification for the current user
+   * the moment it is created.
+   */
+  @Get('stream')
+  async stream(
+    @CurrentUser('id') accountId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    res.write('retry: 5000\n\n');
+
+    const subscription = this.events.streamFor(accountId).subscribe((event) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    });
+
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, HEARTBEAT_MS);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      subscription.unsubscribe();
+    });
+  }
 
   /**
    * GET /notifications

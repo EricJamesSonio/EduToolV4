@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { NotificationRepository } from './notification.repository';
+import { NotificationEventsService } from './notification-events.service';
 import { QueryNotificationDto } from './dto/notification.dto';
 
 export interface NotificationView {
@@ -19,6 +20,7 @@ export interface NotificationView {
 export class NotificationService {
   constructor(
     private readonly notificationRepository: NotificationRepository,
+    private readonly events: NotificationEventsService,
   ) {}
 
   private toView(n: {
@@ -131,7 +133,12 @@ export class NotificationService {
     type: string;
     payload: object;
   }) {
-    return this.notificationRepository.create(data);
+    const created = await this.notificationRepository.create(data);
+    this.events.emit(data.accountId, {
+      type: data.type,
+      payload: data.payload,
+    });
+    return created;
   }
 
   /**
@@ -146,7 +153,11 @@ export class NotificationService {
     }>,
   ) {
     if (notifications.length === 0) return;
-    return this.notificationRepository.createMany(notifications);
+    const result = await this.notificationRepository.createMany(notifications);
+    for (const n of notifications) {
+      this.events.emit(n.accountId, { type: n.type, payload: n.payload });
+    }
+    return result;
   }
 
   /**
@@ -157,9 +168,13 @@ export class NotificationService {
     const accountIds = await this.notificationRepository.findOrgStaffIds(orgId);
     if (accountIds.length === 0) return;
 
-    return this.notificationRepository.createMany(
+    const result = await this.notificationRepository.createMany(
       accountIds.map((accountId) => ({ orgId, accountId, type, payload })),
     );
+    for (const accountId of accountIds) {
+      this.events.emit(accountId, { type, payload });
+    }
+    return result;
   }
 
   /**
