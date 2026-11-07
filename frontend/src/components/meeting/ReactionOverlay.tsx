@@ -8,9 +8,9 @@ interface WalkingEmoji {
   id: string;
   emoji: string;
   senderName: string;
-  /** vertical % position (10–70) so it stays in upper area */
+  /** vertical % position (10–65), derived from the shared reaction id */
   top: number;
-  /** size variant */
+  /** size variant, derived from the shared reaction id */
   size: number;
 }
 
@@ -23,9 +23,18 @@ interface HandRaisePopup {
   top: number;
 }
 
+interface IncomingEmojiEvent {
+  emoji: string;
+  id: string;
+  senderName: string;
+  receivedAt?: number;
+}
+
 interface ReactionOverlayProps {
-  /** Reaction received from socket — id must be unique per event */
-  incomingEmoji: { emoji: string; id: string; senderName: string } | null;
+  /** Latest reaction — id must be unique per event */
+  incomingEmoji: IncomingEmojiEvent | null;
+  /** Recent reactions; every unseen one is shown so none are dropped */
+  incomingEmojis?: IncomingEmojiEvent[];
   /** Fires when someone raises their hand */
   incomingHandRaise: { name: string; userId: string; id: string } | null;
 }
@@ -36,80 +45,134 @@ const EMOJI_DURATION_MS  = 7000;  // slower walk across screen
 const HAND_DURATION_MS   = 4000;
 const MAX_WALKING_EMOJIS = 12;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Stable 0..1 value from a string, so every client picks the same lane. */
+function hashUnit(input: string, salt: number): number {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+/** True when the event predates this overlay mount (stale from a previous session). */
+function isStaleEmoji(event: IncomingEmojiEvent, mountedAt: number): boolean {
+  if (typeof event.receivedAt === "number") {
+    return event.receivedAt < mountedAt;
+  }
+
+  // Fallback for ids shaped "prefix-${Date.now()}-${Math.random()}".
+  const parts = event.id.split("-");
+  if (parts.length >= 3) {
+    const ts = parseInt(parts[parts.length - 2], 10);
+    if (!isNaN(ts) && ts < mountedAt) return true;
+  }
+
+  return false;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ReactionOverlay({
   incomingEmoji,
+  incomingEmojis,
   incomingHandRaise,
 }: ReactionOverlayProps) {
   const [walkingEmojis, setWalkingEmojis] = useState<WalkingEmoji[]>([]);
   const [handPopups,    setHandPopups]    = useState<HandRaisePopup[]>([]);
   const mountTimeRef = useRef(Date.now());
   // Use a Set to hard-deduplicate by id
-  const seenEmojiIds     = useRef<Set<string>>(new Set());
+  const seenEmojiIds = useRef<Set<string>>(new Set());
+  const timersRef    = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-useEffect(() => {
-  if (!incomingEmoji) return;
-  if (seenEmojiIds.current.has(incomingEmoji.id)) return;
-  // Skip reactions whose timestamp predates this component mount.
-  // This prevents stale reactions (leftover from a previous session) from
-  // re-animating on re-mount, without relying on a fragile mount-guard ref.
-  // ID format is always "prefix-${Date.now()}-${Math.random()}" — the
-  // timestamp is the second-to-last segment when splitting by '-'.
-  const parts = incomingEmoji.id.split('-');
-  if (parts.length >= 3) {
-    const emojiTs = parseInt(parts[parts.length - 2], 10);
-    if (!isNaN(emojiTs) && emojiTs < mountTimeRef.current) return;
-  }
-  seenEmojiIds.current.add(incomingEmoji.id);
-  if (seenEmojiIds.current.size > 100) {
-    const oldest = [...seenEmojiIds.current].slice(0, 50);
-    oldest.forEach((k) => seenEmojiIds.current.delete(k));
-  }
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
 
-  const entry: WalkingEmoji = {
-    id:         incomingEmoji.id,
-    emoji:      incomingEmoji.emoji,
-    senderName: incomingEmoji.senderName,
-    top:        10 + Math.random() * 55,
-    size:       48 + Math.random() * 24,
-  };
+  useEffect(() => {
+    const events: IncomingEmojiEvent[] =
+      incomingEmojis && incomingEmojis.length > 0
+        ? incomingEmojis
+        : incomingEmoji
+          ? [incomingEmoji]
+          : [];
 
-  setWalkingEmojis((prev) => {
-    const next = [...prev, entry];
-    return next.length > MAX_WALKING_EMOJIS ? next.slice(-MAX_WALKING_EMOJIS) : next;
-  });
+    if (events.length === 0) return;
 
-  setTimeout(() => {
-    setWalkingEmojis((prev) => prev.filter((e) => e.id !== entry.id));
-  }, EMOJI_DURATION_MS + 200);
-}, [incomingEmoji]);
+    const fresh: WalkingEmoji[] = [];
 
-useEffect(() => {
-  if (!incomingHandRaise) return;
+    for (const event of events) {
+      if (seenEmojiIds.current.has(event.id)) continue;
 
-  // Skip hand-raises whose timestamp predates this component mount.
-  // Mirrors the emoji path: stale events from a previous room session must
-  // not re-animate when the overlay remounts on meeting re-entry.
-  const parts = incomingHandRaise.id.split('-');
-  if (parts.length >= 2) {
-    const raiseTs = parseInt(parts[parts.length - 1], 10);
-    if (!isNaN(raiseTs) && raiseTs < mountTimeRef.current) return;
-  }
+      // Mark as seen even when stale so it is never re-evaluated.
+      seenEmojiIds.current.add(event.id);
 
-  const popup: HandRaisePopup = {
-    id:   `${incomingHandRaise.userId}-${Date.now()}`,
-    name: incomingHandRaise.name,
-    left: 20 + Math.random() * 50,
-    top:  30 + Math.random() * 30,
-  };
+      if (isStaleEmoji(event, mountTimeRef.current)) continue;
 
-  setHandPopups((prev) => [...prev, popup]);
+      fresh.push({
+        id:         event.id,
+        emoji:      event.emoji,
+        senderName: event.senderName,
+        top:        10 + hashUnit(event.id, 1) * 55,
+        size:       48 + hashUnit(event.id, 2) * 24,
+      });
+    }
 
-  setTimeout(() => {
-    setHandPopups((prev) => prev.filter((p) => p.id !== popup.id));
-  }, HAND_DURATION_MS + 300);
-}, [incomingHandRaise]);
+    if (seenEmojiIds.current.size > 100) {
+      const oldest = [...seenEmojiIds.current].slice(0, 50);
+      oldest.forEach((key) => seenEmojiIds.current.delete(key));
+    }
+
+    if (fresh.length === 0) return;
+
+    setWalkingEmojis((prev) => {
+      const next = [...prev, ...fresh];
+      return next.length > MAX_WALKING_EMOJIS ? next.slice(-MAX_WALKING_EMOJIS) : next;
+    });
+
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      const freshIds = new Set(fresh.map((entry) => entry.id));
+      setWalkingEmojis((prev) => prev.filter((entry) => !freshIds.has(entry.id)));
+    }, EMOJI_DURATION_MS + 200);
+
+    timersRef.current.add(timer);
+  }, [incomingEmoji, incomingEmojis]);
+
+  useEffect(() => {
+    if (!incomingHandRaise) return;
+
+    // Skip hand-raises whose timestamp predates this component mount.
+    // Mirrors the emoji path: stale events from a previous room session must
+    // not re-animate when the overlay remounts on meeting re-entry.
+    const parts = incomingHandRaise.id.split("-");
+    if (parts.length >= 2) {
+      const raiseTs = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(raiseTs) && raiseTs < mountTimeRef.current) return;
+    }
+
+    const popup: HandRaisePopup = {
+      id:   `${incomingHandRaise.userId}-${Date.now()}`,
+      name: incomingHandRaise.name,
+      left: 20 + Math.random() * 50,
+      top:  30 + Math.random() * 30,
+    };
+
+    setHandPopups((prev) => [...prev, popup]);
+
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      setHandPopups((prev) => prev.filter((p) => p.id !== popup.id));
+    }, HAND_DURATION_MS + 300);
+
+    timersRef.current.add(timer);
+  }, [incomingHandRaise]);
 
   return (
     <>
