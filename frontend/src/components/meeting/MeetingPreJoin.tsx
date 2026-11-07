@@ -99,7 +99,7 @@ export function MeetingPreJoin({
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-6 p-4 md:flex-row md:gap-10 md:p-8">
         <div className="w-full md:flex-1">
-          <div className="relative aspect-[4/5] max-h-[55vh] w-full overflow-hidden rounded-2xl bg-zinc-900 shadow-lg md:aspect-video md:max-h-none">
+          <div className="relative aspect-[4/5] max-h-[55vh] w-full overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl ring-1 ring-border md:aspect-video md:max-h-none">
             {showVideo ? (
               <video
                 ref={videoRef}
@@ -110,7 +110,7 @@ export function MeetingPreJoin({
               />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-3xl font-semibold text-primary">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary text-3xl font-semibold text-secondary-foreground">
                   {initial}
                 </div>
                 <p className="text-sm text-zinc-400">
@@ -141,13 +141,17 @@ export function MeetingPreJoin({
           </div>
         </div>
 
-        <div className="flex w-full flex-col items-center gap-4 text-center md:w-72 md:items-start md:text-left">
+        <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 text-center shadow-xl md:w-80 md:items-start md:text-left">
           <div>
-            <h1 className="text-2xl font-semibold">Ready to join?</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {userName} · {roleLabel}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h1 className="text-2xl font-semibold text-foreground">Ready to join?</h1>
+            <div className="mt-2 flex items-center justify-center gap-2 md:justify-start">
+              <span className="text-sm font-medium text-foreground">{userName}</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+                {roleLabel}
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
               Check your camera and microphone before you enter.
             </p>
           </div>
@@ -155,7 +159,7 @@ export function MeetingPreJoin({
           <button
             type="button"
             onClick={handleJoin}
-            className="h-11 w-full rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="h-11 w-full rounded-full bg-secondary px-6 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/90"
           >
             Join now
           </button>

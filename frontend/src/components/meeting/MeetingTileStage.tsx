@@ -29,7 +29,7 @@ export function MeetingTileStage({ tiles, maxCols }: MeetingTileStageProps) {
         return (
           <div
             key={tile.key}
-            className="absolute p-0.5 transition-all duration-300 ease-out"
+            className="absolute p-1 transition-all duration-300 ease-out"
             style={{
               left: `${rect.x}%`,
               top: `${rect.y}%`,
@@ -37,18 +37,20 @@ export function MeetingTileStage({ tiles, maxCols }: MeetingTileStageProps) {
               height: `${rect.h}%`,
             }}
           >
-            <div className="relative h-full w-full overflow-hidden rounded-lg bg-zinc-800">
+            <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-800 shadow-lg">
               <div id={tile.domId} className="absolute inset-0" />
 
               {tile.camOff && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-800 text-zinc-500 pointer-events-none">
-                  <VideoOff className="h-8 w-8" />
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-zinc-800">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <VideoOff className="h-7 w-7" />
+                  </span>
                 </div>
               )}
 
               {(tile.label || tile.micOff) && (
-                <div className="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] text-white pointer-events-none">
-                  {tile.micOff && <MicOff className="h-3 w-3 text-red-400" />}
+                <div className="pointer-events-none absolute bottom-2 left-2 z-20 flex items-center gap-1 rounded-full bg-secondary/95 px-2 py-0.5 text-[11px] font-medium text-secondary-foreground shadow-sm">
+                  {tile.micOff && <MicOff className="h-3 w-3 text-red-600" />}
                   {tile.label && <span>{tile.label}</span>}
                 </div>
               )}
@@ -58,7 +60,7 @@ export function MeetingTileStage({ tiles, maxCols }: MeetingTileStageProps) {
                   type="button"
                   onClick={tile.onClose}
                   aria-label="Collapse camera"
-                  className="absolute top-1.5 right-1.5 z-30 flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-sm text-white hover:bg-black/70"
+                  className="absolute right-1.5 top-1.5 z-30 flex h-6 w-6 items-center justify-center rounded-md bg-secondary/90 text-sm text-secondary-foreground hover:bg-secondary"
                 >
                   ✕
                 </button>

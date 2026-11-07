@@ -10,6 +10,8 @@ import SlideViewer from "@/components/meeting/SlideViewer";
 import { getMeetingTileRects } from "./meeting-tile-layout";
 import { lockMeetingVideo } from "./meeting-video-lock";
 import type { Presentation } from "@/types/educator/presentation.types";
+import { Users } from "lucide-react";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -473,12 +475,26 @@ export function ParticipantsPanel({
   const [fullscreenTarget, setFullscreenTarget] = useState<Participant | null>(null);
   const [showGrid,         setShowGrid]         = useState(false);
 
+  const list: Participant[] =
+    currentUserId && !participants.some((p) => p.userId === currentUserId)
+      ? [
+          {
+            userId: currentUserId,
+            name: currentUserName,
+            role,
+            handRaised: false,
+          },
+          ...participants,
+        ]
+      : participants;
+
+  const othersCount = list.filter((p) => p.userId !== currentUserId).length;
+
   const handleRightClick = useCallback(
     (e: React.MouseEvent, participant: Participant) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Clamp so menu doesn't go off-screen
       const menuW = 200;
       const menuH = 110;
       const x = Math.min(e.clientX, window.innerWidth  - menuW - 8);
@@ -491,46 +507,48 @@ export function ParticipantsPanel({
 
   return (
     <>
-      <div className="p-3 space-y-1 overflow-y-auto h-full">
-        {participants.map((p) => {
+      <div className="p-3 space-y-2 overflow-y-auto h-full">
+        {list.map((p) => {
           const isMe = p.userId === currentUserId;
           return (
             <div
               key={p.userId}
               onContextMenu={(e) => handleRightClick(e, p)}
               onClick={() => setFullscreenTarget(p)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40 cursor-pointer select-none"
+              className="flex cursor-pointer select-none items-center gap-3 rounded-xl bg-secondary px-3 py-2.5 text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/90"
               title="Tap to view camera"
             >
-              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
                 {p.name[0]?.toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
+                <p className="truncate text-sm font-semibold">
                   {p.name}
                   {isMe && (
-                    <span className="ml-1.5 text-xs text-muted-foreground">(You)</span>
+                    <span className="ml-1.5 text-xs font-normal text-secondary-foreground/60">(You)</span>
                   )}
                 </p>
-                <p className="text-[11px] text-muted-foreground capitalize">{p.role}</p>
+                <p className="text-[11px] capitalize text-secondary-foreground/60">{p.role}</p>
               </div>
               {p.handRaised && <span className="text-base">✋</span>}
             </div>
           );
         })}
 
-        {participants.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground pt-6">
-            No participants yet
-          </p>
+        {othersCount === 0 && (
+          <EmptyState
+            icon={Users}
+            title={list.length === 0 ? "No participants yet" : "Just you for now"}
+            description="People who join the meeting will show up here."
+            className="mt-3 min-h-0 border-dashed bg-transparent py-8 md:min-h-0"
+          />
         )}
 
-        {/* View all button at bottom */}
-        {participants.length > 1 && (
-          <div className="pt-2 border-t border-border/40 mt-2">
+        {list.length > 1 && (
+          <div className="mt-2 border-t border-border pt-3">
             <button
               onClick={() => setShowGrid(true)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
             >
               <span>⊞</span>
               View all cameras
@@ -539,7 +557,6 @@ export function ParticipantsPanel({
         )}
       </div>
 
-      {/* Context menu */}
       {contextMenu && (
         <ContextMenuPopup
           menu={contextMenu}
@@ -549,7 +566,6 @@ export function ParticipantsPanel({
         />
       )}
 
-      {/* Fullscreen single view */}
       {fullscreenTarget && (
         <FullscreenView
           participant={fullscreenTarget}
@@ -560,7 +576,6 @@ export function ParticipantsPanel({
         />
       )}
 
-      {/* Grid view all */}
       {showGrid && (
         <GridView
           participants={participants}

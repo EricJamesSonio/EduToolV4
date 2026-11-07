@@ -20,7 +20,7 @@ export function MeetingSidePanel({ title, onClose, children, className }: Meetin
     <>
       {/* Mobile backdrop */}
       <div
-        className="fixed inset-x-0 top-0 bottom-[var(--meeting-controls-h,0px)] z-[55] bg-black/40 sm:hidden animate-[meeting-fade-in_150ms_ease-out]"
+        className="fixed inset-x-0 top-0 bottom-[var(--meeting-controls-h,0px)] z-[55] bg-black/50 sm:hidden animate-[meeting-fade-in_150ms_ease-out]"
         onClick={onClose}
         aria-hidden
       />
@@ -38,7 +38,10 @@ export function MeetingSidePanel({ title, onClose, children, className }: Meetin
         {/* Mobile drag handle */}
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
-          <span className="text-sm font-medium text-foreground capitalize">{title}</span>
+          <span className="flex items-center gap-2 text-sm font-semibold text-foreground capitalize">
+            <span className="h-2 w-2 rounded-full bg-accent" aria-hidden />
+            {title}
+          </span>
           <button
             onClick={onClose}
             className="h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
