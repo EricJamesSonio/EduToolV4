@@ -18,6 +18,8 @@
 @import "./responsive.css";
 /* Responsive styles specific to meeting room components */
 @import "./responsive-meeting.css";
+/* Meeting rooms follow the EduTool dark navy theme */
+@import "./meeting-theme.css";
 /* Error display in login forms */
 @import "./error-login.css";
 /* Portal-specific component sizing (cards, tables, page headers) */

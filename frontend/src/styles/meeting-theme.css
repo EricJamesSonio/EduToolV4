@@ -1,0 +1,29 @@
+/* MEETING THEME
+   The meeting pages are wrapped in .dark.meeting-theme, so themed components
+   already use the EduTool dark navy tokens from theme.css. Surfaces are navy,
+   buttons and list rows use the light secondary token, and yellow (accent) is
+   reserved for small signals. This file only maps the hard-coded zinc surfaces
+   used by video tiles and the stage onto those same tokens. It overrides no
+   color tokens. Tune the palette in theme.css, not here. */
+
+.meeting-theme .bg-zinc-950 {
+  background-color: var(--background);
+}
+
+.meeting-theme .bg-zinc-900 {
+  background-color: var(--card);
+}
+
+.meeting-theme .bg-zinc-800 {
+  background-color: var(--muted);
+}
+
+.meeting-theme .border-zinc-700,
+.meeting-theme .border-zinc-600 {
+  border-color: var(--border);
+}
+
+.meeting-theme .text-zinc-400,
+.meeting-theme .text-zinc-500 {
+  color: var(--muted-foreground);
+}
