@@ -10,10 +10,7 @@ import {
   useAttendanceGrid,
   useSaveAttendanceGrid,
 } from "@/hooks/educator/useAttendance";
-import type {
-  AttendanceGridData,
-  AttendanceGridSession,
-} from "@/api/educator/attendance.api";
+import type { AttendanceGridSession } from "@/api/educator/attendance.api";
 
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
@@ -47,6 +44,13 @@ const ALL_STATUSES: AttendanceStatus[] = [
   "late",
   "excused",
 ];
+
+const STATUS_NAME: Record<AttendanceStatus, string> = {
+  present: "Present",
+  absent: "Absent",
+  late: "Late",
+  excused: "Excused",
+};
 
 function formatTime(iso: string): string {
   try {
@@ -120,6 +124,22 @@ function Cell({
   const [open, setOpen] = useState(false);
 
   if (!enabled) {
+    // Future session: a recorded status (set automatically from an
+    // assessment submission) is shown but cannot be changed.
+    if (status) {
+      return (
+        <div
+          title={`${STATUS_NAME[status]} (recorded from an assessment, locked until the day)`}
+          className={cn(
+            "flex items-center justify-center h-8 w-full rounded text-[11px] font-bold tabular-nums cursor-not-allowed",
+            STATUS_COLOR[status],
+          )}
+        >
+          {STATUS_LABEL[status]}
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center h-8 w-full rounded text-[11px] font-bold tabular-nums bg-card border border-border/40 text-muted-foreground/25 cursor-not-allowed">
         —
@@ -256,8 +276,6 @@ export function AttendanceGrid({ classId }: Props) {
     );
   }
 
-  const totalCols = sessions.length + 1; // +1 for student name column
-
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -310,7 +328,6 @@ export function AttendanceGrid({ classId }: Props) {
                 Student
               </th>
               {weekGroups.map(([weekNum, weekSessions]) => {
-
                 return (
                   <th
                     key={weekNum}
