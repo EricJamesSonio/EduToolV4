@@ -82,10 +82,6 @@ export class LessonService {
       metadata: { lessonId: lesson.id, title: lesson.title },
     });
 
-    this.conceptService
-      .triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail)
-      .catch(() => {});
-
     return lesson;
   }
 
