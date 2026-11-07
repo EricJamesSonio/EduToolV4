@@ -3,40 +3,12 @@
 import { useRef } from "react";
 import {
   Mic, MicOff, Video, VideoOff, Hand,
-  MessageSquare, Users, LogOut, Smile, Maximize, Minimize, MoreHorizontal,
+  MessageSquare, Users, Smile, Maximize, Minimize, MoreHorizontal, PhoneOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMeetingControlsHeight } from "@/hooks/meeting/useMeetingControlsHeight";
+import { MeetingControlButton } from "@/components/meeting/MeetingControlButton";
 import type { SidePanelType } from "./types";
-
-interface ControlBtn {
-  onClick: () => void;
-  active?: boolean;
-  danger?: boolean;
-  label: string;
-  hideOnMobile?: boolean;
-  mobileOnly?: boolean;
-  children: React.ReactNode;
-}
-
-function Btn({ onClick, active, danger, label, hideOnMobile, mobileOnly, children }: ControlBtn) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "meeting-ctrl-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-        active && !danger && "text-primary bg-primary/10",
-        danger && "text-destructive hover:bg-destructive/10",
-        !active && !danger && "text-muted-foreground hover:bg-muted hover:text-foreground",
-        hideOnMobile && "meeting-ctrl-btn--hide-mobile",
-        mobileOnly && "meeting-ctrl-btn--mobile-only",
-      )}
-    >
-      {children}
-      {label}
-    </button>
-  );
-}
 
 interface ControlsBarProps {
   connected: boolean;
@@ -71,7 +43,7 @@ export function ControlsBar({
   return (
     <div
       ref={barRef}
-      className="meeting-controls relative z-[57] shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-border bg-card px-2 py-1"
+      className="meeting-controls relative z-[57] shrink-0 flex items-center justify-center flex-wrap gap-2 border-t border-border bg-card px-2 py-2"
     >
       {/* Connection status */}
       <div className={cn(
@@ -82,43 +54,74 @@ export function ControlsBar({
         <span className="meeting-status-label">{connected ? "Connected" : "Connecting..."}</span>
       </div>
 
-      <Btn onClick={onToggleMic} danger={!micOn} label={micOn ? "Mute" : "Unmute"}>
+      <MeetingControlButton
+        onClick={onToggleMic}
+        active={!micOn}
+        danger={!micOn}
+        label={micOn ? "Mute" : "Unmute"}
+      >
         {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-      </Btn>
+      </MeetingControlButton>
 
-      <Btn onClick={onToggleCam} danger={!camOn} label={camOn ? "Stop Video" : "Start Video"}>
+      <MeetingControlButton
+        onClick={onToggleCam}
+        active={!camOn}
+        danger={!camOn}
+        label={camOn ? "Turn off camera" : "Turn on camera"}
+      >
         {camOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-      </Btn>
+      </MeetingControlButton>
 
-      <Btn onClick={onToggleHand} active={handRaised} label={handRaised ? "Lower Hand" : "Raise Hand"} hideOnMobile>
+      <MeetingControlButton
+        onClick={onToggleHand}
+        active={handRaised}
+        label={handRaised ? "Lower hand" : "Raise hand"}
+        hideOnMobile
+      >
         <Hand className="h-5 w-5" />
-      </Btn>
+      </MeetingControlButton>
 
-      <Btn onClick={onToggleReactions} label="React" hideOnMobile>
+      <MeetingControlButton onClick={onToggleReactions} label="React" hideOnMobile>
         <Smile className="h-5 w-5" />
-      </Btn>
+      </MeetingControlButton>
 
       {!simplified && (
-        <Btn onClick={() => onToggleSidePanel("chat")} active={sidePanel === "chat"} label="Chat" hideOnMobile>
+        <MeetingControlButton
+          onClick={() => onToggleSidePanel("chat")}
+          active={sidePanel === "chat"}
+          label="Chat"
+          hideOnMobile
+        >
           <MessageSquare className="h-5 w-5" />
-        </Btn>
+        </MeetingControlButton>
       )}
 
-      <Btn onClick={onToggleFullscreen} active={isFullscreen} label={isFullscreen ? "Exit Full" : "Full Screen"} hideOnMobile>
+      <MeetingControlButton
+        onClick={onToggleFullscreen}
+        active={isFullscreen}
+        label={isFullscreen ? "Exit full screen" : "Full screen"}
+        hideOnMobile
+      >
         {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-      </Btn>
+      </MeetingControlButton>
 
-      <Btn onClick={() => onToggleSidePanel("participants")} active={sidePanel === "participants"} label={participantCount > 0 ? `${participantCount}` : "People"} hideOnMobile>
+      <MeetingControlButton
+        onClick={() => onToggleSidePanel("participants")}
+        active={sidePanel === "participants"}
+        label={participantCount > 0 ? `People (${participantCount})` : "People"}
+        badge={participantCount}
+        hideOnMobile
+      >
         <Users className="h-5 w-5" />
-      </Btn>
+      </MeetingControlButton>
 
-      <Btn onClick={onToggleOverflow} active={overflowOpen} label="More" mobileOnly>
+      <MeetingControlButton onClick={onToggleOverflow} active={overflowOpen} label="More" mobileOnly>
         <MoreHorizontal className="h-5 w-5" />
-      </Btn>
+      </MeetingControlButton>
 
-      <Btn onClick={onLeave} danger label="Leave">
-        <LogOut className="h-5 w-5" />
-      </Btn>
+      <MeetingControlButton onClick={onLeave} danger wide label="Leave meeting">
+        <PhoneOff className="h-5 w-5" />
+      </MeetingControlButton>
     </div>
   );
 }
