@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { AppWrapper } from "@/components/shared/AppWrapper";
+import { ServerWakeGate } from "@/components/shared/ServerWakeGate";
 import { queryClient } from "@/lib/query-client.config";
 
 const Devtools = dynamic(
@@ -28,18 +29,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppWrapper>{children}</AppWrapper>
+      <ServerWakeGate>
+        <AuthProvider>
+          <AppWrapper>{children}</AppWrapper>
 
-        <Toaster richColors position="top-right" />
+          <Toaster richColors position="top-right" />
 
-        {isDevelopment && (
-          <>
-            <Devtools initialIsOpen={false} />
-            <DevDebugPanel />
-          </>
-        )}
-      </AuthProvider>
+          {isDevelopment && (
+            <>
+              <Devtools initialIsOpen={false} />
+              <DevDebugPanel />
+            </>
+          )}
+        </AuthProvider>
+      </ServerWakeGate>
     </QueryClientProvider>
   );
 }
