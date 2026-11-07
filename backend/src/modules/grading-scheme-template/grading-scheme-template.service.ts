@@ -21,6 +21,10 @@ import {
 } from '../program/program-type-resolver';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
+import {
+  findStartedSemesterClassIds,
+  getClassSemesterInfo,
+} from '@/commons/utils/semester-lock.util';
 
 @Injectable()
 export class GradingSchemeTemplateService {
@@ -368,12 +372,24 @@ export class GradingSchemeTemplateService {
       return { success: true, removedCount: 0 };
     }
 
+    // Classes whose semester already started keep their scheme: it is frozen
+    // until that semester is over.
+    const startedIds = await findStartedSemesterClassIds(
+      this.db,
+      orgId,
+      classIds,
+    );
+    const removableClassIds = classIds.filter((id) => !startedIds.has(id));
+    if (removableClassIds.length === 0) {
+      return { success: true, removedCount: 0 };
+    }
+
     // Remove only the schemes that came from the program's resolved template,
     // leaving educator-customized / other-template schemes untouched.
     const schemes = await this.db.gradingScheme.findMany({
       where: {
         org_id: orgId,
-        class_id: { in: classIds },
+        class_id: { in: removableClassIds },
         template_id: resolved.templateId,
       },
       select: { id: true },
@@ -457,6 +473,20 @@ export class GradingSchemeTemplateService {
       );
     }
 
+    // Guard: an existing scheme is frozen once the class's semester started.
+    const existingScheme = await this.gradingSchemeRepo.findByClassId(
+      dto.classId,
+      orgId,
+    );
+    if (existingScheme) {
+      const info = await getClassSemesterInfo(this.db, orgId, dto.classId);
+      if (info.started) {
+        throw new ConflictException(
+          `The grading scheme is locked because ${info.semesterName ?? 'the semester'} has already started. It can only be changed for a semester that has not started yet.`,
+        );
+      }
+    }
+
     await this.assertNoOrphanedAssessments(
       orgId,
       dto.classId,
@@ -538,20 +568,36 @@ export class GradingSchemeTemplateService {
     );
 
     if (classIds.length === 0) {
-      return { success: true, appliedCount: 0, skippedCount: 0 };
+      return {
+        success: true,
+        appliedCount: 0,
+        skippedCount: 0,
+        lockedCount: 0,
+      };
     }
+
+    // One batched lookup for existing schemes and one for started semesters,
+    // never a per-class check. Classes that already have a scheme AND whose
+    // semester started are frozen and always skipped.
+    const [withSchemes, startedIds] = await Promise.all([
+      this.db.gradingScheme.findMany({
+        where: { org_id: orgId, class_id: { in: classIds } },
+        select: { class_id: true },
+      }),
+      findStartedSemesterClassIds(this.db, orgId, classIds),
+    ]);
+    const hasScheme = new Set(withSchemes.map((s) => s.class_id));
+    const isFrozen = (id: string): boolean =>
+      hasScheme.has(id) && startedIds.has(id);
+
+    const lockedCount = classIds.filter(isFrozen).length;
+    let targetIds = classIds.filter((id) => !isFrozen(id));
 
     // overwriteExisting=false: only stamp classes that have no grading scheme
     // at all — classes with a template (or an educator-customized scheme) keep
-    // theirs. One batched lookup, never a per-class check.
-    let targetIds = classIds;
+    // theirs.
     if (dto.overwriteExisting === false) {
-      const withSchemes = await this.db.gradingScheme.findMany({
-        where: { org_id: orgId, class_id: { in: classIds } },
-        select: { class_id: true },
-      });
-      const hasScheme = new Set(withSchemes.map((s) => s.class_id));
-      targetIds = classIds.filter((id) => !hasScheme.has(id));
+      targetIds = targetIds.filter((id) => !hasScheme.has(id));
     }
 
     // Create/update grading scheme for each targeted class.
@@ -593,6 +639,7 @@ export class GradingSchemeTemplateService {
       success: true,
       appliedCount,
       skippedCount: classIds.length - appliedCount,
+      lockedCount,
     };
   }
 }
