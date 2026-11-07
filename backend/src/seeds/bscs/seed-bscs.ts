@@ -55,6 +55,7 @@ import {
   type TermLabel,
   type Weekday,
 } from './bscs.data';
+import { STUDENT_NUMBERS } from './bscs.data';
 
 type OrgInfo = {
   id: string;
@@ -1911,6 +1912,29 @@ async function seedStudents(
   classEnrollments: number;
   creditsAdded: number;
 }> {
+  const numberByName = new Map<string, string>();
+  const ownerByNumber = new Map<string, string>();
+  const numberProblems: string[] = [];
+  for (const name of names) {
+    const number = STUDENT_NUMBERS[normalizeKey(name)];
+    if (!number) {
+      numberProblems.push(`${name}: no student number in STUDENT_NUMBERS`);
+      continue;
+    }
+    const owner = ownerByNumber.get(number);
+    if (owner) {
+      numberProblems.push(`${name} and ${owner} share student number ${number}`);
+      continue;
+    }
+    ownerByNumber.set(number, name);
+    numberByName.set(name, number);
+  }
+  if (numberProblems.length > 0) {
+    throw new Error(
+      `Student numbers are invalid, no student was seeded:\n  - ${numberProblems.join('\n  - ')}`,
+    );
+  }
+
   let created = 0;
   let reused = 0;
   let classEnrollments = 0;
@@ -1920,6 +1944,7 @@ async function seedStudents(
   for (const name of names) {
     const plan = plans.get(name);
     if (!plan) continue;
+    const studentNumber = numberByName.get(name) as string;
 
     let local = emailLocalPart(name);
     let suffix = 1;
@@ -1934,22 +1959,16 @@ async function seedStudents(
 
     const existing = await db.account.findFirst({
       where: { email },
-      select: { id: true, profile: { select: { metadata: true } } },
+      select: { id: true },
     });
     if (existing) {
       accountId = existing.id;
       reused += 1;
-      const previous = (existing.profile?.metadata ?? {}) as {
-        studentId?: unknown;
-      };
       await db.profile.updateMany({
         where: { account_id: accountId },
         data: {
           metadata: {
-            studentId:
-              typeof previous.studentId === 'string'
-                ? previous.studentId
-                : generateStudentId(),
+            studentId: studentNumber,
             levelId,
             sectionId,
           },
@@ -1968,7 +1987,7 @@ async function seedStudents(
             create: {
               full_name: name,
               metadata: {
-                studentId: generateStudentId(),
+                studentId: studentNumber,
                 levelId,
                 sectionId,
               },

@@ -238,7 +238,42 @@ export const IRREGULAR_STUDENTS: Record<string, string[]> = {
 
 export const IRREGULAR_EXTRA_SECTIONS: string[] = ['BSCS-2A', 'BSCS-3A'];
 
-export const IRREGULAR_RATE_PERCENT = 30;
+export const IRREGULAR_RATE_PERCENT = 0;
+export const STUDENT_NUMBERS: Record<string, string> = {
+  'aldwin javier mora': '2023-0001',
+  'angelica delgado': '2023-0002',
+  'earbine marinas': '2023-0003',
+  'earl john vendivil oliveros': '2023-0004',
+  'eric james sonio': '2023-0005',
+  'ernesto torres': '2023-0006',
+  'florentine delfin': '2023-0007',
+  'gab': '2023-0008',
+  'gian carl marcos': '2023-0009',
+  'gian lobaton': '2023-0010',
+  'hero ocenar': '2023-0011',
+  'ian vitente': '2023-0012',
+  'james harrison marcos mangahas': '2023-0013',
+  'jay entileso': '2023-0014',
+  'jessa mae jamila': '2023-0015',
+  'jessamae jamila': '2023-0016',
+  'jethro yaneza': '2023-0017',
+  'john florence adriano': '2023-0018',
+  'john francis bautista': '2023-0019',
+  'justine dizon': '2023-0020',
+  'justine sandiego': '2023-0021',
+  'ley': '2023-0022',
+  'macky mc': '2023-0023',
+  'mariz macasa': '2023-0024',
+  'mary ann adriano': '2023-0025',
+  'nicky shane villaruel': '2023-0026',
+  'orea brian': '2023-0027',
+  'rey mark nacor': '2023-0028',
+  'rj diaz': '2023-0029',
+  'sheirlyn reyes': '2023-0030',
+  'verto reels': '2023-0031',
+  'vince hedric de guzman': '2023-0032',
+};
+
 
 export const RAW_STUDENT_NAMES: string[] = [
   'Aldwin Javier Mora',
