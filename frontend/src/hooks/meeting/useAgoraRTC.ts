@@ -6,6 +6,10 @@ import type {
   ILocalVideoTrack,
   ICameraVideoTrack,
 } from "agora-rtc-sdk-ng";
+import {
+  readMeetingMediaPrefs,
+  writeMeetingMediaPrefs,
+} from "@/utils/meetingMediaPrefs";
 
 interface UseAgoraRTCProps {
   appId: string;
@@ -148,6 +152,19 @@ export const useAgoraRTC = ({
         return;
       }
 
+      // Restore the user's last mic/camera choice so a reload does not
+      // silently turn them back on.
+      const mediaPrefs = readMeetingMediaPrefs();
+      if (!mediaPrefs.micOn) await micTrack.setEnabled(false);
+      if (!mediaPrefs.camOn) await camTrack.setEnabled(false);
+
+      if (cancelled) {
+        micTrack.close();
+        camTrack.close();
+        await meetingClient.leave();
+        return;
+      }
+
       localAudioRef.current = micTrack;
       localVideoRef.current = camTrack;
       cameraTrackRef.current = camTrack;
@@ -218,7 +235,9 @@ export const useAgoraRTC = ({
 
     if (!track) return;
 
-    await track.setEnabled(!track.enabled);
+    const next = !track.enabled;
+    await track.setEnabled(next);
+    writeMeetingMediaPrefs({ micOn: next });
   };
 
   const toggleCamera = async () => {
@@ -228,7 +247,9 @@ export const useAgoraRTC = ({
 
     if (!track) return;
 
-    await track.setEnabled(!track.enabled);
+    const next = !track.enabled;
+    await track.setEnabled(next);
+    writeMeetingMediaPrefs({ camOn: next });
   };
 
   const restoreCamera = useCallback(async (client: IAgoraRTCClient) => {
