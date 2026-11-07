@@ -46,7 +46,7 @@ export const MEETING_SOCKET_LIMITS: Record<string, SocketRateLimitOptions> = {
 
 // How long an emptied ephemeral (Groupy) meeting survives before it is
 // hard-deleted, so a page refresh or brief reconnect does not destroy it.
-const EPHEMERAL_CLEANUP_GRACE_MS = 10_000;
+const EPHEMERAL_CLEANUP_GRACE_MS = 30_000;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
