@@ -173,8 +173,7 @@ export default function HelpPage() {
             <div key={idx} className="rounded-xl border bg-card p-4 space-y-2">
               <h4 className="font-semibold text-foreground">{item.problem}</h4>
               <p className="text-sm text-muted-foreground">{item.solution}</p>
-            </div>
-          ))}
+            </div>       ))}
         </div>
       </section>
 
