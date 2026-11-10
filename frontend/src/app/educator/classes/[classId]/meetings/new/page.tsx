@@ -14,7 +14,6 @@ import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { useCreateMeeting, useEnrolledStudents } from "@/hooks/educator/useMeeting";
 import { localInputToIso } from "@/utils/datetime.util";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AxiosError } from "axios";
 
 interface Props {
@@ -24,7 +23,7 @@ interface Props {
 export default function NewMeetingPage({ params }: Props) {
   const { classId } = use(params);
   const router      = useRouter();
-  const createMutation       = useCreateMeeting(classId);
+  const createMutation        = useCreateMeeting(classId);
   const { data: studentsRaw } = useEnrolledStudents(classId);
   const students = Array.isArray(studentsRaw) ? studentsRaw : [];
 
@@ -36,19 +35,17 @@ export default function NewMeetingPage({ params }: Props) {
 
   const canSave = title.trim().length > 0 && startTime.length > 0 && !createMutation.isPending;
 
-    const toggleStudent = (id: string) => {
+  const toggleStudent = (id: string) => {
     setSelectedIds((prev) => {
-        const next = new Set(prev);
-
-        if (next.has(id)) {
+      const next = new Set(prev);
+      if (next.has(id)) {
         next.delete(id);
-        } else {
+      } else {
         next.add(id);
-        }
-
-        return next;
+      }
+      return next;
     });
-    };
+  };
 
   const handleSave = () => {
     const invitedStudentIds = inviteAll ? [] : Array.from(selectedIds);
@@ -129,6 +126,9 @@ export default function NewMeetingPage({ params }: Props) {
             onChange={(e) => setStartTime(e.target.value)}
             disabled={createMutation.isPending}
           />
+          <p className="text-xs text-muted-foreground">
+            Times are set and shown in school time (Asia/Manila) for everyone.
+          </p>
         </div>
 
         {/* Invite */}
@@ -177,32 +177,39 @@ export default function NewMeetingPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Student checklist */}
+          {/* Student checklist: a plain scrolling box that keeps its own height */}
           {!inviteAll && (
-            <ScrollArea className="max-h-48 rounded-md border">
+            <div className="max-h-64 overflow-y-auto overscroll-contain rounded-md border bg-card">
               {students.length === 0 ? (
                 <p className="p-4 text-sm text-muted-foreground">No enrolled students found.</p>
               ) : (
-                <div className="p-2 space-y-1">
+                <div className="space-y-1 p-2">
+                  <p className="px-3 pb-1 pt-1 text-xs text-muted-foreground">
+                    {selectedIds.size} of {students.length} selected
+                  </p>
                   {students.map((s) => (
                     <label
                       key={s.id}
-                      className="flex items-center gap-3 rounded-md px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+                      className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-muted/40"
                     >
                       <Checkbox
                         checked={selectedIds.has(s.id)}
                         onCheckedChange={() => toggleStudent(s.id)}
                         disabled={createMutation.isPending}
                       />
-                      <div>
-                        <p className="text-sm font-medium">{s.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{s.email}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {s.fullName || s.email || "Unnamed student"}
+                        </p>
+                        {s.fullName && s.email && (
+                          <p className="truncate text-xs text-muted-foreground">{s.email}</p>
+                        )}
                       </div>
                     </label>
                   ))}
                 </div>
               )}
-            </ScrollArea>
+            </div>
           )}
         </div>
       </div>
