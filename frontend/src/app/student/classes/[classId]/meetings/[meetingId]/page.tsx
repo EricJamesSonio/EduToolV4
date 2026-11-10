@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
 import { isWithinInterval, addMinutes, isPast } from "date-fns";
 import { useStudentMeeting, useRequestJoinMeeting } from "@/hooks/student/useStudentMeetings";
+import { formatMeetingDate, formatMeetingTime } from "@/utils/meetingTime.util";
 import { toast } from "sonner";
 
 function getMeetingStatus(
@@ -99,19 +100,11 @@ export default function StudentClassMeetingDetailPage(): React.JSX.Element {
                   </Badge>
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
-                    {new Date(meeting.startTime).toLocaleDateString(undefined, {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {formatMeetingDate(meeting.startTime, "long")}
                   </span>
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    {new Date(meeting.startTime).toLocaleTimeString(undefined, {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatMeetingTime(meeting.startTime)}
                   </span>
                 </div>
               </div>
