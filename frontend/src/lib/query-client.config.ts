@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { backoffDelay, isTransientError } from '@/lib/retry';
 
 export const QUERY_PRESETS = {
   static:   { staleTime: 30 * 60 * 1000, gcTime: 60 * 60 * 1000 },
@@ -11,35 +12,23 @@ export const QUERY_PRESETS = {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Perf Phase 7: default to the 'list' preset (60s stale) instead of
-      // 'static' (30m stale). Hooks that forgot meta.preset silently inherited
-      // static freshness — correct for reference data, stale for lists. Static
-      // owners must now declare preset: 'static' explicitly (useAppQuery
-      // throws in dev without a preset; useAsyncQuery warns).
+      // Default to the 'list' preset. Static owners must declare
+      // preset: 'static' explicitly (useAppQuery throws in dev without one).
       staleTime: QUERY_PRESETS.list.staleTime,
       gcTime: QUERY_PRESETS.list.gcTime,
-      // Fail fast: list/detail queries should resolve to a terminal state as
-      // soon as possible so the UI can render empty/error instead of sitting on
-      // a spinner while retries exhaust with exponential backoff. Only transient
-      // rate-limit errors get a single quick retry; everything else surfaces
-      // immediately and relies on the in-UI "Retry" buttons.
-      retry: (failureCount, error: unknown) => {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status === 408 || status === 429) return failureCount < 1;
-        return false;
-      },
-      retryDelay: (attemptIndex) => Math.min(500 * 2 ** attemptIndex, 4000),
+      // Fail fast on real errors so the UI can show its error state with a
+      // Retry button. Only transient failures (network, 408, 429, 502-504)
+      // retry, at most twice, with backoff.
+      retry: (failureCount, error: unknown) =>
+        isTransientError(error) && failureCount < 2,
+      retryDelay: (attemptIndex) => backoffDelay(attemptIndex, 500, 4000),
       refetchOnWindowFocus: false,
       refetchOnMount: true,
       refetchOnReconnect: true,
     },
     mutations: {
-      retry: (failureCount, error: unknown) => {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status && status >= 400 && status < 500) return false;
-        return failureCount < 1;
-      },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      // Never auto-retry writes: a retried POST can duplicate data.
+      retry: false,
     },
   },
 });
