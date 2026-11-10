@@ -28,6 +28,7 @@ interface RowState {
   studentName: string;
   studentCode: string;
   status: AttendanceStatus;
+  recorded: boolean;
   autoSet: boolean;
   dirty: boolean;
 }
@@ -91,12 +92,50 @@ function StatusChip({
           selected
             ? "bg-primary text-primary-foreground border-primary"
             : "bg-background text-muted-foreground border-border hover:text-foreground"
-        }`}
+        }
+        ${disabled ? "cursor-not-allowed" : ""}`}
     >
       {cfg.icon}
       {cfg.label}
     </button>
   );
+}
+
+function buildRows(
+  session: {
+    students?: { id: string; name: string; code: string }[];
+    records: AttendanceRecord[];
+  },
+  recordMap: Map<string, AttendanceRecord>,
+): RowState[] {
+  const studentList = session.students ?? [];
+
+  if (studentList.length > 0) {
+    return studentList.map((s) => {
+      const existing = recordMap.get(s.id);
+      return {
+        recordId: existing?.id ?? null,
+        studentId: s.id,
+        studentName: s.name,
+        studentCode: s.code,
+        status: existing?.status ?? "present",
+        recorded: !!existing,
+        autoSet: false,
+        dirty: false,
+      };
+    });
+  }
+
+  return session.records.map((r) => ({
+    recordId: r.id,
+    studentId: r.student_id,
+    studentName: r.student_name ?? "",
+    studentCode: r.student_code ?? "",
+    status: r.status,
+    recorded: true,
+    autoSet: false,
+    dirty: false,
+  }));
 }
 
 export default function AttendanceSessionPage() {
@@ -117,42 +156,16 @@ export default function AttendanceSessionPage() {
 
   // Merge enrolled students with existing attendance records
   const recordMap = useMemo(() => {
-    const map = new Map<string, AttendanceRecord>()
+    const map = new Map<string, AttendanceRecord>();
     for (const r of session?.records ?? []) {
-      map.set(r.student_id, r)
+      map.set(r.student_id, r);
     }
-    return map
-  }, [session])
+    return map;
+  }, [session]);
 
   useEffect(() => {
     if (!session) return;
-
-    const studentList = session.students ?? [];
-
-    setRows(
-      studentList.length > 0
-        ? studentList.map((s) => {
-            const existing = recordMap.get(s.id)
-            return {
-              recordId: existing?.id ?? null,
-              studentId: s.id,
-              studentName: s.name,
-              studentCode: s.code,
-              status: existing?.status ?? 'present',
-              autoSet: false,
-              dirty: false,
-            }
-          })
-        : session.records.map((r) => ({
-            recordId: r.id,
-            studentId: r.student_id,
-            studentName: r.student_name ?? '',
-            studentCode: r.student_code ?? '',
-            status: r.status,
-            autoSet: false,
-            dirty: false,
-          }))
-    );
+    setRows(buildRows(session, recordMap));
   }, [session, recordMap]);
 
   const setStatus = useCallback(
@@ -168,53 +181,6 @@ export default function AttendanceSessionPage() {
     []
   );
 
-  const markAllPresent = useCallback(() => {
-    setRows((prev) =>
-      prev.map((r) => ({
-        ...r,
-        status: "present",
-        dirty: true,
-        autoSet: false,
-      }))
-    );
-  }, []);
-
-  const resetDirty = useCallback(() => {
-    if (!session) return;
-
-    const recMap = new Map<string, AttendanceRecord>()
-    for (const r of session.records) {
-      recMap.set(r.student_id, r)
-    }
-
-    const studentList = session.students ?? [];
-
-    setRows(
-      studentList.length > 0
-        ? studentList.map((s) => {
-            const existing = recMap.get(s.id)
-            return {
-              recordId: existing?.id ?? null,
-              studentId: s.id,
-              studentName: s.name,
-              studentCode: s.code,
-              status: existing?.status ?? 'present',
-              autoSet: false,
-              dirty: false,
-            }
-          })
-        : session.records.map((r) => ({
-            recordId: r.id,
-            studentId: r.student_id,
-            studentName: r.student_name ?? '',
-            studentCode: r.student_code ?? '',
-            status: r.status,
-            autoSet: false,
-            dirty: false,
-          }))
-    );
-  }, [session]);
-
   const handleSave = async () => {
     setSaving(true);
 
@@ -227,7 +193,7 @@ export default function AttendanceSessionPage() {
       );
 
       setRows((prev) =>
-        prev.map((r) => ({ ...r, dirty: false }))
+        prev.map((r) => ({ ...r, dirty: false, recorded: true }))
       );
 
       toast.success("Attendance saved successfully.");
@@ -271,10 +237,10 @@ export default function AttendanceSessionPage() {
 
   const sessionLabel = `Session ${session.week_number}.${session.sub_index}`;
 
-  const sessionDate = new Date(session.date)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const isFuture = sessionDate > today
+  const sessionDate = new Date(session.date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isFuture = sessionDate > today;
 
   return (
     <div className="space-y-6">
@@ -309,8 +275,11 @@ export default function AttendanceSessionPage() {
       {/* Future session notice */}
       {isFuture && (
         <div className="rounded-lg border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] px-4 py-3">
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            This session is scheduled for <strong>{dateLabel}</strong>. Attendance can only be marked on or after this date.
+          <p className="text-xs">
+            This session is scheduled for <strong>{dateLabel}</strong>. Attendance
+            can only be marked on or after this date. Students who submit an
+            assessment for this week are marked present automatically, and that
+            stays locked until the day.
           </p>
         </div>
       )}
@@ -369,7 +338,11 @@ export default function AttendanceSessionPage() {
                   <StatusChip
                     key={s}
                     status={s}
-                    selected={row.status === s}
+                    selected={
+                      isFuture
+                        ? row.recorded && row.status === s
+                        : row.status === s
+                    }
                     onClick={() => setStatus(row.studentId, s)}
                     disabled={isFuture}
                   />

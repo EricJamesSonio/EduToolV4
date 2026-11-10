@@ -55,6 +55,7 @@ const toClass = (
   schedules: unknown,
   subjectId = "",
   semesterId: string | null = null,
+  schoolYearId: string | null = null,
 ): Class => {
   const raw = Array.isArray(schedules) ? (schedules as RawSchedule[]) : [];
   return {
@@ -62,9 +63,10 @@ const toClass = (
     subjectName,
     sectionName,
     subjectId,
-    // Carried through so the schedule page can scope to a semester; the grid
-    // itself ignores it.
+    // Carried through so the schedule page can scope to a school year and
+    // semester; the grid itself ignores them.
     semesterId,
+    schoolYearId: schoolYearId ?? "",
     // A slot with an unparseable time would feed NaN into the grid layout, so
     // drop it rather than let one bad row distort the whole timetable.
     schedules: raw
@@ -118,7 +120,8 @@ export function studentEnrollmentsToScheduleClasses(
         null,
         (e.class as { schedules?: unknown } | undefined)?.schedules,
         e.class?.subject_id ?? "",
-        e.semester_id ?? null,
+        e.class?.semester_id ?? e.semester_id ?? null,
+        e.class?.school_year_id ?? e.school_year_id ?? null,
       ),
     );
 }

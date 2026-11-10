@@ -1,9 +1,9 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Save, ArrowLeft, Users, UserCheck, Video } from "lucide-react";
+import { Save, ArrowLeft, Users, UserCheck, Video, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,6 @@ import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { useCreateMeeting, useEnrolledStudents } from "@/hooks/educator/useMeeting";
 import { localInputToIso } from "@/utils/datetime.util";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AxiosError } from "axios";
 
 interface Props {
@@ -24,31 +23,53 @@ interface Props {
 export default function NewMeetingPage({ params }: Props) {
   const { classId } = use(params);
   const router      = useRouter();
-  const createMutation       = useCreateMeeting(classId);
+  const createMutation        = useCreateMeeting(classId);
   const { data: studentsRaw } = useEnrolledStudents(classId);
-  const students = Array.isArray(studentsRaw) ? studentsRaw : [];
+  const students = useMemo(
+    () => (Array.isArray(studentsRaw) ? studentsRaw : []),
+    [studentsRaw],
+  );
 
   const [title, setTitle]             = useState("");
   const [description, setDescription] = useState("");
   const [startTime, setStartTime]     = useState("");
   const [inviteAll, setInviteAll]     = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [search, setSearch]           = useState("");
 
   const canSave = title.trim().length > 0 && startTime.length > 0 && !createMutation.isPending;
 
-    const toggleStudent = (id: string) => {
+  const filteredStudents = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return students;
+    return students.filter(
+      (s) =>
+        (s.fullName ?? "").toLowerCase().includes(term) ||
+        (s.email ?? "").toLowerCase().includes(term),
+    );
+  }, [students, search]);
+
+  const toggleStudent = (id: string) => {
     setSelectedIds((prev) => {
-        const next = new Set(prev);
-
-        if (next.has(id)) {
+      const next = new Set(prev);
+      if (next.has(id)) {
         next.delete(id);
-        } else {
+      } else {
         next.add(id);
-        }
-
-        return next;
+      }
+      return next;
     });
-    };
+  };
+
+  const selectAllShown = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const s of filteredStudents) next.add(s.id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   const handleSave = () => {
     const invitedStudentIds = inviteAll ? [] : Array.from(selectedIds);
@@ -63,7 +84,8 @@ export default function NewMeetingPage({ params }: Props) {
       {
         onSuccess: (meeting) => {
           toast.success("Meeting created.");
-          router.push(`/educator/classes/${classId}/meetings/${meeting.id}`);
+          // Straight into the room, where the "Are you ready?" lobby shows.
+          router.push(`/educator/classes/${classId}/meetings/${meeting.id}/room`);
         },
         onError: (err: unknown) => {
           const axiosErr = err as AxiosError<{ message: string }>;
@@ -129,6 +151,9 @@ export default function NewMeetingPage({ params }: Props) {
             onChange={(e) => setStartTime(e.target.value)}
             disabled={createMutation.isPending}
           />
+          <p className="text-xs text-muted-foreground">
+            Times are set and shown in school time (Asia/Manila) for everyone.
+          </p>
         </div>
 
         {/* Invite */}
@@ -177,32 +202,83 @@ export default function NewMeetingPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Student checklist */}
+          {/* Student checklist with search */}
           {!inviteAll && (
-            <ScrollArea className="max-h-48 rounded-md border">
-              {students.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">No enrolled students found.</p>
-              ) : (
-                <div className="p-2 space-y-1">
-                  {students.map((s) => (
-                    <label
-                      key={s.id}
-                      className="flex items-center gap-3 rounded-md px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
-                    >
-                      <Checkbox
-                        checked={selectedIds.has(s.id)}
-                        onCheckedChange={() => toggleStudent(s.id)}
-                        disabled={createMutation.isPending}
-                      />
-                      <div>
-                        <p className="text-sm font-medium">{s.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{s.email}</p>
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search students by name or email"
+                  className="pl-9"
+                  disabled={createMutation.isPending}
+                />
+              </div>
+
+              <div className="max-h-64 overflow-y-auto overscroll-contain rounded-md border bg-card">
+                {students.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground">No enrolled students found.</p>
+                ) : (
+                  <div className="space-y-1 p-2">
+                    <div className="flex items-center justify-between px-3 pb-1 pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        {selectedIds.size} of {students.length} selected
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={selectAllShown}
+                          disabled={filteredStudents.length === 0 || createMutation.isPending}
+                        >
+                          Select all shown
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={clearSelection}
+                          disabled={selectedIds.size === 0 || createMutation.isPending}
+                        >
+                          Clear
+                        </Button>
                       </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+                    </div>
+
+                    {filteredStudents.length === 0 ? (
+                      <p className="px-3 py-4 text-sm text-muted-foreground">
+                        No students match &quot;{search.trim()}&quot;.
+                      </p>
+                    ) : (
+                      filteredStudents.map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-muted/40"
+                        >
+                          <Checkbox
+                            checked={selectedIds.has(s.id)}
+                            onCheckedChange={() => toggleStudent(s.id)}
+                            disabled={createMutation.isPending}
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {s.fullName || s.email || "Unnamed student"}
+                            </p>
+                            {s.fullName && s.email && (
+                              <p className="truncate text-xs text-muted-foreground">{s.email}</p>
+                            )}
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

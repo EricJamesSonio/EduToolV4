@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -15,11 +16,18 @@ import { LessonService } from '../lesson/lesson.service';
 import {
   calendarDateOf,
   calendarDateToUtc,
+  endOfDayInZone,
   weekdayOccurrencesInZone,
 } from '@/commons/utils/datetime.util';
 
 @Injectable()
 export class AttendanceService {
+  private readonly logger = new Logger(AttendanceService.name);
+
+  // Guards against two simultaneous first-opens creating duplicate sessions
+  // (attendance sessions have no unique key on class + date).
+  private readonly inflightGeneration = new Map<string, Promise<void>>();
+
   constructor(
     private readonly db: DatabaseService,
     private readonly attendanceRepo: AttendanceRepository,
@@ -28,7 +36,34 @@ export class AttendanceService {
   ) {}
 
   // =========================================================
-  // 🔥 MAIN FIXED GENERATOR (SYNCED WITH LESSON LOGIC)
+  // ENSURE SESSIONS EXIST (lazy auto-generation)
+  // =========================================================
+  private async ensureSessions(classId: string, orgId: string): Promise<void> {
+    const existing = await this.attendanceRepo.findSessionsByClass(classId);
+    if (existing.length > 0) return;
+
+    let pending = this.inflightGeneration.get(classId);
+
+    if (!pending) {
+      pending = this.generateSessionsForClass(classId, orgId)
+        .catch((err: unknown) => {
+          this.logger.warn(
+            `Auto-generation of attendance sessions failed for class ${classId}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        })
+        .finally(() => {
+          this.inflightGeneration.delete(classId);
+        });
+      this.inflightGeneration.set(classId, pending);
+    }
+
+    await pending;
+  }
+
+  // =========================================================
+  // MAIN GENERATOR (SYNCED WITH LESSON LOGIC)
   // =========================================================
   async generateSessionsForClass(
     classId: string,
@@ -149,7 +184,7 @@ export class AttendanceService {
     );
 
     // =========================================================
-    // 🔥 CORE LOOP (SYNCED WITH LESSON SYSTEM)
+    // CORE LOOP (SYNCED WITH LESSON SYSTEM)
     // =========================================================
     for (const sem of semesters) {
       // Skip semesters whose term date ranges don't overlap with the
@@ -230,6 +265,10 @@ export class AttendanceService {
   async getAttendanceGrid(classId: string, orgId: string) {
     await this.assertClassExists(classId, orgId);
 
+    // Sessions are built automatically from the program's term dates and the
+    // class schedule days; no need to visit the Lessons page first.
+    await this.ensureSessions(classId, orgId);
+
     // All enrolled students
     const enrollments = await this.db.enrollment.findMany({
       where: { class_id: classId, status: 'active' },
@@ -289,6 +328,8 @@ export class AttendanceService {
   // =========================================================
   async getSessions(classId: string, orgId: string, weekNumber?: number) {
     await this.assertClassExists(classId, orgId);
+
+    await this.ensureSessions(classId, orgId);
 
     const sessions = await this.attendanceRepo.findSessionsByClass(
       classId,
@@ -370,6 +411,8 @@ export class AttendanceService {
       throw new NotFoundException('Session not found.');
     }
 
+    this.assertSessionNotFuture(session.date);
+
     const enrollments = await this.db.enrollment.findMany({
       where: { class_id: classId, status: 'active' },
       select: { student_id: true },
@@ -430,6 +473,8 @@ export class AttendanceService {
       throw new NotFoundException('Session not found.');
     }
 
+    this.assertSessionNotFuture(session.date);
+
     const record = await this.attendanceRepo.findRecordById(recordId);
 
     if (!record || record.session_id !== sessionId) {
@@ -461,18 +506,153 @@ export class AttendanceService {
     classId: string;
     studentId: string;
     submittedAt: Date;
+    weekNumber?: number | null;
   }) {
-    await this.attendanceRepo.markPresentFromSubmission({
+    // Sessions are generated lazily the first time attendance is opened, so a
+    // submission that arrives before that would find nothing to mark.
+    await this.ensureSessions(data.classId, data.orgId);
+
+    let date = data.submittedAt;
+
+    if (data.weekNumber) {
+      const day = await this.resolveWeekDay(
+        data.classId,
+        data.orgId,
+        data.weekNumber,
+      );
+      if (day) date = calendarDateToUtc(day);
+    }
+
+    return this.attendanceRepo.markPresentFromSubmission({
       org_id: data.orgId,
       class_id: data.classId,
       student_id: data.studentId,
-      date: data.submittedAt,
+      date,
     });
+  }
+
+  // =========================================================
+  // WEEK NUMBER -> CALENDAR DAY (same counting as lesson week structure)
+  // =========================================================
+  private async resolveWeekDay(
+    classId: string,
+    orgId: string,
+    weekNumber: number,
+  ): Promise<string | null> {
+    const cls = await this.db.class.findUnique({
+      where: { id: classId },
+      include: { schedules: true },
+    });
+    if (!cls || !cls.schedules.length) return null;
+
+    const classWeekday = cls.schedules[0].weekday;
+
+    const subject = await this.db.subject.findFirst({
+      where: { id: cls.subject_id },
+      select: { program_id: true },
+    });
+    if (!subject?.program_id) return null;
+
+    const assignment = await this.db.programSemesterAssignment.findFirst({
+      where: { program_id: subject.program_id, org_id: orgId },
+      include: {
+        template: {
+          include: { semesters: { include: { terms: true } } },
+        },
+        termDates: true,
+      },
+    });
+    if (!assignment) return null;
+
+    const termDatesMap = new Map<string, { start: Date; end: Date }>();
+    for (const td of assignment.termDates ?? []) {
+      termDatesMap.set(td.term_id, { start: td.start_date, end: td.end_date });
+    }
+
+    let classSemesterStart: Date | null = null;
+    let classSemesterEnd: Date | null = null;
+    if (cls.semester_id) {
+      const actualSem = await this.db.semester.findUnique({
+        where: { id: cls.semester_id },
+        select: { start_date: true, end_date: true },
+      });
+      if (actualSem) {
+        classSemesterStart = actualSem.start_date;
+        classSemesterEnd = actualSem.end_date;
+      }
+    }
+
+    const semesters = [...(assignment.template.semesters ?? [])].sort(
+      (a, b) => a.order_index - b.order_index,
+    );
+
+    let globalWeek = 1;
+
+    for (const sem of semesters) {
+      if (classSemesterStart && classSemesterEnd) {
+        const semTermDates = (sem.terms ?? [])
+          .map((t) => termDatesMap.get(t.id))
+          .filter(Boolean) as Array<{ start: Date; end: Date }>;
+
+        const semStartDay =
+          semTermDates.length > 0
+            ? semTermDates
+                .map((d) => calendarDateOf(d.start))
+                .reduce((a, b) => (a < b ? a : b))
+            : null;
+        const semEndDay =
+          semTermDates.length > 0
+            ? semTermDates
+                .map((d) => calendarDateOf(d.end))
+                .reduce((a, b) => (a > b ? a : b))
+            : null;
+
+        if (
+          !semStartDay ||
+          !semEndDay ||
+          semEndDay < calendarDateOf(classSemesterStart) ||
+          semStartDay > calendarDateOf(classSemesterEnd)
+        )
+          continue;
+      }
+
+      const terms = [...(sem.terms ?? [])].sort(
+        (a, b) => a.order_index - b.order_index,
+      );
+
+      for (const term of terms) {
+        const dates = termDatesMap.get(term.id);
+        if (!dates) continue;
+
+        const occurrences = weekdayOccurrencesInZone(
+          calendarDateOf(dates.start),
+          calendarDateOf(dates.end),
+          classWeekday,
+        );
+
+        for (const day of occurrences) {
+          if (globalWeek === weekNumber) return day;
+          globalWeek++;
+        }
+      }
+    }
+
+    return null;
   }
 
   // =========================================================
   // HELPERS
   // =========================================================
+  private assertSessionNotFuture(sessionDate: Date): void {
+    // Session dates are stored at UTC midnight of the Manila school day, so a
+    // session is only "future" once its day lies beyond the end of today.
+    if (sessionDate.getTime() > endOfDayInZone(new Date()).getTime()) {
+      throw new BadRequestException(
+        'Attendance cannot be changed for a session that has not happened yet.',
+      );
+    }
+  }
+
   private async assertClassExists(classId: string, orgId: string) {
     const cls = await this.db.class.findFirst({
       where: { id: classId, org_id: orgId, deleted_at: null },

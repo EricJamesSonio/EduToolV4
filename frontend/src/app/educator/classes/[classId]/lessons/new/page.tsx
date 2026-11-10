@@ -26,8 +26,8 @@ export default function NewLessonPage(): React.JSX.Element {
 
   async function handleSubmit(data: CreateLessonRequest): Promise<void> {
     const lesson = await createLesson(data);
-    toast.success("Lesson saved. Concept extraction running...");
-    router.push(`/educator/classes/${classId}/lessons/${lesson.id}?extracting=true`);
+    toast.success("Lesson saved. Building concepts...");
+    router.push(`/educator/classes/${classId}/lessons/${lesson.id}?build=true`);
   }
 
   if (weeksLoading) {

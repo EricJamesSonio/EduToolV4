@@ -25,7 +25,7 @@ export class GradeStudentService {
   ) {}
 
   async getMyGrades(classId: string, studentId: string, orgId: string) {
-    const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
+    const enrollment = await this.enrollmentRepo.findReadableByStudentAndClass(
       classId,
       studentId,
       orgId,
@@ -42,8 +42,6 @@ export class GradeStudentService {
 
     const terms = await this.gradeRepo.findTemplateTermsByClass(classId, orgId);
 
-    // If the template has no terms (or can't be resolved), fall back to showing
-    // whatever grade rows exist for this student (legacy behavior).
     if (terms.length === 0) {
       const grades = await this.gradeRepo.findByClass(classId, orgId);
       return grades
@@ -58,9 +56,6 @@ export class GradeStudentService {
         }));
     }
 
-    // Perf Phase 3: load this student's whole class-term picture in 5 queries
-    // (grades, submissions, manuals, assessments, scheme) instead of 5 per
-    // term, then assemble per-term rows in memory.
     const termIds = terms.map((t) => t.id);
     const [allGrades, allSubmissions, allManuals, allAssessments, scheme] =
       await Promise.all([
@@ -112,47 +107,46 @@ export class GradeStudentService {
 
       const isReleased = grade?.is_locked ?? false;
 
-        const totalActiveWeight = categories.reduce((sum, cat) => {
-          if (isManualScoredCategory(cat.type)) {
-            return studentManuals.some(
-              (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
-            )
-              ? sum + cat.weight
-              : sum;
-          }
-          const catAssessments = assessments.filter((a) => a.type === cat.type);
-          const hasActive = catAssessments.some((a) =>
-            studentSubs.some(
-              (s) =>
-                s.assessment_id === a.id &&
-                s.status !== 'exempted' &&
-                !s.is_exempted,
-            ),
-          );
-          return hasActive ? sum + cat.weight : sum;
-        }, 0);
+      const totalActiveWeight = categories.reduce((sum, cat) => {
+        if (isManualScoredCategory(cat.type)) {
+          return studentManuals.some(
+            (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
+          )
+            ? sum + cat.weight
+            : sum;
+        }
+        const catAssessments = assessments.filter((a) => a.type === cat.type);
+        const hasActive = catAssessments.some((a) =>
+          studentSubs.some(
+            (s) =>
+              s.assessment_id === a.id &&
+              s.status !== 'exempted' &&
+              !s.is_exempted,
+          ),
+        );
+        return hasActive ? sum + cat.weight : sum;
+      }, 0);
 
-        const categoryBreakdown = isReleased
-          ? this.core.buildCategoryBreakdown(
-              studentSubs,
-              studentManuals,
-              assessments,
-              categories,
-              totalActiveWeight,
-            )
-          : [];
+      const categoryBreakdown = isReleased
+        ? this.core.buildCategoryBreakdown(
+            studentSubs,
+            studentManuals,
+            assessments,
+            categories,
+            totalActiveWeight,
+          )
+        : [];
 
-        return {
-          termId: term.id,
-          termName: term.name,
-          semesterName: term.semesterName,
-          semesterIndex: term.semesterIndex,
-          finalScore: isReleased ? (grade?.final_score ?? null) : null,
-          finalGrade: isReleased ? grade!.final_grade : null,
-          isReleased,
-          categoryBreakdown,
-        };
-      },
-    );
+      return {
+        termId: term.id,
+        termName: term.name,
+        semesterName: term.semesterName,
+        semesterIndex: term.semesterIndex,
+        finalScore: isReleased ? (grade?.final_score ?? null) : null,
+        finalGrade: isReleased ? grade!.final_grade : null,
+        isReleased,
+        categoryBreakdown,
+      };
+    });
   }
 }

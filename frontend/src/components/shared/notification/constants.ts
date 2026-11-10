@@ -14,6 +14,8 @@ import {
   RotateCcw,
   ListChecks,
 } from "lucide-react";
+import { Video, UserPlus, UserCheck } from "lucide-react";
+
 
 export const TYPE_ICON: Record<string, React.ElementType> = {
   info: Info,
@@ -32,6 +34,9 @@ export const TYPE_ICON: Record<string, React.ElementType> = {
   score_published: Award,
   essay_graded: PenLine,
   grade_locked: Lock,
+  meeting_created: Video,
+  meeting_join_request: UserPlus,
+  meeting_join_accepted: UserCheck,
 };
 
 export const SUMMARY_ROWS: {

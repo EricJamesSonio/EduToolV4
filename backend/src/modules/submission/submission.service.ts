@@ -244,7 +244,7 @@ export class SubmissionService {
         .catch(() => {});
     }
 
-    // ── Fire-and-forget: auto-mark present ───────────────────────────────────
+    // ── Fire-and-forget: auto-mark present for the assessment's week ─────────
     if (assessment.class_id) {
       this.attendanceService
         .markPresentFromSubmission({
@@ -252,18 +252,24 @@ export class SubmissionService {
           classId: assessment.class_id,
           studentId,
           submittedAt: updated.submitted_at ?? new Date(),
+          weekNumber: assessment.week_number ?? null,
         })
         .catch(() => {}); // non-blocking, never throws
     }
 
     // ── Fire-and-forget: notify the class educator of the new submission ──────
     if (assessment.class_id) {
-      this.db.class
-        .findFirst({
+      Promise.all([
+        this.db.class.findFirst({
           where: { id: assessment.class_id, org_id: orgId },
           select: { educator_id: true },
-        })
-        .then((cls) => {
+        }),
+        this.db.profile.findUnique({
+          where: { account_id: studentId },
+          select: { full_name: true },
+        }),
+      ])
+        .then(([cls, profile]) => {
           if (cls?.educator_id) {
             return this.notificationService.createNotification({
               orgId,
@@ -274,6 +280,7 @@ export class SubmissionService {
                 assessmentId,
                 submissionId: submission.id,
                 studentId,
+                studentName: profile?.full_name ?? null,
                 title: assessment.title ?? null,
               },
             });

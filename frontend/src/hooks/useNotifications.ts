@@ -17,6 +17,8 @@ import {
   type NotificationType,
 } from "@/store/notification.store";
 import { useAuthStore } from "@/store/auth.store";
+import { formatMeetingDateTime } from "@/utils/meetingTime.util";
+
 
 /** No websocket for notifications yet, so poll. Also refetches on window focus. */
 const POLL_MS = 30_000;
@@ -139,6 +141,50 @@ export function toStoreNotification(n: ApiNotification): Notification {
         message = `Your subject request was approved (${approved} class${approved === 1 ? "" : "es"})`;
       }
       linkTo = "/student/classes";
+      break;
+    }
+    // ─── Meetings (open the exact meeting page) ────────────────────────────
+    case "meeting_created": {
+      const title = str(p.title);
+      const start = str(p.startTime);
+      const when = start ? formatMeetingDateTime(start) : null;
+      message = title
+        ? when
+          ? `New meeting: ${truncate(title, 50)} on ${when}`
+          : `New meeting: ${truncate(title, 60)}`
+        : "A new meeting was scheduled";
+      const classId = str(p.classId);
+      const meetingId = str(p.meetingId);
+      linkTo =
+        classId && meetingId
+          ? `/student/classes/${classId}/meetings/${meetingId}?classId=${classId}`
+          : "/student/meetings";
+      break;
+    }
+    case "meeting_join_request": {
+      const title = str(p.title);
+      message = title
+        ? `A student asked to join ${truncate(title, 60)}`
+        : "A student asked to join your meeting";
+      const classId = str(p.classId);
+      const meetingId = str(p.meetingId);
+      linkTo =
+        classId && meetingId
+          ? `/educator/classes/${classId}/meetings/${meetingId}`
+          : null;
+      break;
+    }
+    case "meeting_join_accepted": {
+      const title = str(p.title);
+      message = title
+        ? `You can now join ${truncate(title, 60)}`
+        : "Your meeting join request was accepted";
+      const classId = str(p.classId);
+      const meetingId = str(p.meetingId);
+      linkTo =
+        classId && meetingId
+          ? `/student/classes/${classId}/meetings/${meetingId}?classId=${classId}`
+          : "/student/meetings";
       break;
     }
     // ─── Assessments & grades (role-aware deep links) ──────────────────────

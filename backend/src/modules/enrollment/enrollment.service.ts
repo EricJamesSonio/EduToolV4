@@ -16,6 +16,8 @@ import {
   resolveSubjectAcademicStructure,
   isEligibleForClassStructure,
 } from './enrollment-eligibility.util';
+import { assertSemesterOpenForEnrollment } from './semester-enrollment-lock.util';
+
 
 @Injectable()
 export class EnrollmentService {
@@ -102,10 +104,10 @@ export class EnrollmentService {
     studentId: string,
     orgId: string,
   ) {
-    // 0. Academic structure gate — must match before anything else
+    await assertSemesterOpenForEnrollment(this.db, orgId, semesterId);
+
     await this.assertAcademicEligibility(classId, studentId, orgId);
 
-    // 1. Prerequisite gate — block before any other checks
     const eligibility = await this.checkEligibility(
       subjectId,
       studentId,
@@ -120,7 +122,6 @@ export class EnrollmentService {
       );
     }
 
-    // 2. Prevent duplicate enrollment in same subject + semester across classes
     const duplicate = await this.enrollmentRepository.findDuplicate(
       studentId,
       subjectId,
@@ -133,7 +134,6 @@ export class EnrollmentService {
       );
     }
 
-    // 3. Prevent re-enrollment in the exact same class (unless previously removed)
     const existing = await this.enrollmentRepository.findByStudent(
       classId,
       studentId,
@@ -143,7 +143,6 @@ export class EnrollmentService {
       throw new ConflictException('Student is already enrolled in this class.');
     }
 
-    // 4. Capacity check — return overflow signal instead of hard error
     if (capacity > 0) {
       const activeCount = await this.enrollmentRepository.countActive(classId);
       if (activeCount >= capacity) {
@@ -183,6 +182,16 @@ export class EnrollmentService {
     if (!enrollment || enrollment.class_id !== classId) {
       throw new NotFoundException('Enrollment not found.');
     }
+
+    if (String(dto.status) !== 'removed') {
+      const cls = await this.enrollmentRepository.findClassEnrollmentContext(
+        classId,
+        orgId,
+      );
+      if (!cls) throw new NotFoundException('Class not found.');
+      await assertSemesterOpenForEnrollment(this.db, orgId, cls.semester_id);
+    }
+
     return this.enrollmentRepository.updateStatus(enrollmentId, dto.status);
   }
 
@@ -221,6 +230,30 @@ export class EnrollmentService {
     }
     return enrollment;
   }
+async getStudentReadableEnrollmentForClass(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    const enrollment =
+      await this.enrollmentRepository.findReadableByStudentAndClass(
+        classId,
+        studentId,
+        orgId,
+      );
+    if (!enrollment) {
+      throw new ForbiddenException('You are not enrolled in this class.');
+    }
+    return enrollment;
+  }
+
+  async getStudentClosedEnrollments(studentId: string, orgId: string) {
+    return this.enrollmentRepository.findClosedByStudentAcrossOrg(
+      studentId,
+      orgId,
+    );
+  }
+
 
   async countActive(classId: string): Promise<number> {
     return this.enrollmentRepository.countActive(classId);

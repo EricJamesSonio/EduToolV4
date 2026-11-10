@@ -8,6 +8,8 @@ import type {
   UpdateMeetingDto,
   EnrolledStudent,
 } from "@/types/educator/meeting.types";
+import { useQueryClient } from "@tanstack/react-query";
+
 
 interface UseMeetingOptions {
   refetchInterval?: number | false;
@@ -62,8 +64,24 @@ export const useUpdateMeeting = (classId: string) => {
 };
 
 export const useEndMeeting = (classId: string) => {
+  const queryClient = useQueryClient();
+
   return useMutationWithInvalidation<{ success: true; message: string }, unknown, string>(
-    (meetingId: string) => meetingApi.end(classId, meetingId),
+    async (meetingId: string) => {
+      const result = await meetingApi.end(classId, meetingId);
+
+      // Flip the cached meeting to "ended" right away so every open page
+      // (detail, room, list) updates without waiting for a refetch.
+      queryClient.setQueryData<Meeting>(
+        queryKeys.educator.meetings.detail(meetingId),
+        (old) => (old ? { ...old, status: "ended" } : old),
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.educator.meetings.detail(meetingId),
+      });
+
+      return result;
+    },
     { invalidateKeys: [queryKeys.educator.meetings.list(classId)] },
   );
 };

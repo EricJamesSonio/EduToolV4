@@ -25,6 +25,7 @@ export function mapSubjectToResponse(
     id: subject.id,
     orgId: subject.org_id,
     title: subject.name,
+    code: subject.code ?? null,
     subjectType: subject.subject_type ?? 'major',
     programId: subject.program_id ?? null,
     programName: subject.program?.name ?? null,

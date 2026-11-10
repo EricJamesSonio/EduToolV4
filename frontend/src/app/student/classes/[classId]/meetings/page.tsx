@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
 import { isWithinInterval, addMinutes, isPast } from "date-fns";
 import { useStudentMeetings, useRequestJoinMeeting } from "@/hooks/student/useStudentMeetings";
+import { formatMeetingDate, formatMeetingTime } from "@/utils/meetingTime.util";
 import type { StudentMeeting } from "@/api/student/meeting.api";
 import { toast } from "sonner";
 
@@ -25,6 +26,8 @@ function getMeetingStatus(
   status: string
 ): "upcoming" | "live" | "ended" {
   if (status === "ended") return "ended";
+  // The host is in the room, so it is live whatever the clock says.
+  if (status === "active") return "live";
   const start = new Date(startTime);
   const live = isWithinInterval(new Date(), {
     start: addMinutes(start, -15),
@@ -130,18 +133,11 @@ function MeetingCard({
           <div className="flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              {new Date(meeting.startTime).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatMeetingDate(meeting.startTime)}
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
-              {new Date(meeting.startTime).toLocaleTimeString(undefined, {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatMeetingTime(meeting.startTime)}
             </span>
           </div>
         </div>

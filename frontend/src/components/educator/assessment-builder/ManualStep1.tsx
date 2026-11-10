@@ -5,6 +5,7 @@ import type { BuilderState, AssessmentType } from "./types";
 export function ManualStep1({
   type,
   title,
+  totalItems,
   manualInstructions,
   schemeTypes,
   onChange,
@@ -12,16 +13,17 @@ export function ManualStep1({
 }: {
   type: string;
   title: string;
+  totalItems: number;
   manualInstructions: string;
   schemeTypes: string[];
   onChange: (u: Partial<BuilderState>) => void;
   onNext: () => void;
 }) {
-  const valid = !!type && !!manualInstructions.trim();
+  const valid = !!type && !!manualInstructions.trim() && totalItems >= 1;
   return (
     <div className="space-y-6">
       <div className="rounded-xl border bg-card p-6 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
               Assessment Type <span className="text-destructive">*</span>
@@ -53,6 +55,29 @@ export function ManualStep1({
               placeholder="e.g. Quiz 2"
               className="w-full rounded-md border bg-card px-3 py-2 text-sm"
             />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Total Items / Max Score{" "}
+              <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={totalItems}
+              onChange={(e) =>
+                onChange({
+                  totalItems: Math.max(
+                    1,
+                    parseInt(e.target.value, 10) || 1
+                  ),
+                })
+              }
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Maximum possible score for this manual assessment.
+            </p>
           </div>
         </div>
       </div>

@@ -35,6 +35,7 @@ interface MeetingContextValue {
   isPresenting: boolean;
   presentationId: string | null;
   latestReaction: IncomingReaction | null;
+  recentReactions: IncomingReaction[];
   latestHandRaise: IncomingHandRaise | null;
   /** True once the host ends the meeting — connected clients must exit. */
   meetingEnded: boolean;
@@ -100,7 +101,8 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     connected, participants, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
     changeSlide, startPresentation, stopPresentation,
-    latestReaction,   // ← plain destructure
+    latestReaction,
+    recentReactions,
     latestHandRaise,
     meetingEnded,
     clearMeetingEnded,
@@ -154,6 +156,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
 
     // Gate overlay values — null when not in a session so stale data never leaks
     latestReaction:  meetingParams ? latestReaction  : null,
+    recentReactions: meetingParams ? recentReactions : [],
     latestHandRaise: meetingParams ? latestHandRaise : null,
     meetingEnded,
 

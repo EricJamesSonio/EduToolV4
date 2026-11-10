@@ -13,6 +13,7 @@ import {
   CalendarClock,
   BarChart3,
   ClipboardList,
+  FileSpreadsheet,
   GraduationCap,
   Users,
   UserSquare2,
@@ -56,6 +57,7 @@ const GROUPS = [
     items: [
       { label: "Grading Scales", href: "/admin/grading-scales", icon: BarChart3, registrarVisible: false },
       { label: "Grading Schemes", href: "/admin/grading-schemes", icon: ClipboardList, registrarVisible: false },
+      { label: "Grade Templates", href: "/admin/grade-templates", icon: FileSpreadsheet, registrarVisible: false },
       
     ],
   },

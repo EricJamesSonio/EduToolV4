@@ -44,6 +44,10 @@ export const MEETING_SOCKET_LIMITS: Record<string, SocketRateLimitOptions> = {
   signaling: { capacity: 40, refillMs: 10_000 },
 };
 
+// How long an emptied ephemeral (Groupy) meeting survives before it is
+// hard-deleted, so a page refresh or brief reconnect does not destroy it.
+const EPHEMERAL_CLEANUP_GRACE_MS = 30_000;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AuthPayload {
@@ -71,6 +75,10 @@ interface ChatMessage {
   createdAt: string;
 }
 
+type MeetingRecord = NonNullable<
+  Awaited<ReturnType<MeetingRepository['findById']>>
+>;
+
 // ── In-memory room state ───────────────────────────────────────────────────────
 
 class RoomState {
@@ -83,14 +91,36 @@ class RoomState {
   // Guards against re-announcing on socket reconnect / page refresh.
   announcedJoins = new Set<string>();
 
+  // One entry per user: the same account connected through two sockets
+  // (refresh, reconnect, second tab) must not appear twice.
   getParticipantList() {
-    return Array.from(this.participants.values()).map((p) => ({
-      userId: p.userId,
-      name: p.name,
-      role: p.role,
-      handRaised: p.handRaised,
-      joinedAt: p.joinedAt,
-    }));
+    const byUser = new Map<
+      string,
+      {
+        userId: string;
+        name: string;
+        role: string;
+        handRaised: boolean;
+        joinedAt: Date;
+      }
+    >();
+
+    for (const p of this.participants.values()) {
+      const existing = byUser.get(p.userId);
+      if (existing) {
+        existing.handRaised = existing.handRaised || p.handRaised;
+        continue;
+      }
+      byUser.set(p.userId, {
+        userId: p.userId,
+        name: p.name,
+        role: p.role,
+        handRaised: p.handRaised,
+        joinedAt: p.joinedAt,
+      });
+    }
+
+    return Array.from(byUser.values());
   }
 }
 
@@ -112,6 +142,9 @@ export class MeetingGateway
 
   // meetingId → RoomState
   private rooms = new Map<string, RoomState>();
+
+  // meetingId → pending cleanup timer for an emptied ephemeral meeting
+  private emptyRoomTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   // Phase 2: shared token-bucket limiter (one instance per gateway).
   private readonly rateLimiter = new SocketRateLimiter();
@@ -168,6 +201,8 @@ export class MeetingGateway
       if (!payload) return this.kick(client, 'Invalid token');
       if (!payload.org_id) return this.kick(client, 'Missing org');
 
+      const orgId = payload.org_id;
+
       const meetingId = client.handshake.query?.meetingId as string;
       if (!meetingId) return this.kick(client, 'Missing meetingId');
 
@@ -179,33 +214,44 @@ export class MeetingGateway
           SOCKET_CONNECT_LIMIT,
         )
       ) {
-        return this.kick(client, 'Reconnecting too often — retry in a minute');
+        return this.kick(client, 'Reconnecting too often - retry in a minute');
       }
 
-      const meeting = await this.meetingRepo.findById(
-        meetingId,
-        payload.org_id,
-      );
+      const meeting = await this.meetingRepo.findById(meetingId, orgId);
       if (!meeting) return this.kick(client, 'Meeting not found');
       if (meeting.status === 'ended')
         return this.kick(client, 'Meeting has ended');
 
-      // Access check
       const isEducator =
         payload.role === 'educator' && meeting.educator_id === payload.sub;
-      const isInvited =
-        payload.role === 'student' &&
-        (await this.meetingRepo.isStudentInvited(meetingId, payload.sub));
 
-      if (!isEducator && !isInvited) {
+      // The invite check, display name and chat history are independent, so
+      // they run together instead of one after another.
+      const [invited, account, rows] = await Promise.all([
+        payload.role === 'student'
+          ? this.meetingRepo.isStudentInvited(meetingId, payload.sub)
+          : Promise.resolve(false),
+        this.db.account.findFirst({
+          where: { id: payload.sub },
+          include: { profile: true },
+        }),
+        this.db.meetingChatMessage.findMany({
+          where: { meeting_id: meetingId, org_id: orgId },
+          orderBy: { created_at: 'desc' },
+          take: 50,
+        }),
+      ]);
+
+      if (!isEducator && !invited) {
         return this.kick(client, 'Not authorized for this meeting');
       }
 
-      // Resolve display name
-      const account = await this.db.account.findFirst({
-        where: { id: payload.sub },
-        include: { profile: true },
-      });
+      // The client may have gone away while the lookups were running.
+      if (!client.connected) return;
+
+      // Someone is (re)joining, so a pending empty-room cleanup must not fire.
+      this.cancelEphemeralCleanup(meetingId);
+
       const name = account?.profile?.full_name ?? payload.email ?? 'Unknown';
 
       // Store auth on socket
@@ -216,11 +262,6 @@ export class MeetingGateway
       // Join socket.io room
       await client.join(meetingId);
 
-      // Lifecycle: a created meeting becomes "active" once someone joins.
-      if (meeting.status === 'scheduled') {
-        await this.meetingRepo.updateStatus(meetingId, 'active');
-      }
-
       // Update in-memory state
       if (!this.rooms.has(meetingId))
         this.rooms.set(meetingId, new RoomState());
@@ -228,55 +269,30 @@ export class MeetingGateway
       room.participants.set(client.id, {
         socketId: client.id,
         userId: payload.sub,
-        orgId: payload.org_id,
+        orgId,
         role: payload.role,
         name,
         handRaised: false,
         joinedAt: new Date(),
       });
 
-      // Groupy (ephemeral) meetings: announce the student in the class chat so
-      // everyone sees "[name] joined". Best-effort — a failure here must never
-      // break the meeting join, so it is isolated from the shared try/catch.
-      if (payload.role === 'student' && meeting.is_ephemeral) {
-        if (!room.announcedJoins.has(payload.sub)) {
-          room.announcedJoins.add(payload.sub);
-          try {
-            await this.groupyGateway.announceMemberJoined(
-              meeting.class_id,
-              payload.org_id,
-              payload.sub,
-              name,
-            );
-          } catch (err) {
-            this.logger.error(
-              `[${meetingId}] failed to announce join for ${name}: ${err}`,
-            );
-          }
-        }
-      }
+      const chatHistory: ChatMessage[] = rows.reverse().map((r) => ({
+        id: r.id,
+        senderId: r.sender_id,
+        senderName: r.sender_name,
+        message: r.message,
+        createdAt: r.created_at.toISOString(),
+      }));
 
-// Send room state to the joining client
-const rows = await this.db.meetingChatMessage.findMany({
-  where: { meeting_id: meetingId, org_id: payload.org_id },
-  orderBy: { created_at: 'desc' },
-  take: 50,
-});
-const chatHistory: ChatMessage[] = rows.reverse().map((r) => ({
-  id: r.id,
-  senderId: r.sender_id,
-  senderName: r.sender_name,
-  message: r.message,
-  createdAt: r.created_at.toISOString(),
-}));
-
-client.emit('room:state', {
-  participants: room.getParticipantList(),
-  chatHistory,
-  currentSlide: room.currentSlide,
-  isPresenting: room.isPresenting,
-  presentationId: room.presentationId,
-});
+      // Send room state first so the client can start emitting right away.
+      client.emit('room:state', {
+        participants: room.getParticipantList(),
+        chatHistory,
+        currentSlide: room.currentSlide,
+        isPresenting: room.isPresenting,
+        presentationId: room.presentationId,
+        selfUserId: payload.sub,
+      });
 
       // Notify others (broadcast excludes the joiner, who already got room:state)
       client.broadcast.to(meetingId).emit('room:participant_joined', {
@@ -287,9 +303,53 @@ client.emit('room:state', {
       });
 
       this.logger.log(`[${meetingId}] ${name} (${payload.role}) connected`);
+
+      // Slow, non-essential work never delays the join.
+      void this.runPostJoinTasks(meeting, payload, name, room);
     } catch (err) {
       this.logger.error('handleConnection error', err);
       this.kick(client, 'Internal error');
+    }
+  }
+
+  private async runPostJoinTasks(
+    meeting: MeetingRecord,
+    payload: AuthPayload,
+    name: string,
+    room: RoomState,
+  ) {
+    const meetingId = meeting.id;
+
+    // Lifecycle: a created meeting becomes "active" once someone joins.
+    if (meeting.status === 'scheduled') {
+      try {
+        await this.meetingRepo.updateStatus(meetingId, 'active');
+      } catch (err) {
+        this.logger.error(`[${meetingId}] failed to mark active: ${err}`);
+      }
+    }
+
+    // Groupy (ephemeral) meetings: announce the student in the class chat so
+    // everyone sees "[name] joined". Best-effort, never breaks the join.
+    if (
+      payload.role === 'student' &&
+      meeting.is_ephemeral &&
+      payload.org_id &&
+      !room.announcedJoins.has(payload.sub)
+    ) {
+      room.announcedJoins.add(payload.sub);
+      try {
+        await this.groupyGateway.announceMemberJoined(
+          meeting.class_id,
+          payload.org_id,
+          payload.sub,
+          name,
+        );
+      } catch (err) {
+        this.logger.error(
+          `[${meetingId}] failed to announce join for ${name}: ${err}`,
+        );
+      }
     }
   }
 
@@ -319,14 +379,47 @@ client.emit('room:state', {
     if (room.participants.size === 0) {
       this.rooms.delete(meetingId);
 
-      // Ephemeral (Groupy) meetings are discarded once everyone leaves.
+      // Ephemeral (Groupy) meetings are discarded once everyone leaves, after
+      // a short grace window so a refresh or reconnect can still rejoin.
       const auth = client.data?.auth as AuthPayload | undefined;
       if (auth?.org_id) {
-        const meeting = await this.meetingRepo.findById(meetingId, auth.org_id);
-        if (meeting?.is_ephemeral) {
-          await this.meetingRepo.hardDelete(meetingId);
-        }
+        this.scheduleEphemeralCleanup(meetingId, auth.org_id);
       }
+    }
+  }
+
+  // ── Empty-room cleanup ────────────────────────────────────────────────────
+
+  private scheduleEphemeralCleanup(meetingId: string, orgId: string) {
+    this.cancelEphemeralCleanup(meetingId);
+
+    const timer = setTimeout(() => {
+      this.emptyRoomTimers.delete(meetingId);
+      void this.cleanupEphemeralMeeting(meetingId, orgId);
+    }, EPHEMERAL_CLEANUP_GRACE_MS);
+
+    timer.unref?.();
+    this.emptyRoomTimers.set(meetingId, timer);
+  }
+
+  private cancelEphemeralCleanup(meetingId: string) {
+    const timer = this.emptyRoomTimers.get(meetingId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.emptyRoomTimers.delete(meetingId);
+  }
+
+  private async cleanupEphemeralMeeting(meetingId: string, orgId: string) {
+    // Someone rejoined during the grace window.
+    if (this.rooms.has(meetingId)) return;
+
+    try {
+      const meeting = await this.meetingRepo.findById(meetingId, orgId);
+      if (meeting?.is_ephemeral) {
+        await this.meetingRepo.hardDelete(meetingId);
+      }
+    } catch (err) {
+      this.logger.error(`[${meetingId}] ephemeral cleanup failed: ${err}`);
     }
   }
 
@@ -348,31 +441,37 @@ client.emit('room:state', {
     const text = data.message.trim();
     if (!text) return;
 
-    // Persist to DB
-    const saved = await this.db.meetingChatMessage.create({
-      data: {
-        org_id: auth.org_id,
-        meeting_id: meetingId,
-        sender_id: auth.sub,
-        sender_name: client.data.name,
+    try {
+      // Persist to DB
+      const saved = await this.db.meetingChatMessage.create({
+        data: {
+          org_id: auth.org_id,
+          meeting_id: meetingId,
+          sender_id: auth.sub,
+          sender_name: client.data.name,
+          message: text,
+        },
+      });
+
+      const msg: ChatMessage = {
+        id: saved.id,
+        senderId: auth.sub,
+        senderName: client.data.name,
         message: text,
-      },
-    });
+        createdAt: saved.created_at.toISOString(),
+      };
 
-    const msg: ChatMessage = {
-      id: saved.id,
-      senderId: auth.sub,
-      senderName: client.data.name,
-      message: text,
-      createdAt: saved.created_at.toISOString(),
-    };
+      // Cache in room state
+      const room = this.rooms.get(meetingId);
+      if (room) room.chatHistory.push(msg);
 
-    // Cache in room state
-    const room = this.rooms.get(meetingId);
-    if (room) room.chatHistory.push(msg);
-
-    // Broadcast to everyone except the sender (sender uses its optimistic copy)
-   this.server.to(meetingId).emit('chat:message', msg);
+      // Broadcast to everyone including the sender; the client drops its
+      // optimistic copy once the server copy arrives.
+      this.server.to(meetingId).emit('chat:message', msg);
+    } catch (err) {
+      this.logger.error(`[${meetingId}] failed to save chat message: ${err}`);
+      client.emit('chat:error', { message: 'Message could not be sent.' });
+    }
   }
 
   // ── Raise hand ────────────────────────────────────────────────────────────
@@ -392,6 +491,9 @@ client.emit('room:state', {
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || !auth) return;
 
+    // Only students raise hands; the educator runs the room.
+    if (auth.role !== 'student') return;
+
     // Phase 2: hand toggles fan out the full participant list — throttle them.
     if (this.hitRateLimit(client, 'hand')) return;
 
@@ -401,7 +503,9 @@ client.emit('room:state', {
 
     participant.handRaised = raised;
 
-    client.broadcast.to(meetingId).emit('hand:update', {
+    // Sent to everyone including the sender, so the student also sees their
+    // own raised hand ("You") and their own entry in the people list.
+    this.server.to(meetingId).emit('hand:update', {
       userId: auth.sub,
       name: client.data.name,
       handRaised: raised,
@@ -426,7 +530,12 @@ client.emit('room:state', {
     if (!this.isValidDto(MeetingReactionDto, data)) return;
     const emoji = data.emoji;
 
-    client.broadcast.to(meetingId).emit('reaction:received', {
+    // One shared id for every client, so the reaction lands in the same lane
+    // for everyone. Sent to the sender too.
+    const id = `${auth.sub}-${Date.now()}-${Math.random()}`;
+
+    this.server.to(meetingId).emit('reaction:received', {
+      id,
       userId: auth.sub,
       name: client.data.name,
       emoji,

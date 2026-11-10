@@ -28,6 +28,12 @@ import {
   type RequestDecision,
   type StudentClassAvailability,
 } from './class-request.util';
+import {
+  assertSemestersOpenForEnrollment,
+  evaluateSemesterEnrollment,
+  type SemesterWindow,
+} from '../enrollment/semester-enrollment-lock.util';
+
 
 export interface RequestActor {
   id: string;
@@ -217,6 +223,15 @@ export class ClassAssignmentRequestService {
       orgId,
     );
 
+    const windows: SemesterWindow[] = semesters.map((s) => ({
+      id: s.id,
+      programId: s.program_id,
+      name: s.name,
+      startDate: s.start_date,
+      endDate: s.end_date,
+    }));
+    const windowById = new Map(windows.map((w) => [w.id, w] as const));
+
     const enrolledClassIds = new Set(myEnrollments.map((e) => e.class_id));
     const enrolledSubjectIds = new Set(
       myEnrollments.map((e) => e.class.subject_id),
@@ -226,6 +241,11 @@ export class ClassAssignmentRequestService {
     for (const row of rows) {
       if (enrolledClassIds.has(row.id)) continue;
       if (enrolledSubjectIds.has(row.subject_id) || completed.has(row.subject_id)) {
+        continue;
+      }
+
+      const classWindow = windowById.get(row.semester_id);
+      if (!classWindow || !evaluateSemesterEnrollment(classWindow, windows).open) {
         continue;
       }
 
@@ -579,12 +599,19 @@ export class ClassAssignmentRequestService {
     }
 
     if (dto.approvedClassIds !== undefined) {
-      return this.finalizeWithClasses(
-        record,
-        orgId,
-        actorId,
-        unique(dto.approvedClassIds),
-      );
+      const approved = unique(dto.approvedClassIds);
+      if (approved.length > 0) {
+        const approvedClasses = await this.db.class.findMany({
+          where: { id: { in: approved }, org_id: orgId },
+          select: { semester_id: true },
+        });
+        await assertSemestersOpenForEnrollment(
+          this.db,
+          orgId,
+          approvedClasses.map((c) => c.semester_id),
+        );
+      }
+      return this.finalizeWithClasses(record, orgId, actorId, approved);
     }
     if (dto.adminFinalizedSubjectIds === undefined) {
       throw new BadRequestException('Provide approvedClassIds.');

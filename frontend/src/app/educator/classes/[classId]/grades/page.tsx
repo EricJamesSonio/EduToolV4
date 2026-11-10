@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Lock, Loader2, RefreshCw,
-  LayoutGrid, List, Clock, Unlock, Users,
+  LayoutGrid, List, Clock, Unlock, Users, FileSpreadsheet, Send, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { WEEK_COLORS } from "@/lib/palette";
 import { useClassGrades, useComputeGrades, useSetManualScore } from "@/hooks/educator/useGrades";
+import { useClassGradeSubmission } from "@/hooks/educator/useClassGradeSubmission";
+import { readErrorMessage } from "@/api/grade-template.api";
 import { cn } from "@/lib/utils";
 import {
   useClassGradeLock,
@@ -24,7 +26,14 @@ import {
 } from "@/hooks/educator/useGradeLock";
 
 import type { ViewMode, ReadinessIssue } from "@/components/educator/grades";
-import { DefaultGradeTable, CleanGradeTable, StatsBar, ReadinessDialog, RequestUnlockDialog } from "@/components/educator/grades";
+import {
+  DefaultGradeTable,
+  CleanGradeTable,
+  StatsBar,
+  ReadinessDialog,
+  RequestUnlockDialog,
+  SubmitGradesDialog,
+} from "@/components/educator/grades";
 
 export default function GradesPage() {
   const { classId } = useParams<{ classId: string }>();
@@ -35,6 +44,7 @@ export default function GradesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("default");
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [readinessIssues, setReadinessIssues] = useState<ReadinessIssue[]>([]);
   const [readinessDialogOpen, setReadinessDialogOpen] = useState(false);
@@ -43,6 +53,7 @@ export default function GradesPage() {
   const manualScoreMutation = useSetManualScore(classId, activeTermId ?? "");
   const lockMutation = useLockClassGrades(classId);
   const unlockMutation = useUnlockClassGrades(classId);
+  const submission = useClassGradeSubmission(classId);
 
   // Set initial active term once data loads
   useEffect(() => {
@@ -120,6 +131,18 @@ export default function GradesPage() {
     }
   };
 
+  const handleSubmitGrades = async () => {
+    try {
+      const res = await submission.submit();
+      toast.success(
+        `Grades sent: ${res.rowsWritten} row(s) written to ${res.templatesUpdated} template(s).`
+      );
+      setSubmitOpen(false);
+    } catch (err) {
+      toast.error(await readErrorMessage(err));
+    }
+  };
+
   const { data: lockInfo, isLoading: lockInfoLoading } = useClassGradeLock(classId);
   const isClassLocked = lockInfo?.is_locked ?? false;
 
@@ -139,6 +162,13 @@ export default function GradesPage() {
       </div>
     );
   }
+
+  const submitStatus = submission.status;
+  const showSubmit = !!submitStatus && submitStatus.templateCount > 0;
+  const canSubmit = !!submitStatus?.canSubmit;
+  const endDateLabel = submitStatus?.semesterEndDate
+    ? new Date(submitStatus.semesterEndDate).toLocaleDateString()
+    : null;
 
   return (
     <div className="space-y-6">
@@ -170,6 +200,29 @@ export default function GradesPage() {
                 View Grades
               </Button>
             </Link>
+            <Link href="/educator/grade-templates">
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Grade Templates
+              </Button>
+            </Link>
+            {showSubmit && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSubmitOpen(true)}
+                disabled={!canSubmit || submission.submitting}
+                title={
+                  canSubmit
+                    ? undefined
+                    : `Grade submission opens at the end of the semester${endDateLabel ? ` (${endDateLabel})` : ""}.`
+                }
+                className="gap-1.5"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {submitStatus?.submittedAt ? "Resubmit Grades" : "Submit Grades"}
+              </Button>
+            )}
             {!isClassLocked && (
               <Button
                 size="sm"
@@ -211,6 +264,38 @@ export default function GradesPage() {
           </div>
         }
       />
+
+      {/* Grade submission status bar */}
+      {showSubmit && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/20 px-4 py-2.5 text-sm">
+          {submitStatus?.submittedAt ? (
+            <>
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+              <span className="font-medium">Grades submitted</span>
+              <span className="text-muted-foreground">
+                · {new Date(submitStatus.submittedAt).toLocaleString()}
+              </span>
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="font-medium">Grades not submitted yet</span>
+            </>
+          )}
+          {!canSubmit && (
+            <span className="text-muted-foreground">
+              · Submission opens at the end of{" "}
+              {submitStatus?.semesterName ?? "the semester"}
+              {endDateLabel ? ` (${endDateLabel})` : ""}
+            </span>
+          )}
+          {canSubmit && submitStatus && submitStatus.ungraded.length > 0 && (
+            <span className="text-amber-600">
+              · {submitStatus.ungraded.length} student(s) have no grade yet
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Term tabs */}
       {allTerms && allTerms.length > 0 && (
@@ -354,6 +439,14 @@ export default function GradesPage() {
         confirmLabel={unlockMutation.isPending ? "Unlocking..." : "Unlock Grades"}
         onConfirm={handleUnlockGrades}
         isLoading={unlockMutation.isPending}
+      />
+
+      <SubmitGradesDialog
+        open={submitOpen}
+        onOpenChange={setSubmitOpen}
+        status={submitStatus}
+        isSubmitting={submission.submitting}
+        onConfirm={() => void handleSubmitGrades()}
       />
 
       <RequestUnlockDialog

@@ -40,18 +40,17 @@ export function MeetingOverflowSheet({
               key={action.key}
               onClick={action.onClick}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 px-1 transition-colors",
-                action.active && !action.danger
-                  ? "bg-primary/15 text-primary"
-                  : action.danger
-                    ? "text-destructive hover:bg-destructive/10"
-                    : "bg-muted text-foreground hover:bg-muted/70",
+                "relative flex flex-col items-center justify-center gap-1.5 rounded-xl px-1 py-3 shadow-sm transition-colors",
+                action.danger
+                  ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/85",
+                action.active && !action.danger && "ring-2 ring-accent",
               )}
             >
               <Icon className="h-5 w-5" />
-              <span className="text-[10px] leading-tight text-center">{action.label}</span>
+              <span className="text-center text-[10px] leading-tight">{action.label}</span>
               {!!action.badge && action.badge > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-warning text-warning-foreground text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-foreground">
                   {action.badge}
                 </span>
               )}

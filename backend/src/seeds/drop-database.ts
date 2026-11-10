@@ -1,6 +1,24 @@
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 
+function assertLocalOnly(): void {
+  const url = process.env.DATABASE_URL ?? '';
+  const looksLocal =
+    url.includes('localhost') ||
+    url.includes('127.0.0.1') ||
+    url.includes('[::1]');
+
+  if (process.env.APP_TARGET !== 'local' || !looksLocal) {
+    console.error(
+      '\n❌ Refusing to drop the database: this script only runs on LOCAL.',
+    );
+    console.error('   Run it with: npm run drop_db\n');
+    process.exit(1);
+  }
+}
+
+assertLocalOnly();
+
 const db = new PrismaClient();
 
 async function main() {

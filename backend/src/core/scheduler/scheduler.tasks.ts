@@ -11,6 +11,8 @@ import {
   ORG_TIMEZONE,
   startOfDayInZone,
 } from '@/commons/utils/datetime.util';
+import { SemesterEnrollmentService } from '@/modules/enrollment/semester-enrollment.service';
+
 
 @Injectable()
 export class SchedulerTasks {
@@ -24,12 +26,24 @@ export class SchedulerTasks {
     private readonly enrollmentAutoLockService: EnrollmentAutoLockService,
     private readonly db: DatabaseService,
     private readonly concernDigestService: ConcernDigestService,
+    private readonly semesterEnrollmentService: SemesterEnrollmentService,
   ) {}
 
-  /**
-   * Runs hourly. Any enrollment application still `pending` for a period whose
-   * `lock_date` has passed is moved to `locked` (idempotent).
-   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async handleCloseEndedSemesterEnrollments() {
+    try {
+      const result =
+        await this.semesterEnrollmentService.closeEndedSemesterEnrollments();
+      if (result.closed > 0) {
+        this.logger.log(
+          `Semester end: closed ${result.closed} enrollment(s) across ${result.semesters} ended semester(s).`,
+        );
+      }
+    } catch (err) {
+      this.logger.error('Closing ended semester enrollments failed', err);
+    }
+  }
+
   @Cron(CronExpression.EVERY_HOUR)
   async handleAutoLockEnrollmentApplications() {
     this.logger.log('Running auto lock for expired enrollment applications...');
@@ -87,7 +101,6 @@ export class SchedulerTasks {
     }
   }
 
-  // TICK-INFRA-017: fixed clock time runs in school time, not server time.
   @Cron('0 2 * * *', { timeZone: ORG_TIMEZONE })
   async handleNotificationArchiving() {
     this.logger.log('Archiving old notifications...');
@@ -98,17 +111,6 @@ export class SchedulerTasks {
     }
   }
 
-  /**
-   * Runs nightly at 03:00 Manila time (19:00Z the previous day).
-   * R6: a school year is over only when todayInZone() > its end day, so a
-   * year ending today stays active. `end_date < <Manila midnight starting
-   * today>` is exactly that calendar comparison as a single query.
-   * For each active school year whose end_date has passed:
-   *   - If org has auto_unenroll_on_year_end = true → remove all active
-   *     class-level Enrollment rows for that school year's classes.
-   *   - Then marks the school year as ended.
-   */
-  // TICK-INFRA-017: fixed clock time runs in school time, not server time.
   @Cron('0 3 * * *', { timeZone: ORG_TIMEZONE })
   async handleAutoUnenrollOnYearEnd() {
     this.logger.log('Running auto unenroll on school year end...');
@@ -129,7 +131,6 @@ export class SchedulerTasks {
             await this.orgEnrollmentSettingService.getByOrg(org_id);
 
           if (setting.auto_unenroll_on_year_end) {
-            // Unenroll class enrollments
             const classResult = await this.db.enrollment.updateMany({
               where: {
                 org_id,
@@ -139,7 +140,6 @@ export class SchedulerTasks {
               data: { status: 'removed' },
             });
 
-            // Unenroll StudentSchoolYear records
             const studentResult = await this.db.studentSchoolYear.updateMany({
               where: {
                 org_id,

@@ -906,17 +906,26 @@ export class ClassService {
     return this.classRepository.findTeachingHistoryByEducator(educatorId, orgId);
   }
 
-  async getStudentClasses(studentId: string, orgId: string) {
-    const enrollments = await this.enrollmentService.getStudentEnrollments(
+  async getStudentClasses(
+    studentId: string,
+    orgId: string,
+    includeHistory = false,
+  ) {
+    const active = await this.enrollmentService.getStudentEnrollments(
       studentId,
       orgId,
     );
-    // Perf Phase 3: one batched subject+educator lookup instead of one
-    // findSubjectWithEducator per enrollment.
-    const infoByClass =
-      await this.classRepository.findSubjectsWithEducators(
-        enrollments.map((enrollment) => (enrollment as any).class.id),
-      );
+    const closed = includeHistory
+      ? await this.enrollmentService.getStudentClosedEnrollments(
+          studentId,
+          orgId,
+        )
+      : [];
+    const enrollments = [...active, ...closed];
+
+    const infoByClass = await this.classRepository.findSubjectsWithEducators(
+      enrollments.map((enrollment) => (enrollment as any).class.id),
+    );
     const countsByClass = await this.enrollmentService.countActiveMany(
       enrollments.map((enrollment) => (enrollment as any).class.id),
       orgId,
@@ -929,6 +938,8 @@ export class ClassService {
       return {
         enrollmentId: enrollment.id,
         enrollmentStatus: enrollment.status,
+        readOnly: enrollment.status !== 'active',
+        outcome: (enrollment as any).outcome ?? null,
         class: {
           id: cls.id,
           subjectId: cls.subject_id,
@@ -948,7 +959,7 @@ export class ClassService {
 
   async getStudentClassById(classId: string, studentId: string, orgId: string) {
     const enrollment =
-      await this.enrollmentService.getStudentEnrollmentForClass(
+      await this.enrollmentService.getStudentReadableEnrollmentForClass(
         classId,
         studentId,
         orgId,
@@ -960,6 +971,8 @@ export class ClassService {
     return {
       enrollmentId: enrollment.id,
       enrollmentStatus: enrollment.status,
+      readOnly: enrollment.status !== 'active',
+      outcome: (enrollment as any).outcome ?? null,
       class: {
         id: cls.id,
         subjectId: cls.subject_id,

@@ -8,7 +8,6 @@ import type { BuilderState } from "./types";
 
 export function ManualStep2({
   classId,
-  totalItems,
   weekNumber,
   releaseDate,
   endDate,
@@ -19,7 +18,6 @@ export function ManualStep2({
   isLoading,
 }: {
   classId: string;
-  totalItems: number;
   weekNumber: number;
   releaseDate: string;
   endDate: string;
@@ -65,30 +63,6 @@ export function ManualStep2({
   return (
     <div className="space-y-6">
       <div className="rounded-xl border bg-card p-6 space-y-4">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">
-            Total Items / Max Score{" "}
-            <span className="text-destructive">*</span>
-          </label>
-          <input
-            type="number"
-            min={1}
-            value={totalItems}
-            onChange={(e) =>
-              onChange({
-                totalItems: Math.max(
-                  1,
-                  parseInt(e.target.value, 10) || 1
-                ),
-              })
-            }
-            className="w-24 rounded-md border bg-card px-3 py-2 text-sm"
-          />
-          <p className="text-xs text-muted-foreground">
-            Maximum possible score for this manual assessment.
-          </p>
-        </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">

@@ -38,6 +38,28 @@ export class SubjectRepository {
       select: { id: true },
     });
   }
+async findDuplicateByCode(
+      orgId: string,
+      code: string,
+      programId?: string,
+      levelId?: string | null,
+      subjectType?: string,
+      excludeId?: string,
+    ) {
+      return this.db.subject.findFirst({
+        where: {
+          org_id: orgId,
+          deleted_at: null,
+          code: { equals: code, mode: 'insensitive' as const },
+          ...(programId ? { program_id: programId } : {}),
+          ...(levelId ? { level_id: levelId } : {}),
+          ...(subjectType ? { subject_type: subjectType } : {}),
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true },
+      });
+    }
+
 
   private async enrichSubjects(subjects: any[]) {
     if (!subjects.length) return subjects;
@@ -139,6 +161,7 @@ export class SubjectRepository {
   async create(data: {
     orgId: string;
     name: string;
+    code?: string | null;
     subjectType?: string;
     programId?: string;
     levelId?: string;
@@ -148,17 +171,17 @@ export class SubjectRepository {
     termLabel?: string;
     sessionsPerWeek?: number | null;
     sessionMinutes?: number | null;
-    /** Per-position lengths; [] or omitted = uniform. */
     sessionDurations?: number[];
   }) {
     const subject = await this.db.subject.create({
       data: {
         org_id: data.orgId,
         name: data.name,
+        code: data.code ?? null,
         subject_type: data.subjectType ?? 'major',
         program_id: data.programId ?? null,
         level_id: data.levelId ?? null,
-        educator_id: null, // educator assignment removed — handled by class
+        educator_id: null,
         course_id: data.courseId ?? null,
         strand_id: data.strandId ?? null,
         year_level: data.yearLevel ?? null,
@@ -188,7 +211,6 @@ export class SubjectRepository {
       yearLevel?: string;
       termLabel?: string;
       subjectType?: string;
-      /** When true, lists archived subjects instead of active ones. */
       archived?: boolean;
       page?: number;
       limit?: number;
@@ -230,10 +252,6 @@ export class SubjectRepository {
       };
     }
 
-    // ── THE FIX ──────────────────────────────────────────────────────────────
-    // When no specific programId is selected ("All programs"), scope subjects
-    // to only the programs that belong to the selected school year.
-    // Without this, the level_id: null branch returns subjects from ALL years.
     let programFilter: Record<string, unknown> = {};
     if (filters.programId) {
       programFilter = { program_id: filters.programId };
@@ -245,21 +263,35 @@ export class SubjectRepository {
       const programIds = programs.map((p) => p.id);
       programFilter = { program_id: { in: programIds } };
     }
-    // ─────────────────────────────────────────────────────────────────────────
+
+    const searchWhere: Prisma.SubjectWhereInput | null = filters.search
+      ? {
+          OR: [
+            {
+              name: {
+                contains: filters.search,
+                mode: 'insensitive' as const,
+              },
+            },
+            {
+              code: {
+                contains: filters.search,
+                mode: 'insensitive' as const,
+              },
+            },
+          ],
+        }
+      : null;
 
     const baseWhere = {
       org_id: orgId,
-      // Archived subjects are hidden everywhere they are *selectable*; the
-      // Archived tab passes `archived: true` to list them instead.
       ...(filters.archived ? { deleted_at: { not: null } } : { deleted_at: null }),
       ...levelFilter,
-      ...programFilter, // ← replaces the old inline programId check
+      ...programFilter,
       ...(filters.subjectType ? { subject_type: filters.subjectType } : {}),
       ...(filters.yearLevel ? { year_level: filters.yearLevel } : {}),
       ...(filters.termLabel ? { term_label: filters.termLabel } : {}),
-      ...(filters.search
-        ? { name: { contains: filters.search, mode: 'insensitive' as const } }
-        : {}),
+      ...(searchWhere ? { AND: [searchWhere] } : {}),
       ...courseFilter,
     };
 
@@ -273,6 +305,7 @@ export class SubjectRepository {
             select: {
               id: true,
               name: true,
+              code: true,
               year_level: true,
               term_label: true,
             },
@@ -288,8 +321,6 @@ export class SubjectRepository {
       { name: 'asc' as const },
     ];
 
-    // ── Pagination: build the FULL ordered/deduped id list first (cheap),
-    //    then fetch the heavy include/enrich only for the current page. ──────
     const selectedLevel = filters.levelId
       ? await this.db.level.findFirst({
           where: { id: filters.levelId, org_id: orgId, deleted_at: null },
@@ -340,14 +371,7 @@ export class SubjectRepository {
                 : { deleted_at: null }),
               subject_type: 'minor',
               OR: sharedMatchers,
-              ...(filters.search
-                ? {
-                    name: {
-                      contains: filters.search,
-                      mode: 'insensitive' as const,
-                    },
-                  }
-                : {}),
+              ...(searchWhere ? { AND: [searchWhere] } : {}),
             },
             select: { id: true },
             orderBy: subjectOrderBy,
@@ -398,8 +422,6 @@ export class SubjectRepository {
       sharings: sharingsBySubject[s.id] ?? [],
     }));
 
-    // Archived rows carry their linked class count (single grouped query, no
-    // N+1) so the Archived tab can show it next to the archived date.
     if (filters.archived && data.length > 0) {
       const counts = await this.db.class.groupBy({
         by: ['subject_id'],
@@ -459,6 +481,7 @@ export class SubjectRepository {
     id: string,
     data: {
       name?: string;
+      code?: string | null;
       subjectType?: string;
       programId?: string;
       levelId?: string | null;
@@ -468,7 +491,6 @@ export class SubjectRepository {
       termLabel?: string | null;
       sessionsPerWeek?: number | null;
       sessionMinutes?: number | null;
-      /** null/[] clears back to uniform. */
       sessionDurations?: number[] | null;
     },
   ) {
@@ -476,6 +498,7 @@ export class SubjectRepository {
       where: { id },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.code !== undefined ? { code: data.code } : {}),
         ...(data.subjectType !== undefined
           ? { subject_type: data.subjectType }
           : {}),

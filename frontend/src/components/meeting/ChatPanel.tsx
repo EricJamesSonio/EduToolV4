@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/types/meeting/socket.types";
 
@@ -34,9 +36,12 @@ export function ChatPanel({
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {messages.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center pt-4">
-            No messages yet. Start the conversation!
-          </p>
+          <EmptyState
+            icon={MessageSquare}
+            title="No messages yet"
+            description="Say hello to start the conversation."
+            className="min-h-0 border-dashed bg-transparent py-8 md:min-h-0"
+          />
         )}
         {messages.map((msg, i) => {
           const isOwn = msg.senderId === currentUserId;

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
-import { Lock, Plus, Save, Library } from "lucide-react";
+import { Lock, Info, Plus, Save, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -12,6 +12,7 @@ import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 
 import {
   useClassGradingScheme,
+  useClassGradingSchemeStatus,
   useCreateGradingScheme,
   useUpdateGradingScheme,
 } from "@/hooks/educator/useGradingSchemes";
@@ -38,6 +39,7 @@ export function ClassGradingSchemeEditor({
 }: ClassGradingSchemeEditorProps) {
   // ================= DATA =================
   const { data: scheme, isLoading } = useClassGradingScheme(classId);
+  const { data: status } = useClassGradingSchemeStatus(classId);
 
   const createMutation = useCreateGradingScheme();
   const updateMutation = useUpdateGradingScheme();
@@ -82,15 +84,28 @@ export function ClassGradingSchemeEditor({
   }, [rows]);
 
   // ================= FLAGS =================
-  // Schemes stay editable even after assessments exist / school year
-  // started. Removing a category type still in use is rejected server-side.
+  // The scheme is read-only when the admin does not allow educators to
+  // override it, or once the class's semester has started. The server
+  // enforces both; this only mirrors it so the UI explains why.
   const isBusy =
     createMutation.isPending || updateMutation.isPending;
+
+  const isLocked = !!status && !status.canEdit;
+  const readOnly = isBusy || isLocked;
 
   const canSave =
     currentTotalWeight === 100 &&
     rows.length > 0 &&
-    !isBusy;
+    !readOnly;
+
+  const lockMessage = useMemo(() => {
+    if (!status || status.canEdit) return null;
+    if (status.lockReason === "educator_override_disabled") {
+      return "Your school does not allow educators to change class grading schemes. Please ask an administrator if a change is needed.";
+    }
+    const semester = status.semesterName ?? "the semester";
+    return `This grading scheme is locked because ${semester} has already started. It stays fixed until the semester ends and can be changed for the next semester.`;
+  }, [status]);
 
   // ================= HANDLERS =================
   const handleChange = (
@@ -191,13 +206,22 @@ export function ClassGradingSchemeEditor({
   // ================= UI =================
   return (
     <div className="w-full space-y-6">
-      {/* INFO — edits recalculate unlocked grades */}
-      {scheme && (
+      {/* LOCKED — admin setting or semester already started */}
+      {lockMessage && (
         <div className="flex items-center gap-2.5 rounded-md border border-[#FCD34D] bg-[#FDE68A] text-[#0B1E3A] px-4 py-2.5 text-sm border">
-          <Lock className="h-4 w-4" />
+          <Lock className="h-4 w-4 shrink-0" />
+          <span>{lockMessage}</span>
+        </div>
+      )}
+
+      {/* INFO — edits recalculate unlocked grades */}
+      {scheme && !isLocked && (
+        <div className="flex items-center gap-2.5 rounded-md border border-[#60A5FA] bg-[#93C5FD] text-[#0B1E3A] px-4 py-2.5 text-sm border">
+          <Info className="h-4 w-4 shrink-0" />
           <span>
             Saving recalculates unlocked grades. Removing a category already
-            used by assessments is blocked.
+            used by assessments is blocked. The scheme locks when the semester
+            starts.
           </span>
         </div>
       )}
@@ -209,7 +233,7 @@ export function ClassGradingSchemeEditor({
             size="sm"
             variant="outline"
             onClick={() => setShowLibrary(true)}
-            disabled={isBusy}
+            disabled={readOnly}
           >
             <Library className="h-4 w-4" />
             Import from Library
@@ -223,7 +247,7 @@ export function ClassGradingSchemeEditor({
               key={i}
               index={i}
               row={row}
-              disabled={isBusy}
+              disabled={readOnly}
               usedTypes={rows.filter((_, j) => j !== i).map((r) => r.type)}
               onChange={handleChange}
               onDelete={setDeleteIndex}
@@ -235,6 +259,7 @@ export function ClassGradingSchemeEditor({
         <Button
           onClick={handleAdd}
           size="sm"
+          disabled={readOnly}
           className="bg-primary text-white hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />

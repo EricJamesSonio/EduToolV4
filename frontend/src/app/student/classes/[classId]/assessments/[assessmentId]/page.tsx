@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList, CheckCircle2, Clock, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  ClipboardList,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Send,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,7 +84,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
   const [started, setStarted] = useState(false);
 
   const timeLeft = useCountdown(assessment?.endDate);
-  const isManual = assessment?.gradingMode === 'manual';
+  const isManual = assessment?.gradingMode === "manual";
 
   const { mutate: startSubmission } = useStartSubmission();
   const { mutate: saveDraft } = useSaveDraft();
@@ -217,8 +224,8 @@ export default function AssessmentTakerPage(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Sticky progress bar */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border/60 pb-3 pt-2 space-y-2">
+      {/* Sticky progress bar (the only submit button on the page) */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border pb-3 pt-2 space-y-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span>{answeredCount} of {questions.length} answered</span>
@@ -251,65 +258,79 @@ export default function AssessmentTakerPage(): React.JSX.Element {
       </div>
 
       {/* Question list */}
-      <div className="space-y-4 pb-20">
+      <div className="space-y-4 pb-6">
         {questions.map((q, i) => {
           const isAnswered = !!answers[q.id];
           const isManualQuestion = isManual && i === 0;
+
+          if (isManualQuestion) {
+            return (
+              <div
+                key={q.id}
+                id={`q-${q.id}`}
+                className="rounded-lg border bg-card p-6 space-y-5"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="icon-structure flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
+                    <FileText className="h-4 w-4" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Instructions
+                  </span>
+                </div>
+
+                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                  {q.questionText}
+                </p>
+
+                <div className="space-y-2 border-t border-border pt-5">
+                  <label
+                    htmlFor={`answer-${q.id}`}
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Your response
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Write your response below and submit when finished.
+                  </p>
+                  <Textarea
+                    id={`answer-${q.id}`}
+                    value={answers[q.id] ?? ""}
+                    onChange={(e) => setAnswer(q.id, e.target.value)}
+                    placeholder="Type your response here..."
+                    className="min-h-[160px] resize-none bg-card text-sm"
+                  />
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               key={q.id}
               id={`q-${q.id}`}
-              className={cn(
-                "rounded-xl border bg-card p-5 space-y-4 transition-shadow",
-                isManualQuestion
-                  ? "border-l-4 border-l-blue-400"
-                  : isAnswered
-                  ? "border-emerald-200/60 shadow-sm"
-                  : "border-border/60"
-              )}
+              className="rounded-lg border bg-card p-6 space-y-4"
             >
               {/* Question header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1 flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {isManualQuestion ? (
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] text-xs font-semibold">
-                        <span>✏️</span>
-                      </span>
-                    ) : (
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#BFDBFE] text-[#0B1E3A] border border-[#93C5FD] text-xs font-semibold">
-                        {i + 1}
-                      </span>
-                    )}
-                    <span className={cn("text-[11px] font-medium uppercase tracking-wider", isManualQuestion ? "text-blue-700" : "text-muted-foreground")}>
-                      {isManualQuestion ? 'Instructions' : typeLabel(q.type)}
-                    </span>
-                    {isAnswered && !isManualQuestion && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 ml-auto" />
-                    )}
-                  </div>
-                  <p className={cn("text-sm leading-relaxed pt-1", isManualQuestion ? "text-foreground font-medium whitespace-pre-wrap" : "text-foreground")}>
-                    {q.questionText}
-                  </p>
-                  {isManualQuestion && (
-                    <p className="text-xs text-muted-foreground pt-2">
-                      Write your response below and submit when finished.
-                    </p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="icon-structure flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold">
+                    {i + 1}
+                  </span>
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {typeLabel(q.type)}
+                  </span>
+                  {isAnswered && (
+                    <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-emerald-600" />
                   )}
                 </div>
+                <p className="pt-1 text-sm leading-relaxed text-foreground">
+                  {q.questionText}
+                </p>
               </div>
 
               {/* Answer input */}
               <div>
-                {isManualQuestion && (
-                  <Textarea
-                    value={answers[q.id] ?? ""}
-                    onChange={(e) => setAnswer(q.id, e.target.value)}
-                    placeholder="Type your response here..."
-                    className="min-h-[160px] text-sm resize-none bg-muted"
-                  />
-                )}
-
                 {!isManual && q.type === "multiple_choice" && (
                   <RadioGroup
                     value={answers[q.id] ?? ""}
@@ -318,18 +339,26 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                   >
                     {(q.choices ?? []).map((choice, ci) => {
                       const label = String.fromCharCode(65 + ci);
+                      const selected = answers[q.id] === choice;
                       return (
                         <label
                           key={ci}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg border px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/30",
-                            answers[q.id] === choice
-                              ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A]"
-                              : "border-border/60"
+                            "flex items-center gap-3 rounded-md border px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-muted",
+                            selected
+                              ? "border-primary bg-muted text-foreground"
+                              : "border-border"
                           )}
                         >
                           <RadioGroupItem value={choice} id={`${q.id}-${ci}`} />
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold border-muted-foreground/30 text-muted-foreground">
+                          <span
+                            className={cn(
+                              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                              selected
+                                ? "border-primary text-primary"
+                                : "border-muted-foreground/30 text-muted-foreground"
+                            )}
+                          >
                             {label}
                           </span>
                           <span>{choice}</span>
@@ -349,10 +378,10 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                       <label
                         key={opt}
                         className={cn(
-                          "flex-1 flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium cursor-pointer transition-colors hover:bg-accent/30",
+                          "flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-3 text-sm font-medium cursor-pointer transition-colors hover:bg-muted",
                           answers[q.id] === opt
-                            ? "border-[#93C5FD] bg-[#BFDBFE] text-[#0B1E3A]"
-                            : "border-border/60 text-muted-foreground"
+                            ? "border-primary bg-muted text-foreground"
+                            : "border-border text-muted-foreground"
                         )}
                       >
                         <RadioGroupItem value={opt} id={`${q.id}-${opt}`} />
@@ -375,7 +404,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                   <div className="space-y-2">
                     {(answers[q.id]?.split("||") ?? Array(assessment.totalItems).fill("")).map((item, ei) => (
                       <div key={ei} className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-muted-foreground w-5 shrink-0 text-right">
+                        <span className="w-5 shrink-0 text-right text-xs font-medium text-muted-foreground">
                           {ei + 1}.
                         </span>
                         <Input
@@ -398,28 +427,13 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                     value={answers[q.id] ?? ""}
                     onChange={(e) => setAnswer(q.id, e.target.value)}
                     placeholder="Write your answer here..."
-                    className="min-h-[120px] text-sm resize-none"
+                    className="min-h-[120px] resize-none bg-card text-sm"
                   />
                 )}
               </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Bottom submit */}
-      <div className="sticky bottom-0 bg-background border-t border-border/60 py-3 flex justify-between items-center">
-        <span className="text-xs text-muted-foreground">
-          {answeredCount} of {questions.length} answered
-        </span>
-        <Button
-          size="default"
-          onClick={() => setShowConfirm(true)}
-          className="gap-2"
-        >
-          <Send className="h-4 w-4" />
-          Submit Assessment
-        </Button>
       </div>
 
       <ConfirmDialog

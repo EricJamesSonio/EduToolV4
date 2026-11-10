@@ -15,6 +15,13 @@ import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
@@ -35,6 +42,7 @@ import {
 import { studentEnrollmentsToScheduleClasses } from "@/utils/studentSchedule.utils";
 import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
 import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
+import { useSemestersByYear } from "@/hooks/admin/useSemester";
 
 export default function StudentDetailPage({
   params,
@@ -56,6 +64,7 @@ export default function StudentDetailPage({
   const [yearOpen, setYearOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<StudentEnrollment | null>(null);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string | null>(null);
 
   const { data: student, isLoading: studentLoading } = useAsyncQuery(
     queryKeys.admin.students.detail(id),
@@ -72,28 +81,44 @@ export default function StudentDetailPage({
     queryKeys.admin.schoolYears.list(),
     schoolYearApi.getAll,
   );
+  const enrollmentYearIds = new Set(
+    studentEnrollmentsToScheduleClasses(enrollmentsRaw ?? [])
+      .map((c) => c.schoolYearId)
+      .filter((v): v is string => !!v),
+  );
+
+  const flaggedActiveYearId =
+    schoolYears?.find((sy) => sy.status === "active")?.id ?? null;
 
   const activeSchoolYearId =
-    schoolYears?.find((sy) => sy.status === "active")?.id ??
+    (flaggedActiveYearId && enrollmentYearIds.has(flaggedActiveYearId)
+      ? flaggedActiveYearId
+      : null) ??
+    schoolYears?.find((sy) => enrollmentYearIds.has(sy.id))?.id ??
+    flaggedActiveYearId ??
     schoolYears?.[0]?.id ??
     null;
 
   const activeSchoolYearIsEnded =
     schoolYears?.find((sy) => sy.id === activeSchoolYearId)?.status === "ended";
 
-const { data: schoolYearEnrollments } = useAsyncQuery(
-  queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
-  () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
-  { enabled: !!activeSchoolYearId },
-);
+  const { data: schoolYearEnrollments } = useAsyncQuery(
+    queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
+    () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
+    { enabled: !!activeSchoolYearId },
+  );
 
-const enrollments = enrollmentsRaw ?? [];
+  const { data: yearSemesters, isLoading: semestersLoading } = useSemestersByYear(
+    activeSchoolYearId ?? undefined,
+  );
+
+  const enrollments = enrollmentsRaw ?? [];
 
   // Weekly schedule derived from the classes this student is enrolled in.
   // The enrollments payload already includes schedules, so no extra request.
   const scheduleClasses = studentEnrollmentsToScheduleClasses(enrollments);
-const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_id === id) ?? [];
-const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.student_id === id) ?? null;
+  const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_id === id) ?? [];
+  const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.student_id === id) ?? null;
   const activePe = useMemo(() => {
     const all = programEnrollments.flatMap((e) => e.programEnrollments);
     return all.find((pe) => pe.status === "active") ?? all[0] ?? null;
@@ -113,6 +138,47 @@ const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.stude
     }
     return Array.from(ids);
   }, [programEnrollments]);
+
+  // Semesters of the current school year, limited to the student's program.
+  const semesterOptions = useMemo(() => {
+    const list = yearSemesters ?? [];
+    const scoped =
+      programIds.length > 0
+        ? list.filter((s) => programIds.includes(s.programId))
+        : list;
+    return [...scoped].sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
+  }, [yearSemesters, programIds]);
+
+  const defaultSemesterId = useMemo(() => {
+    if (semesterOptions.length === 0) return null;
+    const now = Date.now();
+    const current = semesterOptions.find(
+      (s) =>
+        new Date(s.startDate).getTime() <= now &&
+        now <= new Date(s.endDate).getTime(),
+    );
+    return (current ?? semesterOptions[0]).id;
+  }, [semesterOptions]);
+
+  const effectiveSemesterId =
+    selectedSemesterId &&
+    semesterOptions.some((s) => s.id === selectedSemesterId)
+      ? selectedSemesterId
+      : defaultSemesterId;
+
+  const effectiveSemesterName =
+    semesterOptions.find((s) => s.id === effectiveSemesterId)?.name ?? "";
+
+  // The schedule is for the current school year, narrowed to one semester.
+  const semesterClasses = scheduleClasses.filter((c) => {
+    const inYear = !c.schoolYearId || c.schoolYearId === activeSchoolYearId;
+    if (!inYear) return false;
+    if (!effectiveSemesterId) return true;
+    return c.semesterId === effectiveSemesterId;
+  });
 
   const removeEnrollmentMutation = useMutation({
     mutationFn: (enrollmentId: string) =>
@@ -247,15 +313,40 @@ const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.stude
 
         <TabsContent value="schedule">
           <div className="rounded-lg border bg-card p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold not-interactive">Schedule</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold not-interactive">Schedule</h2>
+              </div>
+              {semesterOptions.length > 0 && (
+                <Select
+                  value={effectiveSemesterId ?? undefined}
+                  onValueChange={setSelectedSemesterId}
+                >
+                  <SelectTrigger className="h-8 w-[220px] text-sm">
+                    <SelectValue placeholder="Select semester">
+                      {effectiveSemesterName}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {semesterOptions.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <SchedulePanel
-              classes={scheduleClasses}
-              isLoading={enrollmentsLoading}
+              classes={semesterClasses}
+              isLoading={enrollmentsLoading || semestersLoading}
               emptyTitle="No classes yet"
-              emptyDescription="This student is not enrolled in any classes yet."
+              emptyDescription={
+                semesterOptions.length > 0
+                  ? "This student has no classes in the selected semester."
+                  : "This student is not enrolled in any classes yet."
+              }
               noScheduleTitle="No schedule yet"
               noScheduleDescription="This student's classes don't have schedule times assigned yet."
             />

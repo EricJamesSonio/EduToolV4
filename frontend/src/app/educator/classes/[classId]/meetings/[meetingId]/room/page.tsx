@@ -8,5 +8,9 @@ const RoomClient = dynamic(
 );
 
 export default function EducatorMeetingRoomPage() {
-  return <RoomClient />;
+  return (
+    <div className="dark meeting-theme contents">
+      <RoomClient />
+    </div>
+  );
 }

@@ -4,7 +4,7 @@
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { format, isPast, isWithinInterval, addMinutes } from "date-fns";
+import { isPast, isWithinInterval, addMinutes } from "date-fns";
 import {
   Calendar, Radio, Pencil, Video,
   UserPlus, UserMinus, Check, X, Users,
@@ -26,6 +26,7 @@ import {
 } from "@/hooks/educator/useMeeting";
 import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
+import { formatMeetingDateTime } from "@/utils/meetingTime.util";
 import type { AxiosError } from "axios";
 import type { EnrolledStudent } from "@/types/educator/meeting.types";
 import {
@@ -33,6 +34,8 @@ import {
   formatDuration,
   type SavedAttendance,
 } from "@/utils/meetingAttendanceStorage";
+import { PhoneOff } from "lucide-react";
+import { useEndMeeting } from "@/hooks/educator/useMeeting";
 
 interface Props {
   params: Promise<{ classId: string; meetingId: string }>;
@@ -40,6 +43,8 @@ interface Props {
 
 function getMeetingStatus(startTime: string, status: string): "upcoming" | "live" | "ended" {
   if (status === "ended") return "ended";
+  // The host is in the room, so it is live whatever the clock says.
+  if (status === "active") return "live";
   const start = new Date(startTime);
   const live = isWithinInterval(new Date(), {
     start: addMinutes(start, -15),
@@ -157,7 +162,7 @@ function AttendanceCard({ attendance }: { attendance: SavedAttendance }) {
 
           {/* Footer */}
           <div className="px-4 py-2.5 border-t bg-muted/20 text-xs text-muted-foreground">
-            Saved locally on {format(new Date(attendance.savedAt), "MMM d, yyyy · h:mm a")} · resets when browser data is cleared
+            Saved locally on {formatMeetingDateTime(new Date(attendance.savedAt).toISOString())} · resets when browser data is cleared
           </div>
         </div>
       )}
@@ -175,10 +180,12 @@ export default function MeetingDetailPage({ params }: Props) {
   const { data: studentsRaw }          = useEnrolledStudents(classId);
   const updateMutation                 = useUpdateMeeting(classId);
   const respondMutation                = useRespondToJoinRequest(classId, meetingId);
+  const endMutation                    = useEndMeeting(classId);
 
   const students: EnrolledStudent[] = Array.isArray(studentsRaw) ? studentsRaw : [];
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
   const [showAddInvite, setShowAddInvite]         = useState(false);
+  const [showEndConfirm, setShowEndConfirm]       = useState(false);
 
   // Load saved attendance from localStorage (only present if educator ended the meeting)
   const [savedAttendance, setSavedAttendance] = useState<SavedAttendance | null>(null);
@@ -211,6 +218,17 @@ export default function MeetingDetailPage({ params }: Props) {
   const invitedIds      = new Set(meeting.invites.map((i) => i.studentId));
   const pendingRequests = meeting.joinRequests.filter((r) => r.status === "pending");
   const uninvitedStudents = students.filter((s) => !invitedIds.has(s.id));
+
+  const handleEndMeeting = () => {
+    setShowEndConfirm(false);
+    endMutation.mutate(meetingId, {
+      onSuccess: () => toast.success("Meeting ended."),
+      onError: (err: unknown) => {
+        const e = err as AxiosError<{ message: string }>;
+        toast.error(e?.response?.data?.message ?? "Failed to end the meeting.");
+      },
+    });
+  };
 
   const handleRemoveInvite = (studentId: string) => {
     const newIds = [...invitedIds].filter((id) => id !== studentId);
@@ -285,6 +303,18 @@ export default function MeetingDetailPage({ params }: Props) {
                 Enter Room
               </Button>
             )}
+            {isLive && (
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1.5"
+                onClick={() => setShowEndConfirm(true)}
+                disabled={endMutation.isPending}
+              >
+                <PhoneOff className="h-3.5 w-3.5" />
+                {endMutation.isPending ? "Ending..." : "End"}
+              </Button>
+            )}
           </div>
         }
       />
@@ -305,7 +335,7 @@ export default function MeetingDetailPage({ params }: Props) {
               </Badge>
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Calendar className="h-3.5 w-3.5" />
-                {format(new Date(meeting.startTime), "MMMM d, yyyy · h:mm a")}
+                {formatMeetingDateTime(meeting.startTime, "long")}
               </span>
             </div>
             {meeting.description && (
@@ -464,6 +494,16 @@ export default function MeetingDetailPage({ params }: Props) {
         confirmLabel="Remove"
         destructive
         onConfirm={() => showRemoveConfirm && handleRemoveInvite(showRemoveConfirm)}
+      />
+
+      <ConfirmDialog
+        open={showEndConfirm}
+        onOpenChange={(o) => { if (!o) setShowEndConfirm(false); }}
+        title="End the meeting for everyone?"
+        message="Every participant will be disconnected and the meeting will be closed. This cannot be undone."
+        confirmLabel="End meeting"
+        destructive
+        onConfirm={handleEndMeeting}
       />
     </div>
   );

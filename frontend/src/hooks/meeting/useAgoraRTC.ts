@@ -6,6 +6,10 @@ import type {
   ILocalVideoTrack,
   ICameraVideoTrack,
 } from "agora-rtc-sdk-ng";
+import {
+  readMeetingMediaPrefs,
+  writeMeetingMediaPrefs,
+} from "@/utils/meetingMediaPrefs";
 
 interface UseAgoraRTCProps {
   appId: string;
@@ -152,7 +156,25 @@ export const useAgoraRTC = ({
       localVideoRef.current = camTrack;
       cameraTrackRef.current = camTrack;
 
+      // Tracks must be enabled while publishing; the saved mic/camera choice
+      // is applied right after.
       await meetingClient.publish([micTrack, camTrack]);
+
+      if (cancelled) {
+        micTrack.close();
+        camTrack.close();
+        await meetingClient.leave();
+        return;
+      }
+
+      const mediaPrefs = readMeetingMediaPrefs();
+
+      try {
+        if (!mediaPrefs.micOn) await micTrack.setEnabled(false);
+        if (!mediaPrefs.camOn) await camTrack.setEnabled(false);
+      } catch (error) {
+        console.error("Failed to restore mic/camera state:", error);
+      }
 
       if (cancelled) {
         micTrack.close();
@@ -218,7 +240,9 @@ export const useAgoraRTC = ({
 
     if (!track) return;
 
-    await track.setEnabled(!track.enabled);
+    const next = !track.enabled;
+    await track.setEnabled(next);
+    writeMeetingMediaPrefs({ micOn: next });
   };
 
   const toggleCamera = async () => {
@@ -228,7 +252,9 @@ export const useAgoraRTC = ({
 
     if (!track) return;
 
-    await track.setEnabled(!track.enabled);
+    const next = !track.enabled;
+    await track.setEnabled(next);
+    writeMeetingMediaPrefs({ camOn: next });
   };
 
   const restoreCamera = useCallback(async (client: IAgoraRTCClient) => {
@@ -236,8 +262,16 @@ export const useAgoraRTC = ({
 
     if (!cameraTrack || clientRef.current !== client) return;
 
+    // A disabled track cannot be published: enable it for the publish, then
+    // put it back to the state the user chose.
+    const wasEnabled = cameraTrack.enabled;
+
     try {
+      if (!wasEnabled) await cameraTrack.setEnabled(true);
+
       await client.publish(cameraTrack);
+
+      if (!wasEnabled) await cameraTrack.setEnabled(false);
 
       if (clientRef.current !== client) return;
 

@@ -646,6 +646,7 @@ model Subject {
   id           String  @id @default(uuid())
   org_id       String
   name         String
+  code         String?
   subject_type String  @default("major")
   program_id   String?
   level_id     String?
@@ -1458,6 +1459,52 @@ model GradeLockSetting {
   gradeLocks GradeLock[]
 
   @@unique([org_id, name])
+}
+
+//////////////////////
+// GRADE TEMPLATES (admin-uploaded CHED / DepEd workbooks)
+//////////////////////
+
+// The admin's master workbook. Stored as bytes (not on disk) because the
+// container filesystem is ephemeral. `program_id` null means the template
+// covers every department of the school year. Always read with an explicit
+// `select` that leaves `file_data` out unless the bytes are needed.
+model GradeTemplate {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  program_id     String?
+  name           String
+  file_name      String
+  file_data      Bytes
+  config         Json     @default("{}")
+  uploaded_by    String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  submissions GradeTemplateSubmission[]
+
+  @@index([org_id, school_year_id])
+}
+
+// One row per (template, class): the educator marked that class done and its
+// grades were written into the master workbook.
+model GradeTemplateSubmission {
+  id              String   @id @default(uuid())
+  org_id          String
+  template_id     String
+  class_id        String
+  educator_id     String
+  rows_written    Int      @default(0)
+  ungraded_count  Int      @default(0)
+  unmatched_count Int      @default(0)
+  submitted_at    DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  template GradeTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@unique([template_id, class_id])
+  @@index([org_id, educator_id])
 }
 
 //////////////////////

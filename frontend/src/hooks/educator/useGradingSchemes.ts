@@ -14,6 +14,14 @@ export const useClassGradingScheme = (classId: string) => {
   );
 };
 
+export const useClassGradingSchemeStatus = (classId: string) => {
+  return useAsyncQuery(
+    queryKeys.educator.gradingSchemes.detail(`${classId}:status`),
+    () => educatorGradingSchemeApi.getClassStatus(classId),
+    { enabled: !!classId },
+  );
+};
+
 export const useCreateGradingScheme = () => {
   return useMutationWithInvalidation(
     (data: CreateGradingSchemeDto) => educatorGradingSchemeApi.create(data),

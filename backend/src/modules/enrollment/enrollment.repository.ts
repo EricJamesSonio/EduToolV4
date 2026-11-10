@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import type { StudentAcademicStructure } from './enrollment-eligibility.util';
+import type { ClassEnrollmentOutcome } from '@prisma/client';
+
+const CLOSED_OUTCOMES: ClassEnrollmentOutcome[] = [
+  'completed',
+  'passed',
+  'failed',
+];
+
 
 @Injectable()
 export class EnrollmentRepository {
@@ -10,7 +18,12 @@ export class EnrollmentRepository {
   async findClassEnrollmentContext(classId: string, orgId: string) {
     return this.db.class.findFirst({
       where: { id: classId, org_id: orgId, deleted_at: null },
-      select: { subject_id: true, school_year_id: true, section_id: true },
+      select: {
+        subject_id: true,
+        school_year_id: true,
+        section_id: true,
+        semester_id: true,
+      },
     });
   }
 
@@ -205,4 +218,49 @@ export class EnrollmentRepository {
       },
     });
   }
+async findReadableByStudentAndClass(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    return this.db.enrollment.findFirst({
+      where: {
+        class_id: classId,
+        student_id: studentId,
+        org_id: orgId,
+        OR: [
+          { status: 'active' },
+          { status: 'removed', outcome: { in: CLOSED_OUTCOMES } },
+        ],
+        class: { deleted_at: null },
+      },
+      include: {
+        class: {
+          include: { schedules: true },
+        },
+      },
+    });
+  }
+
+  async findClosedByStudentAcrossOrg(studentId: string, orgId: string) {
+    return this.db.enrollment.findMany({
+      where: {
+        student_id: studentId,
+        org_id: orgId,
+        status: 'removed',
+        outcome: { in: CLOSED_OUTCOMES },
+        class: { deleted_at: null },
+      },
+      include: {
+        class: {
+          include: {
+            schedules: true,
+            subject: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
 }

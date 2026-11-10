@@ -1,5 +1,4 @@
 // frontend/src/api/educator/grading-scheme.api.ts
-// ADD getScaleForClass to the existing educatorGradingSchemeApi object
 
 import client from '@/api/client'
 import type {
@@ -15,6 +14,16 @@ import type { GradingScale } from '@/types/admin/grading-scale.types'
 
 const unwrap = <T>(res: any): T => res.data?.data ?? res.data
 
+export interface ClassGradingSchemeStatus {
+  allowEducatorOverride: boolean
+  hasScheme: boolean
+  lockedBySemester: boolean
+  semesterName: string | null
+  semesterStartDate: string | null
+  lockReason: 'educator_override_disabled' | 'semester_started' | null
+  canEdit: boolean
+}
+
 export const educatorGradingSchemeApi = {
   getForClass: async (classId: string): Promise<GradingScheme | null> => {
     try {
@@ -24,6 +33,15 @@ export const educatorGradingSchemeApi = {
       if (error?.response?.status === 404) return null
       throw error
     }
+  },
+
+  /**
+   * GET /grading-schemes/class/:classId/status
+   * Whether the current user may edit this class's scheme, and why not.
+   */
+  getClassStatus: async (classId: string): Promise<ClassGradingSchemeStatus> => {
+    const res = await client.get(`/grading-schemes/class/${classId}/status`)
+    return unwrap<ClassGradingSchemeStatus>(res)
   },
 
   create: async (data: CreateGradingSchemeDto): Promise<GradingScheme> => {
@@ -60,8 +78,6 @@ export const educatorGradingSchemeApi = {
     const res = await client.get(`/grading-schemes/class/${classId}/allowed-types`)
     return unwrap<string[]>(res)
   },
-
-  // ── NEW ──────────────────────────────────────────────────────────────────
 
   /**
    * GET /grading-scales/by-class/:classId

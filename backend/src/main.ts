@@ -16,14 +16,23 @@ import type { NextFunction, Request, Response } from 'express';
 import { Logger } from '@nestjs/common';
 import { resolveTrustProxy } from './core/config/trust-proxy.util';
 
-// Load env files with a clear precedence:
-//   1. `.env.local` — developer-local values. Loaded with `override: true`
-//      so it wins even if the value is already present in the process env
-//      (dotenv normally never overrides an existing env var). Docker/Render
-//      images do NOT ship a `.env.local`, so when absent the injected
-//      process vars (or `.env`) take over instead.
-//   2. `.env`        — baseline values, only fills in anything not set above.
+// Env loading:
+//   - When started through scripts/with-env.js (npm run dev / npm run prod)
+//     APP_TARGET is "local" or "prod" and the runner has ALREADY loaded the
+//     right file (.env.local for local, .env for prod). Nothing is loaded here,
+//     so the two files can never be mixed.
+//   - Otherwise (Docker/Render, or a bare `nest start`) the legacy behavior
+//     applies:
+//       1. `.env.local` - developer-local values, loaded with override: true.
+//          Docker/Render images do NOT ship a `.env.local`, so when absent the
+//          injected process vars (or `.env`) take over instead.
+//       2. `.env` - baseline values, only fills in anything not set above.
 (() => {
+  const target = process.env.APP_TARGET;
+  if (target === 'local' || target === 'prod') {
+    return;
+  }
+
   const localPath = join(process.cwd(), '.env.local');
   const envPath = join(process.cwd(), '.env');
 
@@ -41,11 +50,16 @@ import { resolveTrustProxy } from './core/config/trust-proxy.util';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  Logger.log(
+    `Environment target: ${process.env.APP_TARGET ?? 'process-env'} (${process.env.APP_ENV_FILE ?? 'no env file'})`,
+    'Bootstrap',
+  );
+
   // Rate limiting (ThrottlerGuard) buckets by `req.ip`, so Express must know
   // how many proxy hops to subtract. Behind a reverse proxy every request
   // otherwise reports the PROXY's IP and all users share one bucket.
   // The hop count MUST match the real proxy chain and is NOT verified for
-  // Render — confirm it after deploy with the TRUST_PROXY_DEBUG probe below.
+  // Render - confirm it after deploy with the TRUST_PROXY_DEBUG probe below.
   const trustProxy = resolveTrustProxy(
     process.env.TRUST_PROXY,
     process.env.NODE_ENV ?? 'development',
@@ -60,22 +74,20 @@ async function bootstrap() {
     //   - req.ip identical for users on different networks -> value too low.
     //   - req.ip equals a header value you set yourself -> value too high
     //     (client-spoofable).
-    app.use(
-      (req: Request, res: Response, next: NextFunction) => {
-        res.once('finish', () => {
-          Logger.log(
-            `[trust-proxy] req.ip=${req.ip} x-forwarded-for=${req.headers['x-forwarded-for'] ?? '<none>'} trustProxy=${String(trustProxy)}`,
-            'Bootstrap',
-          );
-        });
-        next();
-      },
-    );
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      res.once('finish', () => {
+        Logger.log(
+          `[trust-proxy] req.ip=${req.ip} x-forwarded-for=${req.headers['x-forwarded-for'] ?? '<none>'} trustProxy=${String(trustProxy)}`,
+          'Bootstrap',
+        );
+      });
+      next();
+    });
   }
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  // 👇 Serve everything under /uploads (profiles, organizations, etc.)
+  // Serve everything under /uploads (profiles, organizations, etc.)
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
   });
@@ -109,7 +121,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // 👇 crossOriginResourcePolicy relaxed so images served from /uploads
+  // crossOriginResourcePolicy relaxed so images served from /uploads
   // aren't blocked by the browser when fetched from a different origin/port
   app.use(
     helmet({

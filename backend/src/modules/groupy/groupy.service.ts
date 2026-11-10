@@ -173,6 +173,15 @@ export class GroupyService {
       throw new ForbiddenException('Only the educator can start a meeting.');
     }
 
+    // One call per class at a time. If a call is already running (or was left
+    // running by the educator), hand back that call instead of creating a
+    // second one: the rooms poll for the newest active meeting and would send
+    // everyone in the first call back to the chat.
+    const existing = await this.groupyRepo.findActiveMeeting(classId, orgId);
+    if (existing) {
+      return { meetingId: existing.id, message: null };
+    }
+
     const account = await this.db.account.findUnique({
       where: { id: user.id },
       include: { profile: true },
