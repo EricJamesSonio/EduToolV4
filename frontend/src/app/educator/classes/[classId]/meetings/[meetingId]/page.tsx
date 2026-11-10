@@ -4,7 +4,7 @@
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { format, isPast, isWithinInterval, addMinutes } from "date-fns";
+import { isPast, isWithinInterval, addMinutes } from "date-fns";
 import {
   Calendar, Radio, Pencil, Video,
   UserPlus, UserMinus, Check, X, Users,
@@ -26,6 +26,7 @@ import {
 } from "@/hooks/educator/useMeeting";
 import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
+import { formatMeetingDateTime } from "@/utils/meetingTime.util";
 import type { AxiosError } from "axios";
 import type { EnrolledStudent } from "@/types/educator/meeting.types";
 import {
@@ -157,7 +158,7 @@ function AttendanceCard({ attendance }: { attendance: SavedAttendance }) {
 
           {/* Footer */}
           <div className="px-4 py-2.5 border-t bg-muted/20 text-xs text-muted-foreground">
-            Saved locally on {format(new Date(attendance.savedAt), "MMM d, yyyy · h:mm a")} · resets when browser data is cleared
+            Saved locally on {formatMeetingDateTime(new Date(attendance.savedAt).toISOString())} · resets when browser data is cleared
           </div>
         </div>
       )}
@@ -305,7 +306,7 @@ export default function MeetingDetailPage({ params }: Props) {
               </Badge>
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Calendar className="h-3.5 w-3.5" />
-                {format(new Date(meeting.startTime), "MMMM d, yyyy · h:mm a")}
+                {formatMeetingDateTime(meeting.startTime, "long")}
               </span>
             </div>
             {meeting.description && (
