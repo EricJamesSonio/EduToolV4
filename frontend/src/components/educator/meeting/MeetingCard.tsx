@@ -21,6 +21,8 @@ interface MeetingCardProps {
 
 function getMeetingStatus(meeting: Meeting): "upcoming" | "live" | "ended" {
   if (meeting.status === "ended") return "ended";
+  // The host is in the room, so it is live whatever the clock says.
+  if ((meeting.status as string) === "active") return "live";
   const start = new Date(meeting.startTime);
   const liveWindow = isWithinInterval(new Date(), {
     start: addMinutes(start, -15),

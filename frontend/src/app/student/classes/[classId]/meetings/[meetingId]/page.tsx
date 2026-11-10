@@ -19,6 +19,8 @@ function getMeetingStatus(
   status: string
 ): "upcoming" | "live" | "ended" {
   if (status === "ended") return "ended";
+  // The host is in the room, so it is live whatever the clock says.
+  if (status === "active") return "live";
   const start = new Date(startTime);
   const live = isWithinInterval(new Date(), {
     start: addMinutes(start, -15),
