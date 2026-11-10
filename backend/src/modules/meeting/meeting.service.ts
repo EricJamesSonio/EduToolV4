@@ -256,6 +256,7 @@ export class MeetingService {
       type: 'meeting_join_request',
       payload: {
         meetingId: id,
+        classId: meeting.class_id,
         studentId,
         requestId: request.id,
         title: meeting.title,
@@ -302,7 +303,11 @@ export class MeetingService {
         orgId,
         accountId: request.student_id,
         type: 'meeting_join_accepted',
-        payload: { meetingId: id, title: meeting.title },
+        payload: {
+          meetingId: id,
+          classId: meeting.class_id,
+          title: meeting.title,
+        },
       });
     }
 

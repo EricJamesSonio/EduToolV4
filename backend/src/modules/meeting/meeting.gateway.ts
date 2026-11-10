@@ -75,6 +75,10 @@ interface ChatMessage {
   createdAt: string;
 }
 
+type MeetingRecord = NonNullable<
+  Awaited<ReturnType<MeetingRepository['findById']>>
+>;
+
 // ── In-memory room state ───────────────────────────────────────────────────────
 
 class RoomState {
@@ -197,6 +201,8 @@ export class MeetingGateway
       if (!payload) return this.kick(client, 'Invalid token');
       if (!payload.org_id) return this.kick(client, 'Missing org');
 
+      const orgId = payload.org_id;
+
       const meetingId = client.handshake.query?.meetingId as string;
       if (!meetingId) return this.kick(client, 'Missing meetingId');
 
@@ -208,36 +214,44 @@ export class MeetingGateway
           SOCKET_CONNECT_LIMIT,
         )
       ) {
-        return this.kick(client, 'Reconnecting too often — retry in a minute');
+        return this.kick(client, 'Reconnecting too often - retry in a minute');
       }
 
-      const meeting = await this.meetingRepo.findById(
-        meetingId,
-        payload.org_id,
-      );
+      const meeting = await this.meetingRepo.findById(meetingId, orgId);
       if (!meeting) return this.kick(client, 'Meeting not found');
       if (meeting.status === 'ended')
         return this.kick(client, 'Meeting has ended');
 
-      // Access check
       const isEducator =
         payload.role === 'educator' && meeting.educator_id === payload.sub;
-      const isInvited =
-        payload.role === 'student' &&
-        (await this.meetingRepo.isStudentInvited(meetingId, payload.sub));
 
-      if (!isEducator && !isInvited) {
+      // The invite check, display name and chat history are independent, so
+      // they run together instead of one after another.
+      const [invited, account, rows] = await Promise.all([
+        payload.role === 'student'
+          ? this.meetingRepo.isStudentInvited(meetingId, payload.sub)
+          : Promise.resolve(false),
+        this.db.account.findFirst({
+          where: { id: payload.sub },
+          include: { profile: true },
+        }),
+        this.db.meetingChatMessage.findMany({
+          where: { meeting_id: meetingId, org_id: orgId },
+          orderBy: { created_at: 'desc' },
+          take: 50,
+        }),
+      ]);
+
+      if (!isEducator && !invited) {
         return this.kick(client, 'Not authorized for this meeting');
       }
+
+      // The client may have gone away while the lookups were running.
+      if (!client.connected) return;
 
       // Someone is (re)joining, so a pending empty-room cleanup must not fire.
       this.cancelEphemeralCleanup(meetingId);
 
-      // Resolve display name
-      const account = await this.db.account.findFirst({
-        where: { id: payload.sub },
-        include: { profile: true },
-      });
       const name = account?.profile?.full_name ?? payload.email ?? 'Unknown';
 
       // Store auth on socket
@@ -248,11 +262,6 @@ export class MeetingGateway
       // Join socket.io room
       await client.join(meetingId);
 
-      // Lifecycle: a created meeting becomes "active" once someone joins.
-      if (meeting.status === 'scheduled') {
-        await this.meetingRepo.updateStatus(meetingId, 'active');
-      }
-
       // Update in-memory state
       if (!this.rooms.has(meetingId))
         this.rooms.set(meetingId, new RoomState());
@@ -260,40 +269,13 @@ export class MeetingGateway
       room.participants.set(client.id, {
         socketId: client.id,
         userId: payload.sub,
-        orgId: payload.org_id,
+        orgId,
         role: payload.role,
         name,
         handRaised: false,
         joinedAt: new Date(),
       });
 
-      // Groupy (ephemeral) meetings: announce the student in the class chat so
-      // everyone sees "[name] joined". Best-effort — a failure here must never
-      // break the meeting join, so it is isolated from the shared try/catch.
-      if (payload.role === 'student' && meeting.is_ephemeral) {
-        if (!room.announcedJoins.has(payload.sub)) {
-          room.announcedJoins.add(payload.sub);
-          try {
-            await this.groupyGateway.announceMemberJoined(
-              meeting.class_id,
-              payload.org_id,
-              payload.sub,
-              name,
-            );
-          } catch (err) {
-            this.logger.error(
-              `[${meetingId}] failed to announce join for ${name}: ${err}`,
-            );
-          }
-        }
-      }
-
-      // Send room state to the joining client
-      const rows = await this.db.meetingChatMessage.findMany({
-        where: { meeting_id: meetingId, org_id: payload.org_id },
-        orderBy: { created_at: 'desc' },
-        take: 50,
-      });
       const chatHistory: ChatMessage[] = rows.reverse().map((r) => ({
         id: r.id,
         senderId: r.sender_id,
@@ -302,6 +284,7 @@ export class MeetingGateway
         createdAt: r.created_at.toISOString(),
       }));
 
+      // Send room state first so the client can start emitting right away.
       client.emit('room:state', {
         participants: room.getParticipantList(),
         chatHistory,
@@ -320,9 +303,53 @@ export class MeetingGateway
       });
 
       this.logger.log(`[${meetingId}] ${name} (${payload.role}) connected`);
+
+      // Slow, non-essential work never delays the join.
+      void this.runPostJoinTasks(meeting, payload, name, room);
     } catch (err) {
       this.logger.error('handleConnection error', err);
       this.kick(client, 'Internal error');
+    }
+  }
+
+  private async runPostJoinTasks(
+    meeting: MeetingRecord,
+    payload: AuthPayload,
+    name: string,
+    room: RoomState,
+  ) {
+    const meetingId = meeting.id;
+
+    // Lifecycle: a created meeting becomes "active" once someone joins.
+    if (meeting.status === 'scheduled') {
+      try {
+        await this.meetingRepo.updateStatus(meetingId, 'active');
+      } catch (err) {
+        this.logger.error(`[${meetingId}] failed to mark active: ${err}`);
+      }
+    }
+
+    // Groupy (ephemeral) meetings: announce the student in the class chat so
+    // everyone sees "[name] joined". Best-effort, never breaks the join.
+    if (
+      payload.role === 'student' &&
+      meeting.is_ephemeral &&
+      payload.org_id &&
+      !room.announcedJoins.has(payload.sub)
+    ) {
+      room.announcedJoins.add(payload.sub);
+      try {
+        await this.groupyGateway.announceMemberJoined(
+          meeting.class_id,
+          payload.org_id,
+          payload.sub,
+          name,
+        );
+      } catch (err) {
+        this.logger.error(
+          `[${meetingId}] failed to announce join for ${name}: ${err}`,
+        );
+      }
     }
   }
 
