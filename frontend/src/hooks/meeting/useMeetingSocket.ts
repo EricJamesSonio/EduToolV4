@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 // open a meeting do not download/ship the socket.io bundle.
 import type { Socket } from "socket.io-client";
 
+import { refreshAccessToken } from "@/api/client";
+import { useAuthStore } from "@/store/auth.store";
 import type {
   MeetingParticipant,
   ChatMessage,
@@ -30,6 +32,13 @@ export interface IncomingHandRaise {
 }
 
 const MAX_RECENT_REACTIONS = 20;
+const MAX_QUEUED_EMITS = 8;
+const MAX_TOKEN_RETRIES = 3;
+
+interface QueuedEmit {
+  event: string;
+  payload?: unknown;
+}
 
 interface UseMeetingSocketReturn {
   socket: Socket | null;
@@ -83,6 +92,13 @@ export const useMeetingSocket = ({
   const prevParticipantsRef = useRef<MeetingParticipant[]>([]);
   // The server tells us who we are, so our own events can read "You".
   const selfUserIdRef = useRef<string | null>(null);
+  // True only once the server has registered us in the room (room:state).
+  const readyRef = useRef(false);
+  // Emits made before the room was ready; flushed as soon as it is.
+  const pendingRef = useRef<QueuedEmit[]>([]);
+  // Last reason the server gave before it dropped us.
+  const lastServerErrorRef = useRef<string | null>(null);
+  const tokenRetriesRef = useRef(0);
 
   useEffect(() => {
     if (!meetingId || !token) return;
@@ -99,6 +115,19 @@ export const useMeetingSocket = ({
     setMeetingEnded(false);
     prevParticipantsRef.current = [];
     selfUserIdRef.current = null;
+    readyRef.current = false;
+    pendingRef.current = [];
+    lastServerErrorRef.current = null;
+    tokenRetriesRef.current = 0;
+
+    const flushPending = (): void => {
+      const queued = pendingRef.current;
+      pendingRef.current = [];
+      for (const item of queued) {
+        if (item.payload === undefined) socket?.emit(item.event);
+        else socket?.emit(item.event, item.payload);
+      }
+    };
 
     void (async () => {
       const { io } = await import("socket.io-client");
@@ -106,7 +135,11 @@ export const useMeetingSocket = ({
       if (!isActive) return;
 
       socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
-        auth: { token },
+        // Evaluated on every connect attempt, so a reconnect after the access
+        // token was refreshed always carries the fresh one.
+        auth: (cb) => {
+          cb({ token: useAuthStore.getState().accessToken || token });
+        },
         query: { meetingId },
         transports: ["websocket"],
         reconnection: true,
@@ -118,11 +151,30 @@ export const useMeetingSocket = ({
       socketRef.current = socket;
 
       socket.on("connect", () => {
-        if (isActive) setConnected(true);
+        // Not "connected" for the UI yet: the server registers us in the room
+        // a moment later and signals it with room:state.
+        readyRef.current = false;
       });
 
-      socket.on("disconnect", () => {
+      socket.on("disconnect", (reason: string) => {
+        readyRef.current = false;
         if (isActive) setConnected(false);
+
+        // The server dropped us on purpose (for example an expired token).
+        // socket.io does not reconnect after that, so do it here once the
+        // access token has been refreshed.
+        if (!isActive || reason !== "io server disconnect") return;
+        const serverError = lastServerErrorRef.current;
+        if (serverError !== "Invalid token" && serverError !== "Missing token") return;
+        if (tokenRetriesRef.current >= MAX_TOKEN_RETRIES) return;
+
+        tokenRetriesRef.current += 1;
+        lastServerErrorRef.current = null;
+        void refreshAccessToken()
+          .then(() => {
+            if (isActive) socket?.connect();
+          })
+          .catch(() => undefined);
       });
 
       socket.on("connect_error", (err) => {
@@ -130,6 +182,7 @@ export const useMeetingSocket = ({
       });
 
       socket.on("error", (err: { message?: string }) => {
+        lastServerErrorRef.current = err?.message ?? null;
         console.error("Meeting socket error:", err?.message ?? err);
       });
 
@@ -145,12 +198,17 @@ export const useMeetingSocket = ({
         }) => {
           if (!isActive) return;
           if (data.selfUserId) selfUserIdRef.current = data.selfUserId;
+          tokenRetriesRef.current = 0;
           setParticipants(data.participants || []);
           prevParticipantsRef.current = data.participants || [];
           setChat(data.chatHistory || []);
           setCurrentSlide(data.currentSlide ?? 0);
           setIsPresenting(data.isPresenting ?? false);
           setPresentationId(data.presentationId ?? null);
+
+          readyRef.current = true;
+          setConnected(true);
+          flushPending();
         }
       );
 
@@ -265,43 +323,58 @@ export const useMeetingSocket = ({
       socket?.removeAllListeners();
       socket?.disconnect();
       socketRef.current = null;
+      readyRef.current = false;
+      pendingRef.current = [];
       setConnected(false);
     };
   }, [meetingId, token]);
 
-  const sendChat = useCallback((message: string): void => {
-    socketRef.current?.emit("chat:send", { message });
+  // Emits right away when the room is ready, otherwise holds the event until
+  // the server has registered us so it is never silently dropped.
+  const emitSafe = useCallback((event: string, payload?: unknown): void => {
+    const current = socketRef.current;
+    if (current && current.connected && readyRef.current) {
+      if (payload === undefined) current.emit(event);
+      else current.emit(event, payload);
+      return;
+    }
+    pendingRef.current.push({ event, payload });
+    if (pendingRef.current.length > MAX_QUEUED_EMITS) pendingRef.current.shift();
   }, []);
+
+  const sendChat = useCallback((message: string): void => {
+    emitSafe("chat:send", { message });
+  }, [emitSafe]);
 
   const raiseHand = useCallback((): void => {
-    socketRef.current?.emit("hand:raise");
-  }, []);
+    emitSafe("hand:raise");
+  }, [emitSafe]);
 
   const lowerHand = useCallback((): void => {
-    socketRef.current?.emit("hand:lower");
-  }, []);
+    emitSafe("hand:lower");
+  }, [emitSafe]);
 
   const sendReaction = useCallback((emoji: string): void => {
     // The server echoes the reaction back to everyone, including us.
-    socketRef.current?.emit("reaction:send", { emoji });
-  }, []);
+    emitSafe("reaction:send", { emoji });
+  }, [emitSafe]);
 
   const changeSlide = useCallback((slide: number): void => {
     setCurrentSlide(slide); // optimistic: server doesn't echo to sender
-    socketRef.current?.emit("lesson:slide_change", { slide });
-  }, []);
+    emitSafe("lesson:slide_change", { slide });
+  }, [emitSafe]);
 
   const startPresentation = useCallback((presentationId?: string): void => {
     setIsPresenting(true); // optimistic: server doesn't echo to sender
     if (presentationId) setPresentationId(presentationId);
-    socketRef.current?.emit("lesson:presentation_start", { presentationId });
-  }, []);
+    emitSafe("lesson:presentation_start", { presentationId });
+  }, [emitSafe]);
 
   const stopPresentation = useCallback((): void => {
     setIsPresenting(false);
     setPresentationId(null);
-    socketRef.current?.emit("lesson:presentation_stop");
-  }, []);
+    emitSafe("lesson:presentation_stop");
+  }, [emitSafe]);
 
   const clearLatestReaction = useCallback(() => {
     setLatestReaction(null);
