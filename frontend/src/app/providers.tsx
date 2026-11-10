@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { AppWrapper } from "@/components/shared/AppWrapper";
 import { ServerWakeGate } from "@/components/shared/ServerWakeGate";
+import { OfflineBanner } from "@/components/shared/status/OfflineBanner";
 import { queryClient } from "@/lib/query-client.config";
 
 const Devtools = dynamic(
@@ -31,6 +32,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ServerWakeGate>
         <AuthProvider>
+          <OfflineBanner />
+
           <AppWrapper>{children}</AppWrapper>
 
           <Toaster richColors position="top-right" />
