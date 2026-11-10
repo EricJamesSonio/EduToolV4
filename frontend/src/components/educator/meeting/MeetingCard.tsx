@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { format, isPast, isWithinInterval, addMinutes } from "date-fns";
+import { isPast, isWithinInterval, addMinutes } from "date-fns";
 import { Calendar, Users, ArrowRight, Radio, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/ListItemCard";
 import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
+import { formatMeetingDateTime } from "@/utils/meetingTime.util";
 import type { Meeting } from "@/types/educator/meeting.types";
 
 interface MeetingCardProps {
@@ -73,7 +74,7 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
       <div className="flex items-center gap-3 sm:gap-4 text-sm text-muted-foreground flex-wrap">
         <span className="flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 shrink-0" />
-          {format(new Date(meeting.startTime), "MMM d, yyyy · h:mm a")}
+          {formatMeetingDateTime(meeting.startTime)}
         </span>
         <span className="flex items-center gap-1.5">
           <Users className="h-3.5 w-3.5 shrink-0" />
@@ -101,4 +102,3 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
     </div>
   );
 }
-
