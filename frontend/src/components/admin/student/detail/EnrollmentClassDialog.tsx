@@ -22,6 +22,7 @@ interface Props {
   open: boolean;
   classId: string;
   enrollmentStatus?: string;
+  description?: string;
   onClose: () => void;
 }
 
@@ -32,6 +33,8 @@ interface DetailRowProps {
 }
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+const DEFAULT_DESCRIPTION = "Details of the class this student is enrolled in.";
 
 function DetailRow({ icon, label, children }: DetailRowProps): React.JSX.Element {
   return (
@@ -67,6 +70,7 @@ export function EnrollmentClassDialog({
   open,
   classId,
   enrollmentStatus,
+  description = DEFAULT_DESCRIPTION,
   onClose,
 }: Props): React.JSX.Element {
   const { data: cls, isLoading, isError } = useClass(classId);
@@ -92,7 +96,7 @@ export function EnrollmentClassDialog({
       onClose={onClose}
       size="xl"
       title={cls?.subjectName ?? "Class details"}
-      description="Details of the class this student is enrolled in."
+      description={description}
     >
       {isLoading ? (
         <div className="space-y-2">

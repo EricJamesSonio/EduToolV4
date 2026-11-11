@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchInput } from "@/components/shared/SearchInput";
-import { Plus, X } from "lucide-react";
+import { Eye, Plus, X } from "lucide-react";
 import { SchedulePanel } from "@/components/shared/SchedulePanel";
+import { EnrollmentClassDialog } from "@/components/admin/student/detail/EnrollmentClassDialog";
 
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -39,6 +40,7 @@ export function EducatorClassAssignmentManager({ educatorId, schoolYearId, semes
   const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Class | null>(null);
   const [assignTarget, setAssignTarget] = useState<Class | null>(null);
+  const [viewTarget, setViewTarget] = useState<Class | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "schedule">("list");
 
@@ -109,9 +111,14 @@ export function EducatorClassAssignmentManager({ educatorId, schoolYearId, semes
       id: "title",
       header: "Class",
       cell: ({ row }) => (
-        <span className="font-medium not-interactive">
+        <button
+          type="button"
+          onClick={() => setViewTarget(row.original)}
+          className="text-left font-medium hover:text-primary hover:underline underline-offset-2 transition-colors"
+          title="View class details"
+        >
           {row.original.subjectName ?? row.original.title ?? "—"}
-        </span>
+        </button>
       ),
     },
     {
@@ -139,16 +146,28 @@ export function EducatorClassAssignmentManager({ educatorId, schoolYearId, semes
         const isActive = row.original.status === "active";
 
         return (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            disabled={isActive}
-            onClick={() => setRemoveTarget(row.original)}
-          >
-            <X className="h-3.5 w-3.5" />
-            Remove
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-primary"
+              onClick={() => setViewTarget(row.original)}
+              title="View class details"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              View
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              disabled={isActive}
+              onClick={() => setRemoveTarget(row.original)}
+            >
+              <X className="h-3.5 w-3.5" />
+              Remove
+            </Button>
+          </div>
         );
       },
     },
@@ -272,6 +291,16 @@ export function EducatorClassAssignmentManager({ educatorId, schoolYearId, semes
         isLoading={removeMutation.isPending}
         onConfirm={() => removeTarget && removeMutation.mutate(removeTarget.id)}
       />
+
+      {viewTarget && (
+        <EnrollmentClassDialog
+          open
+          classId={viewTarget.id}
+          enrollmentStatus={viewTarget.status}
+          description="Details of this class assigned to the educator."
+          onClose={() => setViewTarget(null)}
+        />
+      )}
     </div>
   );
 }
