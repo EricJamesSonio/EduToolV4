@@ -18,7 +18,7 @@ import {
 } from './dto/organization.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
+import { Roles, RegistrarReadOnly } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 // ✅ NEW: DTOs for validation endpoints
@@ -38,6 +38,7 @@ interface CheckAccountsResponse {
 
 @Controller('organization')
 @UseGuards(AuthGuard, RolesGuard)
+@RegistrarReadOnly()
 export class OrganizationController {
   constructor(private readonly orgService: OrganizationService) {}
 

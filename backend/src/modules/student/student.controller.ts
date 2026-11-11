@@ -28,11 +28,16 @@ import {
 } from './dto/student.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
+import {
+  Roles,
+  AdminOnly,
+  RegistrarReadOnly,
+} from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('students')
 @UseGuards(AuthGuard, RolesGuard)
+@RegistrarReadOnly()
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
@@ -62,6 +67,7 @@ export class StudentController {
 
   @Get('credentials-csv')
   @Roles('admin')
+  @AdminOnly()
   async getCredentialsCsv(
     @CurrentUser('org_id') orgId: string,
     @Res() res: Response,
@@ -77,6 +83,7 @@ export class StudentController {
 
   @Get('import-template')
   @Roles('admin')
+  @AdminOnly()
   async getImportTemplate(@Res() res: Response) {
     const csv = this.studentService.getImportTemplate();
     res.setHeader('Content-Type', 'text/csv');

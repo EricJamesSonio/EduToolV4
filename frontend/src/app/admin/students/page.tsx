@@ -10,13 +10,13 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 
 import { studentApi, DEFAULT_PAGE_SIZE } from "@/api/admin/student.api";
-import { schoolYearApi } from "@/api/admin/school-year.api";
 import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
 import type { Student } from "@/types/admin/student.types";
 import type { GetStudentsQuery } from "@/api/admin/student.api";
 
 import { PageHeader }    from "@/components/shared/PageHeader";
 import { HelpGuide }     from "@/components/shared/help-guide/HelpGuide";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { AsyncListState } from "@/components/shared/AsyncListState";
 import { Pagination }    from "@/components/shared/Pagination";
 import { Skeleton }      from "@/components/ui/skeleton";
@@ -35,6 +35,7 @@ const CreateStudentDialog = dynamic(
 import { BulkCreateStudentDialog } from "@/components/admin/student/BulkCreateStudentDialog";
 import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
+import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ function StudentsPageInner(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen]     = useState(false);
   const [filters, setFilters]       = useState<GetStudentsQuery>({});
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   const [page, setPage]             = useState(1);
   const [limit, setLimit]           = useState(DEFAULT_PAGE_SIZE);
   const [reviewFilter, setReviewFilter] = useState<"all" | "pending_review" | "ready">("all");
@@ -78,13 +80,24 @@ function StudentsPageInner(): React.JSX.Element {
   const { ensureOrganization } = useOrganizationGuard();
   const hasEmailExtension = !!org?.emailExtension;
 
+  const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
+
+  const queryFilters = useMemo<GetStudentsQuery>(
+    () => ({ ...filters, schoolYearId: selectedSchoolYearId ?? undefined }),
+    [filters, selectedSchoolYearId],
+  );
+
+  const studentsQueryEnabled =
+    !!selectedSchoolYearId || (!syLoading && schoolYears.length === 0);
+
   const {
     data: studentsResp,
     isLoading,
     isError,
   } = useAsyncQuery(
-    [...queryKeys.admin.students.list(filters), page, limit],
-    () => studentApi.getPage({ ...filters, page, limit }),
+    [...queryKeys.admin.students.list(queryFilters), page, limit],
+    () => studentApi.getPage({ ...queryFilters, page, limit }),
+    { enabled: studentsQueryEnabled },
   );
 
   const students: Student[] = studentsResp?.data ?? [];
@@ -95,52 +108,39 @@ function StudentsPageInner(): React.JSX.Element {
     if (page > totalStudentPages) setPage(Math.max(1, totalStudentPages));
   }, [page, totalStudentPages]);
 
-  const { data: schoolYears } = useAsyncQuery(
-    queryKeys.admin.schoolYears.list(),
-    schoolYearApi.getAll,
+  const { data: schoolYearEnrollments } = useAsyncQuery(
+    queryKeys.admin.studentEnrollment.list({ schoolYearId: selectedSchoolYearId }),
+    () => studentEnrollmentApi.getBySchoolYear(selectedSchoolYearId!),
+    { enabled: !!selectedSchoolYearId },
   );
 
-  const activeSchoolYearId = useMemo(
+  const enrollmentsForYear = schoolYearEnrollments?.data ?? [];
+
+  const enrichedStudents: Student[] = useMemo(
     () =>
-      schoolYears?.find((sy) => sy.status === "active")?.id ??
-      schoolYears?.[0]?.id ??
-      null,
-    [schoolYears],
+      students.map((s) => {
+        const sye = enrollmentsForYear.find(
+          (e) => e.student_id === s.id,
+        );
+        if (!sye?.programEnrollments?.length) return s;
+        const pe =
+          sye.programEnrollments.find((p) => p.status === "active") ??
+          sye.programEnrollments[0];
+        return {
+          ...s,
+          programName: pe.program?.name ?? s.programName,
+          levelName: pe.level?.name ?? s.levelName,
+          sectionName: pe.section?.name ?? s.sectionName,
+          courseName: pe.course
+            ? pe.course.code
+              ? `${pe.course.code} – ${pe.course.name}`
+              : pe.course.name
+            : s.courseName,
+          strandName: pe.strand?.name ?? s.strandName,
+        };
+      }),
+    [students, enrollmentsForYear],
   );
-
-const { data: schoolYearEnrollments } = useAsyncQuery(
-  queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
-  () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
-  { enabled: !!activeSchoolYearId },
-);
-
-const enrollmentsForYear = schoolYearEnrollments?.data ?? [];
-
-const enrichedStudents: Student[] = useMemo(
-  () =>
-    students.map((s) => {
-      const sye = enrollmentsForYear.find(
-        (e) => e.student_id === s.id,
-      );
-      if (!sye?.programEnrollments?.length) return s;
-      const pe =
-        sye.programEnrollments.find((p) => p.status === "active") ??
-        sye.programEnrollments[0];
-      return {
-        ...s,
-        programName: pe.program?.name ?? s.programName,
-        levelName: pe.level?.name ?? s.levelName,
-        sectionName: pe.section?.name ?? s.sectionName,
-        courseName: pe.course
-          ? pe.course.code
-            ? `${pe.course.code} – ${pe.course.name}`
-            : pe.course.name
-          : s.courseName,
-        strandName: pe.strand?.name ?? s.strandName,
-      };
-    }),
-  [students, enrollmentsForYear],
-);
 
   const { data: reviewData } = useClassAssignmentRequests(
     reviewFilter !== "all" ? { status: reviewFilter } : undefined,
@@ -169,11 +169,28 @@ const enrichedStudents: Student[] = useMemo(
     router.push("/admin/organization");
   };
 
+  const handleSchoolYearSelect = (id: string): void => {
+    if (id === selectedSchoolYearId) return;
+    setSelectedSchoolYearId(id);
+    setFilters((prev) => ({ search: prev.search, status: prev.status }));
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Students"
-        actions={<HelpGuide slug="admin_students" />}
+        actions={
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_students" />
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={syLoading}
+              selectedId={selectedSchoolYearId}
+              onSelect={handleSchoolYearSelect}
+            />
+          </div>
+        }
       />
 
       <div className="flex items-center justify-end gap-2">
@@ -225,6 +242,7 @@ const enrichedStudents: Student[] = useMemo(
 
       <StudentFilterBar
         filters={filters}
+        schoolYearId={selectedSchoolYearId}
         onChange={(next) => {
           setFilters(next);
           setPage(1);
@@ -255,7 +273,7 @@ const enrichedStudents: Student[] = useMemo(
       </div>
 
       <AsyncListState
-        isLoading={isLoading}
+        isLoading={isLoading || syLoading}
         isError={isError}
         isEmpty={displayStudents.length === 0}
         empty={{

@@ -1,17 +1,23 @@
-"use client";
+"use client"
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import React from "react"
+import { ErrorState } from "@/components/shared/status/ErrorState"
 
 interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: React.ReactNode
+  fallback?: React.ReactNode
+  section?: string
+  onReset?: () => void
+  resetKeys?: unknown[]
 }
 
 interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
+  hasError: boolean
+}
+
+function keysChanged(previous: unknown[] = [], next: unknown[] = []): boolean {
+  if (previous.length !== next.length) return true
+  return previous.some((value, index) => !Object.is(value, next[index]))
 }
 
 export class ErrorBoundary extends React.Component<
@@ -19,44 +25,46 @@ export class ErrorBoundary extends React.Component<
   ErrorBoundaryState
 > {
   constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null };
+    super(props)
+    this.state = { hasError: false }
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true }
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[ErrorBoundary]", error, info);
+    console.error("[ErrorBoundary]", error, info)
+  }
+
+  componentDidUpdate(previousProps: ErrorBoundaryProps) {
+    if (
+      this.state.hasError &&
+      keysChanged(previousProps.resetKeys, this.props.resetKeys)
+    ) {
+      this.reset()
+    }
   }
 
   reset = () => {
-    this.setState({ hasError: false, error: null });
-  };
+    this.props.onReset?.()
+    this.setState({ hasError: false })
+  }
 
   render() {
-    if (this.state.hasError) {
-      if (this.props.fallback) return this.props.fallback;
+    if (!this.state.hasError) return this.props.children
+    if (this.props.fallback) return this.props.fallback
 
-      return (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-destructive/20 bg-destructive/5 p-8 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-            <AlertCircle className="h-6 w-6 text-destructive" />
-          </div>
-          <div className="space-y-1">
-            <p className="font-medium">Something went wrong</p>
-            <p className="text-sm text-muted-foreground">
-              {this.state.error?.message ?? "An unexpected error occurred."}
-            </p>
-          </div>
-          <Button variant="outline" size="sm" onClick={this.reset}>
-            Try again
-          </Button>
-        </div>
-      );
-    }
+    const { section } = this.props
 
-    return this.props.children;
+    return (
+      <ErrorState
+        title={
+          section ? `${section} couldn't be shown` : "Something went wrong"
+        }
+        description="An unexpected problem stopped this part of the page. The rest of the page still works."
+        onRetry={this.reset}
+      />
+    )
   }
 }

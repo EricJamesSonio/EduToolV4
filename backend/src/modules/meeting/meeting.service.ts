@@ -100,7 +100,12 @@ export class MeetingService {
       throw new ForbiddenException('You do not own this class.');
     }
 
-    return this.meetingRepo.findAll(classId, orgId);
+    const meetings = await this.meetingRepo.findAll(classId, orgId);
+
+    return meetings.map((m) => ({
+      ...m,
+      auto_end_in_seconds: this.meetingGateway.getAutoEndInSeconds(m.id),
+    }));
   }
 
   // ── GET /classes/:classId/meetings/:id ───────────────────────────────────
@@ -122,7 +127,10 @@ export class MeetingService {
       throw new NotFoundException('Meeting not found.');
     }
 
-    return meeting;
+    return {
+      ...meeting,
+      auto_end_in_seconds: this.meetingGateway.getAutoEndInSeconds(meeting.id),
+    };
   }
 
   // ── PATCH /classes/:classId/meetings/:id ─────────────────────────────────
@@ -161,6 +169,7 @@ export class MeetingService {
 
   async remove(id: string, classId: string, orgId: string, educatorId: string) {
     await this.assertEducatorOwnsMeeting(id, classId, orgId, educatorId);
+    this.meetingGateway.clearAutoEnd(id);
     return this.meetingRepo.softDelete(id);
   }
 
@@ -194,6 +203,8 @@ export class MeetingService {
     if (meeting.status === 'ended') {
       return { success: true, message: 'Meeting already ended.' };
     }
+
+    this.meetingGateway.clearAutoEnd(id);
 
     // Ephemeral (Groupy) meetings are fully removed when ended — they aren't
     // stored on the meetings pages and have no post-meeting record.
@@ -328,6 +339,7 @@ export class MeetingService {
       description: m.description,
       startTime: m.start_time,
       status: m.status,
+      autoEndInSeconds: this.meetingGateway.getAutoEndInSeconds(m.id),
       isInvited: m.invites.some((i: any) => i.student_id === studentId),
       joinRequest:
         m.join_requests.find((r: any) => r.student_id === studentId) ?? null,
@@ -355,6 +367,7 @@ export class MeetingService {
       description: meeting.description,
       startTime: meeting.start_time,
       status: meeting.status,
+      autoEndInSeconds: this.meetingGateway.getAutoEndInSeconds(meeting.id),
       isInvited: meeting.invites.some((i: any) => i.student_id === studentId),
       joinRequest:
         meeting.join_requests.find((r: any) => r.student_id === studentId) ??

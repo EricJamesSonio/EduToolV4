@@ -51,6 +51,17 @@ export class MeetingRepository {
     });
   }
 
+  async findActiveNonEphemeral() {
+    return this.db.meeting.findMany({
+      where: {
+        status: 'active',
+        is_ephemeral: false,
+        deleted_at: null,
+      },
+      select: { id: true, org_id: true },
+    });
+  }
+
   async update(
     id: string,
     data: {

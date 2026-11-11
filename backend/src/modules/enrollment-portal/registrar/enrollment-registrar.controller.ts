@@ -14,7 +14,11 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles, Registrar } from '@/commons/decorators/roles.decorator';
+import {
+  Roles,
+  Registrar,
+  AdminOnly,
+} from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 import { EnrollmentRegistrarService } from './enrollment-registrar.service';
 import {
@@ -42,6 +46,7 @@ export class EnrollmentRegistrarController {
   // ── Periods ──────────────────────────────────────────────────────────────
 
   @Post('periods')
+  @AdminOnly()
   @HttpCode(HttpStatus.CREATED)
   createPeriod(
     @CurrentUser() user: RegistrarUser,
@@ -66,6 +71,7 @@ export class EnrollmentRegistrarController {
   }
 
   @Patch('periods/:id')
+  @AdminOnly()
   @HttpCode(HttpStatus.OK)
   updatePeriod(
     @CurrentUser() user: RegistrarUser,
@@ -76,6 +82,7 @@ export class EnrollmentRegistrarController {
   }
 
   @Delete('periods/:id')
+  @AdminOnly()
   @HttpCode(HttpStatus.OK)
   deletePeriod(@CurrentUser() user: RegistrarUser, @Param('id') id: string) {
     return this.service.deletePeriod(user.org_id, user.id, id);

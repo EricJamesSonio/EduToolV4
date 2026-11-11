@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 
 export const REGULAR_SOURCE = 'regular';
+export const REGULAR_CLOSE_REASON = 'Regular student - lower year level';
 
 @Injectable()
 export class RegularStudentRepository {
@@ -13,7 +14,9 @@ export class RegularStudentRepository {
       include: {
         program: { select: { type: true } },
         level: { select: { id: true, name: true } },
-        studentSchoolYear: { select: { student_id: true } },
+        studentSchoolYear: {
+          select: { student_id: true, school_year_id: true },
+        },
       },
     });
   }
@@ -102,9 +105,11 @@ export class RegularStudentRepository {
     orgId: string;
     studentId: string;
     actorId: string;
+    schoolYearId: string;
     keepSubjectIds: string[];
     createSubjectIds: string[];
-  }): Promise<number> {
+    closeSubjectIds: string[];
+  }): Promise<{ created: number; closed: number }> {
     return this.db.$transaction(async (tx) => {
       await tx.studentProgramEnrollment.update({
         where: { id: params.programEnrollmentId },
@@ -125,21 +130,48 @@ export class RegularStudentRepository {
         },
       });
 
-      if (params.createSubjectIds.length === 0) return 0;
+      let created = 0;
+      if (params.createSubjectIds.length > 0) {
+        const result = await tx.subjectCompletionOverride.createMany({
+          data: params.createSubjectIds.map((subjectId) => ({
+            org_id: params.orgId,
+            student_id: params.studentId,
+            subject_id: subjectId,
+            status: 'completed',
+            reason: 'Regular student',
+            actor_id: params.actorId,
+            source: REGULAR_SOURCE,
+          })),
+          skipDuplicates: true,
+        });
+        created = result.count;
+      }
 
-      const created = await tx.subjectCompletionOverride.createMany({
-        data: params.createSubjectIds.map((subjectId) => ({
-          org_id: params.orgId,
-          student_id: params.studentId,
-          subject_id: subjectId,
-          status: 'completed',
-          reason: 'Regular student',
-          actor_id: params.actorId,
-          source: REGULAR_SOURCE,
-        })),
-        skipDuplicates: true,
-      });
-      return created.count;
+      let closed = 0;
+      if (params.closeSubjectIds.length > 0) {
+        const result = await tx.enrollment.updateMany({
+          where: {
+            org_id: params.orgId,
+            student_id: params.studentId,
+            status: 'active',
+            class: {
+              school_year_id: params.schoolYearId,
+              subject_id: { in: params.closeSubjectIds },
+              deleted_at: null,
+            },
+          },
+          data: {
+            status: 'removed',
+            outcome: 'completed',
+            outcome_reason: REGULAR_CLOSE_REASON,
+            outcome_set_at: new Date(),
+            outcome_set_by: params.actorId,
+          },
+        });
+        closed = result.count;
+      }
+
+      return { created, closed };
     });
   }
 

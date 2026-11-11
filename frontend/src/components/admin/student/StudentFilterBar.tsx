@@ -22,19 +22,25 @@ const STATUS_OPTIONS: { value: StudentStatus; label: string }[] = [
 ];
 
 interface StudentFilterBarProps {
-  filters:  GetStudentsQuery;
-  onChange: (filters: GetStudentsQuery) => void;
+  filters:       GetStudentsQuery;
+  schoolYearId?: string | null;
+  onChange:      (filters: GetStudentsQuery) => void;
 }
 
-export function StudentFilterBar({ filters, onChange }: StudentFilterBarProps): React.JSX.Element {
+export function StudentFilterBar({
+  filters,
+  schoolYearId,
+  onChange,
+}: StudentFilterBarProps): React.JSX.Element {
 
   function set(patch: Partial<GetStudentsQuery>): void {
     onChange({ ...filters, ...patch });
   }
 
-  // Derive the hierarchy selection from the flat filters object
+  // The school year is owned by the page-level selector; the hierarchy
+  // cascade only narrows within it.
   const hierarchyValue: HierarchySelection = {
-    schoolYearId: filters.schoolYearId,
+    schoolYearId: schoolYearId ?? undefined,
     programId:    filters.programId,
     courseId:     filters.courseId,
     strandId:     filters.strandId,
@@ -48,7 +54,6 @@ export function StudentFilterBar({ filters, onChange }: StudentFilterBarProps): 
       search: filters.search,
       status: filters.status,
       // Spread hierarchy (undefined values will remove keys)
-      schoolYearId: next.schoolYearId,
       programId:    next.programId,
       courseId:     next.courseId,
       strandId:     next.strandId,

@@ -8,7 +8,7 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { forwardRef, Inject, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Logger, OnModuleInit } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +17,7 @@ import { plainToInstance } from 'class-transformer';
 import { MeetingRepository } from './meeting.repository';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GroupyGateway } from '../groupy/groupy.gateway';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import {
   SOCKET_CONNECT_LIMIT,
   SocketRateLimiter,
@@ -48,6 +49,10 @@ export const MEETING_SOCKET_LIMITS: Record<string, SocketRateLimitOptions> = {
 // hard-deleted, so a page refresh or brief reconnect does not destroy it.
 const EPHEMERAL_CLEANUP_GRACE_MS = 30_000;
 
+// How long a started (non-ephemeral) meeting may stay empty before the server
+// ends it on the educator's behalf.
+export const EMPTY_ROOM_AUTO_END_MS = 2 * 60 * 1000;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AuthPayload {
@@ -73,6 +78,11 @@ interface ChatMessage {
   senderName: string;
   message: string;
   createdAt: string;
+}
+
+interface AutoEndEntry {
+  timer: ReturnType<typeof setTimeout>;
+  endsAt: number;
 }
 
 type MeetingRecord = NonNullable<
@@ -135,7 +145,7 @@ class RoomState {
   cors: { origin: '*', credentials: true },
 })
 export class MeetingGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
 {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(MeetingGateway.name);
@@ -145,6 +155,9 @@ export class MeetingGateway
 
   // meetingId → pending cleanup timer for an emptied ephemeral meeting
   private emptyRoomTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  // meetingId → pending auto-end timer for a started meeting with nobody inside
+  private autoEndTimers = new Map<string, AutoEndEntry>();
 
   // Phase 2: shared token-bucket limiter (one instance per gateway).
   private readonly rateLimiter = new SocketRateLimiter();
@@ -182,7 +195,25 @@ export class MeetingGateway
     private readonly db: DatabaseService,
     @Inject(forwardRef(() => GroupyGateway))
     private readonly groupyGateway: GroupyGateway,
+    private readonly auditLog: AuditLogService,
   ) {}
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  // Rooms live in memory, so after a restart every started meeting is empty.
+  // Give each one the same countdown a freshly emptied room gets.
+  async onModuleInit() {
+    try {
+      const startedMeetings = await this.meetingRepo.findActiveNonEphemeral();
+      for (const meeting of startedMeetings) {
+        if (!this.rooms.has(meeting.id)) {
+          this.scheduleAutoEnd(meeting.id, meeting.org_id);
+        }
+      }
+    } catch (err) {
+      this.logger.error(`auto-end recovery sweep failed: ${err}`);
+    }
+  }
 
   // ── Connection ────────────────────────────────────────────────────────────
 
@@ -249,8 +280,9 @@ export class MeetingGateway
       // The client may have gone away while the lookups were running.
       if (!client.connected) return;
 
-      // Someone is (re)joining, so a pending empty-room cleanup must not fire.
+      // Someone is (re)joining, so pending empty-room timers must not fire.
       this.cancelEphemeralCleanup(meetingId);
+      this.cancelAutoEnd(meetingId);
 
       const name = account?.profile?.full_name ?? payload.email ?? 'Unknown';
 
@@ -381,9 +413,11 @@ export class MeetingGateway
 
       // Ephemeral (Groupy) meetings are discarded once everyone leaves, after
       // a short grace window so a refresh or reconnect can still rejoin.
+      // Regular meetings get the empty-room auto-end countdown instead.
       const auth = client.data?.auth as AuthPayload | undefined;
       if (auth?.org_id) {
         this.scheduleEphemeralCleanup(meetingId, auth.org_id);
+        this.scheduleAutoEnd(meetingId, auth.org_id);
       }
     }
   }
@@ -420,6 +454,80 @@ export class MeetingGateway
       }
     } catch (err) {
       this.logger.error(`[${meetingId}] ephemeral cleanup failed: ${err}`);
+    }
+  }
+
+  // ── Empty-room auto-end ───────────────────────────────────────────────────
+
+  private scheduleAutoEnd(meetingId: string, orgId: string) {
+    this.cancelAutoEnd(meetingId);
+
+    const timer = setTimeout(() => {
+      this.autoEndTimers.delete(meetingId);
+      void this.autoEndEmptyMeeting(meetingId, orgId);
+    }, EMPTY_ROOM_AUTO_END_MS);
+
+    timer.unref?.();
+    this.autoEndTimers.set(meetingId, {
+      timer,
+      endsAt: Date.now() + EMPTY_ROOM_AUTO_END_MS,
+    });
+  }
+
+  private cancelAutoEnd(meetingId: string) {
+    const entry = this.autoEndTimers.get(meetingId);
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    this.autoEndTimers.delete(meetingId);
+  }
+
+  /** Stops a pending auto-end (used when the educator ends or deletes the meeting). */
+  clearAutoEnd(meetingId: string) {
+    this.cancelAutoEnd(meetingId);
+  }
+
+  /** Whole seconds left on the empty-room countdown, or null when none is running. */
+  getAutoEndInSeconds(meetingId: string): number | null {
+    const entry = this.autoEndTimers.get(meetingId);
+    if (!entry) return null;
+    return Math.max(0, Math.ceil((entry.endsAt - Date.now()) / 1000));
+  }
+
+  private async autoEndEmptyMeeting(meetingId: string, orgId: string) {
+    // Someone rejoined while the timer was firing.
+    if (this.rooms.has(meetingId)) return;
+
+    try {
+      const meeting = await this.meetingRepo.findById(meetingId, orgId);
+      if (!meeting) return;
+      if (meeting.is_ephemeral) return;
+      if (meeting.status !== 'active') return;
+      if (this.rooms.has(meetingId)) return;
+
+      await this.meetingRepo.updateStatus(meetingId, 'ended');
+
+      await this.auditLog.logActivityEvent({
+        orgId,
+        actorId: meeting.educator_id,
+        action: 'meeting_ended',
+        entityType: 'class',
+        entityId: meeting.class_id,
+        metadata: {
+          meetingId,
+          autoEnded: true,
+          reason: 'empty_room_timeout',
+        },
+      });
+
+      this.server
+        .to(meetingId)
+        .emit('meeting:ended', { meetingId });
+
+      this.logger.log(
+        `[${meetingId}] auto-ended after ${EMPTY_ROOM_AUTO_END_MS / 1000}s with no participants`,
+      );
+    } catch (err) {
+      this.logger.error(`[${meetingId}] auto-end failed: ${err}`);
     }
   }
 

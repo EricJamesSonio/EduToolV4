@@ -23,7 +23,7 @@ import {
 import { SetRegularStudentDto } from './dto/regular-student.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
+import { Roles, AdminOnly } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('school-years/:schoolYearId/enrollments')
@@ -87,6 +87,7 @@ export class StudentEnrollmentController {
   }
 
   @Delete(':enrollmentId')
+  @AdminOnly()
   unenroll(
     @Param('enrollmentId') enrollmentId: string,
     @CurrentUser() user: { org_id: string; id: string },
@@ -111,6 +112,7 @@ export class StudentEnrollmentController {
   }
 
   @Patch('programs/:programEnrollmentId/regular')
+  @AdminOnly()
   setRegular(
     @Param('programEnrollmentId') programEnrollmentId: string,
     @CurrentUser() user: { org_id: string; id: string },
@@ -139,6 +141,7 @@ export class StudentEnrollmentController {
   }
 
   @Delete('programs/:programEnrollmentId')
+  @AdminOnly()
   removeProgramEnrollment(
     @Param('programEnrollmentId') programEnrollmentId: string,
     @CurrentUser() user: { org_id: string; id: string },

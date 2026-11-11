@@ -9,7 +9,6 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { schoolYearApi } from "@/api/admin/school-year.api";
 import { programApi }    from "@/api/admin/program.api";
 import { courseApi }     from "@/api/admin/course.api";
 import { strandApi }     from "@/api/admin/strand.api";
@@ -41,12 +40,6 @@ function hasCourses(type: ProgramType): boolean { return USES_COURSES.has(type);
 function hasStrands(type: ProgramType): boolean  { return USES_STRANDS.has(type); }
 
 export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.Element {
-
-  const { data: schoolYears = [], isLoading: loadingSY } = useAsyncQuery(
-    queryKeys.admin.schoolYears.list(),
-    schoolYearApi.getAll,
-    { meta: { preset: 'list' } },
-  );
 
   const { data: programs = [], isLoading: loadingPrograms } = useAsyncQuery(
     queryKeys.admin.programs.list({ schoolYearId: value.schoolYearId }),
@@ -101,15 +94,11 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
   );
 
   // ── Derived labels for trigger display ───────────────────────────────────
-  const selectedSY      = schoolYears.find((s) => s.id === value.schoolYearId);
   const selectedCourse  = courses.find((c) => c.id === value.courseId);
   const selectedStrand  = strands.find((s) => s.id === value.strandId);
   const selectedLevel   = levels.find((l) => l.id === value.levelId);
   const selectedSection = sections.find((s) => s.id === value.sectionId);
 
-  function selectSchoolYear(id: string): void {
-    onChange({ schoolYearId: id === ALL ? undefined : id });
-  }
   function selectProgram(id: string): void {
     onChange({ schoolYearId: value.schoolYearId, programId: id === ALL ? undefined : id });
   }
@@ -132,29 +121,8 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
     onChange({ ...value, sectionId: id === ALL ? undefined : id });
   }
 
-  if (loadingSY) return <Skeleton className="h-9 flex-1 min-w-44 sm:w-48 sm:flex-none" />;
-
   return (
     <div className="flex flex-wrap items-center gap-2">
-
-      {/* School Year */}
-      <Select value={value.schoolYearId ?? ALL} onValueChange={(v) => { if (v !== null) selectSchoolYear(v); }}>
-        <SelectTrigger className="h-9 text-sm flex-1 min-w-44 sm:w-48 sm:flex-none">
-          <span className="truncate text-sm">
-            {selectedSY
-              ? `${selectedSY.name}${selectedSY.status === "active" ? " (Active)" : ""}`
-              : "All School Years"}
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All School Years</SelectItem>
-          {schoolYears.map((sy) => (
-            <SelectItem key={sy.id} value={sy.id}>
-              {sy.name}{sy.status === "active" && " (Active)"}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
 
       {/* Program */}
       {value.schoolYearId && (

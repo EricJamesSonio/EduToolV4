@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/config/api.config";
+import { backoffDelay } from "@/lib/retry";
 
 export type WakeStatus = "checking" | "ready";
 
 const WAKE_STORAGE_KEY = "relief-ed:server-awake-at";
 const AWAKE_TTL_MS = 10 * 60_000;
 const ATTEMPT_TIMEOUT_MS = 15_000;
-const RETRY_DELAY_MS = 3_000;
+const RETRY_BASE_MS = 1_500;
+const RETRY_MAX_MS = 8_000;
+const OFFLINE_POLL_MS = 1_000;
 
 const WAKE_ENABLED = process.env.NEXT_PUBLIC_WAKE_SERVER !== "false";
 
@@ -56,8 +59,7 @@ async function pingServer(signal: AbortSignal): Promise<boolean> {
 
 /**
  * Pings the backend until it answers, so a sleeping server is awake before
- * the app starts using it. Returns how long the wait has lasted so the UI can
- * explain what is happening.
+ * the app starts using it. Retries with backoff and pauses while offline.
  */
 export function useServerWake(): { status: WakeStatus; elapsedMs: number } {
   const [status, setStatus] = useState<WakeStatus>("checking");
@@ -76,7 +78,12 @@ export function useServerWake(): { status: WakeStatus; elapsedMs: number } {
     }, 1000);
 
     const run = async (): Promise<void> => {
+      let attempt = 0;
       while (!controller.signal.aborted) {
+        if (!navigator.onLine) {
+          await sleep(OFFLINE_POLL_MS);
+          continue;
+        }
         const awake = await pingServer(controller.signal);
         if (controller.signal.aborted) return;
         if (awake) {
@@ -84,7 +91,8 @@ export function useServerWake(): { status: WakeStatus; elapsedMs: number } {
           setStatus("ready");
           return;
         }
-        await sleep(RETRY_DELAY_MS);
+        await sleep(backoffDelay(attempt, RETRY_BASE_MS, RETRY_MAX_MS));
+        attempt += 1;
       }
     };
 

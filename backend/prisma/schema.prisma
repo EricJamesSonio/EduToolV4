@@ -168,6 +168,7 @@ model OrgEnrollmentSetting {
   require_semester_reenrollment Boolean                @default(false)
   auto_unenroll_on_year_end     Boolean                @default(true)
   default_shift_outcome         ClassEnrollmentOutcome @default(dropped)
+  allow_educator_scheme_override Boolean @default(false)
   created_at                    DateTime               @default(now())
   updated_at                    DateTime               @updatedAt
 }

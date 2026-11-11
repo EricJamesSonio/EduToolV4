@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 
 /**
  * Standardized error handling utilities for React Query hooks
@@ -15,31 +15,47 @@ export interface ApiError {
   message?: string;
 }
 
+const TECHNICAL_PATTERN =
+  /(\bat\s+\S+\s*\(|stack|exception|status code|ECONN|ETIMEDOUT|axios|prisma|sql|typeerror|referenceerror|node_modules|undefined)/i;
+
+function pickMessage(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+  return null;
+}
+
+function isSafeMessage(message: string): boolean {
+  return (
+    message.length > 0 &&
+    message.length <= 300 &&
+    !TECHNICAL_PATTERN.test(message)
+  );
+}
+
 /**
- * Extracts the most relevant error message from an API error
+ * Extracts the most relevant user-safe error message from an API error.
+ * Technical or internal messages are never returned.
  */
 export function getErrorMessage(error: unknown): string {
   const apiError = error as ApiError;
 
-  // Try to get message from response data first
-  if (apiError.response?.data?.message) {
-    return apiError.response.data.message;
+  const fromResponse = pickMessage(apiError?.response?.data?.message);
+  if (fromResponse && isSafeMessage(fromResponse)) {
+    return fromResponse;
   }
 
-  // Try to get first validation error
-  if (apiError.response?.data?.errors) {
-    const firstError = Object.values(apiError.response.data.errors)[0];
-    if (firstError && firstError.length > 0) {
+  const errors = apiError?.response?.data?.errors;
+  if (errors) {
+    const firstError = Object.values(errors)[0];
+    if (firstError && firstError.length > 0 && isSafeMessage(firstError[0])) {
       return firstError[0];
     }
   }
 
-  // Fall back to generic error message
-  if (apiError.message) {
+  if (apiError?.message && isSafeMessage(apiError.message)) {
     return apiError.message;
   }
 
-  // Default fallback
   return "An unexpected error occurred";
 }
 
@@ -85,11 +101,15 @@ export const ERROR_MESSAGES = {
  */
 export function showErrorToast(error: unknown, fallbackMessage?: string) {
   const apiError = error as ApiError;
-  const status = apiError.response?.status;
+  const status = apiError?.response?.status;
 
   let message = fallbackMessage || ERROR_MESSAGES.generic();
 
-  // Handle specific HTTP status codes
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    notify.error(ERROR_MESSAGES.network());
+    return;
+  }
+
   switch (status) {
     case 400:
       message = getErrorMessage(error);
@@ -119,14 +139,14 @@ export function showErrorToast(error: unknown, fallbackMessage?: string) {
       message = ERROR_MESSAGES.server();
       break;
     default:
-      if (apiError.message?.includes('Network Error')) {
+      if (apiError?.message?.includes("Network Error")) {
         message = ERROR_MESSAGES.network();
       } else {
         message = getErrorMessage(error);
       }
   }
 
-  toast.error(message);
+  notify.error(message);
 }
 
 /**
@@ -139,7 +159,7 @@ export function showSuccessToast(
 ) {
   let message: string;
 
-  if (operation === 'bulkImport' && count !== undefined) {
+  if (operation === "bulkImport" && count !== undefined) {
     message = SUCCESS_MESSAGES.bulkImport(count);
   } else if (entity) {
     const messageFn = SUCCESS_MESSAGES[operation] as (entity: string) => string;
@@ -148,14 +168,21 @@ export function showSuccessToast(
     message = SUCCESS_MESSAGES.generic();
   }
 
-  toast.success(message);
+  notify.success(message);
 }
 
 /**
  * Shows warning toast for special cases
  */
 export function showWarningToast(message: string) {
-  toast.warning(message);
+  notify.warning(message);
+}
+
+/**
+ * Shows info toast for neutral status updates
+ */
+export function showInfoToast(message: string) {
+  notify.info(message);
 }
 
 /**
@@ -176,7 +203,7 @@ export function createMutationCallbacks<T = any>(options: {
     },
     onError: (error: unknown) => {
       const errorFn = ERROR_MESSAGES[options.operation] as (entity: string) => string;
-      showErrorToast(error, errorFn(options.entity || 'item'));
+      showErrorToast(error, errorFn(options.entity || "item"));
       options.onError?.(error);
     },
   };

@@ -13,7 +13,11 @@ import {
 import { SchoolProfileService } from './school-profile.service';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
+import {
+  Roles,
+  AdminOnly,
+  RegistrarAllowed,
+} from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 import {
   CreateProfileCourseDto,
@@ -33,12 +37,22 @@ import {
 @Controller('school-profile')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
+@AdminOnly()
 export class SchoolProfileController {
   constructor(private readonly service: SchoolProfileService) {}
 
   @Get()
   async getProfile(@CurrentUser('org_id') orgId: string) {
     return this.service.getProfile(orgId);
+  }
+
+  @Get('departments')
+  @RegistrarAllowed()
+  async listDepartments(@CurrentUser('org_id') orgId: string) {
+    const byType = await this.service.getAllByType(orgId);
+    return Object.entries(byType)
+      .filter(([, department]) => department !== null)
+      .map(([type]) => ({ type }));
   }
 
   @Post('departments/:type/select')
@@ -57,13 +71,14 @@ export class SchoolProfileController {
   ) {
     await this.service.deselectDepartment(orgId, type);
   }
-    @Post('save')
-async saveProfile(
-  @CurrentUser('org_id') orgId: string,
-  @Body() dto: SaveSchoolProfileDto,
-) {
-  return this.service.saveProfile(orgId, dto);
-}
+
+  @Post('save')
+  async saveProfile(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: SaveSchoolProfileDto,
+  ) {
+    return this.service.saveProfile(orgId, dto);
+  }
 
   @Post('departments/:departmentId/courses')
   async createCourse(

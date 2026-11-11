@@ -19,12 +19,18 @@ interface StructureScope {
   strandId: string | null;
 }
 
+interface CreditedSubjects {
+  all: string[];
+  lower: string[];
+}
+
 export interface SetRegularResult {
   is_regular: boolean;
   subjects_total: number;
   subjects_added: number;
   subjects_removed: number;
   kept_manual: number;
+  enrollments_closed: number;
 }
 
 @Injectable()
@@ -47,6 +53,7 @@ export class RegularStudentService {
     if (!pe) throw new NotFoundException('Program enrollment not found.');
 
     const studentId = pe.studentSchoolYear.student_id;
+    const schoolYearId = pe.studentSchoolYear.school_year_id;
 
     if (!isRegular) {
       const removed = await this.repo.unmarkRegular({
@@ -76,6 +83,7 @@ export class RegularStudentService {
         subjects_added: 0,
         subjects_removed: removed,
         kept_manual: 0,
+        enrollments_closed: 0,
       };
     }
 
@@ -107,12 +115,13 @@ export class RegularStudentService {
       );
     }
 
-    const subjectIds = await this.resolveCreditedSubjectIds(
+    const credited = await this.resolveCreditedSubjectIds(
       orgId,
       pe.program_id,
       { courseId: pe.course_id, strandId: pe.strand_id },
       currentRank,
     );
+    const subjectIds = credited.all;
 
     const existing = await this.repo.findOverrides(
       orgId,
@@ -125,13 +134,15 @@ export class RegularStudentService {
     ).length;
     const createIds = subjectIds.filter((id) => !existingIds.has(id));
 
-    await this.repo.markRegular({
+    const { closed } = await this.repo.markRegular({
       programEnrollmentId,
       orgId,
       studentId,
       actorId,
+      schoolYearId,
       keepSubjectIds: subjectIds,
       createSubjectIds: createIds,
+      closeSubjectIds: credited.lower,
     });
 
     this.auditLogService
@@ -146,6 +157,7 @@ export class RegularStudentService {
           change: 'marked_regular',
           subjectsAdded: createIds.length,
           subjectsTotal: subjectIds.length,
+          enrollmentsClosed: closed,
         },
       })
       .catch(() => {});
@@ -156,6 +168,7 @@ export class RegularStudentService {
       subjects_added: createIds.length,
       subjects_removed: 0,
       kept_manual: keptManual,
+      enrollments_closed: closed,
     };
   }
 
@@ -164,7 +177,7 @@ export class RegularStudentService {
     programId: string,
     scope: StructureScope,
     currentRank: number,
-  ): Promise<string[]> {
+  ): Promise<CreditedSubjects> {
     const candidates = await this.repo.findCandidateSubjects(
       orgId,
       programId,
@@ -199,7 +212,10 @@ export class RegularStudentService {
       extraCandidates,
     );
 
-    return [...new Set([...lower, ...extras])];
+    return {
+      all: [...new Set([...lower, ...extras])],
+      lower: [...lower],
+    };
   }
 
   private isInScope(subject: CandidateSubject, scope: StructureScope): boolean {

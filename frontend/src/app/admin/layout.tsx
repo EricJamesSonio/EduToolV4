@@ -1,5 +1,7 @@
 "use client";
-import { useRoleGuard } from "@/hooks/useRole";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useRole, useRoleGuard } from "@/hooks/useRole";
 import { RouteGuardLoader } from "@/components/shared/RouteGuardLoader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AdminWelcomeModal } from "@/components/shared/AdminWelcomeModal";
@@ -9,10 +11,26 @@ import { SidebarProvider } from "@/context/SidebarContext";
 import { OrganizationGuardProvider } from "@/context/OrganizationGuardContext";
 import { NavigationGuardProvider } from "@/context/NavigationGuardContext";
 import { SchoolProfileSetupModal } from "@/components/admin/school-profile/SchoolProfileSetupModal"
+import {
+  REGISTRAR_HOME_PATH,
+  isRegistrarPathAllowed,
+} from "@/utils/registrar-access.util";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { status, showLogoutPrompt, confirmLogout, cancelLogout } = useRoleGuard(["admin"]);
-  if (status !== "allowed") return <RouteGuardLoader />;
+  const { isRegistrar } = useRole();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const registrarBlocked = isRegistrar && !isRegistrarPathAllowed(pathname);
+
+  useEffect(() => {
+    if (status === "allowed" && registrarBlocked) {
+      router.replace(REGISTRAR_HOME_PATH);
+    }
+  }, [status, registrarBlocked, router]);
+
+  if (status !== "allowed" || registrarBlocked) return <RouteGuardLoader />;
   return (
     <>
       <ConfirmDialog
@@ -32,8 +50,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <NavigationGuardProvider>
             <AppShell sidebar={<AdminSidebar />}>
               {children}
-              <AdminWelcomeModal />
-              <SchoolProfileSetupModal />
+              {!isRegistrar && <AdminWelcomeModal />}
+              {!isRegistrar && <SchoolProfileSetupModal />}
             </AppShell>
           </NavigationGuardProvider>
         </OrganizationGuardProvider>

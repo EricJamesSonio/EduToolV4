@@ -31,17 +31,21 @@ export interface Class {
   subjectName?: string;
   sectionId: string | null;
   sectionName?: string;
+  sectionCapacity?: number | null;
   semesterId: string;
   semesterName?: string;
+  semesterStartDate?: string | null;
+  semesterEndDate?: string | null;
   schoolYearId: string;
   schoolYearTitle?: string;
   educatorId: string;
   educatorName?: string;
+  educatorEmail?: string | null;
   capacity: number;
   enrolledCount: number;
   status: ClassStatus;
-  isArchived?: boolean;      // ← add this
-  title?: string;            // ← add this (derived/joined from backend)
+  isArchived?: boolean;
+  title?: string;
   schedules: ClassSchedule[];
   createdAt: string;
   updatedAt?: string;
