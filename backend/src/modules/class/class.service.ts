@@ -41,6 +41,8 @@ import {
   findConflicts,
 } from './class-conflict.util';
 import { ClassOccupancyService } from './class-occupancy.service';
+import { loadClassDetail } from './class-detail.util';
+
 
 /** A parsed schedule slot. `roomId` rides along so a single pass can both
  *  persist the assignment and run the room conflict check. */
@@ -451,7 +453,7 @@ export class ClassService {
   }
 
   async findById(id: string, orgId: string) {
-    const cls = await this.classRepository.findById(id, orgId);
+    const cls = await loadClassDetail(this.db, id, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
     return cls;
   }
