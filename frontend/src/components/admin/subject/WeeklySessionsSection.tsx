@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Copy } from "lucide-react";
+import { ChevronDown, Copy } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * Sentinel for the "use the department standard" option in the count select.
@@ -87,6 +89,9 @@ export function joinMinutes(h: string, m: string): number {
  *
  * Switching to a custom count/length is the ONLY way a subject becomes
  * explicit — nothing here is ever pre-filled from the standard.
+ *
+ * The section is collapsible: closed by default for a subject on the standard,
+ * open when it already holds custom values or there is an error to show.
  */
 export function WeeklySessionsSection({
   value,
@@ -102,6 +107,15 @@ export function WeeklySessionsSection({
   const count = value.sessionsPerWeek
     ? Number(value.sessionsPerWeek)
     : resolvedCount;
+
+  const [open, setOpen] = useState<boolean>(
+    () => value.touched || !isOnDefault || !!error,
+  );
+
+  // A validation error must never stay hidden behind a collapsed header.
+  useEffect(() => {
+    if (error) setOpen(true);
+  }, [error]);
 
   // Base UI types the handler value as `string | null`; the sentinel list
   // never yields null, but narrow defensively rather than asserting.
@@ -158,155 +172,191 @@ export function WeeklySessionsSection({
     rows.length > 0 && rows.every((d) => d === rows[0]) ? rows[0] : null;
   const misaligned = rows.find((d) => d > 0 && d % slotMinutes !== 0) ?? null;
 
+  const hasCustomValues =
+    value.sessionsPerWeek !== "" || value.sessionDurations.length > 0;
+  const summaryRows = hasCustomValues ? value.sessionDurations : resolvedDurations;
+  const summaryUniform =
+    summaryRows.length > 0 && summaryRows.every((d) => d === summaryRows[0])
+      ? summaryRows[0]
+      : null;
+  const summary = !hasCustomValues
+    ? "Department standard"
+    : summaryUniform != null
+      ? `${count} × ${formatLength(summaryUniform)}`
+      : `${count} sessions, mixed lengths`;
+
   return (
-    <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
-      <div className="space-y-1">
-        <Label className="text-sm font-medium">Weekly sessions</Label>
-        <p className="text-xs text-muted-foreground">
-          Optional &mdash; used only by automated class generation. Leave it on
-          the department standard and the generator follows that standard.
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,13rem)_1fr]">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Sessions per week
-          </Label>
-          <Select
-            value={value.sessionsPerWeek || DEFAULT_OPTION}
-            onValueChange={setCount}
-            disabled={disabled}
-          >
-            <SelectTrigger aria-label="Sessions per week">
-              <SelectValue placeholder="Department standard" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={DEFAULT_OPTION}>
-                Department standard
-              </SelectItem>
-              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} per week
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="rounded-lg border bg-muted/20">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="weekly-sessions-panel"
+        className="flex w-full items-center justify-between gap-3 rounded-lg p-4 text-left"
+      >
+        <div className="space-y-0.5">
+          <span className="block text-sm font-medium">
+            Weekly sessions{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
+          </span>
+          <span className="block text-xs text-muted-foreground">{summary}</span>
         </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
 
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="text-xs text-muted-foreground">
-              Length of each session
-            </Label>
-            {isCustom && !uniformBase && count > 1 && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs"
-                onClick={applyToAll}
+      {open && (
+        <div id="weekly-sessions-panel" className="space-y-3 border-t p-4">
+          <p className="text-xs text-muted-foreground">
+            Used only by automated class generation. Leave it on the department
+            standard and the generator follows that standard.
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,13rem)_1fr]">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                Sessions per week
+              </Label>
+              <Select
+                value={value.sessionsPerWeek || DEFAULT_OPTION}
+                onValueChange={setCount}
                 disabled={disabled}
               >
-                <Copy className="mr-1.5 h-3 w-3" />
-                Apply to all
-              </Button>
-            )}
+                <SelectTrigger aria-label="Sessions per week">
+                  <SelectValue placeholder="Department standard" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DEFAULT_OPTION}>
+                    Department standard
+                  </SelectItem>
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n} per week
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs text-muted-foreground">
+                  Length of each session
+                </Label>
+                {isCustom && !uniformBase && count > 1 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={applyToAll}
+                    disabled={disabled}
+                  >
+                    <Copy className="mr-1.5 h-3 w-3" />
+                    Apply to all
+                  </Button>
+                )}
+              </div>
+
+              {uniformBase != null ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    className="w-20"
+                    min={0}
+                    max={8}
+                    placeholder="Hrs"
+                    aria-label="Session hours"
+                    disabled={disabled || !isCustom}
+                    value={splitMinutes(uniformBase).h}
+                    onChange={(e) =>
+                      setUniform(joinMinutes(e.target.value, splitMinutes(uniformBase).m))
+                    }
+                  />
+                  <Input
+                    type="number"
+                    className="w-20"
+                    min={0}
+                    max={59}
+                    placeholder="Min"
+                    aria-label="Session minutes"
+                    disabled={disabled || !isCustom}
+                    value={splitMinutes(uniformBase).m}
+                    onChange={(e) =>
+                      setUniform(joinMinutes(splitMinutes(uniformBase).h, e.target.value))
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {isCustom
+                      ? `all ${count} sessions`
+                      : `department standard · ${count} sessions`}
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {rows.map((minutes, i) => {
+                    const parts = splitMinutes(minutes);
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-16 shrink-0 text-xs text-muted-foreground">
+                          Session {i + 1}
+                        </span>
+                        <Input
+                          type="number"
+                          className="w-20"
+                          min={0}
+                          max={8}
+                          placeholder="Hrs"
+                          aria-label={`Session ${i + 1} hours`}
+                          disabled={disabled || !isCustom}
+                          value={parts.h}
+                          onChange={(e) =>
+                            setDurationAt(i, joinMinutes(e.target.value, parts.m))
+                          }
+                        />
+                        <Input
+                          type="number"
+                          className="w-20"
+                          min={0}
+                          max={59}
+                          placeholder="Min"
+                          aria-label={`Session ${i + 1} minutes`}
+                          disabled={disabled || !isCustom}
+                          value={parts.m}
+                          onChange={(e) =>
+                            setDurationAt(i, joinMinutes(parts.h, e.target.value))
+                          }
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {formatLength(minutes)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
-          {uniformBase != null ? (
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                className="w-20"
-                min={0}
-                max={8}
-                placeholder="Hrs"
-                aria-label="Session hours"
-                disabled={disabled || !isCustom}
-                value={splitMinutes(uniformBase).h}
-                onChange={(e) =>
-                  setUniform(joinMinutes(e.target.value, splitMinutes(uniformBase).m))
-                }
-              />
-              <Input
-                type="number"
-                className="w-20"
-                min={0}
-                max={59}
-                placeholder="Min"
-                aria-label="Session minutes"
-                disabled={disabled || !isCustom}
-                value={splitMinutes(uniformBase).m}
-                onChange={(e) =>
-                  setUniform(joinMinutes(splitMinutes(uniformBase).h, e.target.value))
-                }
-              />
-              <span className="text-xs text-muted-foreground">
-                {isCustom
-                  ? `all ${count} sessions`
-                  : `department standard · ${count} sessions`}
-              </span>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {rows.map((minutes, i) => {
-                const parts = splitMinutes(minutes);
-                return (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="w-16 shrink-0 text-xs text-muted-foreground">
-                      Session {i + 1}
-                    </span>
-                    <Input
-                      type="number"
-                      className="w-20"
-                      min={0}
-                      max={8}
-                      placeholder="Hrs"
-                      aria-label={`Session ${i + 1} hours`}
-                      disabled={disabled || !isCustom}
-                      value={parts.h}
-                      onChange={(e) =>
-                        setDurationAt(i, joinMinutes(e.target.value, parts.m))
-                      }
-                    />
-                    <Input
-                      type="number"
-                      className="w-20"
-                      min={0}
-                      max={59}
-                      placeholder="Min"
-                      aria-label={`Session ${i + 1} minutes`}
-                      disabled={disabled || !isCustom}
-                      value={parts.m}
-                      onChange={(e) =>
-                        setDurationAt(i, joinMinutes(parts.h, e.target.value))
-                      }
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {formatLength(minutes)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+          <p className="text-[11px] text-muted-foreground">
+            {isOnDefault
+              ? `Following the department standard (${count} × ${formatLength(resolvedDurations[0] ?? 60)} per week). Pick a count or length to override it.`
+              : `Each length must be a multiple of the school's ${slotMinutes}m slot, between ${MIN_SESSION_MINUTES} and ${MAX_SESSION_MINUTES} minutes.`}
+          </p>
+
+          {misaligned != null && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              {misaligned}m is not a multiple of the {slotMinutes}m slot and will be
+              rejected on save.
+            </p>
           )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
-      </div>
-
-      <p className="text-[11px] text-muted-foreground">
-        {isOnDefault
-          ? `Following the department standard (${count} × ${formatLength(resolvedDurations[0] ?? 60)} per week). Pick a count or length to override it.`
-          : `Each length must be a multiple of the school&apos;s ${slotMinutes}m slot, between ${MIN_SESSION_MINUTES} and ${MAX_SESSION_MINUTES} minutes.`}
-      </p>
-
-      {misaligned != null && (
-        <p className="text-[11px] text-amber-600 dark:text-amber-400">
-          {misaligned}m is not a multiple of the {slotMinutes}m slot and will be
-          rejected on save.
-        </p>
       )}
-      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
