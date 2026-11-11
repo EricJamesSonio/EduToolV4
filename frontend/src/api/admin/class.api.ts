@@ -152,6 +152,12 @@ function mapSchedule(s: RawSchedule): ClassSchedule {
 }
 
 function mapClass(raw: RawClass): Class {
+  const extra = raw as RawClass & {
+    educator_email?: string | null;
+    section_capacity?: number | null;
+    semester_start_date?: string | null;
+    semester_end_date?: string | null;
+  };
   return {
     id:              raw.id,
     orgId:           raw.org_id,
@@ -159,10 +165,14 @@ function mapClass(raw: RawClass): Class {
     subjectName:     raw.subject_name,
     educatorId:      raw.educator_id,
     educatorName:    raw.educator_name,
+    educatorEmail:   extra.educator_email ?? null,
     sectionId:       raw.section_id,
     sectionName:     raw.section_name,
+    sectionCapacity: extra.section_capacity ?? null,
     semesterId:      raw.semester_id,
     semesterName:    raw.semester_name,
+    semesterStartDate: extra.semester_start_date ?? null,
+    semesterEndDate:   extra.semester_end_date ?? null,
     schoolYearId:    raw.school_year_id,
     schoolYearTitle: raw.school_year_title,
     capacity:        raw.capacity,
