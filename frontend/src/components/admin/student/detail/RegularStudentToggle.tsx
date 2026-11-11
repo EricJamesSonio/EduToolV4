@@ -46,8 +46,12 @@ export function RegularStudentToggle({
               result.kept_manual > 0
                 ? `, ${result.kept_manual} manual record(s) left as they were`
                 : "";
+            const closed =
+              (result.enrollments_closed ?? 0) > 0
+                ? ` ${result.enrollments_closed} lower-year class enrollment(s) marked done and unenrolled.`
+                : "";
             toast.success(
-              `Marked as regular. ${result.subjects_added} subject(s) credited${kept}.`,
+              `Marked as regular. ${result.subjects_added} subject(s) credited${kept}.${closed}`,
             );
           } else {
             toast.success(
@@ -118,11 +122,17 @@ export function RegularStudentToggle({
           title={isRegular ? "Re-sync regular student?" : "Mark as regular student?"}
           message={`Mark ${studentName} as a regular student of ${levelName ?? "this level"}?`}
           description={
-            <span className="mt-2 block text-xs text-muted-foreground">
-              Every subject from a lower year level in this department, including
-              prerequisites, is credited as completed so the student can take any
-              class in {levelName ?? "this level"}. Subjects you marked yourself
-              are left untouched.
+            <span className="mt-2 block space-y-1.5 text-xs text-muted-foreground">
+              <span className="block">
+                Every subject from a lower year level in this department,
+                including prerequisites, is credited as completed so the student
+                can take any class in {levelName ?? "this level"}. Subjects you
+                marked yourself are left untouched.
+              </span>
+              <span className="block">
+                Any class the student is currently enrolled in from a lower year
+                level is marked as done and the student is unenrolled from it.
+              </span>
             </span>
           }
           confirmLabel={isRegular ? "Re-sync" : "Mark regular"}
