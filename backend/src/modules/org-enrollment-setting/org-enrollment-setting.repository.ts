@@ -28,7 +28,7 @@ export class OrgEnrollmentSettingRepository {
           data.require_semester_reenrollment ?? false,
         auto_unenroll_on_year_end: data.auto_unenroll_on_year_end ?? true,
         allow_educator_scheme_override:
-          data.allow_educator_scheme_override ?? true,
+          data.allow_educator_scheme_override ?? false,
       },
     });
   }
