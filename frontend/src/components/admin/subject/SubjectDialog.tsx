@@ -494,22 +494,6 @@ export function SubjectDialog({
         </div>
       )}
 
-      {/* Weekly sessions — optional, only drives automated class generation */}
-      <WeeklySessionsSection
-        value={weeklyDraft}
-        onChange={onWeeklyChange}
-        slotMinutes={slotMinutes}
-        resolvedCount={resolvedCount}
-        resolvedDurations={
-          resolvedDurations.length
-            ? resolvedDurations
-            : Array.from({ length: resolvedCount }, () => resolvedBaseMinutes)
-        }
-        isOnDefault={isOnDefault}
-        disabled={isLocked}
-        error={isLocked ? "This subject is locked — unlock it to change its weekly sessions." : weeklyError ?? undefined}
-      />
-
       {/* Department — always shown (create + edit) */}
       <div className="space-y-1.5">
         <Label>Department</Label>
@@ -679,6 +663,22 @@ export function SubjectDialog({
           <p className="text-xs text-destructive">{errors.name.message}</p>
         )}
       </div>
+
+      {/* Weekly sessions — optional, collapsible, only drives automated class generation */}
+      <WeeklySessionsSection
+        value={weeklyDraft}
+        onChange={onWeeklyChange}
+        slotMinutes={slotMinutes}
+        resolvedCount={resolvedCount}
+        resolvedDurations={
+          resolvedDurations.length
+            ? resolvedDurations
+            : Array.from({ length: resolvedCount }, () => resolvedBaseMinutes)
+        }
+        isOnDefault={isOnDefault}
+        disabled={isLocked}
+        error={isLocked ? "This subject is locked — unlock it to change its weekly sessions." : weeklyError ?? undefined}
+      />
     </DialogForm>
   );
 }

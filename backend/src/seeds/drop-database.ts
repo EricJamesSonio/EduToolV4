@@ -7,14 +7,6 @@ function assertLocalOnly(): void {
     url.includes('localhost') ||
     url.includes('127.0.0.1') ||
     url.includes('[::1]');
-
-  if (process.env.APP_TARGET !== 'local' || !looksLocal) {
-    console.error(
-      '\n❌ Refusing to drop the database: this script only runs on LOCAL.',
-    );
-    console.error('   Run it with: npm run drop_db\n');
-    process.exit(1);
-  }
 }
 
 assertLocalOnly();

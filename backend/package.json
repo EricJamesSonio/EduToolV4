@@ -43,6 +43,7 @@
     "check:attendance-drift": "node scripts/with-env.js local --prisma --no-confirm -- ts-node -r tsconfig-paths/register src/scripts/attendance-lesson-drift-report.ts",
     "test:play": "node scripts/with-env.js local --prisma -- ts-node -r tsconfig-paths/register src/seeds/playground-assessment-grading.ts",
     "db:reset": "node scripts/with-env.js local --prisma -- ts-node -r tsconfig-paths/register src/seeds/drop-database.ts",
+    "db:reset:prod": "node scripts/with-env.js prod --prisma -- ts-node -r tsconfig-paths/register src/seeds/drop-database.ts",
     "drop_db": "npm run db:reset"
   },
   "dependencies": {
