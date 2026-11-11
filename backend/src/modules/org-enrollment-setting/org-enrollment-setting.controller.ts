@@ -3,12 +3,13 @@ import { OrgEnrollmentSettingService } from './org-enrollment-setting.service';
 import { UpsertOrgEnrollmentSettingDto } from './dto/org-enrollment-setting.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
+import { Roles, RegistrarReadOnly } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('org-enrollment-settings')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
+@RegistrarReadOnly()
 export class OrgEnrollmentSettingController {
   constructor(private readonly service: OrgEnrollmentSettingService) {}
 

@@ -19,11 +19,12 @@ import {
 } from './dto/section.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
+import { Roles, RegistrarReadOnly } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('sections')
 @UseGuards(AuthGuard, RolesGuard)
+@RegistrarReadOnly()
 export class SectionController {
   constructor(private readonly sectionService: SectionService) {}
 
