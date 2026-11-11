@@ -31,9 +31,9 @@ const GROUPS = [
   {
     label: "Main",
     items: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true, registrarVisible: false },
-      { label: "Organization", href: "/admin/organization", icon: Building2, registrarVisible: false },
-      { label: "School Profile", href: "/admin/data-seeder", icon: School, registrarVisible: false },
+      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true },
+      { label: "Organization", href: "/admin/organization", icon: Building2 },
+      { label: "School Profile", href: "/admin/data-seeder", icon: School },
       { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
       { label: "Enrollment Portal", href: "/admin/enrollment-portal", icon: Inbox },
       
@@ -64,7 +64,7 @@ const GROUPS = [
   {
     label: "People",
     items: [
-      { label: "Educators", href: "/admin/educators", icon: UserSquare2, registrarVisible: false },
+      { label: "Educators", href: "/admin/educators", icon: UserSquare2 },
       { label: "Students", href: "/admin/students", icon: Users },
       { label: "Registrars", href: "/admin/registrars", icon: UserCog, registrarVisible: false },
     ],
@@ -89,7 +89,9 @@ export function AdminSidebar(): React.JSX.Element {
   const filteredGroups = GROUPS.map((group) => ({
     ...group,
     items: group.items.filter(
-      (item) => !isRegistrar || item.registrarVisible !== false,
+      (item) =>
+        !isRegistrar ||
+        (item as { registrarVisible?: boolean }).registrarVisible !== false,
     ),
   })).filter((group) => group.items.length > 0);
 
@@ -98,7 +100,7 @@ export function AdminSidebar(): React.JSX.Element {
       header={
         <div className="space-y-0.5">
           <p className="text-xs font-semibold uppercase tracking-widest text-foreground not-interactive">
-            Admin Portal
+            {isRegistrar ? "Registrar Portal" : "Admin Portal"}
           </p>
 
         </div>
