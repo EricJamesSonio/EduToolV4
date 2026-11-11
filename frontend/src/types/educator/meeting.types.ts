@@ -21,6 +21,8 @@ export interface Meeting {
   status:       MeetingStatus;
   invites:      MeetingInvite[];
   joinRequests: MeetingJoinRequest[];
+  /** Seconds left before an empty meeting is ended automatically; null when no countdown is running. */
+  autoEndInSeconds?: number | null;
 }
 
 export interface MeetingToken {
