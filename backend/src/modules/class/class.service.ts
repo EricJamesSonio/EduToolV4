@@ -416,10 +416,30 @@ export class ClassService {
       limit,
     });
 
+    // One batched lookup for every section on this page, so the list rows
+    // carry section_name just like the single-class detail does.
+    const sectionIds = [
+      ...new Set(
+        data
+          .map((cls) => cls.section_id)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const sections = sectionIds.length
+      ? await this.db.section.findMany({
+          where: { id: { in: sectionIds }, org_id: orgId },
+          select: { id: true, name: true, capacity: true },
+        })
+      : [];
+    const sectionById = new Map(sections.map((s) => [s.id, s]));
+
     return {
       data: data.map((cls) => {
         const subject = (cls as any).subject;
         const educator = (cls as any).educator;
+        const section = cls.section_id
+          ? sectionById.get(cls.section_id)
+          : undefined;
 
         const programId =
           subject?.program_id ??
@@ -432,6 +452,8 @@ export class ClassService {
           program_id: programId,
           template_id: (cls as any).gradingSchemes?.[0]?.template_id ?? null,
           subject_name: subject?.name ?? null,
+          section_name: section?.name ?? null,
+          section_capacity: section?.capacity ?? null,
           program_name:
             subject?.program?.name ??
             subject?.course?.program?.name ??

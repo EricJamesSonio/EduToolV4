@@ -124,11 +124,16 @@ export function EducatorClassAssignmentManager({ educatorId, schoolYearId, semes
     {
       id: "section",
       header: "Section / Level",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground not-interactive">
-          {row.original.sectionName ?? "—"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const parts = [row.original.sectionName, row.original.levelName].filter(
+          (p): p is string => !!p,
+        );
+        return (
+          <span className="text-sm text-muted-foreground not-interactive">
+            {parts.length > 0 ? parts.join(" · ") : "—"}
+          </span>
+        );
+      },
     },
     {
       id: "schedule",
