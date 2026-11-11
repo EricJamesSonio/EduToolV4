@@ -78,9 +78,10 @@ export interface BulkEnrollResult {
 }
 
 export interface SetRegularStudentResult {
-  is_regular:       boolean;
-  subjects_total:   number;
-  subjects_added:   number;
-  subjects_removed: number;
-  kept_manual:      number;
+  is_regular:         boolean;
+  subjects_total:     number;
+  subjects_added:     number;
+  subjects_removed:   number;
+  kept_manual:        number;
+  enrollments_closed?: number;
 }
