@@ -14,6 +14,8 @@ import { SchoolProfileSetupModal } from "@/components/admin/school-profile/Schoo
 import {
   REGISTRAR_HOME_PATH,
   isRegistrarPathAllowed,
+  toAdminPath,
+  toRegistrarPath,
 } from "@/utils/registrar-access.util";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +31,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace(REGISTRAR_HOME_PATH);
     }
   }, [status, registrarBlocked, router]);
+
+  // Keep each role on its own URL prefix: registrars live under /registrar,
+  // admins under /admin. Uses the real browser path so it can never loop.
+  useEffect(() => {
+    if (status !== "allowed" || registrarBlocked) return;
+    const { pathname: browserPath, search, hash } = window.location;
+    const target = isRegistrar
+      ? toRegistrarPath(browserPath)
+      : toAdminPath(browserPath);
+    if (target !== browserPath) {
+      router.replace(`${target}${search}${hash}`);
+    }
+  }, [status, registrarBlocked, isRegistrar, pathname, router]);
 
   if (status !== "allowed" || registrarBlocked) return <RouteGuardLoader />;
   return (
