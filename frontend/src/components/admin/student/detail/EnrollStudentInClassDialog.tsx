@@ -12,6 +12,9 @@ import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
 import { classApi } from "@/api/admin/class.api";
 import type { Class } from "@/types/admin/class.types";
+import type { Semester } from "@/types/admin/semester.types";
+import { useSemesters } from "@/hooks/admin/useSemester";
+import { calendarDateOf, todayInZone } from "@/utils/datetime.util";
 
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
@@ -21,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { Lock } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 
 import {
   hasUnmetPrerequisites,
@@ -44,6 +47,12 @@ type EligibleClass = Class & {
   has_prerequisite_warning?: boolean;
   prerequisite_warnings?: PrerequisiteMiss[];
 };
+
+interface EnrollResult {
+  classId: string;
+  overflow: boolean;
+  error: string | null;
+}
 
 const WEEKDAYS = [
   "Sun",
@@ -128,12 +137,57 @@ function getStudentLevelRank(c: EligibleClass): number | null {
   return c.studentLevelRank ?? c.student_level_rank ?? null;
 }
 
+/**
+ * Mirrors the backend semester enrollment lock: a class is closed when its
+ * semester already ended, or when an earlier semester of the same program in
+ * the same school year has not ended yet. Returns the lock info, or null when
+ * the class can be enrolled (or its semester is unknown, in which case the
+ * server stays the judge).
+ */
+function getSemesterLock(
+  c: EligibleClass,
+  semesters: Semester[],
+): { badge: string; reason: string } | null {
+  const target = semesters.find((s) => s.id === c.semesterId);
+  if (!target) return null;
+
+  const today = todayInZone();
+
+  if (calendarDateOf(target.endDate) < today) {
+    return {
+      badge: "Semester ended",
+      reason: `${target.name} has already ended.`,
+    };
+  }
+
+  const targetStart = calendarDateOf(target.startDate);
+  const blocking = semesters.filter(
+    (s) =>
+      s.id !== target.id &&
+      s.schoolYearId === target.schoolYearId &&
+      s.programId === target.programId &&
+      calendarDateOf(s.startDate) < targetStart &&
+      calendarDateOf(s.endDate) >= today,
+  );
+
+  if (blocking.length > 0) {
+    return {
+      badge: "Not open yet",
+      reason: `Opens after ${blocking.map((s) => s.name).join(", ")} ends.`,
+    };
+  }
+
+  return null;
+}
+
 export function EnrollStudentInClassDialog({
   open,
   studentId,
   onClose,
 }: Props): React.JSX.Element {
-  const [selectedClassId, setSelectedClassId] = useState("");
+  const [selected, setSelected] = useState<Map<string, EligibleClass>>(
+    () => new Map(),
+  );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedYearLevel, setSelectedYearLevel] =
@@ -151,12 +205,18 @@ export function EnrollStudentInClassDialog({
 
   useEffect(() => {
     if (!open) {
-      setSelectedClassId("");
+      setSelected(new Map());
       setSearch("");
       setDebouncedSearch("");
       setSelectedYearLevel("all");
     }
   }, [open]);
+
+  const { data: semestersRaw } = useSemesters();
+  const semesters = useMemo<Semester[]>(
+    () => semestersRaw ?? [],
+    [semestersRaw],
+  );
 
   const {
     data: classesRaw,
@@ -243,6 +303,17 @@ export function EnrollStudentInClassDialog({
     return ids;
   }, [classes]);
 
+  const semesterLockByClass = useMemo(() => {
+    const map = new Map<string, { badge: string; reason: string }>();
+
+    for (const c of classes) {
+      const lock = getSemesterLock(c, semesters);
+      if (lock) map.set(c.id, lock);
+    }
+
+    return map;
+  }, [classes, semesters]);
+
   const missingPrereqsByClass = useMemo(() => {
     const map = new Map<string, PrerequisiteMiss[]>();
 
@@ -255,16 +326,33 @@ export function EnrollStudentInClassDialog({
     return map;
   }, [classes]);
 
-  const selectedClass = useMemo(() => {
-    return classes.find((c) => c.id === selectedClassId) ?? null;
-  }, [classes, selectedClassId]);
-
-  const selectedClassBlocked = selectedClass
-    ? blockedClassIds.has(selectedClass.id)
-    : false;
+  const selectedList = useMemo(
+    () => Array.from(selected.values()),
+    [selected],
+  );
 
   const mutation = useMutationWithInvalidation(
-    () => studentApi.addEnrollment(studentId, selectedClassId),
+    async (classes: EligibleClass[]): Promise<EnrollResult[]> => {
+      const results: EnrollResult[] = [];
+
+      for (const c of classes) {
+        try {
+          const data = await studentApi.addEnrollment(studentId, c.id);
+          results.push({
+            classId: c.id,
+            overflow: Boolean(data?.overflow),
+            error: null,
+          });
+        } catch (err) {
+          const message =
+            (err as AxiosError<{ message?: string }>)?.response?.data
+              ?.message ?? "Failed to enroll student.";
+          results.push({ classId: c.id, overflow: false, error: message });
+        }
+      }
+
+      return results;
+    },
     {
       invalidateKeys: [
         queryKeys.admin.students.enrollments(studentId),
@@ -272,29 +360,50 @@ export function EnrollStudentInClassDialog({
       ],
 
       onSuccess: (data) => {
-        const result = data as {
-          overflow?: boolean;
-          message?: string;
-        };
+        const results = data as EnrollResult[];
+        const failed = results.filter((r) => r.error !== null);
+        const okCount = results.length - failed.length;
+        const overflowCount = results.filter((r) => r.overflow).length;
 
-        if (result?.overflow) {
-          toast.warning(
-            result.message ??
-              "Class is at capacity but student was enrolled.",
+        if (okCount > 0) {
+          toast.success(
+            okCount === 1
+              ? "Student enrolled successfully."
+              : `Student enrolled in ${okCount} classes.`,
           );
-        } else {
-          toast.success("Student enrolled successfully.");
         }
 
-        handleClose();
-      },
+        if (overflowCount > 0) {
+          toast.warning(
+            `${overflowCount} ${
+              overflowCount === 1 ? "class was" : "classes were"
+            } at capacity and not enrolled as active.`,
+          );
+        }
 
-      onError: (err: AxiosError<{ message?: string }>) => {
-        const message =
-          err?.response?.data?.message ??
-          "Failed to enroll student.";
+        for (const r of failed) {
+          const name = selected.get(r.classId)?.subjectName ?? "Class";
+          toast.error(`${name}: ${r.error}`);
+        }
 
-        toast.error(message);
+        if (failed.length === 0) {
+          setSelected(new Map());
+          setSearch("");
+          setDebouncedSearch("");
+          setSelectedYearLevel("all");
+          onClose();
+          return;
+        }
+
+        // Keep only the failures ticked so they can be retried or unticked.
+        setSelected((prev) => {
+          const next = new Map<string, EligibleClass>();
+          for (const r of failed) {
+            const c = prev.get(r.classId);
+            if (c) next.set(r.classId, c);
+          }
+          return next;
+        });
       },
     },
   );
@@ -302,7 +411,7 @@ export function EnrollStudentInClassDialog({
   function handleClose(): void {
     if (mutation.isPending) return;
 
-    setSelectedClassId("");
+    setSelected(new Map());
     setSearch("");
     setDebouncedSearch("");
     setSelectedYearLevel("all");
@@ -311,6 +420,8 @@ export function EnrollStudentInClassDialog({
   }
 
   function handleClassSelection(c: EligibleClass): void {
+    if (semesterLockByClass.has(c.id)) return;
+
     if (blockedClassIds.has(c.id)) {
       const missing = missingPrereqsByClass.get(c.id) ?? [];
 
@@ -324,19 +435,23 @@ export function EnrollStudentInClassDialog({
       return;
     }
 
-    setSelectedClassId(c.id);
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(c.id)) {
+        next.delete(c.id);
+      } else {
+        next.set(c.id, c);
+      }
+      return next;
+    });
   }
 
   function handleEnroll(): void {
-    if (
-      mutation.isPending ||
-      !selectedClass ||
-      selectedClassBlocked
-    ) {
+    if (mutation.isPending || selectedList.length === 0) {
       return;
     }
 
-    mutation.mutate();
+    mutation.mutate(selectedList);
   }
 
   const selectedYearLabel =
@@ -362,6 +477,12 @@ export function EnrollStudentInClassDialog({
           "• Already enrolled in every eligible class for this subject/semester",
           "• No classes exist for the student's academic placement",
         ].join("\n");
+
+  const enrollLabel = mutation.isPending
+    ? "Enrolling..."
+    : selectedList.length > 1
+      ? `Enroll ${selectedList.length} classes`
+      : "Enroll";
 
   return (
     <Modal
@@ -398,7 +519,6 @@ export function EnrollStudentInClassDialog({
                 setSelectedYearLevel(
                   e.target.value as YearLevelFilter,
                 );
-                setSelectedClassId("");
               }}
             >
               <option value="all">All eligible years</option>
@@ -415,12 +535,14 @@ export function EnrollStudentInClassDialog({
             Select a specific lower year to show only its eligible
             classes. Available options depend on the student&apos;s
             current placement. Prerequisite requirements still apply.
+            You can select more than one class. Classes of a semester
+            that has not opened yet are locked.
           </p>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Label>Select Class</Label>
+            <Label>Select Classes</Label>
 
             <span className="text-xs text-muted-foreground">
               {classesLoading
@@ -429,6 +551,10 @@ export function EnrollStudentInClassDialog({
                     classes.length === 1
                       ? "class"
                       : "classes"
+                  }${
+                    selectedList.length > 0
+                      ? ` · ${selectedList.length} selected`
+                      : ""
                   }`}
             </span>
           </div>
@@ -463,7 +589,7 @@ export function EnrollStudentInClassDialog({
             <ScrollArea className="h-[320px] rounded-lg border">
               <div className="divide-y">
                 {classes.map((c) => {
-                  const isSelected = c.id === selectedClassId;
+                  const isSelected = selected.has(c.id);
                   const enrolled = c.enrolledCount ?? 0;
                   const capacity = c.capacity ?? 0;
 
@@ -476,6 +602,8 @@ export function EnrollStudentInClassDialog({
                       : `${enrolled} enrolled`;
 
                   const blocked = blockedClassIds.has(c.id);
+                  const semesterLock = semesterLockByClass.get(c.id);
+                  const locked = Boolean(semesterLock);
 
                   const classDetails = [
                     c.courseName,
@@ -492,25 +620,33 @@ export function EnrollStudentInClassDialog({
                       key={c.id}
                       type="button"
                       aria-pressed={isSelected}
-                      aria-disabled={blocked}
+                      aria-disabled={blocked || locked}
+                      disabled={locked}
+                      title={semesterLock?.reason}
                       onClick={() => handleClassSelection(c)}
                       className={[
                         "flex w-full items-start gap-3 px-3 py-3 text-left transition",
                         isSelected ? "bg-accent" : "",
-                        blocked
-                          ? "cursor-not-allowed opacity-60"
-                          : "hover:bg-accent/50",
+                        locked
+                          ? "cursor-not-allowed bg-muted/40 opacity-50"
+                          : blocked
+                            ? "cursor-not-allowed opacity-60"
+                            : "hover:bg-accent/50",
                       ].join(" ")}
                     >
                       <span
                         aria-hidden="true"
                         className={[
-                          "mt-1 h-4 w-4 shrink-0 rounded-full border-2",
+                          "mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2",
                           isSelected
-                            ? "border-primary bg-primary"
+                            ? "border-primary bg-primary text-primary-foreground"
                             : "border-muted-foreground/30",
                         ].join(" ")}
-                      />
+                      >
+                        {isSelected ? (
+                          <Check className="h-3 w-3" strokeWidth={3} />
+                        ) : null}
+                      </span>
 
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
@@ -554,6 +690,16 @@ export function EnrollStudentInClassDialog({
                             </Badge>
                           ) : null}
 
+                          {semesterLock ? (
+                            <Badge
+                              variant="secondary"
+                              className="gap-1 text-[10px] text-muted-foreground"
+                            >
+                              <Lock className="h-3 w-3" />
+                              {semesterLock.badge}
+                            </Badge>
+                          ) : null}
+
                           {blocked ? (
                             <Badge
                               variant="secondary"
@@ -574,6 +720,12 @@ export function EnrollStudentInClassDialog({
                         <span className="mt-1 block text-xs text-muted-foreground">
                           {formatSchedules(c)}
                         </span>
+
+                        {semesterLock ? (
+                          <span className="mt-1 block text-xs font-medium text-muted-foreground">
+                            {semesterLock.reason}
+                          </span>
+                        ) : null}
                       </span>
 
                       <span className="ml-2 shrink-0 text-xs text-muted-foreground">
@@ -586,37 +738,38 @@ export function EnrollStudentInClassDialog({
             </ScrollArea>
           )}
 
-          {selectedClass ? (
+          {selectedList.length > 0 ? (
             <div className="rounded-md bg-muted p-3 text-xs">
               <p className="font-medium">
-                Selected:{" "}
-                {selectedClass.subjectName ?? "Unnamed Class"}
+                Selected ({selectedList.length}):
               </p>
 
-              <p className="text-muted-foreground">
-                {[
-                  selectedClass.programName,
-                  selectedClass.levelName,
-                  selectedClass.sectionName,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
+              <ul className="mt-1 space-y-1">
+                {selectedList.map((c) => {
+                  const atCapacity =
+                    (c.capacity ?? 0) > 0 &&
+                    (c.enrolledCount ?? 0) >= (c.capacity ?? 0);
 
-              <p className="text-muted-foreground">
-                {formatSchedules(selectedClass)}
-                {" · "}
-                {selectedClass.educatorName ?? "No educator"}
-              </p>
-
-              {(selectedClass.capacity ?? 0) > 0 &&
-                (selectedClass.enrolledCount ?? 0) >=
-                  (selectedClass.capacity ?? 0) && (
-                  <p className="mt-1 font-medium text-warning">
-                    This class is at capacity — enrolling will
-                    create an overflow record.
-                  </p>
-                )}
+                  return (
+                    <li key={c.id} className="text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        {c.subjectName ?? "Unnamed Class"}
+                      </span>
+                      {" · "}
+                      {[c.programName, c.levelName, c.sectionName]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      {" · "}
+                      {formatSchedules(c)}
+                      {atCapacity ? (
+                        <span className="ml-1 font-medium text-warning">
+                          (at capacity — will create an overflow record)
+                        </span>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           ) : null}
         </div>
@@ -633,13 +786,9 @@ export function EnrollStudentInClassDialog({
 
         <Button
           onClick={handleEnroll}
-          disabled={
-            mutation.isPending ||
-            !selectedClass ||
-            selectedClassBlocked
-          }
+          disabled={mutation.isPending || selectedList.length === 0}
         >
-          {mutation.isPending ? "Enrolling..." : "Enroll"}
+          {enrollLabel}
         </Button>
       </ModalFooter>
     </Modal>
