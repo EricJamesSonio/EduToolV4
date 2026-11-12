@@ -28,6 +28,10 @@ export function PortalNavbar() {
   const { user } = useAuth();
   const { toggleMobileOpen } = useSidebar();
 
+  const profileHref = user?.isRegistrar
+    ? "/registrar/profile"
+    : (PROFILE_ROUTES[user?.role ?? ""] ?? "/");
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-sidebar-border bg-secondary text-secondary-foreground shadow-sm">
       <div className="flex items-center justify-between px-6 py-4">
@@ -57,7 +61,7 @@ export function PortalNavbar() {
           <NotificationDropdown />
 
           <Link
-            href={PROFILE_ROUTES[user?.role ?? ""] ?? "/"}
+            href={profileHref}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/10 transition-colors outline-none"
           >
             <Avatar className="h-7 w-7">

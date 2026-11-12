@@ -3,6 +3,7 @@
 import { SidebarShell } from "./SidebarShell";
 import { LogoutButton } from "./LogoutButton";
 import { useRole } from "@/hooks/useRole";
+import { toRegistrarPath } from "@/utils/registrar-access.util";
 import {
   LayoutDashboard,
   Building2,
@@ -36,7 +37,6 @@ const GROUPS = [
       { label: "School Profile", href: "/admin/data-seeder", icon: School },
       { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
       { label: "Enrollment Portal", href: "/admin/enrollment-portal", icon: Inbox },
-      
     ],
   },
   {
@@ -49,7 +49,6 @@ const GROUPS = [
       { label: "Academic Calendar", href: "/admin/academic-calendar", icon: CalendarRange, registrarVisible: false },
       { label: "Semester Settings", href: "/admin/semester-settings", icon: CalendarClock, registrarVisible: false },
       { label: "Classes", href: "/admin/classes", icon: GraduationCap, registrarVisible: false },
-      
     ],
   },
   {
@@ -58,7 +57,6 @@ const GROUPS = [
       { label: "Grading Scales", href: "/admin/grading-scales", icon: BarChart3, registrarVisible: false },
       { label: "Grading Schemes", href: "/admin/grading-schemes", icon: ClipboardList, registrarVisible: false },
       { label: "Grade Templates", href: "/admin/grade-templates", icon: FileSpreadsheet, registrarVisible: false },
-      
     ],
   },
   {
@@ -88,11 +86,16 @@ export function AdminSidebar(): React.JSX.Element {
   const { isRegistrar } = useRole();
   const filteredGroups = GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter(
-      (item) =>
-        !isRegistrar ||
-        (item as { registrarVisible?: boolean }).registrarVisible !== false,
-    ),
+    items: group.items
+      .filter(
+        (item) =>
+          !isRegistrar ||
+          (item as { registrarVisible?: boolean }).registrarVisible !== false,
+      )
+      .map((item) => ({
+        ...item,
+        href: isRegistrar ? toRegistrarPath(item.href) : item.href,
+      })),
   })).filter((group) => group.items.length > 0);
 
   return (
@@ -102,7 +105,6 @@ export function AdminSidebar(): React.JSX.Element {
           <p className="text-xs font-semibold uppercase tracking-widest text-foreground not-interactive">
             {isRegistrar ? "Registrar Portal" : "Admin Portal"}
           </p>
-
         </div>
       }
       groups={filteredGroups}
