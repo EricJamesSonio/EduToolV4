@@ -94,7 +94,7 @@ const MODAL_PAGE_SIZES = [5, 10, 25];
 
 function ClassModalBody({
   cls,
-  eligibleStudents,
+  eligibleStudents: eligibleStudentsProp,
   enrolledStudents,
   enrolledLoading,
   selections,
@@ -110,6 +110,8 @@ function ClassModalBody({
   const [limit, setLimit] = useState(10);
 
   const isFull = cls.enrolledCount >= cls.capacity;
+
+  const eligibleStudents = enrolledLoading ? [] : eligibleStudentsProp;
 
   const eligibleStudentIds = eligibleStudents
     .filter((s) => !hasUnmetPrerequisites(s.missingPrerequisites))
@@ -143,7 +145,7 @@ function ClassModalBody({
           onClick={() => switchMode("enroll")}
         >
           <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-          Enroll ({eligibleStudents.length})
+          Enroll ({enrolledLoading ? "…" : eligibleStudents.length})
         </Button>
         <Button
           type="button"
@@ -203,6 +205,12 @@ function ClassModalBody({
               </div>
             </>
           )}
+        </div>
+      ) : enrolledLoading ? (
+        <div className="space-y-2 rounded-lg border p-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-9 w-full rounded-md" />
+          ))}
         </div>
       ) : eligibleStudents.length === 0 ? (
         <div className="space-y-1 rounded-lg border px-5 py-10 text-center">
@@ -299,7 +307,7 @@ function ClassModalBody({
         </div>
       )}
 
-      {activeTotal > 0 && !(mode === "view" && enrolledLoading) && (
+      {activeTotal > 0 && !enrolledLoading && (
         <Pagination
           page={safePage}
           limit={limit}
@@ -310,7 +318,7 @@ function ClassModalBody({
         />
       )}
 
-      {mode === "enroll" && eligibleStudents.length > 0 && (
+      {mode === "enroll" && !enrolledLoading && eligibleStudents.length > 0 && (
         <ModalFooter className="items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             {selections.size > 0
