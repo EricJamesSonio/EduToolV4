@@ -5,12 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowLeft, AlertCircle, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, AlertCircle, Trash2, Users, CalendarDays } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
@@ -44,6 +45,7 @@ import {
 import type { Subject } from "@/types/admin/subject.types";
 import type { Educator } from "@/types/admin/educator.types";
 import type { Semester } from "@/types/admin/semester.types";
+import type { Student } from "@/types/admin/student.types";
 import type {
   EnrollStudentProgramRequest,
 } from "@/types/admin/student-enrollment.types";
@@ -81,6 +83,7 @@ export default function EnrollWorkspacePage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [readyBlockOpen, setReadyBlockOpen] = useState(false);
+  const [mainTab, setMainTab] = useState<"students" | "classes">("students");
   const [leftTab, setLeftTab] = useState<"all" | "pending" | "enroll">("all");
 
   const [sectionAssignments, setSectionAssignments] = useState<Record<string, string>>({});
@@ -249,6 +252,12 @@ export default function EnrollWorkspacePage() {
   const studentMap = useMemo(() => {
     const map = new Map<string, { fullName: string; studentId: string | null }>();
     for (const s of allStudents) map.set(s.id, { fullName: s.fullName, studentId: s.studentId });
+    return map;
+  }, [allStudents]);
+
+  const studentsById = useMemo(() => {
+    const map = new Map<string, Student>();
+    for (const s of allStudents) map.set(s.id, s);
     return map;
   }, [allStudents]);
 
@@ -778,22 +787,32 @@ export default function EnrollWorkspacePage() {
       )}
 
       {levelId && (
-        <>
-          <div className="flex items-center gap-3">
-            <Input
-              placeholder="Search by name, student ID, or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 max-w-sm flex-1"
-            />
-            {filtered.length > 0 && leftTab === "enroll" && (
-              <p className="text-xs text-muted-foreground">
-                {selected.size} of {filtered.length} selected
-              </p>
-            )}
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-5 py-3">
+            <Tabs
+              value={mainTab}
+              onValueChange={(v) => setMainTab(v as "students" | "classes")}
+            >
+              <TabsList className="h-9">
+                <TabsTrigger value="students" className="gap-1.5 px-4">
+                  <Users className="h-4 w-4" />
+                  Students
+                  <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">
+                    {allContextEnrollments.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="classes" className="gap-1.5 px-4">
+                  <CalendarDays className="h-4 w-4" />
+                  Classes
+                  <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">
+                    {filteredClasses.length}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          {mainTab === "students" ? (
             <EnrollStudentPanel
               leftTab={leftTab}
               onTabChange={setLeftTab}
@@ -805,6 +824,7 @@ export default function EnrollWorkspacePage() {
               strandId={strandId}
               levelId={levelId}
               studentMap={studentMap}
+              studentsById={studentsById}
               pageLoading={pageLoading}
               sections={sections}
               sectionAssignments={sectionAssignments}
@@ -820,12 +840,13 @@ export default function EnrollWorkspacePage() {
               enrollBlocked={!isSchoolYearReady}
               bulkEnrollPending={bulkEnrollMutation.isPending}
             />
-
+          ) : (
             <ClassEnrollmentPanel
               classes={filteredClasses}
               isLoading={classesLoading}
               expandedClassId={expandedClassId}
-              onToggleExpand={(id) => setExpandedClassId(expandedClassId === id ? null : id)}
+              onOpenClass={(id) => setExpandedClassId(id)}
+              onClose={() => setExpandedClassId(null)}
               eligibleStudentsByClass={eligibleStudentsByClass}
               enrolledStudentsByClass={enrolledStudentsByClass}
               classEnrollmentsLoading={classEnrollmentsQuery.isLoading}
@@ -839,8 +860,8 @@ export default function EnrollWorkspacePage() {
                 prerequisiteCheckPending && expandedClassId !== null
               }
             />
-          </div>
-        </>
+          )}
+        </div>
       )}
 
       {readyBlockOpen && (
