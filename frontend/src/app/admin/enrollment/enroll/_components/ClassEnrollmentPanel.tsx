@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   CalendarDays, Users, CheckSquare, UserPlus, UserCheck, Eye,
-  AlertCircle, Lock, Clock,
+  AlertCircle, Lock, Clock, BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Pagination } from "@/components/shared/Pagination";
+import { listItemIconClass } from "@/components/shared/ListItemCard";
+import { ICON_TONES, type IconTone } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { formatSchedule } from "./utils";
 import {
@@ -20,19 +22,18 @@ import {
 } from "@/utils/prerequisites";
 
 import type { Class } from "@/types/admin/class.types";
-import { BookOpen } from "lucide-react";
 
-const CLASS_ICON_THEMES: string[] = [
-  "bg-primary/10 text-primary",
-  "bg-success/15 text-success",
-  "bg-warning/20 text-warning",
-  "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-  "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+const CLASS_TONE_ORDER: IconTone[] = [
+  "blue",
+  "green",
+  "purple",
+  "yellow",
+  "pink",
+  "orange",
 ];
 
-function getClassIconTheme(index: number): string {
-  return CLASS_ICON_THEMES[index % CLASS_ICON_THEMES.length];
+function getClassIconTone(index: number): string {
+  return ICON_TONES[CLASS_TONE_ORDER[index % CLASS_TONE_ORDER.length]];
 }
 
 interface EnrichedClass extends Class {
@@ -416,12 +417,7 @@ export function ClassEnrollmentPanel({
                 className="flex flex-col gap-4 rounded-xl border bg-card p-5 text-left transition-all hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
               >
                 <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-                      getClassIconTheme(index),
-                    )}
-                  >
+                  <div className={cn(listItemIconClass, getClassIconTone(index))}>
                     <BookOpen className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
