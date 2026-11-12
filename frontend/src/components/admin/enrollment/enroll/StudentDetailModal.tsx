@@ -9,6 +9,10 @@ import type { Student } from "@/types/admin/student.types";
 
 export interface StudentDetailContext {
   programName?: string | null;
+  courseName?: string | null;
+  courseCode?: string | null;
+  strandName?: string | null;
+  levelName?: string | null;
   sectionName?: string | null;
 }
 
@@ -26,6 +30,20 @@ function getInitials(name: string): string {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
+
+function resolveCourseOrStrand(
+  student: Student,
+  context?: StudentDetailContext | null,
+): string | null {
+  const courseName = context?.courseName ?? student.courseName ?? null;
+  const courseCode = context?.courseCode ?? null;
+  if (courseName) {
+    return courseCode && courseCode !== courseName
+      ? `${courseName} (${courseCode})`
+      : courseName;
+  }
+  return context?.strandName ?? student.strandName ?? null;
 }
 
 function DetailItem({
@@ -59,8 +77,6 @@ export function StudentDetailModal({
   student,
   context,
 }: StudentDetailModalProps) {
-  const courseOrStrand = student?.courseName ?? student?.strandName ?? null;
-
   return (
     <Modal
       open={open}
@@ -114,8 +130,14 @@ export function StudentDetailModal({
               label="Department"
               value={context?.programName || student.programName || "—"}
             />
-            <DetailItem label="Course / Strand" value={courseOrStrand ?? "—"} />
-            <DetailItem label="Level / Grade" value={student.levelName ?? "—"} />
+            <DetailItem
+              label="Course / Strand"
+              value={resolveCourseOrStrand(student, context) ?? "—"}
+            />
+            <DetailItem
+              label="Level / Grade"
+              value={context?.levelName || student.levelName || "—"}
+            />
             <DetailItem
               label="Section"
               value={context?.sectionName || student.sectionName || "—"}

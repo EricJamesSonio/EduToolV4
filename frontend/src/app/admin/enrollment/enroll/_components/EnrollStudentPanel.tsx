@@ -14,7 +14,10 @@ import {
 import { DataTable } from "@/components/shared/DataTable";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Pagination } from "@/components/shared/Pagination";
-import { StudentDetailModal } from "@/components/admin/enrollment/enroll/StudentDetailModal";
+import {
+  StudentDetailModal,
+  type StudentDetailContext,
+} from "@/components/admin/enrollment/enroll/StudentDetailModal";
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 
@@ -24,12 +27,6 @@ import type { Section } from "@/types/admin/section.types";
 import type { Student } from "@/types/admin/student.types";
 
 type LeftTab = "all" | "pending" | "enroll";
-
-interface ViewTarget {
-  id: string;
-  programName?: string | null;
-  sectionName?: string | null;
-}
 
 interface RowContext {
   programId: string;
@@ -130,7 +127,7 @@ export function EnrollStudentPanel({
 }: EnrollStudentPanelProps) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [viewTarget, setViewTarget] = useState<ViewTarget | null>(null);
+  const [viewStudentId, setViewStudentId] = useState<string | null>(null);
 
   const q = search.trim().toLowerCase();
 
@@ -154,6 +151,30 @@ export function EnrollStudentPanel({
     [pendingSectionEnrollments, programId, courseId, strandId, levelId, studentMap, q],
   );
 
+  const detailContext = useMemo<StudentDetailContext | null>(() => {
+    if (!viewStudentId) return null;
+    const enrollment = allContextEnrollments.find(
+      (enr) => enr.student_id === viewStudentId,
+    );
+    const pe = enrollment?.programEnrollments.find(
+      (p) =>
+        p.status === "active" &&
+        p.program_id === programId &&
+        (!courseId || p.course?.id === courseId) &&
+        (!strandId || p.strand?.id === strandId) &&
+        (!levelId || p.level?.id === levelId),
+    );
+    if (!pe) return null;
+    return {
+      programName: pe.program.name,
+      courseName: pe.course?.name ?? null,
+      courseCode: pe.course?.code ?? null,
+      strandName: pe.strand?.name ?? null,
+      levelName: pe.level?.name ?? null,
+      sectionName: pe.section?.name ?? null,
+    };
+  }, [viewStudentId, allContextEnrollments, programId, courseId, strandId, levelId]);
+
   const columns: ColumnDef<ContextTableRow>[] = useMemo(
     () => [
       ...contextColumns,
@@ -167,13 +188,7 @@ export function EnrollStudentPanel({
             variant="ghost"
             className="h-8 gap-1 text-xs"
             aria-label={`View ${row.original.studentName}`}
-            onClick={() =>
-              setViewTarget({
-                id: row.original.studentUuid,
-                programName: row.original.programName,
-                sectionName: row.original.sectionName,
-              })
-            }
+            onClick={() => setViewStudentId(row.original.studentUuid)}
           >
             <Eye className="h-3.5 w-3.5" />
             View
@@ -418,7 +433,7 @@ export function EnrollStudentPanel({
                         variant="ghost"
                         className="h-8 w-16 shrink-0 gap-1 text-xs"
                         aria-label={`View ${student.fullName}`}
-                        onClick={() => setViewTarget({ id: student.id })}
+                        onClick={() => setViewStudentId(student.id)}
                       >
                         <Eye className="h-3.5 w-3.5" />
                         View
@@ -474,10 +489,10 @@ export function EnrollStudentPanel({
       )}
 
       <StudentDetailModal
-        open={!!viewTarget}
-        onClose={() => setViewTarget(null)}
-        student={viewTarget ? studentsById.get(viewTarget.id) ?? null : null}
-        context={viewTarget}
+        open={!!viewStudentId}
+        onClose={() => setViewStudentId(null)}
+        student={viewStudentId ? studentsById.get(viewStudentId) ?? null : null}
+        context={detailContext}
       />
     </div>
   );
