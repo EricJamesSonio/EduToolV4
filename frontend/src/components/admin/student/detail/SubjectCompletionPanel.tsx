@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Pagination } from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { subjectCompletionApi } from "@/api/admin/subject-completion.api";
@@ -38,7 +39,13 @@ interface YearGroup {
   items: SubjectCompletionOverride[];
 }
 
+interface PagedGroup extends YearGroup {
+  total: number;
+  completed: number;
+}
+
 const OTHER_GROUP_KEY = "__other__";
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 function isRegularCredit(record: SubjectCompletionOverride): boolean {
   return record.source === "regular";
@@ -83,6 +90,8 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RecordFilter>("all");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(PAGE_SIZE_OPTIONS[0]);
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState<PendingAction | null>(null);
   const [removeDependents, setRemoveDependents] = useState(false);
@@ -152,6 +161,43 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
 
   const groups = useMemo(() => groupByYear(filtered), [filtered]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const currentPage = Math.min(page, totalPages);
+
+  const pagedGroups = useMemo((): PagedGroup[] => {
+    const start = (currentPage - 1) * limit;
+    const end = start + limit;
+    const result: PagedGroup[] = [];
+    let cursor = 0;
+    for (const group of groups) {
+      const groupStart = cursor;
+      const groupEnd = cursor + group.items.length;
+      cursor = groupEnd;
+      if (groupEnd <= start || groupStart >= end) continue;
+      const items = group.items.slice(
+        Math.max(0, start - groupStart),
+        Math.min(group.items.length, end - groupStart),
+      );
+      result.push({
+        ...group,
+        items,
+        total: group.items.length,
+        completed: group.items.filter((o) => o.status === "completed").length,
+      });
+    }
+    return result;
+  }, [groups, currentPage, limit]);
+
+  const handleSearchChange = (value: string): void => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleFilterChange = (value: RecordFilter): void => {
+    setFilter(value);
+    setPage(1);
+  };
+
   const filterOptions: { key: RecordFilter; label: string; count: number }[] = [
     { key: "all", label: "All", count: counts.all },
     { key: "regular", label: "Regular", count: counts.regular },
@@ -214,7 +260,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
           className="sm:max-w-xs"
           placeholder="Search subjects…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
         />
         <div className="flex flex-wrap gap-1.5 sm:ml-auto">
           {filterOptions.map((option) => (
@@ -222,7 +268,7 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
               key={option.key}
               size="sm"
               variant={filter === option.key ? "default" : "outline"}
-              onClick={() => setFilter(option.key)}
+              onClick={() => handleFilterChange(option.key)}
             >
               {option.label} ({option.count})
             </Button>
@@ -240,111 +286,120 @@ export function SubjectCompletionPanel({ studentId }: Props): React.JSX.Element 
       <div className="mt-3 space-y-4">
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
-        ) : groups.length === 0 ? (
+        ) : pagedGroups.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
             {overrides.length === 0 ? "No completion records yet." : "No subjects match this filter."}
           </p>
         ) : (
-          groups.map((group) => {
-            const completedCount = group.items.filter((o) => o.status === "completed").length;
-            return (
-              <div key={group.key} className="rounded-lg border overflow-hidden">
-                <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2">
-                  <span className="text-sm font-semibold not-interactive">{group.label}</span>
-                  <span className="text-xs text-muted-foreground not-interactive">
-                    {completedCount} of {group.items.length} completed
-                  </span>
-                </div>
-
-                <div className="divide-y">
-                  {group.items.map((o) => {
-                    const regular = isRegularCredit(o);
-                    return (
-                      <div
-                        key={o.id}
-                        className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5"
-                      >
-                        <div className="min-w-0 flex-1 basis-56">
-                          <button
-                            className="block max-w-full truncate text-left text-sm font-medium hover:text-primary hover:underline"
-                            title="View in subject hierarchy"
-                            onClick={() => openHierarchy(o)}
-                          >
-                            {o.subject.name}
-                          </button>
-                          {(o.subject.term_label || o.reason) && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {[o.subject.term_label, o.reason].filter(Boolean).join(" · ")}
-                            </p>
-                          )}
-                        </div>
-
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "shrink-0 text-xs",
-                            regular
-                              ? "border-primary/40 text-primary"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {regular ? "Regular" : "Manual"}
-                        </Badge>
-
-                        <Badge
-                          variant={o.status === "completed" ? "default" : "secondary"}
-                          className="shrink-0 capitalize text-xs"
-                        >
-                          {o.status}
-                        </Badge>
-
-                        <div className="flex shrink-0 items-center gap-1">
-                          {o.status === "completed" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setReason(o.reason ?? "");
-                                setConfirm({ kind: "toggle", overrideId: o.id, subjectName: o.subject.name, to: "pending" });
-                              }}
-                            >
-                              Mark pending
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setReason(o.reason ?? "");
-                                setConfirm({ kind: "toggle", overrideId: o.id, subjectName: o.subject.name, to: "completed" });
-                              }}
-                            >
-                              Mark completed
-                            </Button>
-                          )}
-                          {!regular && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive gap-1"
-                              onClick={() => {
-                                setRemoveDependents(false);
-                                setConfirm({ kind: "abort", overrideId: o.id, subjectName: o.subject.name });
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" /> Abort
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          pagedGroups.map((group) => (
+            <div key={group.key} className="rounded-lg border overflow-hidden">
+              <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2">
+                <span className="text-sm font-semibold not-interactive">{group.label}</span>
+                <span className="text-xs text-muted-foreground not-interactive">
+                  {group.completed} of {group.total} completed
+                </span>
               </div>
-            );
-          })
+
+              <div className="divide-y">
+                {group.items.map((o) => {
+                  const regular = isRegularCredit(o);
+                  return (
+                    <div
+                      key={o.id}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1 basis-56">
+                        <button
+                          className="block max-w-full truncate text-left text-sm font-medium hover:text-primary hover:underline"
+                          title="View in subject hierarchy"
+                          onClick={() => openHierarchy(o)}
+                        >
+                          {o.subject.name}
+                        </button>
+                        {(o.subject.term_label || o.reason) && (
+                          <p className="truncate text-xs text-muted-foreground">
+                            {[o.subject.term_label, o.reason].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "shrink-0 text-xs",
+                          regular
+                            ? "border-primary/40 text-primary"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {regular ? "Regular" : "Manual"}
+                      </Badge>
+
+                      <Badge
+                        variant={o.status === "completed" ? "default" : "secondary"}
+                        className="shrink-0 capitalize text-xs"
+                      >
+                        {o.status}
+                      </Badge>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        {o.status === "completed" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setReason(o.reason ?? "");
+                              setConfirm({ kind: "toggle", overrideId: o.id, subjectName: o.subject.name, to: "pending" });
+                            }}
+                          >
+                            Mark pending
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setReason(o.reason ?? "");
+                              setConfirm({ kind: "toggle", overrideId: o.id, subjectName: o.subject.name, to: "completed" });
+                            }}
+                          >
+                            Mark completed
+                          </Button>
+                        )}
+                        {!regular && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive gap-1"
+                            onClick={() => {
+                              setRemoveDependents(false);
+                              setConfirm({ kind: "abort", overrideId: o.id, subjectName: o.subject.name });
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Abort
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
+
+      {!isLoading && filtered.length > 0 && (
+        <Pagination
+          className="mt-4"
+          page={currentPage}
+          limit={limit}
+          total={filtered.length}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+        />
+      )}
 
       {confirm && (
         <ConfirmDialog
