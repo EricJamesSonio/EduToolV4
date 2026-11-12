@@ -10,8 +10,8 @@ import {
   SHS_STRANDS,
   SECTION_DEFAULTS,
   LEVEL_SUBJECTS,
-  COURSE_SUBJECT_YEARS,   // ← add
-  SHS_MAJOR_YEARS,        // ← add
+  COURSE_SUBJECT_YEARS,
+  SHS_MAJOR_YEARS,
   COLLEGE_GE_SUBJECTS,
   SHS_MINOR_SUBJECTS,
 } from "@/components/admin/data-seeder/constants/seed-data"
@@ -29,8 +29,9 @@ export interface DraftSubject {
   name: string
   subjectType: "major" | "minor"
   /**
-   * Shared (minor) subjects only: the level name this subject applies to
-   * (e.g. "1st Year"). null/undefined means it applies to every level.
+   * Shared (minor) subjects only: the level name this subject is assigned to
+   * (e.g. "1st Year"). Drafts always resolve this to a real level whenever the
+   * department has at least one level; "all levels" is not a supported scope.
    */
   levelName?: string | null
 }
@@ -87,6 +88,85 @@ function makeKey(prefix: string): string {
   return `${prefix}-${keyCounter}`
 }
 
+// ── Minor subject -> level assignment ──────────────────────────────────────
+
+// Where each predefined minor belongs (mirrors the backend seeder data). A name
+// that is not listed, or whose level the department does not have, falls back
+// to the department's first level so a minor is never left unassigned.
+const COLLEGE_GE_LEVELS: Record<string, string> = {
+  "Mathematics in the Modern World": "1st Year",
+  "Purposive Communication": "1st Year",
+  "Understanding the Self": "1st Year",
+  "Readings in Philippine History": "1st Year",
+  "The Contemporary World": "1st Year",
+  "Life and Works of Jose Rizal": "1st Year",
+  "Physical Education 1": "1st Year",
+  "Physical Education 2": "1st Year",
+  Ethics: "2nd Year",
+  "Art Appreciation": "2nd Year",
+  "Science, Technology, and Society": "2nd Year",
+  "NSTP 1": "2nd Year",
+  "NSTP 2": "2nd Year",
+}
+
+const SHS_MINOR_LEVELS: Record<string, string> = {
+  "Oral Communication": "Grade 11",
+  "Reading and Writing Skills": "Grade 11",
+  "Mathematics in the Modern World": "Grade 11",
+  "Understanding the Self": "Grade 11",
+  "Contemporary World": "Grade 11",
+  "Readings in Philippine History": "Grade 11",
+  "Physical Education / Health": "Grade 11",
+  "Life and Works of Jose Rizal": "Grade 11",
+  "National Service Training Program (NSTP)": "Grade 12",
+  "Art Appreciation": "Grade 12",
+}
+
+/** Distinct level names across the whole department, lowest order first. */
+function availableLevelNames(dept: Pick<DraftDepartment, "levels" | "courses" | "strands">): string[] {
+  const all: DraftLevel[] = [
+    ...dept.levels,
+    ...dept.courses.flatMap((c) => c.levels),
+    ...dept.strands.flatMap((s) => s.levels),
+  ]
+  const orderByName = new Map<string, number>()
+  for (const level of all) {
+    const current = orderByName.get(level.name)
+    if (current === undefined || level.orderIndex < current) {
+      orderByName.set(level.name, level.orderIndex)
+    }
+  }
+  return Array.from(orderByName.entries())
+    .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
+    .map(([name]) => name)
+}
+
+function resolveMinorLevel(
+  name: string,
+  preferred: Record<string, string>,
+  available: string[],
+): string | null {
+  const wanted = preferred[name]
+  if (wanted && available.includes(wanted)) return wanted
+  return available[0] ?? null
+}
+
+/** Every minor must point at a real level; fill any that do not. */
+function assignMinorLevels(dept: DraftDepartment): DraftDepartment {
+  const available = availableLevelNames(dept)
+  const fallback = available[0] ?? null
+  if (!fallback) return dept
+  let changed = false
+  const subjects = dept.subjects.map((s) => {
+    if (s.subjectType !== "minor") return s
+    if (s.levelName && available.includes(s.levelName)) return s
+    if (s.levelName) return s
+    changed = true
+    return { ...s, levelName: fallback }
+  })
+  return changed ? { ...dept, subjects } : dept
+}
+
 // ── Seeding a fresh draft department from predefined seeder data ───────────
 
 function buildSectionsFor(levelName: string): DraftSection[] {
@@ -122,11 +202,12 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
       }
     })
 
+    const available = availableLevelNames({ levels: [], courses, strands: [] })
     const subjects: DraftSubject[] = COLLEGE_GE_SUBJECTS.map((name) => ({
       key: makeKey("subject"),
       name,
       subjectType: "minor" as const,
-      levelName: null,
+      levelName: resolveMinorLevel(name, COLLEGE_GE_LEVELS, available),
     }))
 
     return { type, courses, strands: [], levels: [], subjects }
@@ -153,11 +234,12 @@ function buildPredefinedDepartment(type: ProgramType): DraftDepartment {
       }
     })
 
+    const available = availableLevelNames({ levels: [], courses: [], strands })
     const subjects: DraftSubject[] = SHS_MINOR_SUBJECTS.map((name) => ({
       key: makeKey("subject"),
       name,
       subjectType: "minor" as const,
-      levelName: null,
+      levelName: resolveMinorLevel(name, SHS_MINOR_LEVELS, available),
     }))
 
     return { type, courses: [], strands, levels: [], subjects }
@@ -188,7 +270,7 @@ function fromSavedDepartment(saved: SchoolProfileDepartment): DraftDepartment {
     subjects: level.subjects.map((s) => ({ key: s.id, name: s.name, subjectType: s.subjectType })),
   })
 
-  return {
+  const draft: DraftDepartment = {
     type: saved.type,
     courses: saved.courses.map((c): DraftCourse => ({
       key: c.id,
@@ -209,6 +291,10 @@ function fromSavedDepartment(saved: SchoolProfileDepartment): DraftDepartment {
       levelName: s.levelName ?? null,
     })),
   }
+
+  // Older profiles stored minors with no level ("all levels"). Pin them to a
+  // real level so nothing is left unassigned.
+  return assignMinorLevels(draft)
 }
 
 /** Resolve a level's display name from its key anywhere in the department. */
@@ -401,7 +487,7 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
 
   // ── Subject ──
   // Majors are level-scoped; minors/shared are department-scoped but carry the
-  // level name they apply to. That mirrors how the seeder reads them
+  // level name they are assigned to. That mirrors how the seeder reads them
   // (major-subject-seeder walks level.subjects, minor-subject-seeder walks
   // profile.subjects and shares each one only with courses/strands that have
   // its level), so a subject always lives in the bucket the seeder will
@@ -415,7 +501,8 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
   ) {
     updateDepartment(type, (d) => {
       if (subjectType === "minor") {
-        const resolvedLevelName = levelName !== undefined ? levelName : findLevelName(d, levelKey)
+        const resolvedLevelName =
+          levelName ?? findLevelName(d, levelKey) ?? availableLevelNames(d)[0] ?? null
         return {
           ...d,
           subjects: [
@@ -517,8 +604,8 @@ export function useSchoolProfileDraft(savedInput: SavedInput) {
     }))
   }
 
-  /** Set which level a shared subject applies to (null = all levels). */
-  function setSharedSubjectLevel(type: ProgramType, subjectKey: string, levelName: string | null) {
+  /** Assign a shared subject to a specific level. */
+  function setSharedSubjectLevel(type: ProgramType, subjectKey: string, levelName: string) {
     updateDepartment(type, (d) => ({
       ...d,
       subjects: d.subjects.map((s) => (s.key === subjectKey ? { ...s, levelName } : s)),
