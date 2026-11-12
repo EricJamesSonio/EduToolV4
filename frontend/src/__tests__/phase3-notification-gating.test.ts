@@ -1,16 +1,7 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-
-jest.mock('@/api/student/notification.api', () => ({
-  notificationApi: {
-    getSummary: jest.fn(),
-    getAll: jest.fn(),
-    markRead: jest.fn(),
-    markAllRead: jest.fn(),
-  },
-}));
+import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 import { notificationApi } from '@/api/student/notification.api';
 import {
@@ -21,8 +12,8 @@ import { useNotificationStore } from '@/store/notification.store';
 import { useAuthStore } from '@/store/auth.store';
 import { SUMMARY_ROWS } from '@/components/shared/notification/constants';
 
-const getSummary = notificationApi.getSummary as unknown as jest.Mock;
-const getAll = notificationApi.getAll as unknown as jest.Mock;
+let getSummary: jest.Mock;
+let getAll: jest.Mock;
 
 function createWrapper(): React.FC<{ children: React.ReactNode }> {
   const client = new QueryClient({
@@ -35,14 +26,27 @@ function createWrapper(): React.FC<{ children: React.ReactNode }> {
 
 describe('Phase 3: Notification Summary Gating', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    getSummary.mockResolvedValue({ unreadCount: 3, byType: {} });
+    getSummary = jest.spyOn(
+      notificationApi,
+      'getSummary',
+    ) as unknown as jest.Mock;
+    getAll = jest.spyOn(notificationApi, 'getAll') as unknown as jest.Mock;
+
+    getSummary.mockClear();
+    getAll.mockClear();
+
+    getSummary.mockResolvedValue({ unreadCount: 3, byType: {} } as never);
     getAll.mockResolvedValue({
       data: [],
-      meta: { page: 1, totalPages: 1 },
-    });
+      meta: { total: 0, page: 1, limit: 20, totalPages: 1 },
+    } as never);
+
     useNotificationStore.getState().setNotifications([]);
     useAuthStore.setState({ accessToken: 'test-token' } as never);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   test('summary polls by default when a token exists', async () => {
