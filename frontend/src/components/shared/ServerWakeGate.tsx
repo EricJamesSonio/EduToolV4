@@ -13,18 +13,18 @@ const OFFLINE_MESSAGE = {
 function wakeMessage(elapsedMs: number): { title: string; hint: string } {
   if (elapsedMs < 6_000) {
     return {
-      title: "Waking up the server...",
+      title: "Waking up the server",
       hint: "Getting everything ready for you.",
     }
   }
   if (elapsedMs < 25_000) {
     return {
-      title: "Waking up the server...",
+      title: "Waking up the server",
       hint: "This can take a while sometimes. Thanks for waiting.",
     }
   }
   return {
-    title: "Still waking up...",
+    title: "Still waking up",
     hint: "The server can take up to a minute to start after being idle. Hang tight, this page will open on its own.",
   }
 }
@@ -41,5 +41,12 @@ export function ServerWakeGate({
 
   const { title, hint } = online ? wakeMessage(elapsedMs) : OFFLINE_MESSAGE
 
-  return <LoadingScreen status={title} hint={hint} delayMs={250} />
+  return (
+    <LoadingScreen
+      status={title}
+      hint={hint}
+      delayMs={250}
+      animateDots={online}
+    />
+  )
 }
