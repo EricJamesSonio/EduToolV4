@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -69,22 +69,35 @@ import {
 } from "./_components";
 import { EnrollmentStepper, type StepDef, type StepStatus } from "./_components/EnrollmentStepper";
 
+type MainTab = "students" | "classes";
+type LeftTab = "all" | "pending" | "enroll";
+
+function parseMainTab(value: string | null): MainTab {
+  return value === "classes" ? "classes" : "students";
+}
+
+function parseLeftTab(value: string | null): LeftTab {
+  if (value === "pending" || value === "enroll") return value;
+  return "all";
+}
+
 export default function EnrollWorkspacePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
   const schoolYearId = params.get("schoolYearId") ?? "";
 
-  const [programId, setProgramId] = useState("");
-  const [courseId, setCourseId] = useState("");
-  const [strandId, setStrandId] = useState("");
-  const [levelId, setLevelId] = useState("");
+  const [programId, setProgramId] = useState(() => params.get("programId") ?? "");
+  const [courseId, setCourseId] = useState(() => params.get("courseId") ?? "");
+  const [strandId, setStrandId] = useState(() => params.get("strandId") ?? "");
+  const [levelId, setLevelId] = useState(() => params.get("levelId") ?? "");
 
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [readyBlockOpen, setReadyBlockOpen] = useState(false);
-  const [mainTab, setMainTab] = useState<"students" | "classes">("students");
-  const [leftTab, setLeftTab] = useState<"all" | "pending" | "enroll">("all");
+  const [mainTab, setMainTab] = useState<MainTab>(() => parseMainTab(params.get("view")));
+  const [leftTab, setLeftTab] = useState<LeftTab>(() => parseLeftTab(params.get("tab")));
 
   const [sectionAssignments, setSectionAssignments] = useState<Record<string, string>>({});
   const [unenrollTarget, setUnenrollTarget] = useState<ContextTableRow | null>(null);
@@ -92,6 +105,28 @@ export default function EnrollWorkspacePage() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [classStudentSelections, setClassStudentSelections] = useState<Record<string, Set<string>>>({});
   const [enrollingClassIds, setEnrollingClassIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const next = new URLSearchParams(params.toString());
+    const setOrDelete = (key: string, value: string) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    };
+
+    setOrDelete("programId", programId);
+    setOrDelete("courseId", courseId);
+    setOrDelete("strandId", strandId);
+    setOrDelete("levelId", levelId);
+    setOrDelete("view", mainTab === "classes" ? "classes" : "");
+    setOrDelete("tab", leftTab === "all" ? "" : leftTab);
+
+    if (next.toString() !== params.toString()) {
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    }
+  }, [
+    programId, courseId, strandId, levelId, mainTab, leftTab,
+    params, pathname, router,
+  ]);
 
   const bulkEnrollMutation = useBulkEnrollStudents(schoolYearId);
   const enrollInProgramMutation = useEnrollInProgram(schoolYearId);
@@ -202,6 +237,36 @@ export default function EnrollWorkspacePage() {
   const course = program?.courses?.find((c) => c.id === courseId) ?? null;
   const strand = program?.strands?.find((s) => s.id === strandId) ?? null;
   const level = allLevels.find((l) => l.id === levelId) ?? null;
+
+  useEffect(() => {
+    if (!schoolYearId || progLoading) return;
+    if (programId && !program) {
+      setProgramId("");
+      setCourseId("");
+      setStrandId("");
+      setLevelId("");
+      return;
+    }
+    if (program && courseId && !course) {
+      setCourseId("");
+      setLevelId("");
+      return;
+    }
+    if (program && strandId && !strand) {
+      setStrandId("");
+      setLevelId("");
+    }
+  }, [
+    schoolYearId, progLoading, programId, program,
+    courseId, course, strandId, strand,
+  ]);
+
+  useEffect(() => {
+    if (!schoolYearId || levelsLoading) return;
+    if (levelId && !level) {
+      setLevelId("");
+    }
+  }, [schoolYearId, levelsLoading, levelId, level]);
 
   const programLevels = useMemo(() => {
     if (courseId) {
@@ -791,7 +856,7 @@ export default function EnrollWorkspacePage() {
           <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-5 py-3">
             <Tabs
               value={mainTab}
-              onValueChange={(v) => setMainTab(v as "students" | "classes")}
+              onValueChange={(v) => setMainTab(v as MainTab)}
             >
               <TabsList className="h-9">
                 <TabsTrigger value="students" className="gap-1.5 px-4">

@@ -20,6 +20,20 @@ import {
 } from "@/utils/prerequisites";
 
 import type { Class } from "@/types/admin/class.types";
+import { BookOpen } from "lucide-react";
+
+const CLASS_ICON_THEMES: string[] = [
+  "bg-primary/10 text-primary",
+  "bg-success/15 text-success",
+  "bg-warning/20 text-warning",
+  "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+  "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+];
+
+function getClassIconTheme(index: number): string {
+  return CLASS_ICON_THEMES[index % CLASS_ICON_THEMES.length];
+}
 
 interface EnrichedClass extends Class {
   subjectName: string;
@@ -387,7 +401,7 @@ export function ClassEnrollmentPanel({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {classes.map((cls) => {
+          {classes.map((cls, index) => {
             const isFull = cls.enrolledCount >= cls.capacity;
             const percent =
               cls.capacity > 0
@@ -401,8 +415,16 @@ export function ClassEnrollmentPanel({
                 onClick={() => onOpenClass(cls.id)}
                 className="flex flex-col gap-4 rounded-xl border bg-card p-5 text-left transition-all hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+                      getClassIconTheme(index),
+                    )}
+                  >
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
                     <p className="line-clamp-2 text-sm font-semibold leading-snug">
                       {cls.subjectName ?? "Unnamed Subject"}
                     </p>
