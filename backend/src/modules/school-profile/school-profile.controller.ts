@@ -42,6 +42,7 @@ export class SchoolProfileController {
   constructor(private readonly service: SchoolProfileService) {}
 
   @Get()
+  @RegistrarAllowed()
   async getProfile(@CurrentUser('org_id') orgId: string) {
     return this.service.getProfile(orgId);
   }
