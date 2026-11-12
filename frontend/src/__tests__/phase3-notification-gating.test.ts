@@ -1,82 +1,122 @@
-/**
- * Phase 3: Query & Request Efficiency - Notification Summary Gating Tests
- * 
- * Tests that verify:
- * 1. useNotificationSummary gating with enabled parameter
- * 2. Feed polling disabled when dropdown closed
- * 3. Summary always polls regardless of dropdown state
- */
+import React from 'react';
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 
-import { renderHook, act } from '@testing-library/react';
-import { useNotificationSummary } from '../hooks/useNotifications';
-import { useNotificationFeed } from '../hooks/useNotifications';
-import { useNotificationStore } from '../store';
-import { SUMMARY_ROWS } from '../components/shared/NotificationDropdown';
+jest.mock('@/api/student/notification.api', () => ({
+  notificationApi: {
+    getSummary: jest.fn(),
+    getAll: jest.fn(),
+    markRead: jest.fn(),
+    markAllRead: jest.fn(),
+  },
+}));
+
+import { notificationApi } from '@/api/student/notification.api';
+import {
+  useNotificationSummary,
+  useNotificationFeed,
+} from '@/hooks/useNotifications';
+import { useNotificationStore } from '@/store/notification.store';
+import { useAuthStore } from '@/store/auth.store';
+import { SUMMARY_ROWS } from '@/components/shared/notification/constants';
+
+const getSummary = notificationApi.getSummary as unknown as jest.Mock;
+const getAll = notificationApi.getAll as unknown as jest.Mock;
+
+function createWrapper(): React.FC<{ children: React.ReactNode }> {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client }, children);
+  };
+}
 
 describe('Phase 3: Notification Summary Gating', () => {
   beforeEach(() => {
-    // Reset store state before each test
-    useNotificationStore.setState({
-      notifications: [],
-      unreadCount: 0,
+    jest.clearAllMocks();
+    getSummary.mockResolvedValue({ unreadCount: 3, byType: {} });
+    getAll.mockResolvedValue({
+      data: [],
+      meta: { page: 1, totalPages: 1 },
     });
+    useNotificationStore.getState().setNotifications([]);
+    useAuthStore.setState({ accessToken: 'test-token' } as never);
   });
 
-  test('useNotificationSummary respects enabled parameter default true', () => {
-    const { result } = renderHook(() => useNotificationSummary());
-    expect(result.current.enabled).toBe(true);
-  });
-
-  test('useNotificationSummary respects enabled=false', () => {
-    const { result } = renderHook(() => useNotificationSummary(false));
-    expect(result.current.enabled).toBe(false);
-  });
-
-  test('useNotificationSummary requires token for enabled', () => {
-    const { result } = renderHook(() => useNotificationSummary(undefined, { 
-      // Mock no token context
-    }));
-    // When no token, enabled should be falsy
-    expect(result.current.enabled).toBeFalsy();
-  });
-
-  test('NotificationDropdown feeds disabled when dropdown closed', () => {
-    // Simulate closed dropdown state
-    const { result } = renderHook(({ open }) => useNotificationFeed(open), {
-      initialProps: { open: false },
+  test('summary polls by default when a token exists', async () => {
+    const { result } = renderHook(() => useNotificationSummary(), {
+      wrapper: createWrapper(),
     });
-    // When open=false, feed should not poll
-    expect(result.current.disabled).toBe(true);
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(getSummary).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.unreadCount).toBe(3);
   });
 
-  test('NotificationDropdown feeds enabled when dropdown open', () => {
-    // Simulate open dropdown state
-    const { result } = renderHook(({ open }) => useNotificationFeed(open), {
-      initialProps: { open: true },
+  test('summary does not fetch when enabled is false', async () => {
+    const { result } = renderHook(() => useNotificationSummary(false), {
+      wrapper: createWrapper(),
     });
-    // When open=true, feed should poll
-    expect(result.current.disabled).toBe(false);
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(getSummary).not.toHaveBeenCalled();
   });
 
-  test('Summary always polls regardless of dropdown state', () => {
-    // Summary should always be enabled (no open/dependency)
-    const { result } = renderHook(() => useNotificationSummary());
-    // Summary has no open dependency, so it should always poll
-    expect(result.current.enabled).toBe(true);
-  });
-
-  test('Notification dropdown unread count merges summary and store', () => {
-    // Mock store with some unread
-    useNotificationStore.setState({ unreadCount: 5 });
-    
-    // Mock summary with different unread count
-    const { result } = renderHook(() => {
-      const { data: summary } = useNotificationSummary();
-      const { unreadCount: storeUnread } = useNotificationStore();
-      return summary?.unreadCount ?? storeUnread;
+  test('summary does not fetch without an access token', async () => {
+    useAuthStore.setState({ accessToken: null } as never);
+    const { result } = renderHook(() => useNotificationSummary(), {
+      wrapper: createWrapper(),
     });
-    
-    // Should prefer summary over store when summary has data
-    expect(result.current.unreadCount).toBe(5); // summary would override or fallback
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(getSummary).not.toHaveBeenCalled();
+  });
+
+  test('feed does not fetch while the dropdown is closed', async () => {
+    const { result } = renderHook(() => useNotificationFeed(false), {
+      wrapper: createWrapper(),
+    });
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(getAll).not.toHaveBeenCalled();
+  });
+
+  test('feed fetches when the dropdown is open', async () => {
+    const { result } = renderHook(() => useNotificationFeed(true), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(getAll).toHaveBeenCalledTimes(1);
+  });
+
+  test('feed starts fetching once the dropdown opens', async () => {
+    const { result, rerender } = renderHook(
+      ({ open }: { open: boolean }) => useNotificationFeed(open),
+      { wrapper: createWrapper(), initialProps: { open: false } },
+    );
+    expect(getAll).not.toHaveBeenCalled();
+    rerender({ open: true });
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(getAll).toHaveBeenCalledTimes(1);
+  });
+
+  test('summary polls regardless of the feed gating', async () => {
+    const wrapper = createWrapper();
+    const { result: feed } = renderHook(() => useNotificationFeed(false), {
+      wrapper,
+    });
+    const { result: summary } = renderHook(() => useNotificationSummary(), {
+      wrapper,
+    });
+    await waitFor(() => expect(summary.current.data).toBeDefined());
+    expect(feed.current.fetchStatus).toBe('idle');
+    expect(getSummary).toHaveBeenCalledTimes(1);
+    expect(getAll).not.toHaveBeenCalled();
+  });
+
+  test('SUMMARY_ROWS exposes rows keyed by notification type', () => {
+    expect(Array.isArray(SUMMARY_ROWS)).toBe(true);
+    expect(SUMMARY_ROWS.length).toBeGreaterThan(0);
+    for (const row of SUMMARY_ROWS) {
+      expect(typeof row.type).toBe('string');
+    }
   });
 });
