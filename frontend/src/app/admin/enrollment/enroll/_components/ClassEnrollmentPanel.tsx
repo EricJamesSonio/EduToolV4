@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Pagination } from "@/components/shared/Pagination";
+import { SearchInput } from "@/components/shared/SearchInput";
 import { listItemIconClass } from "@/components/shared/ListItemCard";
 import { ICON_TONES, type IconTone } from "@/lib/palette";
 import { cn } from "@/lib/utils";
@@ -92,6 +93,17 @@ interface ClassModalBodyProps {
 
 const MODAL_PAGE_SIZES = [5, 10, 25];
 
+function matchesSearch(
+  student: { fullName: string; studentId: string | null },
+  query: string,
+): boolean {
+  if (!query) return true;
+  return (
+    student.fullName.toLowerCase().includes(query) ||
+    (student.studentId ?? "").toLowerCase().includes(query)
+  );
+}
+
 function ClassModalBody({
   cls,
   eligibleStudents: eligibleStudentsProp,
@@ -108,31 +120,70 @@ function ClassModalBody({
   const [mode, setMode] = useState<ClassMode>("enroll");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [search, setSearch] = useState("");
 
   const isFull = cls.enrolledCount >= cls.capacity;
+  const query = search.trim().toLowerCase();
 
   const eligibleStudents = enrolledLoading ? [] : eligibleStudentsProp;
 
-  const eligibleStudentIds = eligibleStudents
+  const filteredEligible = eligibleStudents.filter((s) =>
+    matchesSearch(s, query),
+  );
+  const filteredEnrolled = enrolledStudents.filter((s) =>
+    matchesSearch(s, query),
+  );
+
+  const selectableFilteredIds = filteredEligible
     .filter((s) => !hasUnmetPrerequisites(s.missingPrerequisites))
     .map((s) => s.id);
   const allSelected =
-    eligibleStudentIds.length > 0 &&
-    eligibleStudentIds.every((id) => selections.has(id));
+    selectableFilteredIds.length > 0 &&
+    selectableFilteredIds.every((id) => selections.has(id));
+
+  const handleToggleAllFiltered = () => {
+    if (allSelected) {
+      selectableFilteredIds.forEach((id) => {
+        if (selections.has(id)) onToggleStudent(id);
+      });
+    } else {
+      selectableFilteredIds.forEach((id) => {
+        if (!selections.has(id)) onToggleStudent(id);
+      });
+    }
+  };
 
   const activeTotal =
-    mode === "enroll" ? eligibleStudents.length : enrolledStudents.length;
+    mode === "enroll" ? filteredEligible.length : filteredEnrolled.length;
   const totalPages = Math.max(1, Math.ceil(activeTotal / limit));
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * limit;
 
-  const pagedEligible = eligibleStudents.slice(start, start + limit);
-  const pagedEnrolled = enrolledStudents.slice(start, start + limit);
+  const pagedEligible = filteredEligible.slice(start, start + limit);
+  const pagedEnrolled = filteredEnrolled.slice(start, start + limit);
 
   const switchMode = (next: ClassMode) => {
     setMode(next);
     setPage(1);
+    setSearch("");
   };
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const noMatchState = (
+    <div className="space-y-1 px-5 py-10 text-center">
+      <Users className="mx-auto h-8 w-8 text-muted-foreground/30" />
+      <p className="text-sm font-medium text-muted-foreground">
+        No students match
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Nothing found for &quot;{search.trim()}&quot;.
+      </p>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -159,6 +210,14 @@ function ClassModalBody({
         </Button>
       </div>
 
+      <SearchInput
+        value={search}
+        onChange={handleSearchChange}
+        placeholder="Search by name or student ID..."
+        disabled={enrolledLoading}
+        className="w-full"
+      />
+
       {mode === "view" ? (
         <div className="overflow-hidden rounded-lg border">
           {enrolledLoading ? (
@@ -177,6 +236,8 @@ function ClassModalBody({
                 Enroll students into this class from the Enroll tab.
               </p>
             </div>
+          ) : filteredEnrolled.length === 0 ? (
+            noMatchState
           ) : (
             <>
               <div className="flex items-center gap-3 border-b bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground">
@@ -222,13 +283,15 @@ function ClassModalBody({
             No students in this class&apos;s section are enrolled in this program and level yet.
           </p>
         </div>
+      ) : filteredEligible.length === 0 ? (
+        <div className="overflow-hidden rounded-lg border">{noMatchState}</div>
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <div className="flex items-center gap-3 border-b bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground">
             <button
               type="button"
-              aria-label="Select all eligible students"
-              onClick={() => onToggleAll(eligibleStudentIds)}
+              aria-label="Select all shown students"
+              onClick={handleToggleAllFiltered}
               className={cn(
                 "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
                 allSelected
