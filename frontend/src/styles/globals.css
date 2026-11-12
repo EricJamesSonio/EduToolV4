@@ -24,3 +24,5 @@
 @import "./error-login.css";
 /* Portal-specific component sizing (cards, tables, page headers) */
 @import "./portal.css";
+/* Loading screen animations */
+@import "./loading.css";
