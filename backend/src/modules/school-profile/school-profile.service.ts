@@ -312,8 +312,10 @@ export class SchoolProfileService {
       // levels are strand-scoped. deriveProgramKey only gives us the program,
       // not the strand/course, so major subjects for shs/college must be
       // matched via SubjectDef's own courseCode/strandName field, not just levelName.
+      // SHS core subjects are flagged isMinor and are seeded below as shared
+      // minors, so they are excluded here.
       const majorSubjects = allMajorSubjects().filter(
-        (s) => deriveProgramKey(s.levelName) === type,
+        (s) => !s.isMinor && deriveProgramKey(s.levelName) === type,
       );
       const majorSubjectRows = majorSubjects.flatMap((subj) => {
         const key = subj.courseCode
@@ -337,9 +339,23 @@ export class SchoolProfileService {
       }
 
       // Minor/shared subjects — created once, shared via SchoolProfileSubjectSharing.
-      const minorSubjects = allMinorSubjects().filter(
-        (s) => deriveProgramKey(s.levelName) === type,
-      );
+      // Each minor is assigned to its own level (level_name); it is never
+      // left as "all levels".
+      const minorSubjects =
+        type === 'shs'
+          ? allMajorSubjects()
+              .filter(
+                (s) => s.isMinor && deriveProgramKey(s.levelName) === 'shs',
+              )
+              .filter(
+                (s, i, arr) =>
+                  arr.findIndex(
+                    (o) => o.name === s.name && o.yearLevel === s.yearLevel,
+                  ) === i,
+              )
+          : allMinorSubjects().filter(
+              (s) => deriveProgramKey(s.levelName) === type,
+            );
       const sharingRows: Array<{
         org_id: string;
         subject_id: string;
@@ -353,6 +369,7 @@ export class SchoolProfileService {
             department_id: department.id,
             name: subj.name,
             subject_type: 'minor',
+            level_name: subj.yearLevel,
           },
         });
 
