@@ -83,7 +83,7 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  @Matches(/^[a-z0-9]+@[a-z0-9.-]+$/i, {
+  @Matches(/^[a-z0-9._%+-]+@[a-z0-9.-]+$/i, {
     message: 'Invalid email format.',
   })
   email?: string;
