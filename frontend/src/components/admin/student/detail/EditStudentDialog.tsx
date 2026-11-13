@@ -53,7 +53,7 @@ export function EditStudentDialog({
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, dirtyFields },
   } = useForm<FormValues>({
     defaultValues: {
       fullName:  student.fullName,
@@ -128,11 +128,19 @@ export function EditStudentDialog({
   }
 
   function onSubmit(values: FormValues) {
-    mutation.mutate({
-      fullName:  values.fullName,
-      email:     values.email,
-      studentId: values.studentId,
-    });
+    // Send only the fields the admin actually changed, so untouched fields
+    // (like an unchanged email) are never re-validated or re-sent.
+    const payload: UpdateStudentRequest = {};
+    if (dirtyFields.fullName)  payload.fullName  = values.fullName;
+    if (dirtyFields.email)     payload.email     = values.email;
+    if (dirtyFields.studentId) payload.studentId = values.studentId;
+
+    if (Object.keys(payload).length === 0) {
+      onClose();
+      return;
+    }
+
+    mutation.mutate(payload);
   }
 
   return (
