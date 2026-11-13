@@ -38,12 +38,14 @@ export class StudentEnrollmentService {
     orgId: string,
     page: number,
     limit: number,
+    studentId?: string,
   ) {
     const [data, total] = await this.repo.findAllBySchoolYear(
       schoolYearId,
       orgId,
       page,
       limit,
+      studentId,
     );
     return { data, total, page, limit };
   }

@@ -19,8 +19,13 @@ export class StudentEnrollmentRepository {
     orgId: string,
     page: number,
     limit: number,
+    studentId?: string,
   ) {
-    const where = { school_year_id: schoolYearId, org_id: orgId };
+    const where = {
+      school_year_id: schoolYearId,
+      org_id: orgId,
+      ...(studentId ? { student_id: studentId } : {}),
+    };
 
     return Promise.all([
       this.db.studentSchoolYear.findMany({
