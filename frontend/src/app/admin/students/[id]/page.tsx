@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 
 import { studentApi, type StudentEnrollment } from "@/api/admin/student.api";
-import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
+import { getStudentSchoolYearEnrollment } from "@/api/admin/student-enrollment.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -102,9 +102,17 @@ export default function StudentDetailPage({
   const activeSchoolYearIsEnded =
     schoolYears?.find((sy) => sy.id === activeSchoolYearId)?.status === "ended";
 
+  // Fetch only THIS student's school-year record. The unfiltered list is
+  // paginated (20 per page), so students beyond the first page used to look
+  // "not enrolled in any department". The key extends the list key, so the
+  // existing studentEnrollment.list({ schoolYearId }) invalidations still hit it.
   const { data: schoolYearEnrollments } = useAsyncQuery(
-    queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
-    () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
+    [
+      ...queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
+      "student",
+      id,
+    ],
+    () => getStudentSchoolYearEnrollment(activeSchoolYearId!, id),
     { enabled: !!activeSchoolYearId },
   );
 
