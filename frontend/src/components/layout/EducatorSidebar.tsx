@@ -1,5 +1,3 @@
-// filepath: components/EducatorSidebar.tsx
-
 "use client";
 
 import { useParams, usePathname } from "next/navigation";
@@ -10,6 +8,7 @@ import {
   Library,
   LayoutGrid,
   FileText,
+  FileSpreadsheet,
   Presentation,
   ClipboardCheck,
   CalendarCheck,
@@ -25,6 +24,7 @@ const TOP_LEVEL_GROUPS: NavGroup[] = [
     items: [
       { label: "My Classes", href: "/educator/classes", icon: BookOpen },
       { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
+      { label: "Grade Templates", href: "/educator/grade-templates", icon: FileSpreadsheet },
       { label: "Schedule", href: "/educator/schedule", icon: CalendarDays },
     ],
   },
@@ -49,6 +49,7 @@ export function EducatorSidebar() {
           items: [
             { label: "My Classes", href: "/educator/classes", icon: BookOpen, exact: true },
             { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
+            { label: "Grade Templates", href: "/educator/grade-templates", icon: FileSpreadsheet },
             { label: "Schedule", href: "/educator/schedule", icon: CalendarDays },
           ],
         },
