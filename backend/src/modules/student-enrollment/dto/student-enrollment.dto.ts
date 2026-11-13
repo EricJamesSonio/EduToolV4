@@ -180,6 +180,11 @@ export class PaginatedEnrollmentQueryDto {
   @IsInt()
   @Min(1)
   limit?: number = 20;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  student_id?: string;
 }
 
 export interface PaginatedResult<T> {
