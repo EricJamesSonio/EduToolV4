@@ -43,6 +43,7 @@ import { studentEnrollmentsToScheduleClasses } from "@/utils/studentSchedule.uti
 import { RequestSubjectsDialog } from "@/components/admin/student/detail/RequestSubjectsDialog";
 import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
 import { useSemestersByYear } from "@/hooks/admin/useSemester";
+import { useRole } from "@/hooks/useRole";
 
 export default function StudentDetailPage({
   params,
@@ -51,6 +52,7 @@ export default function StudentDetailPage({
 }): React.JSX.Element {
   const { id } = use(params);
   const queryClient = useQueryClient();
+  const { isRegistrar } = useRole();
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -122,8 +124,6 @@ export default function StudentDetailPage({
 
   const enrollments = enrollmentsRaw ?? [];
 
-  // Weekly schedule derived from the classes this student is enrolled in.
-  // The enrollments payload already includes schedules, so no extra request.
   const scheduleClasses = studentEnrollmentsToScheduleClasses(enrollments);
   const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_id === id) ?? [];
   const activeStudentSchoolYear = schoolYearEnrollments?.data?.find((e) => e.student_id === id) ?? null;
@@ -147,7 +147,6 @@ export default function StudentDetailPage({
     return Array.from(ids);
   }, [programEnrollments]);
 
-  // Semesters of the current school year, limited to the student's program.
   const semesterOptions = useMemo(() => {
     const list = yearSemesters ?? [];
     const scoped =
@@ -180,7 +179,6 @@ export default function StudentDetailPage({
   const effectiveSemesterName =
     semesterOptions.find((s) => s.id === effectiveSemesterId)?.name ?? "";
 
-  // The schedule is for the current school year, narrowed to one semester.
   const semesterClasses = scheduleClasses.filter((c) => {
     const inYear = !c.schoolYearId || c.schoolYearId === activeSchoolYearId;
     if (!inYear) return false;
@@ -247,20 +245,22 @@ export default function StudentDetailPage({
           { label: student.fullName },
         ]}
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setStatusOpen(true)}>
-              <ShieldCheck className="mr-1.5 h-4 w-4" />
-              Status
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setResetOpen(true)}>
-              <KeyRound className="mr-1.5 h-4 w-4" />
-              Reset Password
-            </Button>
-            <Button size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="mr-1.5 h-4 w-4" />
-              Edit
-            </Button>
-          </div>
+          isRegistrar ? undefined : (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setStatusOpen(true)}>
+                <ShieldCheck className="mr-1.5 h-4 w-4" />
+                Status
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setResetOpen(true)}>
+                <KeyRound className="mr-1.5 h-4 w-4" />
+                Reset Password
+              </Button>
+              <Button size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="mr-1.5 h-4 w-4" />
+                Edit
+              </Button>
+            </div>
+          )
         }
       />
 
@@ -289,9 +289,6 @@ export default function StudentDetailPage({
         )}
       </div>
 
-      {/* Academic History / Subject Completion / Schedule are tabbed rather than
-          stacked — three long panels in a row made this page very tall and
-          pushed everything below the fold. */}
       <Tabs defaultValue="history" className="space-y-4">
         <TabsList>
           <TabsTrigger value="history" className="gap-1.5">
@@ -362,7 +359,7 @@ export default function StudentDetailPage({
         </TabsContent>
       </Tabs>
 
-      {editOpen && (
+      {!isRegistrar && editOpen && (
         <EditStudentDialog
           open={editOpen}
           student={student}
@@ -370,7 +367,7 @@ export default function StudentDetailPage({
         />
       )}
 
-      {statusOpen && (
+      {!isRegistrar && statusOpen && (
         <UpdateStatusDialog
           open={statusOpen}
           student={student}
@@ -378,7 +375,7 @@ export default function StudentDetailPage({
         />
       )}
 
-      {resetOpen && (
+      {!isRegistrar && resetOpen && (
         <ResetPasswordDialog
           open={resetOpen}
           student={student}

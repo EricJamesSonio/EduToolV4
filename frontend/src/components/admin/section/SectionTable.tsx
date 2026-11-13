@@ -18,8 +18,8 @@ interface SectionTableProps {
   >;
   programs: Program[];
   onView: (section: Section) => void;
-  onEdit: (section: Section) => void;
-  onDelete: (section: Section) => void;
+  onEdit?: (section: Section) => void;
+  onDelete?: (section: Section) => void;
 }
 
 export function SectionTable({
@@ -157,14 +157,18 @@ export function SectionTable({
 
         return (
           <RowActions>
-            <RowActionButton icon={Pencil} label="Edit" onClick={() => onEdit(section)} />
+            {onEdit && (
+              <RowActionButton icon={Pencil} label="Edit" onClick={() => onEdit(section)} />
+            )}
             <RowActionButton icon={Eye} label="View" onClick={() => onView(section)} />
-            <RowActionButton
-              icon={Trash2}
-              label="Delete"
-              destructive
-              onClick={() => onDelete(section)}
-            />
+            {onDelete && (
+              <RowActionButton
+                icon={Trash2}
+                label="Delete"
+                destructive
+                onClick={() => onDelete(section)}
+              />
+            )}
           </RowActions>
         );
       },

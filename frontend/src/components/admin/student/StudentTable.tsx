@@ -17,7 +17,7 @@ function getInitials(name: string): string {
 interface StudentTableProps {
   data: Student[];
   onView: (student: Student) => void;
-  onResetPassword: (student: Student) => void;
+  onResetPassword?: (student: Student) => void;
   warningStudentIds?: Set<string>;
 }
 
@@ -112,15 +112,17 @@ export function StudentTable({ data, onView, onResetPassword, warningStudentIds 
             <Eye className="mr-1 h-3.5 w-3.5" />
             View
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-            onClick={() => onResetPassword(row.original)}
-          >
-            <KeyRound className="h-3.5 w-3.5" />
-            Reset Password
-          </Button>
+          {onResetPassword && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+              onClick={() => onResetPassword(row.original)}
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              Reset Password
+            </Button>
+          )}
         </div>
       ),
     },

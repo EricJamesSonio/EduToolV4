@@ -32,6 +32,8 @@ import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { AxiosError } from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { classApi } from "@/api/admin/class.api";
+import { useRole } from "@/hooks/useRole";
+
 
 function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -41,6 +43,7 @@ function EducatorDetailPageInner(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
   const searchParams = useSearchParams();
+  const { isRegistrar } = useRole();
 
   // Year + semester survive refresh/back via ?sy=&sem=. A selection the new
   // year's options don't contain falls back to that year's default.
@@ -62,10 +65,6 @@ function EducatorDetailPageInner(): React.JSX.Element {
       : undefined) ??
     schoolYears.find((y) => y.status === "active")?.id ?? schoolYears[0]?.id;
 
-  // Semesters of the selected year only (both queries are year-scoped
-  // server-side). Grouped rows carry program labels; dated rows drive the
-  // today-default. The same physical row can sit under several programs, so
-  // options are deduped by semester id - it filters as one semester anyway.
   const { data: datedSemestersRaw } = useSemestersByYear(schoolYearId);
   const { data: groupedRaw, isLoading: groupedLoading } = useAsyncQuery(
     queryKeys.admin.programs.semestersGrouped(schoolYearId ?? null),
@@ -94,15 +93,11 @@ function EducatorDetailPageInner(): React.JSX.Element {
     ) {
       return semesterOverride;
     }
-    // While options load, hold the URL value so back-navigation never
-    // flashes "All" before settling on the stored selection.
     if (!optionsReady) return semesterOverride ?? ALL_SEMESTERS;
     return defaultSemesterId;
   }, [semesterOverride, semesterOptions, optionsReady, defaultSemesterId]);
   const semesterParam = semesterId !== ALL_SEMESTERS ? semesterId : undefined;
 
-  // Keep the URL in sync (replace, no scroll, no history spam). The compare
-  // guards the replace -> searchParams-change -> effect loop.
   useEffect(() => {
     if (!schoolYearId) return;
     const params = new URLSearchParams();
@@ -116,8 +111,6 @@ function EducatorDetailPageInner(): React.JSX.Element {
 
   const handleSelectYear = (yearId: string) => {
     setSelectedSchoolYearId(yearId);
-    // Changing year invalidates whatever semester was selected - follow the
-    // new year's default instead of pointing at a stale id.
     setSemesterOverride(null);
   };
 
@@ -130,7 +123,6 @@ function EducatorDetailPageInner(): React.JSX.Element {
 
   const { data: educator, isLoading } = useEducator(id);
   const [tab, setTab] = useState<"subjects" | "classes">("classes");
-  // Global tab count: the Subjects tab never changes with the selectors.
   const { data: teachableSubjects } = useTeachableSubjects(id);
   const { data: assignedClasses } = useAsyncQuery(
     queryKeys.admin.classes.list({
@@ -207,29 +199,30 @@ function EducatorDetailPageInner(): React.JSX.Element {
           { label: educator.fullName },
         ]}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil className="mr-1.5 h-4 w-4" />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setResetConfirmOpen(true)}
-            >
-              <KeyRound className="h-4 w-4" />
-              Reset Password
-            </Button>
-          </div>
+          isRegistrar ? undefined : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil className="mr-1.5 h-4 w-4" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setResetConfirmOpen(true)}
+              >
+                <KeyRound className="h-4 w-4" />
+                Reset Password
+              </Button>
+            </div>
+          )
         }
       />
 
-      {/* Profile card */}
       <div className="rounded-lg border bg-card p-5">
         <div className="flex gap-6">
           <Avatar className="h-20 w-20 shrink-0">
@@ -249,9 +242,7 @@ function EducatorDetailPageInner(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Assignments: subjects and classes */}
       <div className="rounded-lg border bg-card p-5">
-        {/* Filter bar: side by side on desktop, stacked on mobile */}
         <div className="mb-4 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
           <div className="w-full sm:w-auto">
             <SchoolYearSelector
@@ -272,14 +263,19 @@ function EducatorDetailPageInner(): React.JSX.Element {
           </div>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "subjects" | "classes")}>
+        <Tabs
+          value={isRegistrar ? "classes" : tab}
+          onValueChange={(v) => setTab(v as "subjects" | "classes")}
+        >
           <TabsList>
             <TabsTrigger value="classes" className="px-3">
               Classes ({assignedClasses?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="subjects" className="px-3">
-              Subjects ({teachableSubjects?.length ?? 0})
-            </TabsTrigger>
+            {!isRegistrar && (
+              <TabsTrigger value="subjects" className="px-3">
+                Subjects ({teachableSubjects?.length ?? 0})
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="classes" className="pt-3">
@@ -289,48 +285,52 @@ function EducatorDetailPageInner(): React.JSX.Element {
               semesterId={semesterParam}
             />
           </TabsContent>
-          <TabsContent value="subjects" className="pt-3">
-            <EducatorTeachableSubjectsCard
-              educatorId={educator.id}
-              schoolYearId={schoolYearId}
-              semesterId={semesterParam}
-            />
-          </TabsContent>
+          {!isRegistrar && (
+            <TabsContent value="subjects" className="pt-3">
+              <EducatorTeachableSubjectsCard
+                educatorId={educator.id}
+                schoolYearId={schoolYearId}
+                semesterId={semesterParam}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
-      {/* Generator input: when this educator can be scheduled. */}
-      <div className="rounded-lg border bg-card p-5">
-        <EducatorAvailabilityCard educatorId={educator.id} />
-      </div>
-
-      {/* Danger zone */}
-      <div className="rounded-lg border border-destructive/20 bg-card p-5 space-y-3">
-        <h2 className="text-sm font-semibold text-destructive not-interactive">Danger Zone</h2>
-        <Separator className="bg-destructive/10" />
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium not-interactive">Remove Educator</p>
-            <p className="text-xs text-muted-foreground not-interactive">
-              {hasActiveClasses
-                ? "This educator has active class assignments. Reassign or remove all classes first."
-                : "Permanently removes this educator from the organization."}
-            </p>
-          </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            disabled={deleteMutation.isPending}
-            onClick={() => setDeleteConfirmOpen(true)}
-            className="gap-1.5 shrink-0"
-          >
-            <Trash2 className="h-4 w-4" />
-            Remove Educator
-          </Button>
+      {!isRegistrar && (
+        <div className="rounded-lg border bg-card p-5">
+          <EducatorAvailabilityCard educatorId={educator.id} />
         </div>
-      </div>
+      )}
 
-      {editOpen && (
+      {!isRegistrar && (
+        <div className="rounded-lg border border-destructive/20 bg-card p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-destructive not-interactive">Danger Zone</h2>
+          <Separator className="bg-destructive/10" />
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium not-interactive">Remove Educator</p>
+              <p className="text-xs text-muted-foreground not-interactive">
+                {hasActiveClasses
+                  ? "This educator has active class assignments. Reassign or remove all classes first."
+                  : "Permanently removes this educator from the organization."}
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="gap-1.5 shrink-0"
+            >
+              <Trash2 className="h-4 w-4" />
+              Remove Educator
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!isRegistrar && editOpen && (
         <EditEducatorDialog
           open={editOpen}
           educator={educator}
@@ -338,20 +338,20 @@ function EducatorDetailPageInner(): React.JSX.Element {
         />
       )}
 
-      {/* Reset password confirm */}
-      <ConfirmDialog
-        open={resetConfirmOpen}
-        onOpenChange={setResetConfirmOpen}
-        title="Reset password?"
-        message={`This will generate a new password for ${educator.fullName}. The old password will stop working immediately.`}
-        confirmLabel="Reset Password"
-        destructive
-        isLoading={resetMutation.isPending}
-        onConfirm={handleResetConfirm}
-      />
+      {!isRegistrar && (
+        <ConfirmDialog
+          open={resetConfirmOpen}
+          onOpenChange={setResetConfirmOpen}
+          title="Reset password?"
+          message={`This will generate a new password for ${educator.fullName}. The old password will stop working immediately.`}
+          confirmLabel="Reset Password"
+          destructive
+          isLoading={resetMutation.isPending}
+          onConfirm={handleResetConfirm}
+        />
+      )}
 
-      {/* Delete (blocked with guidance when any history exists) */}
-      {educator && (
+      {!isRegistrar && (
         <DeleteEntityDialog
           open={deleteConfirmOpen}
           onOpenChange={setDeleteConfirmOpen}
@@ -382,7 +382,6 @@ function EducatorDetailPageInner(): React.JSX.Element {
         />
       )}
 
-      {/* New credentials after reset */}
       {newCredentials && (
         <EducatorCredentialsCard
           open

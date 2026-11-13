@@ -12,7 +12,7 @@ import type { Educator } from "@/types/admin/educator.types";
 interface EducatorTableProps {
   data:             Educator[];
   isLoading?:       boolean;
-  onResetPassword:  (educator: Educator) => void;
+  onResetPassword?: (educator: Educator) => void;
   onDelete?:        (educator: Educator) => void;
 }
 
@@ -66,15 +66,17 @@ export function EducatorTable({ data, isLoading, onResetPassword, onDelete }: Ed
             <Eye className="h-3.5 w-3.5" />
             View
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-            onClick={() => onResetPassword(row.original)}
-          >
-            <KeyRound className="h-3.5 w-3.5" />
-            Reset Password
-          </Button>
+          {onResetPassword && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+              onClick={() => onResetPassword(row.original)}
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              Reset Password
+            </Button>
+          )}
           {onDelete && (
             <Button
               size="sm"
