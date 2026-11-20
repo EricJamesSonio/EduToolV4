@@ -28,26 +28,49 @@ interface VideoGridProps {
   isFullscreen?: boolean;
 }
 
+function WaitingHint() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center">
+      <span className="rounded-full bg-black/55 px-3 py-1 text-xs text-white">
+        Waiting for others to join...
+      </span>
+    </div>
+  );
+}
+
 export function VideoGrid({
-  joined, camOn, micOn, localExpanded, remoteUsers, onExpand, onCollapse,
+  camOn, micOn, localExpanded, remoteUsers, onExpand, onCollapse,
   isFullscreen = true,
 }: VideoGridProps) {
   const isMobile = useMediaQuery("(max-width: 639px)");
   const { localVideo } = useMeetingContext();
 
-  const showFloating = !isFullscreen || remoteUsers.length === 1;
-  const mobileTileCount = remoteUsers.length + (showFloating ? 0 : 1);
+  // Alone in the meeting: the local camera fills the stage (no mini view).
+  // As soon as someone joins, they take the stage and the local camera
+  // becomes the movable mini view.
+  const alone = remoteUsers.length === 0;
+
+  const mobileFloating = !alone && (!isFullscreen || remoteUsers.length === 1);
+  const desktopLocalLarge = alone || localExpanded;
 
   useEffect(() => {
-    if (!isMobile || !localVideo) return;
+    if (!localVideo) return;
     const raf = requestAnimationFrame(() => {
       if (isMeetingVideoLocked()) return;
-      if (document.getElementById("local-video-pip")) {
-        localVideo.play("local-video-pip");
-      }
+      const id = document.getElementById("local-video-grid")
+        ? "local-video-grid"
+        : "local-video-pip";
+      if (document.getElementById(id)) localVideo.play(id);
     });
     return () => cancelAnimationFrame(raf);
-  }, [isMobile, localVideo, showFloating, mobileTileCount]);
+  }, [
+    localVideo,
+    isMobile,
+    alone,
+    localExpanded,
+    mobileFloating,
+    remoteUsers.length,
+  ]);
 
   if (isMobile) {
     const tiles: MeetingTile[] = remoteUsers.map((user) => ({
@@ -55,7 +78,7 @@ export function VideoGrid({
       domId: `remote-${user.uid}`,
     }));
 
-    if (!showFloating) {
+    if (!mobileFloating) {
       tiles.push({
         key: "local",
         domId: "local-video-pip",
@@ -67,17 +90,13 @@ export function VideoGrid({
 
     return (
       <div className="flex-1 relative overflow-hidden">
-        {tiles.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-          </div>
-        ) : (
-          <div className="absolute inset-0">
-            <MeetingTileStage tiles={tiles} />
-          </div>
-        )}
+        <div className="absolute inset-0">
+          <MeetingTileStage tiles={tiles} />
+        </div>
 
-        {showFloating && (
+        {alone && <WaitingHint />}
+
+        {mobileFloating && (
           <FloatingLocalVideo
             videoId="local-video-pip"
             camOn={camOn}
@@ -93,35 +112,29 @@ export function VideoGrid({
     domId: `remote-${user.uid}`,
   }));
 
-  if (localExpanded) {
+  if (desktopLocalLarge) {
     desktopTiles.push({
       key: "local",
-      domId: "local-video-grid",
+      domId: alone ? "local-video-pip" : "local-video-grid",
       label: "You",
       camOff: !camOn,
       micOff: !micOn,
-      onClose: onCollapse,
+      onClose: alone ? undefined : onCollapse,
     });
   }
 
   return (
     <div className="flex-1 relative overflow-hidden">
-      {desktopTiles.length === 0 ? (
-        !joined && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-          </div>
-        )
-      ) : (
-        <div className="absolute inset-0">
-          <MeetingTileStage
-            tiles={desktopTiles}
-            maxCols={getDesktopStageCols(desktopTiles.length)}
-          />
-        </div>
-      )}
+      <div className="absolute inset-0">
+        <MeetingTileStage
+          tiles={desktopTiles}
+          maxCols={getDesktopStageCols(desktopTiles.length)}
+        />
+      </div>
 
-      {!localExpanded && (
+      {alone && <WaitingHint />}
+
+      {!desktopLocalLarge && (
         <PipVideo
           videoId="local-video-pip"
           camOn={camOn}
