@@ -8,6 +8,7 @@ interface FloatingLocalVideoProps {
   camOn: boolean;
   micOn: boolean;
   zClass?: string;
+  sizeClass?: string;
 }
 
 interface Pos {
@@ -20,6 +21,7 @@ export function FloatingLocalVideo({
   camOn,
   micOn,
   zClass = "z-20",
+  sizeClass = "h-32 w-24",
 }: FloatingLocalVideoProps) {
   const ref = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ ox: number; oy: number } | null>(null);
@@ -37,11 +39,27 @@ export function FloatingLocalVideo({
   }, []);
 
   useEffect(() => {
-    const onResize = () => {
-      setPos((prev) => (prev ? clamp(prev.x, prev.y) : prev));
+    const reclamp = () => {
+      setPos((prev) => {
+        if (!prev) return prev;
+        const next = clamp(prev.x, prev.y);
+        return next.x === prev.x && next.y === prev.y ? prev : next;
+      });
     };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+
+    window.addEventListener("resize", reclamp);
+
+    const parent = ref.current?.parentElement;
+    const observer =
+      parent && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(reclamp)
+        : null;
+    if (parent) observer?.observe(parent);
+
+    return () => {
+      window.removeEventListener("resize", reclamp);
+      observer?.disconnect();
+    };
   }, [clamp]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -93,11 +111,11 @@ export function FloatingLocalVideo({
       onPointerMove={handlePointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      className={`absolute h-32 w-24 select-none overflow-hidden rounded-xl border border-zinc-600 bg-zinc-800 shadow-xl ${
+      className={`absolute ${sizeClass} select-none overflow-hidden rounded-xl border border-zinc-600 bg-zinc-800 shadow-xl ${
         dragging ? "cursor-grabbing ring-2 ring-white/40" : "cursor-grab"
       } ${zClass}`}
     >
-      <div id={videoId} className="absolute inset-0" />
+      <div id={videoId} className="absolute inset-0 pointer-events-none" />
 
       {!camOn && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-800 text-zinc-500 pointer-events-none">

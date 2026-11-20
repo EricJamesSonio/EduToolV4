@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect } from "react";
@@ -197,12 +196,14 @@ export default function PresentationOverlay({
       {/* PORTRAIT STAGE — mobile only, when NOT fullscreen.
           "Monitor-in-a-monitor":
           main monitor on top (slide or featured participant)
-          + horizontally scrollable preview monitors below. */}
+          + horizontally scrollable preview monitors below.
+          The main monitor gives its content an absolutely sized box so the
+          slide can never collapse to zero height. */}
       {portraitMode && (
         <div className="flex-1 h-full min-w-0 flex flex-col bg-zinc-950 overflow-y-auto">
-          <div className="shrink-0 w-full max-w-3xl mx-auto aspect-video flex items-center bg-zinc-800">
+          <div className="relative shrink-0 w-full max-w-3xl mx-auto aspect-video bg-zinc-800">
             {featuredUid != null ? (
-              <div className="relative w-full h-full">
+              <div className="absolute inset-0">
                 <div
                   id={`remote-${featuredUid}`}
                   className="w-full h-full bg-zinc-800"
@@ -217,14 +218,16 @@ export default function PresentationOverlay({
                 </button>
               </div>
             ) : (
-              <SlideViewer
-                slide={currentSlide}
-                template={template}
-                slideNumber={safeIndex}
-                totalSlides={totalSlides}
-                onNext={canNavigate ? goToNext : undefined}
-                onPrev={canNavigate ? goToPrev : undefined}
-              />
+              <div className="absolute inset-0 flex">
+                <SlideViewer
+                  slide={currentSlide}
+                  template={template}
+                  slideNumber={safeIndex}
+                  totalSlides={totalSlides}
+                  onNext={canNavigate ? goToNext : undefined}
+                  onPrev={canNavigate ? goToPrev : undefined}
+                />
+              </div>
             )}
           </div>
 
