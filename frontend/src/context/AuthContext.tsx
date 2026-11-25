@@ -14,6 +14,7 @@ import { authApi } from "@/api/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 import { getRoleHomePath } from "@/utils/role.util";
 import { useAuthProfile, useBootstrapAuth } from "@/hooks/useAuthProfile";
+import { useSessionClose } from "@/hooks/useSessionClose";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import type { AuthUser } from "@/types/auth.types";
 
@@ -34,33 +35,35 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const zustandIsLoading = useAuthStore((s) => s.isLoading);
   const bootstrap = useBootstrapAuth();
 
+  useSessionClose();
+
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
 
   const { data: user, isLoading: queryIsLoading } = useAuthProfile();
 
-const login = useCallback(
-  async (email: string, password: string): Promise<void> => {
-    const { accessToken: newToken } = await authApi.login({ email, password });
-    useAuthStore.getState().setAccessToken(newToken);
+  const login = useCallback(
+    async (email: string, password: string): Promise<void> => {
+      const { accessToken: newToken } = await authApi.login({ email, password });
+      useAuthStore.getState().setAccessToken(newToken);
 
-    // Use the query client to fetch+cache in one step — no competing auto-fetch
-    const me = await queryClient.fetchQuery({
-      queryKey: queryKeys.auth.me(),
-      queryFn: () => authApi.getMe(),
-    });
+      // Use the query client to fetch+cache in one step - no competing auto-fetch
+      const me = await queryClient.fetchQuery({
+        queryKey: queryKeys.auth.me(),
+        queryFn: () => authApi.getMe(),
+      });
 
-    router.push(getRoleHomePath(me.role));
-  },
-  [router, queryClient]
-);
+      router.push(getRoleHomePath(me.role));
+    },
+    [router, queryClient]
+  );
 
   const logout = useCallback(async (): Promise<void> => {
     try {
       await authApi.logout();
     } catch {
-      // Swallow — we clear local state regardless
+      // Swallow - we clear local state regardless
     } finally {
       clearAuth();
       queryClient.clear();

@@ -7,6 +7,13 @@ const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? "";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  async rewrites() {
+    return [
+      // Registrars browse /registrar/* while the pages still live under /admin.
+      { source: "/registrar/school-profile", destination: "/admin/data-seeder" },
+      { source: "/registrar/:path*", destination: "/admin/:path*" },
+    ];
+  },
   async headers() {
     return [
       {
@@ -27,7 +34,7 @@ const nextConfig: NextConfig = {
               // Styles
               "style-src 'self' 'unsafe-inline'",
 
-              // ✅ Dev + Docker + Production ready — allow the configured API/WS hosts
+              // Dev + Docker + Production ready — allow the configured API/WS hosts
               `connect-src 'self' ${apiUrl} ${wsUrl} ${wsUrl.replace(/^http/, "ws")} https://*.agora.io wss://*.agora.io`,
 
               // Media

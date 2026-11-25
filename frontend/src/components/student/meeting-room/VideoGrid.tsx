@@ -25,7 +25,6 @@ interface VideoGridProps {
 }
 
 export function VideoGrid({
-  joined,
   remoteUsers,
   camOn = true,
   micOn = true,
@@ -34,12 +33,18 @@ export function VideoGrid({
   const isMobile = useMediaQuery("(max-width: 639px)");
   const { localVideo } = useMeetingContext();
 
-  const showFloating = isMobile && (!isFullscreen || remoteUsers.length === 1);
-  const localInGrid = isMobile && !showFloating;
-  const mobileTileCount = remoteUsers.length + (localInGrid ? 1 : 0);
+  // Alone in the meeting: the local camera fills the stage (no mini view).
+  // As soon as someone joins, they take the stage and the local camera
+  // becomes the movable mini view.
+  const alone = remoteUsers.length === 0;
+
+  const showFloating =
+    !alone && (isMobile ? !isFullscreen || remoteUsers.length === 1 : true);
+  const localInGrid = !showFloating;
+  const tileCount = remoteUsers.length + (localInGrid ? 1 : 0);
 
   useEffect(() => {
-    if (!isMobile || !localVideo) return;
+    if (!localVideo) return;
     const raf = requestAnimationFrame(() => {
       if (isMeetingVideoLocked()) return;
       if (document.getElementById("local-video-pip")) {
@@ -47,7 +52,7 @@ export function VideoGrid({
       }
     });
     return () => cancelAnimationFrame(raf);
-  }, [isMobile, localVideo, showFloating, mobileTileCount]);
+  }, [localVideo, isMobile, showFloating, tileCount]);
 
   const tiles: MeetingTile[] = remoteUsers.map((user) => ({
     key: `remote-${user.uid}`,
@@ -66,33 +71,27 @@ export function VideoGrid({
 
   return (
     <div className="flex-1 relative overflow-hidden">
-      {tiles.length === 0 ? (
-        (isMobile || !joined) && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-          </div>
-        )
-      ) : (
-        <div className="absolute inset-0">
-          <MeetingTileStage
-            tiles={tiles}
-            maxCols={isMobile ? undefined : getDesktopStageCols(tiles.length)}
-          />
+      <div className="absolute inset-0">
+        <MeetingTileStage
+          tiles={tiles}
+          maxCols={isMobile ? undefined : getDesktopStageCols(tiles.length)}
+        />
+      </div>
+
+      {alone && (
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center">
+          <span className="rounded-full bg-black/55 px-3 py-1 text-xs text-white">
+            Waiting for others to join...
+          </span>
         </div>
       )}
 
-      {isMobile ? (
-        showFloating && (
-          <FloatingLocalVideo
-            videoId="local-video-pip"
-            camOn={camOn}
-            micOn={micOn}
-          />
-        )
-      ) : (
-        <div
-          id="local-video-pip"
-          className="absolute bottom-4 right-4 w-32 h-24 sm:w-52 sm:h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
+      {showFloating && (
+        <FloatingLocalVideo
+          videoId="local-video-pip"
+          camOn={camOn}
+          micOn={micOn}
+          sizeClass={isMobile ? "h-32 w-24" : "h-36 w-52"}
         />
       )}
     </div>

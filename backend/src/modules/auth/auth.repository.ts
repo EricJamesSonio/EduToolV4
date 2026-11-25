@@ -3,6 +3,12 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { OtpPurpose, Prisma } from '@prisma/client';
 
+function toMetaObject(metadata: unknown): Record<string, any> {
+  return metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? (metadata as Record<string, any>)
+    : {};
+}
+
 @Injectable()
 export class AuthRepository {
   constructor(private readonly db: DatabaseService) {}
@@ -32,7 +38,7 @@ export class AuthRepository {
    * Finds an admin Account whose profile.personal_email matches the given
    * personal Gmail (case-insensitive). The login email is system-generated and
    * decoupled from the personal Gmail, so we must match on the profile's
-   * personal_email — the record, not the (possibly changed) login email.
+   * personal_email - the record, not the (possibly changed) login email.
    */
   async findAdminAccountByPersonalEmail(email: string) {
     return this.db.account.findFirst({
@@ -51,7 +57,7 @@ export class AuthRepository {
    * replacing the whole JSON blob.
    *
    * BUGFIX: profile.metadata also stores studentId/educatorId (and, for
-   * students, levelId/sectionId) — see StudentRepository.create /
+   * students, levelId/sectionId) - see StudentRepository.create /
    * EducatorRepository.create. metadata is a Prisma `Json` column, and Prisma
    * REPLACES the entire JSON value on write; it does not deep-merge. The
    * previous implementation wrote `metadata: { refreshToken: hashedToken }`
@@ -61,6 +67,9 @@ export class AuthRepository {
    * permanently. Read-modify-write under a transaction (same pattern already
    * used correctly in EducatorRepository.updateProfile and
    * StudentRepository.updateProfile) fixes this without touching callers.
+   *
+   * Every new refresh token also resets the "closing" marker and records when
+   * it was issued, so a reload that refreshes the session cancels a close.
    */
   async saveRefreshToken(accountId: string, hashedToken: string) {
     return this.db.$transaction(async (tx) => {
@@ -69,12 +78,8 @@ export class AuthRepository {
         select: { metadata: true },
       });
 
-      const currentMeta =
-        current?.metadata &&
-        typeof current.metadata === 'object' &&
-        !Array.isArray(current.metadata)
-          ? (current.metadata as Record<string, any>)
-          : {};
+      const currentMeta = toMetaObject(current?.metadata);
+      const now = Date.now();
 
       return tx.profile.upsert({
         where: { account_id: accountId },
@@ -82,12 +87,18 @@ export class AuthRepository {
           metadata: {
             ...currentMeta,
             refreshToken: hashedToken,
+            refreshIssuedAt: now,
+            sessionClosingAt: null,
           },
         },
         create: {
           account_id: accountId,
           full_name: '',
-          metadata: { refreshToken: hashedToken },
+          metadata: {
+            refreshToken: hashedToken,
+            refreshIssuedAt: now,
+            sessionClosingAt: null,
+          },
         },
       });
     });
@@ -106,7 +117,57 @@ export class AuthRepository {
   }
 
   /**
-   * Same read-modify-write fix as saveRefreshToken — see the comment there.
+   * Refresh token hash plus the session-close bookkeeping used to end a
+   * session shortly after the user leaves the site.
+   */
+  async getRefreshSession(accountId: string): Promise<{
+    hash: string | null;
+    closingAt: number | null;
+    issuedAt: number | null;
+  }> {
+    const profile = await this.db.profile.findUnique({
+      where: { account_id: accountId },
+      select: { metadata: true },
+    });
+
+    const meta = toMetaObject(profile?.metadata);
+
+    return {
+      hash: typeof meta.refreshToken === 'string' ? meta.refreshToken : null,
+      closingAt:
+        typeof meta.sessionClosingAt === 'number' ? meta.sessionClosingAt : null,
+      issuedAt:
+        typeof meta.refreshIssuedAt === 'number' ? meta.refreshIssuedAt : null,
+    };
+  }
+
+  /**
+   * Marks the session as "being left". Same read-modify-write pattern as
+   * saveRefreshToken so the rest of metadata is preserved.
+   */
+  async markSessionClosing(accountId: string, closingAt: number) {
+    return this.db.$transaction(async (tx) => {
+      const current = await tx.profile.findUnique({
+        where: { account_id: accountId },
+        select: { metadata: true },
+      });
+
+      if (!current) return null;
+
+      return tx.profile.update({
+        where: { account_id: accountId },
+        data: {
+          metadata: {
+            ...toMetaObject(current.metadata),
+            sessionClosingAt: closingAt,
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * Same read-modify-write fix as saveRefreshToken - see the comment there.
    * Logout must only clear the refresh token, not the rest of metadata.
    */
   async clearRefreshToken(accountId: string) {
@@ -116,12 +177,7 @@ export class AuthRepository {
         select: { metadata: true },
       });
 
-      const currentMeta =
-        current?.metadata &&
-        typeof current.metadata === 'object' &&
-        !Array.isArray(current.metadata)
-          ? (current.metadata as Record<string, any>)
-          : {};
+      const currentMeta = toMetaObject(current?.metadata);
 
       return tx.profile.update({
         where: { account_id: accountId },
@@ -129,13 +185,15 @@ export class AuthRepository {
           metadata: {
             ...currentMeta,
             refreshToken: null,
+            refreshIssuedAt: null,
+            sessionClosingAt: null,
           },
         },
       });
     });
   }
 
-  // ─── OTP ───────────────────────────────────────────────────────────────────
+  // --- OTP ---------------------------------------------------------------
 
   async createOtp(data: {
     email: string;
@@ -178,7 +236,7 @@ export class AuthRepository {
     });
   }
 
-  // ─── Registration Request ──────────────────────────────────────────────────
+  // --- Registration Request ----------------------------------------------
 
   async createRegistrationRequest(data: {
     email: string;
@@ -202,7 +260,7 @@ export class AuthRepository {
   /**
    * Creates a fresh request if none exists for this email, otherwise updates
    * the existing row in place. On any resubmission the revision flags are
-   * cleared entirely and status resets to 'pending' — full re-review, matching
+   * cleared entirely and status resets to 'pending' - full re-review, matching
    * the Concern Center's auto-reopen convention.
    */
   async submitRegistrationRequest(data: {
@@ -290,7 +348,7 @@ export class AuthRepository {
     return this.db.registrationRequest.findUnique({ where: { id } });
   }
 
-  // ─── Account Creation ──────────────────────────────────────────────────────
+  // --- Account Creation --------------------------------------------------
 
   async createAccount(data: {
     email: string;

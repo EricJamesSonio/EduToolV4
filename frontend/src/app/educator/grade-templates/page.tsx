@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Download, FileSpreadsheet, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { EducatorTermFilters } from "@/components/educator/EducatorTermFilters";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useEducatorTermScope } from "@/hooks/educator/useEducatorTermScope";
 import {
   gradeTemplateApi,
   readErrorMessage,
@@ -16,6 +18,7 @@ import {
 } from "@/api/grade-template.api";
 
 export default function EducatorGradeTemplatesPage(): React.ReactElement {
+  const scope = useEducatorTermScope();
   const [templates, setTemplates] = useState<MyTemplate[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<MyTemplate | null>(null);
@@ -33,6 +36,21 @@ export default function EducatorGradeTemplatesPage(): React.ReactElement {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Only templates (and the classes inside them) that belong to the selected
+  // school year / semester.
+  const visibleTemplates = useMemo(
+    () =>
+      (templates ?? [])
+        .map((t) => ({
+          template: t,
+          visibleClasses: t.classes.filter((c) =>
+            scope.scopedClassIds.has(c.classId),
+          ),
+        }))
+        .filter((entry) => entry.visibleClasses.length > 0),
+    [templates, scope.scopedClassIds],
+  );
 
   const download = async (t: MyTemplate) => {
     setBusy(`download:${t.id}`);
@@ -67,6 +85,8 @@ export default function EducatorGradeTemplatesPage(): React.ReactElement {
     }
   };
 
+  const loading = templates === null || scope.isLoading;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -75,6 +95,7 @@ export default function EducatorGradeTemplatesPage(): React.ReactElement {
           { label: "Classes", href: "/educator/classes" },
           { label: "Grade Templates" },
         ]}
+        actions={<EducatorTermFilters scope={scope} />}
       />
 
       <p className="text-sm text-muted-foreground">
@@ -84,18 +105,20 @@ export default function EducatorGradeTemplatesPage(): React.ReactElement {
         sent to the admin&apos;s master workbook automatically.
       </p>
 
-      {templates === null ? (
+      {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading...
         </div>
-      ) : templates.length === 0 ? (
+      ) : visibleTemplates.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border bg-card py-16 text-sm text-muted-foreground">
           <FileSpreadsheet className="h-8 w-8 opacity-30" />
-          No grade template has been shared for your classes yet.
+          {(templates ?? []).length === 0
+            ? "No grade template has been shared for your classes yet."
+            : "No grade template for the selected school year and semester."}
         </div>
       ) : (
         <div className="space-y-4">
-          {templates.map((t) => {
+          {visibleTemplates.map(({ template: t, visibleClasses }) => {
             const result = results[t.id];
             const allDone = t.classes.every((c) => c.submittedAt);
             return (
@@ -139,7 +162,7 @@ export default function EducatorGradeTemplatesPage(): React.ReactElement {
                 </div>
 
                 <ul className="space-y-1 text-xs">
-                  {t.classes.map((c) => (
+                  {visibleClasses.map((c) => (
                     <li key={c.classId} className="flex items-center gap-2">
                       <span className="font-medium">
                         {c.subjectName}

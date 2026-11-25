@@ -14,6 +14,8 @@ import {
 import { useSidebar } from "@/context/SidebarContext";
 import { useNavigationGuardOptional } from "@/context/NavigationGuardContext";
 import type { LucideIcon } from "lucide-react";
+import { toAdminPath } from "@/utils/registrar-access.util";
+
 
 export interface NavItem {
   label: string;
@@ -35,9 +37,10 @@ interface SidebarShellProps {
 }
 
 function useIsActive(href: string, exact?: boolean) {
-  const pathname = usePathname();
-  if (exact) return pathname === href;
-  return pathname === href || pathname.startsWith(href + "/");
+  const pathname = toAdminPath(usePathname());
+  const target = toAdminPath(href);
+  if (exact) return pathname === target;
+  return pathname === target || pathname.startsWith(target + "/");
 }
 
 function NavLink({

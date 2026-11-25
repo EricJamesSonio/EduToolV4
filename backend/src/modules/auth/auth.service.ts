@@ -30,6 +30,14 @@ const SESSION_TTL = '2h';
 const PERSONAL_EMAIL_IN_USE_MESSAGE =
   'This Gmail is already linked to an account in EduTool.';
 
+// After the user leaves the site, a refresh is only honoured within this
+// window (covers page reloads). Later refreshes end the session.
+const SESSION_CLOSE_GRACE_MS = 15_000;
+
+// A close signal that arrives right after a refresh is almost certainly the
+// old page's unload racing the reloaded page's bootstrap, so it is ignored.
+const SESSION_CLOSE_IGNORE_AFTER_REFRESH_MS = 5_000;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -144,7 +152,7 @@ export class AuthService {
     return { message: 'New verification code sent to your email' };
   }
 
-  // ─── Enrollment Portal OTP (public applicants) ───────────────────────────
+  // --- Enrollment Portal OTP (public applicants) --------------------------
   // Same OTP write + send path as org registration, distinguished by
   // `purpose` + `org_id` so an applicant OTP can never satisfy an
   // org-registration verification (and vice versa).
@@ -194,7 +202,7 @@ export class AuthService {
     await this.authRepository.markOtpUsed(otp.id);
   }
 
-  // ─── Admin Request (public applicant side) ───────────────────────────────
+  // --- Admin Request (public applicant side) ------------------------------
   // Lifts the existing org-registration OTP flow (same OtpPurpose.org_registration
   // mechanism) up to the Enrollment Portal's UX standard: personal-Gmail
   // lookup, a time-limited session, and per-field revision flagging.
@@ -202,7 +210,7 @@ export class AuthService {
   /**
    * Blocks re-application once the personal Gmail has already produced an
    * approved account. Detection is record-based (the RegistrationRequest row or
-   * the Profile.personal_email), NOT the login email — admins can change the
+   * the Profile.personal_email), NOT the login email - admins can change the
    * generated login Gmail later, so we must track by the original record.
    */
   private async assertPersonalEmailNotAlreadyApproved(email: string) {
@@ -262,7 +270,7 @@ export class AuthService {
 
     await this.authRepository.markOtpUsed(otp.id);
 
-    // Global check across all accounts (not just admins) — blocks before any
+    // Global check across all accounts (not just admins) - blocks before any
     // session is issued or any existing application data is returned.
     if (await this.personalEmailRegistry.isPersonalEmailInUse(dto.email)) {
       return { blocked: true, message: PERSONAL_EMAIL_IN_USE_MESSAGE };
@@ -345,7 +353,7 @@ export class AuthService {
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {
     let accountId: string;
     try {
-      // Was jwtService.decode() — decode() does NOT check the signature or
+      // Was jwtService.decode() - decode() does NOT check the signature or
       // expiry, so a tampered or expired refresh token would still parse
       // here and only get caught later by the hash comparison. verify()
       // rejects it immediately and distinguishes "expired" from "invalid".
@@ -362,14 +370,24 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const storedHash = await this.authRepository.getRefreshToken(accountId);
-    if (!storedHash) {
+    const session = await this.authRepository.getRefreshSession(accountId);
+    if (!session.hash) {
       throw new UnauthorizedException('No active session');
     }
 
-    const isValid = await comparePassword(incomingRefreshToken, storedHash);
+    const isValid = await comparePassword(incomingRefreshToken, session.hash);
     if (!isValid) {
       throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // The user left the site earlier. A quick refresh (reload) is fine and
+    // generateTokens() below clears the marker; a late one ends the session.
+    if (
+      session.closingAt &&
+      Date.now() - session.closingAt > SESSION_CLOSE_GRACE_MS
+    ) {
+      await this.authRepository.clearRefreshToken(accountId);
+      throw new UnauthorizedException('Session ended');
     }
 
     const account = await this.authRepository.findAccountById(accountId);
@@ -385,6 +403,39 @@ export class AuthService {
     );
   }
 
+  /**
+   * Called when the browser reports the page is being left. Never throws:
+   * it is a best-effort signal and must not leak whether a token was valid.
+   */
+  async markSessionClosing(incomingRefreshToken: string): Promise<void> {
+    let accountId: string;
+    try {
+      const payload = this.jwtService.verify<TokenPayload>(
+        incomingRefreshToken,
+        { secret: this.configService.get<string>('jwt.secret') },
+      );
+      if (!payload?.sub) return;
+      accountId = payload.sub;
+    } catch {
+      return;
+    }
+
+    const session = await this.authRepository.getRefreshSession(accountId);
+    if (!session.hash) return;
+
+    const isValid = await comparePassword(incomingRefreshToken, session.hash);
+    if (!isValid) return;
+
+    if (
+      session.issuedAt &&
+      Date.now() - session.issuedAt < SESSION_CLOSE_IGNORE_AFTER_REFRESH_MS
+    ) {
+      return;
+    }
+
+    await this.authRepository.markSessionClosing(accountId, Date.now());
+  }
+
   async logout(accountId: string): Promise<void> {
     await this.authRepository.clearRefreshToken(accountId);
   }
@@ -396,7 +447,7 @@ export class AuthService {
       throw new UnauthorizedException('Account not found');
     }
 
-    // studentId / educatorId are not dedicated columns — both the Student and
+    // studentId / educatorId are not dedicated columns - both the Student and
     // Educator repositories stash their system-generated ID inside
     // profile.metadata (see StudentRepository.create / EducatorRepository.create).
     // Pull them out here, scoped to the account's actual role, so the frontend

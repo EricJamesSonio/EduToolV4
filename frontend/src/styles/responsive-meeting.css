@@ -10,6 +10,19 @@
   overflow: hidden;
 }
 
+/* Non-fullscreen rooms sit under the app header. A plain h-screen made the
+   room taller than the visible area, pushing the controls bar and the self
+   view off screen. Fullscreen rooms use fixed inset-0 and are unaffected. */
+.meeting-theme .h-screen {
+  height: calc(100dvh - 6.5rem);
+}
+
+@media (min-width: 640px) {
+  .meeting-theme .h-screen {
+    height: calc(100dvh - 5rem);
+  }
+}
+
 /* Controls bar: tighter on mobile, fixed height on desktop */
 .meeting-controls {
   min-height: 52px;

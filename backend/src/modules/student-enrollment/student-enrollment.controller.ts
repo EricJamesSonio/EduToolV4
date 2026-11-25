@@ -46,6 +46,7 @@ export class StudentEnrollmentController {
       user.org_id,
       query.page ?? 1,
       query.limit ?? 20,
+      query.student_id,
     );
   }
 

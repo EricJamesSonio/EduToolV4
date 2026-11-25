@@ -40,10 +40,13 @@ import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useClassAssignmentRequests } from "@/hooks/admin/useClassAssignmentRequest";
+import { useRole } from "@/hooks/useRole";
+
 
 function StudentsPageInner(): React.JSX.Element {
   const router       = useRouter();
   const queryClient  = useQueryClient();
+  const { isRegistrar } = useRole();
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen]     = useState(false);
   const [filters, setFilters]       = useState<GetStudentsQuery>({});
@@ -176,6 +179,20 @@ function StudentsPageInner(): React.JSX.Element {
     setPage(1);
   };
 
+  const emptyDescription = isRegistrar
+    ? "Adjust your filters or check back later."
+    : hasEmailExtension
+    ? "Create your first student or adjust your filters."
+    : "Setup email extension first to create students.";
+
+  const emptyAction = (() => {
+    if (isRegistrar) return undefined;
+    if (hasEmailExtension) {
+      return { label: "New Student", onClick: () => ensureOrganization(() => setCreateOpen(true)) };
+    }
+    return { label: "Setup Email Extension", onClick: handleSetupEmail };
+  })();
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -193,41 +210,43 @@ function StudentsPageInner(): React.JSX.Element {
         }
       />
 
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => ensureOrganization(() => router.push("/admin/students/import"))}
-        >
-          Import CSV
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
-          <Users className="mr-1.5 h-4 w-4" />
-          Bulk Create
-        </Button>
-
-        {!hasEmailExtension ? (
+      {!isRegistrar && (
+        <div className="flex items-center justify-end gap-2">
           <Button
+            variant="outline"
             size="sm"
-            variant="destructive"
-            onClick={handleSetupEmail}
-            disabled={orgLoading}
+            onClick={() => ensureOrganization(() => router.push("/admin/students/import"))}
           >
-            <AlertCircle className="mr-1.5 h-4 w-4" />
-            Setup Email Extension
+            Import CSV
           </Button>
-        ) : (
-          <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Student
+          <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
+            <Users className="mr-1.5 h-4 w-4" />
+            Bulk Create
           </Button>
-        )}
-      </div>
 
-      {!hasEmailExtension && !orgLoading && (
+          {!hasEmailExtension ? (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleSetupEmail}
+              disabled={orgLoading}
+            >
+              <AlertCircle className="mr-1.5 h-4 w-4" />
+              Setup Email Extension
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              New Student
+            </Button>
+          )}
+        </div>
+      )}
+
+      {!isRegistrar && !hasEmailExtension && !orgLoading && (
         <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
             <span className="not-interactive">You need to set up an email extension before creating students. Go to{" "}</span>
             <button
               onClick={handleSetupEmail}
@@ -279,14 +298,8 @@ function StudentsPageInner(): React.JSX.Element {
         empty={{
           icon: Users,
           title: "No students found",
-          description:
-            hasEmailExtension
-              ? "Create your first student or adjust your filters."
-              : "Setup email extension first to create students.",
-          action:
-            hasEmailExtension
-              ? { label: "New Student", onClick: () => ensureOrganization(() => setCreateOpen(true)) }
-              : { label: "Setup Email Extension", onClick: handleSetupEmail },
+          description: emptyDescription,
+          action: emptyAction,
         }}
         loading={
           <div className="space-y-2">
@@ -300,7 +313,7 @@ function StudentsPageInner(): React.JSX.Element {
           <StudentTable
             data={displayStudents}
             onView={(s) => router.push(`/admin/students/${s.id}`)}
-            onResetPassword={setResetTarget}
+            onResetPassword={isRegistrar ? undefined : setResetTarget}
             warningStudentIds={warningStudentIds}
           />
           <Pagination
@@ -314,7 +327,7 @@ function StudentsPageInner(): React.JSX.Element {
         </>
       </AsyncListState>
 
-      {createOpen && hasEmailExtension && (
+      {!isRegistrar && createOpen && hasEmailExtension && (
         <CreateStudentDialog
           open={createOpen}
           onClose={() => setCreateOpen(false)}
@@ -324,28 +337,28 @@ function StudentsPageInner(): React.JSX.Element {
         />
       )}
 
-      {bulkOpen && hasEmailExtension && (
+      {!isRegistrar && bulkOpen && hasEmailExtension && (
         <BulkCreateStudentDialog
           open={bulkOpen}
           onClose={() => setBulkOpen(false)}
         />
       )}
 
-      {/* Reset password confirm */}
-      <ConfirmDialog
-        open={resetTarget !== null}
-        onOpenChange={(o) => { if (!o) setResetTarget(null); }}
-        title="Reset password?"
-        message={`This will generate a new password for ${resetTarget?.fullName}. The old password will stop working immediately.`}
-        confirmLabel="Reset Password"
-        destructive
-        isLoading={resetMutation.isPending}
-        onConfirm={() => {
-          if (resetTarget) resetMutation.mutate(resetTarget.id);
-        }}
-      />
+      {!isRegistrar && (
+        <ConfirmDialog
+          open={resetTarget !== null}
+          onOpenChange={(o) => { if (!o) setResetTarget(null); }}
+          title="Reset password?"
+          message={`This will generate a new password for ${resetTarget?.fullName}. The old password will stop working immediately.`}
+          confirmLabel="Reset Password"
+          destructive
+          isLoading={resetMutation.isPending}
+          onConfirm={() => {
+            if (resetTarget) resetMutation.mutate(resetTarget.id);
+          }}
+        />
+      )}
 
-      {/* New credentials after reset */}
       {newCredentials && (
         <StudentCredentialsCard
           open

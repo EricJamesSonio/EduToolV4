@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect } from "react";
@@ -196,13 +195,14 @@ export default function PresentationOverlay({
 
       {/* PORTRAIT STAGE — mobile only, when NOT fullscreen.
           "Monitor-in-a-monitor":
-          main monitor on top (slide or featured participant)
-          + horizontally scrollable preview monitors below. */}
+          main monitor fills all the free height (slide or featured
+          participant) + a thin horizontally scrollable rail of preview
+          monitors pinned below it. */}
       {portraitMode && (
-        <div className="flex-1 h-full min-w-0 flex flex-col bg-zinc-950 overflow-y-auto">
-          <div className="shrink-0 w-full max-w-3xl mx-auto aspect-video flex items-center bg-zinc-800">
+        <div className="flex-1 h-full min-w-0 min-h-0 flex flex-col bg-zinc-950">
+          <div className="relative flex-1 min-h-0 w-full bg-zinc-800">
             {featuredUid != null ? (
-              <div className="relative w-full h-full">
+              <div className="absolute inset-0">
                 <div
                   id={`remote-${featuredUid}`}
                   className="w-full h-full bg-zinc-800"
@@ -217,20 +217,22 @@ export default function PresentationOverlay({
                 </button>
               </div>
             ) : (
-              <SlideViewer
-                slide={currentSlide}
-                template={template}
-                slideNumber={safeIndex}
-                totalSlides={totalSlides}
-                onNext={canNavigate ? goToNext : undefined}
-                onPrev={canNavigate ? goToPrev : undefined}
-              />
+              <div className="absolute inset-0 flex">
+                <SlideViewer
+                  slide={currentSlide}
+                  template={template}
+                  slideNumber={safeIndex}
+                  totalSlides={totalSlides}
+                  onNext={canNavigate ? goToNext : undefined}
+                  onPrev={canNavigate ? goToPrev : undefined}
+                />
+              </div>
             )}
           </div>
 
           {remoteUsers.length > 0 && (
-            <div className="shrink-0 w-full px-3 py-3">
-              <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1">
+            <div className="shrink-0 w-full px-3 py-2 bg-zinc-950">
+              <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory">
                 {remoteUsers
                   .filter(
                     (user) =>

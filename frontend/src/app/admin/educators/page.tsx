@@ -32,9 +32,12 @@ const CreateEducatorDialog = dynamic(
 import { BulkCreateEducatorDialog } from "@/components/admin/educator/BulkCreateEducatorDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import type { AxiosError } from "axios";
+import { useRole } from "@/hooks/useRole";
+
 
 export default function EducatorsPage(): React.JSX.Element {
   const router = useRouter();
+  const { isRegistrar } = useRole();
   const [search, setSearch]                   = useState("");
   const [page, setPage]                       = useState(1);
   const [limit, setLimit]                     = useState(DEFAULT_PAGE_SIZE);
@@ -95,6 +98,22 @@ export default function EducatorsPage(): React.JSX.Element {
     router.push("/admin/organization");
   };
 
+  const emptyDescription = search
+    ? "Try a different search term."
+    : isRegistrar
+    ? "No educators have been added yet."
+    : hasEmailExtension
+    ? "Create your first educator to get started."
+    : "Setup email extension first to create educators.";
+
+  const emptyAction = (() => {
+    if (isRegistrar || search) return undefined;
+    if (hasEmailExtension) {
+      return { label: "New Educator", onClick: () => ensureOrganization(() => setCreateOpen(true)) };
+    }
+    return { label: "Setup Email Extension", onClick: handleSetupEmail };
+  })();
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -102,37 +121,37 @@ export default function EducatorsPage(): React.JSX.Element {
         actions={<HelpGuide slug="admin_educators" />}
       />
 
-      <div className="flex items-center justify-end gap-2">
-        {hasEmailExtension ? (
-          <>
-            <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
-              <Users className="mr-1.5 h-4 w-4" />
-              Bulk Create
+      {!isRegistrar && (
+        <div className="flex items-center justify-end gap-2">
+          {hasEmailExtension ? (
+            <>
+              <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
+                <Users className="mr-1.5 h-4 w-4" />
+                Bulk Create
+              </Button>
+              <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                New Educator
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={handleSetupEmail}
+              size="sm"
+              variant="destructive"
+              disabled={orgLoading}
+            >
+              <AlertCircle className="mr-1.5 h-4 w-4" />
+              Setup Email Extension
             </Button>
-            <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
-              <UserPlus className="mr-1.5 h-4 w-4" />
-              New Educator
-            </Button>
-          </>
-        ) : (
-          <Button
-            onClick={handleSetupEmail}
-            size="sm"
-            variant="destructive"
-            disabled={orgLoading}
-          >
-            <AlertCircle className="mr-1.5 h-4 w-4" />
-            Setup Email Extension
-          </Button>
-        )}
-      </div>
-   
+          )}
+        </div>
+      )}
 
-      {/* Alert when no email extension */}
-      {!hasEmailExtension && !orgLoading && (
+      {!isRegistrar && !hasEmailExtension && !orgLoading && (
         <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
             <span className="not-interactive">You need to set up an email extension before creating educators. Go to{" "}</span>
             <button
               onClick={handleSetupEmail}
@@ -162,18 +181,8 @@ export default function EducatorsPage(): React.JSX.Element {
         empty={{
           icon: Users,
           title: "No educators found",
-          description:
-            search
-              ? "Try a different search term."
-              : hasEmailExtension
-              ? "Create your first educator to get started."
-              : "Setup email extension first to create educators.",
-          action:
-            !search && hasEmailExtension
-              ? { label: "New Educator", onClick: () => ensureOrganization(() => setCreateOpen(true)) }
-              : !search
-              ? { label: "Setup Email Extension", onClick: handleSetupEmail }
-              : undefined,
+          description: emptyDescription,
+          action: emptyAction,
         }}
         loading={
           <div className="space-y-2">
@@ -186,8 +195,8 @@ export default function EducatorsPage(): React.JSX.Element {
         <>
           <EducatorTable
             data={educators}
-            onResetPassword={setResetTarget}
-            onDelete={setDeleteTarget}
+            onResetPassword={isRegistrar ? undefined : setResetTarget}
+            onDelete={isRegistrar ? undefined : setDeleteTarget}
           />
           <Pagination
             page={page}
@@ -200,34 +209,34 @@ export default function EducatorsPage(): React.JSX.Element {
         </>
       </AsyncListState>
 
-      {createOpen && hasEmailExtension && (
+      {!isRegistrar && createOpen && hasEmailExtension && (
         <CreateEducatorDialog
           open={createOpen}
           onClose={() => setCreateOpen(false)}
         />
       )}
 
-      {bulkOpen && hasEmailExtension && (
+      {!isRegistrar && bulkOpen && hasEmailExtension && (
         <BulkCreateEducatorDialog
           open={bulkOpen}
           onClose={() => setBulkOpen(false)}
         />
       )}
 
-      {/* Reset password confirm */}
-      <ConfirmDialog
-        open={resetTarget !== null}
-        onOpenChange={(o) => { if (!o) setResetTarget(null); }}
-        title="Reset password?"
-        message={`This will generate a new password for ${resetTarget?.fullName}. The old password will stop working immediately.`}
-        confirmLabel="Reset Password"
-        destructive
-        isLoading={resetMutation.isPending}
-        onConfirm={handleResetConfirm}
-      />
+      {!isRegistrar && (
+        <ConfirmDialog
+          open={resetTarget !== null}
+          onOpenChange={(o) => { if (!o) setResetTarget(null); }}
+          title="Reset password?"
+          message={`This will generate a new password for ${resetTarget?.fullName}. The old password will stop working immediately.`}
+          confirmLabel="Reset Password"
+          destructive
+          isLoading={resetMutation.isPending}
+          onConfirm={handleResetConfirm}
+        />
+      )}
 
-      {/* Delete educator (blocked when any history exists) */}
-      {deleteTarget && (
+      {!isRegistrar && deleteTarget && (
         <DeleteEntityDialog
           open
           onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
@@ -251,7 +260,6 @@ export default function EducatorsPage(): React.JSX.Element {
         />
       )}
 
-      {/* New credentials after reset */}
       {newCredentials && (
         <EducatorCredentialsCard
           open

@@ -57,11 +57,13 @@ function usePipDrag(
   enabled: boolean,
 ) {
   const dragRef = useRef<DragState | null>(null);
+  const movedRef = useRef(false);
 
   /** Shared move logic for both mouse and touch */
   const applyMove = (clientX: number, clientY: number) => {
     const el = pipRef.current;
     if (!dragRef.current || !el?.parentElement) return;
+    movedRef.current = true;
     const p = el.parentElement.getBoundingClientRect();
     setPos({
       x: Math.max(0, Math.min(clientX - dragRef.current.ox - p.left, p.width  - el.offsetWidth)),
@@ -76,6 +78,7 @@ function usePipDrag(
     const rect  = el.getBoundingClientRect();
     const prect = el.parentElement.getBoundingClientRect();
     dragRef.current = { ox: clientX - rect.left, oy: clientY - rect.top };
+    movedRef.current = false;
     if (pos === null) setPos({ x: rect.left - prect.left, y: rect.top - prect.top });
     return true;
   };
@@ -117,7 +120,7 @@ function usePipDrag(
     document.addEventListener("touchend",  onEnd);
   };
 
-  return { onMouseDown, onTouchStart };
+  return { onMouseDown, onTouchStart, movedRef };
 }
 
 // ─── Hook: resize ─────────────────────────────────────────────────────────────
@@ -185,14 +188,34 @@ export default function PipVideo({ videoId, camOn, micOn, zClass = "z-20", onExp
 
   }, [size]);
 
-  const { onMouseDown, onTouchStart } = usePipDrag(pipRef, pos, setPos, !resizing);
-  const { onResizeStart }             = usePipResize(size, setSize);
+  // Keep the PIP inside its stage when the stage itself resizes
+  // (for example when toggling full screen).
+  useEffect(() => {
+    const el = pipRef.current;
+    const parent = el?.parentElement;
+    if (!el || !parent || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      setPos((prev) => {
+        if (!prev) return prev;
+        const x = Math.max(0, Math.min(prev.x, parent.clientWidth  - el.offsetWidth));
+        const y = Math.max(0, Math.min(prev.y, parent.clientHeight - el.offsetHeight));
+        return x === prev.x && y === prev.y ? prev : { x, y };
+      });
+    });
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, []);
+
+  const { onMouseDown, onTouchStart, movedRef } = usePipDrag(pipRef, pos, setPos, !resizing);
+  const { onResizeStart }                       = usePipResize(size, setSize);
 
   const posStyle: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y }
     : { right: 8, bottom: 8 };
 
   const handleClick = () => {
+    if (movedRef.current) { movedRef.current = false; return; }
     if (resizing) { setResizing(false); return; }
     setShowMenu((v) => !v);
   };

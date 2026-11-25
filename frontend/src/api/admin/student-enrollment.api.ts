@@ -129,3 +129,13 @@ export const studentEnrollmentApi = {
     );
   },
 };
+export const getStudentSchoolYearEnrollment = async (
+  schoolYearId: string,
+  studentId:    string,
+): Promise<PaginatedResponse<StudentSchoolYearEnrollment>> => {
+  const res = await client.get<ApiResponse<PaginatedResponse<StudentSchoolYearEnrollment>>>(
+    `/school-years/${schoolYearId}/enrollments`,
+    { params: { page: 1, limit: 1, student_id: studentId } },
+  );
+  return res.data.data;
+};

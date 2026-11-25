@@ -416,33 +416,35 @@ async function ensureSection(
   capacity: number,
   orderIndex: number,
 ): Promise<{ id: string; capacity: number }> {
-  let existing = await db.section.findFirst({
-    where: { org_id: ctx.orgId, level_id: levelId, name },
-    select: { id: true, capacity: true, deleted_at: true },
-  });
+  const displayName = name.replace(/^[A-Za-z]+-\d+/, '') || name;
+  const candidates = [displayName, name];
+  const legacyName = LEGACY_SECTION_NAMES[name];
+  if (legacyName) candidates.push(legacyName);
 
-  if (!existing) {
-    const legacyName = LEGACY_SECTION_NAMES[name];
-    if (legacyName) {
-      const legacy = await db.section.findFirst({
-        where: { org_id: ctx.orgId, level_id: levelId, name: legacyName },
-        select: { id: true, capacity: true, deleted_at: true },
-      });
-      if (legacy) {
-        await db.section.update({
-          where: { id: legacy.id },
-          data: { name },
-        });
-        existing = legacy;
-      }
-    }
+  let existing: {
+    id: string;
+    name: string;
+    capacity: number;
+    deleted_at: Date | null;
+  } | null = null;
+
+  for (const candidate of candidates) {
+    existing = await db.section.findFirst({
+      where: { org_id: ctx.orgId, level_id: levelId, name: candidate },
+      select: { id: true, name: true, capacity: true, deleted_at: true },
+    });
+    if (existing) break;
   }
 
   if (existing) {
-    if (existing.deleted_at) {
+    const needsRename = existing.name !== displayName;
+    if (needsRename || existing.deleted_at) {
       await db.section.update({
         where: { id: existing.id },
-        data: { deleted_at: null },
+        data: {
+          ...(needsRename ? { name: displayName } : {}),
+          ...(existing.deleted_at ? { deleted_at: null } : {}),
+        },
       });
     }
     return { id: existing.id, capacity: existing.capacity };
@@ -462,7 +464,7 @@ async function ensureSection(
       level_id: levelId,
       course_id: ctx.courseId,
       school_year_id: ctx.schoolYearId,
-      name,
+      name: displayName,
       capacity,
       order_index: orderIndex,
     },

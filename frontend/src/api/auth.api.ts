@@ -1,4 +1,5 @@
 import client from "./client";
+import { API_BASE_URL } from "@/config/api.config";
 import type { AuthUser } from "@/types/auth.types";
 
 export interface LoginRequest {
@@ -32,5 +33,25 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await client.post("/auth/logout");
+  },
+
+  /**
+   * Fire-and-forget "this page is being left" signal. Uses fetch with
+   * keepalive so it survives page unload. No body and no custom headers, so
+   * it stays a simple CORS request (no preflight) and carries the refresh
+   * cookie.
+   */
+  notifySessionClose: (): void => {
+    if (typeof window === "undefined") return;
+    try {
+      const base = String(API_BASE_URL).replace(/\/+$/, "");
+      void fetch(`${base}/auth/session-close`, {
+        method: "POST",
+        credentials: "include",
+        keepalive: true,
+      }).catch(() => undefined);
+    } catch {
+      // Best effort only: the session cookie still dies with the browser.
+    }
   },
 };

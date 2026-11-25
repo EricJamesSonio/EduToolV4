@@ -15,16 +15,16 @@ interface SharedSubjectStepProps {
   onAdd: (name: string) => void
   onRename: (subjectKey: string, name: string) => void
   onDelete: (subjectKey: string) => void
-  onSetLevel: (subjectKey: string, levelName: string | null) => void
+  onSetLevel: (subjectKey: string, levelName: string) => void
   onPromote: (subjectKey: string) => void
   canPromote: boolean
   disabled?: boolean
 }
 
 /**
- * Department-level shared (minor) subjects. Each one applies to a single level
- * and is shared only with the courses/strands that have that level. Promoting
- * one hands it to that level of the course being viewed as a major.
+ * Department-level shared (minor) subjects. Each one is assigned to a single
+ * level and is shared only with the courses/strands that have that level.
+ * Promoting one hands it to that level of the course being viewed as a major.
  */
 export function SharedSubjectStep({
   subjects,
@@ -60,9 +60,10 @@ export function SharedSubjectStep({
 
       <div className="space-y-1.5">
         {subjects.map((subject) => {
+          const currentLevel = subject.levelName ?? levelNames[0] ?? ""
           const options =
-            subject.levelName && !levelNames.includes(subject.levelName)
-              ? [...levelNames, subject.levelName]
+            currentLevel && !levelNames.includes(currentLevel)
+              ? [...levelNames, currentLevel]
               : levelNames
           return (
             <div key={subject.key} className="flex items-center gap-2">
@@ -76,12 +77,11 @@ export function SharedSubjectStep({
               </div>
               <select
                 aria-label={`Level for ${subject.name}`}
-                value={subject.levelName ?? ""}
-                disabled={disabled}
-                onChange={(e) => onSetLevel(subject.key, e.target.value === "" ? null : e.target.value)}
+                value={currentLevel}
+                disabled={disabled || options.length === 0}
+                onChange={(e) => onSetLevel(subject.key, e.target.value)}
                 className="h-8 shrink-0 rounded-md border bg-background px-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <option value="">All levels</option>
                 {options.map((name) => (
                   <option key={name} value={name}>
                     {name}
@@ -97,8 +97,8 @@ export function SharedSubjectStep({
                   disabled={!canPromote}
                   onClick={() => onPromote(subject.key)}
                   title={
-                    subject.levelName
-                      ? `Move to ${subject.levelName} as a major subject`
+                    currentLevel
+                      ? `Move to ${currentLevel} as a major subject`
                       : "Move to the level you are viewing as a major subject"
                   }
                 >

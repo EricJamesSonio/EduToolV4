@@ -23,7 +23,7 @@ import {
 } from "@/components/educator/presentation-builder";
 import { TemplateDropdown } from "@/components/educator/presentation-builder/TemplateSelector";
 import { FontSelector } from "@/components/educator/presentation-builder/FontSelector";
-import { newSlideId, parseWords } from "@/components/educator/presentation-builder/utils";
+import { newSlideId, parseWords, computeSlideRanges } from "@/components/educator/presentation-builder/utils";
 import { FONT_FAMILIES, type FontFamily } from "@/components/educator/presentation-builder/types";
 
 export default function PresentationBuilderPage(): React.JSX.Element {
@@ -49,7 +49,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
   const [showPreview,    setShowPreview]    = useState(false);
   const [previewSlide,   setPreviewSlide]   = useState(0);
 
-  // ── Active font: only affects NEW slides going forward ───────────────────
+  // Active font: only affects NEW slides going forward
   const [activeFont, setActiveFont] = useState<FontFamily>("default");
 
   const [selMode,      setSelMode]      = useState(false);
@@ -65,14 +65,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
   const slideRanges = useMemo(() => {
     const detail = lesson?.detail;
     if (!detail) return [];
-    return slides.map((s) => {
-      if (s.charStart !== null && s.charEnd !== null)
-        return { slideNumber: s.slideNumber, start: s.charStart, end: s.charEnd };
-      const idx = detail.indexOf(s.content);
-      if (idx !== -1)
-        return { slideNumber: s.slideNumber, start: idx, end: idx + s.content.length };
-      return null;
-    });
+    return computeSlideRanges(detail, slides);
   }, [slides, lesson?.detail]);
 
   useEffect(() => {
@@ -99,7 +92,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
     }
   }, [lesson, existingPres]);
 
-  // ── Selection helpers ─────────────────────────────────────────────────────
+  // Selection helpers
   const enterSelMode = useCallback(() => {
     setSelMode(true); setStartWordIdx(null); setEndWordIdx(null); setHoverWordIdx(null);
   }, []);
@@ -129,13 +122,13 @@ export default function PresentationBuilderPage(): React.JSX.Element {
         id: newSlideId(), slideNumber: num,
         title: `Slide ${num}`, content,
         charStart: ws.start, charEnd: we.end,
-        fontSize: "md", fontFamily: activeFont,  // ← inherit active font
+        fontSize: "md", fontFamily: activeFont,
       },
     ]);
     cancelSel();
   }, [startWordIdx, endWordIdx, lesson, words, slides.length, cancelSel, activeFont]);
 
-  // ── Slide mutations ───────────────────────────────────────────────────────
+  // Slide mutations
   const removeSlide = useCallback((id: string) => {
     setSlides((prev) =>
       prev.filter((s) => s.id !== id).map((s, i) => ({ ...s, slideNumber: i + 1 })),
@@ -162,7 +155,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
     setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, fontSize } : s)));
   }, []);
 
-  // Per-slide font change (from modal) — does NOT change activeFont
+  // Per-slide font change (from modal) - does NOT change activeFont
   const updateFontFamily = useCallback((id: string, fontFamily: FontFamily) => {
     setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, fontFamily } : s)));
   }, []);
@@ -175,7 +168,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
     toast.success(`"${label}" applied to all slides`);
   }, []);
 
-  // ── Auto-generate ─────────────────────────────────────────────────────────
+  // Auto-generate
   const handleAutoGenerate = async () => {
     if (!lesson) return;
     const genSlides = (result: Array<{ title: string | null | undefined; content: string }>) =>
@@ -196,7 +189,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
     toast.success("Slides generated!");
   };
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // Save
   const handleSave = async () => {
     if (slides.length === 0) { toast.error("Add at least one slide"); return; }
     try {
@@ -258,7 +251,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
         }
       />
 
-      {/* ── Unified toolbar: Title + Template + Font ──────────────────────── */}
+      {/* Unified toolbar: Title + Template + Font */}
       <Card size="sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input

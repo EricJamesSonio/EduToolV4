@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { Layers, Loader2, Database, Eye, Pencil, School } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -14,6 +14,7 @@ import { useSchoolProfileCardState } from "./hooks/useSchoolProfileCardState"
 import { DepartmentStep } from "./DepartmentStep"
 import { DepartmentSection } from "./DepartmentSection"
 import { DepartmentTabs } from "./DepartmentTabs"
+import { SchoolProfileReadOnlyView } from "./SchoolProfileReadOnlyView"
 import { Card } from "./ui/ProfileCard"
 
 export function SchoolProfileCard() {
@@ -104,14 +105,16 @@ export function SchoolProfileCard() {
         </div>
       )}
 
-      <Card id="departments" icon={Layers} title="Departments">
-        <DepartmentStep
-          selectedTypes={readOnly ? savedTypes : draft.selectedTypes}
-          onToggle={handleToggleDepartment}
-          disabled={readOnly || saveMutation.isPending}
-          visibleTypesOverride={readOnly ? Array.from(savedTypes) : undefined}
-        />
-      </Card>
+      {!(readOnly && hasSavedConfig) && (
+        <Card id="departments" icon={Layers} title="Departments">
+          <DepartmentStep
+            selectedTypes={readOnly ? savedTypes : draft.selectedTypes}
+            onToggle={handleToggleDepartment}
+            disabled={readOnly || saveMutation.isPending}
+            visibleTypesOverride={readOnly ? Array.from(savedTypes) : undefined}
+          />
+        </Card>
+      )}
 
       {/* Empty state — sits right under Departments until a profile is saved. */}
       {!hasSavedConfig && (
@@ -130,7 +133,11 @@ export function SchoolProfileCard() {
         </div>
       )}
 
-      {visibleDepartments.length > 1 && (
+      {readOnly && hasSavedConfig && (
+        <SchoolProfileReadOnlyView departments={savedDepartments} />
+      )}
+
+      {!readOnly && visibleDepartments.length > 1 && (
         <DepartmentTabs
           departments={visibleDepartments}
           activeType={activeDeptType}
@@ -138,7 +145,7 @@ export function SchoolProfileCard() {
         />
       )}
 
-      {activeDepartment && (
+      {!readOnly && activeDepartment && (
         <DepartmentSection
           key={activeDepartment.type}
           department={activeDepartment}

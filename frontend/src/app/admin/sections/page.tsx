@@ -34,11 +34,13 @@ import { programApi } from "@/api/admin/program.api";
 import { DEFAULT_PAGE_SIZE } from "@/api/admin/section.api";
 
 import type { Section } from "@/types/admin/section.types";
+import { useRole } from "@/hooks/useRole";
 
 export default function SectionsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { ensureOrganization } = useOrganizationGuard();
+  const { isRegistrar } = useRole();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Section | null>(null);
@@ -91,22 +93,18 @@ export default function SectionsPage(): React.JSX.Element {
 
   const { preset, savePreset, setEnabled, clearPreset } = useSectionPreset(schoolYearId);
 
-  // Only trust the preset if its department still exists for this school year.
   const presetActive =
     !!preset?.enabled && programs.some((p) => p.id === preset.programId);
 
   const isLoading = sectionsLoading || levelsLoading;
   const isError = sectionsError || levelsError;
 
-  // Reset to page 1 whenever the school year changes
   useEffect(() => { setPage(1); }, [schoolYearId]);
 
-  // Clamp page when the result set shrinks (Educators/Students pattern)
   useEffect(() => {
     if (page > sectionsTotalPages) setPage(Math.max(1, sectionsTotalPages));
   }, [page, sectionsTotalPages]);
 
-  // 🔥 FIXED: full invalidation set
   function handleSaved(): void {
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.sections.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.levels.list({ schoolYearId }) });
@@ -140,7 +138,7 @@ export default function SectionsPage(): React.JSX.Element {
         }
       />
 
-      {schoolYearId && (
+      {schoolYearId && !isRegistrar && (
         <div className="flex items-center justify-end gap-2">
           <SectionPresetButton
             schoolYearId={schoolYearId}
@@ -189,7 +187,7 @@ export default function SectionsPage(): React.JSX.Element {
         </div>
       )}
 
-{!schoolYearId && !syLoading ? (
+      {!schoolYearId && !syLoading ? (
         <SectionEmptyState
           noSchoolYear
           isFiltered={false}
@@ -228,8 +226,8 @@ export default function SectionsPage(): React.JSX.Element {
               onView={(section) =>
                 router.push(`/admin/sections/${section.id}?schoolYearId=${schoolYearId}`)
               }
-              onEdit={setEditTarget}
-              onDelete={setDeleteTarget}
+              onEdit={isRegistrar ? undefined : setEditTarget}
+              onDelete={isRegistrar ? undefined : setDeleteTarget}
             />
             <Pagination
               page={page}
@@ -243,7 +241,7 @@ export default function SectionsPage(): React.JSX.Element {
         </AsyncListState>
       )}
 
-      {createOpen && schoolYearId && (
+      {!isRegistrar && createOpen && schoolYearId && (
         <SectionDialog
           levels={levels}
           programs={programs}
@@ -273,7 +271,6 @@ export default function SectionsPage(): React.JSX.Element {
           onSaved={() => {
             handleSaved();
 
-            // 🔥 FULL RESET
             setFilterLevelId("all");
             setFilterCourseId("all");
             setFilterStrandId("all");
@@ -283,7 +280,7 @@ export default function SectionsPage(): React.JSX.Element {
         />
       )}
 
-      {editTarget && (
+      {!isRegistrar && editTarget && (
         <SectionDialog
           section={editTarget}
           levels={levels}
@@ -295,7 +292,7 @@ export default function SectionsPage(): React.JSX.Element {
         />
       )}
 
-      {deleteTarget && (
+      {!isRegistrar && deleteTarget && (
         <ConfirmDialog
           open
           title="Delete this section?"

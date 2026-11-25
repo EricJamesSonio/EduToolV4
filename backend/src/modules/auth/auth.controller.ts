@@ -46,14 +46,13 @@ export class AuthController {
   ) {
     const tokens = await this.authService.login(dto);
 
-    // Set refresh token as HTTP-only cookie — NOT accessible to JS.
-    // sameSite is 'none' in production because the frontend and backend live on
-    // different Render subdomains (cross-site); 'none' is silently rejected by
-    // browsers unless `secure: true`, which the helper sets in production.
-    res.cookie('refreshToken', tokens.refreshToken, {
-      ...this.getCookieOptions(),
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    // Set refresh token as HTTP-only cookie - NOT accessible to JS.
+    // No maxAge on purpose: it is a session cookie, so the browser drops it
+    // when the browser is closed. sameSite is 'none' in production because
+    // the frontend and backend live on different Render subdomains
+    // (cross-site); 'none' is silently rejected by browsers unless
+    // `secure: true`, which the helper sets in production.
+    res.cookie('refreshToken', tokens.refreshToken, this.getCookieOptions());
 
     // Only return access token in body (refresh token is cookie-only)
     return { accessToken: tokens.accessToken };
@@ -73,16 +72,27 @@ export class AuthController {
 
     const tokens = await this.authService.refresh(refreshToken);
 
-    // Set new refresh token as HttpOnly cookie
-    res.cookie('refreshToken', tokens.refreshToken, {
-      ...this.getCookieOptions(),
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    // Set new refresh token as HttpOnly session cookie
+    res.cookie('refreshToken', tokens.refreshToken, this.getCookieOptions());
 
     // Return only access token in response body
     return {
       accessToken: tokens.accessToken,
     };
+  }
+
+  @Post('session-close')
+  // Sent by the browser when the page is being left (tab/browser close,
+  // hard navigation away). Starts a short grace timer so the session ends
+  // cleanly unless the user comes straight back (reload).
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async sessionClose(@Req() req: Request): Promise<void> {
+    const refreshToken =
+      req.cookies?.refreshToken ?? this.getCookie(req, 'refreshToken');
+    if (!refreshToken) return;
+
+    await this.authService.markSessionClosing(refreshToken);
   }
 
   private getCookie(req: Request, name: string): string | undefined {
@@ -109,7 +119,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    // ALWAYS clear the refresh token cookie — even if access token is expired.
+    // ALWAYS clear the refresh token cookie - even if access token is expired.
     // clearCookie MUST use the exact same sameSite/secure/path as the cookie
     // was set with, or the browser won't recognize it and won't delete it.
     res.clearCookie('refreshToken', this.getCookieOptions());
@@ -124,7 +134,7 @@ export class AuthController {
           await this.authService.logout(payload.sub);
         }
       } catch {
-        // Cookie is already cleared — that's sufficient
+        // Cookie is already cleared - that's sufficient
       }
     }
   }
@@ -150,14 +160,14 @@ export class AuthController {
   }
 
   @Post('resend-otp')
-  // Each call sends an email — 5/min bounds both abuse and mail cost.
+  // Each call sends an email - 5/min bounds both abuse and mail cost.
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() dto: ResendOtpDto) {
     return this.authService.resendOtp(dto);
   }
 
-  // ─── Admin Request (public applicant side) ──────────────────────────────
+  // --- Admin Request (public applicant side) -------------------------------
 
   @Post('admin-request/otp')
   // Sends an email on a fully public, unauthenticated route.

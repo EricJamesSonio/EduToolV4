@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowLeft, AlertCircle, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, AlertCircle, Trash2, Users, CalendarDays } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
@@ -44,6 +45,7 @@ import {
 import type { Subject } from "@/types/admin/subject.types";
 import type { Educator } from "@/types/admin/educator.types";
 import type { Semester } from "@/types/admin/semester.types";
+import type { Student } from "@/types/admin/student.types";
 import type {
   EnrollStudentProgramRequest,
 } from "@/types/admin/student-enrollment.types";
@@ -67,21 +69,35 @@ import {
 } from "./_components";
 import { EnrollmentStepper, type StepDef, type StepStatus } from "./_components/EnrollmentStepper";
 
+type MainTab = "students" | "classes";
+type LeftTab = "all" | "pending" | "enroll";
+
+function parseMainTab(value: string | null): MainTab {
+  return value === "classes" ? "classes" : "students";
+}
+
+function parseLeftTab(value: string | null): LeftTab {
+  if (value === "pending" || value === "enroll") return value;
+  return "all";
+}
+
 export default function EnrollWorkspacePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
   const schoolYearId = params.get("schoolYearId") ?? "";
 
-  const [programId, setProgramId] = useState("");
-  const [courseId, setCourseId] = useState("");
-  const [strandId, setStrandId] = useState("");
-  const [levelId, setLevelId] = useState("");
+  const [programId, setProgramId] = useState(() => params.get("programId") ?? "");
+  const [courseId, setCourseId] = useState(() => params.get("courseId") ?? "");
+  const [strandId, setStrandId] = useState(() => params.get("strandId") ?? "");
+  const [levelId, setLevelId] = useState(() => params.get("levelId") ?? "");
 
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [readyBlockOpen, setReadyBlockOpen] = useState(false);
-  const [leftTab, setLeftTab] = useState<"all" | "pending" | "enroll">("all");
+  const [mainTab, setMainTab] = useState<MainTab>(() => parseMainTab(params.get("view")));
+  const [leftTab, setLeftTab] = useState<LeftTab>(() => parseLeftTab(params.get("tab")));
 
   const [sectionAssignments, setSectionAssignments] = useState<Record<string, string>>({});
   const [unenrollTarget, setUnenrollTarget] = useState<ContextTableRow | null>(null);
@@ -89,6 +105,28 @@ export default function EnrollWorkspacePage() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [classStudentSelections, setClassStudentSelections] = useState<Record<string, Set<string>>>({});
   const [enrollingClassIds, setEnrollingClassIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const next = new URLSearchParams(params.toString());
+    const setOrDelete = (key: string, value: string) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    };
+
+    setOrDelete("programId", programId);
+    setOrDelete("courseId", courseId);
+    setOrDelete("strandId", strandId);
+    setOrDelete("levelId", levelId);
+    setOrDelete("view", mainTab === "classes" ? "classes" : "");
+    setOrDelete("tab", leftTab === "all" ? "" : leftTab);
+
+    if (next.toString() !== params.toString()) {
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    }
+  }, [
+    programId, courseId, strandId, levelId, mainTab, leftTab,
+    params, pathname, router,
+  ]);
 
   const bulkEnrollMutation = useBulkEnrollStudents(schoolYearId);
   const enrollInProgramMutation = useEnrollInProgram(schoolYearId);
@@ -200,6 +238,36 @@ export default function EnrollWorkspacePage() {
   const strand = program?.strands?.find((s) => s.id === strandId) ?? null;
   const level = allLevels.find((l) => l.id === levelId) ?? null;
 
+  useEffect(() => {
+    if (!schoolYearId || progLoading) return;
+    if (programId && !program) {
+      setProgramId("");
+      setCourseId("");
+      setStrandId("");
+      setLevelId("");
+      return;
+    }
+    if (program && courseId && !course) {
+      setCourseId("");
+      setLevelId("");
+      return;
+    }
+    if (program && strandId && !strand) {
+      setStrandId("");
+      setLevelId("");
+    }
+  }, [
+    schoolYearId, progLoading, programId, program,
+    courseId, course, strandId, strand,
+  ]);
+
+  useEffect(() => {
+    if (!schoolYearId || levelsLoading) return;
+    if (levelId && !level) {
+      setLevelId("");
+    }
+  }, [schoolYearId, levelsLoading, levelId, level]);
+
   const programLevels = useMemo(() => {
     if (courseId) {
       const courseLevels = allLevels.filter((l) => l.course_id === courseId);
@@ -249,6 +317,12 @@ export default function EnrollWorkspacePage() {
   const studentMap = useMemo(() => {
     const map = new Map<string, { fullName: string; studentId: string | null }>();
     for (const s of allStudents) map.set(s.id, { fullName: s.fullName, studentId: s.studentId });
+    return map;
+  }, [allStudents]);
+
+  const studentsById = useMemo(() => {
+    const map = new Map<string, Student>();
+    for (const s of allStudents) map.set(s.id, s);
     return map;
   }, [allStudents]);
 
@@ -778,22 +852,32 @@ export default function EnrollWorkspacePage() {
       )}
 
       {levelId && (
-        <>
-          <div className="flex items-center gap-3">
-            <Input
-              placeholder="Search by name, student ID, or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 max-w-sm flex-1"
-            />
-            {filtered.length > 0 && leftTab === "enroll" && (
-              <p className="text-xs text-muted-foreground">
-                {selected.size} of {filtered.length} selected
-              </p>
-            )}
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-5 py-3">
+            <Tabs
+              value={mainTab}
+              onValueChange={(v) => setMainTab(v as MainTab)}
+            >
+              <TabsList className="h-9">
+                <TabsTrigger value="students" className="gap-1.5 px-4">
+                  <Users className="h-4 w-4" />
+                  Students
+                  <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">
+                    {allContextEnrollments.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="classes" className="gap-1.5 px-4">
+                  <CalendarDays className="h-4 w-4" />
+                  Classes
+                  <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">
+                    {filteredClasses.length}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          {mainTab === "students" ? (
             <EnrollStudentPanel
               leftTab={leftTab}
               onTabChange={setLeftTab}
@@ -805,6 +889,7 @@ export default function EnrollWorkspacePage() {
               strandId={strandId}
               levelId={levelId}
               studentMap={studentMap}
+              studentsById={studentsById}
               pageLoading={pageLoading}
               sections={sections}
               sectionAssignments={sectionAssignments}
@@ -820,12 +905,13 @@ export default function EnrollWorkspacePage() {
               enrollBlocked={!isSchoolYearReady}
               bulkEnrollPending={bulkEnrollMutation.isPending}
             />
-
+          ) : (
             <ClassEnrollmentPanel
               classes={filteredClasses}
               isLoading={classesLoading}
               expandedClassId={expandedClassId}
-              onToggleExpand={(id) => setExpandedClassId(expandedClassId === id ? null : id)}
+              onOpenClass={(id) => setExpandedClassId(id)}
+              onClose={() => setExpandedClassId(null)}
               eligibleStudentsByClass={eligibleStudentsByClass}
               enrolledStudentsByClass={enrolledStudentsByClass}
               classEnrollmentsLoading={classEnrollmentsQuery.isLoading}
@@ -839,8 +925,8 @@ export default function EnrollWorkspacePage() {
                 prerequisiteCheckPending && expandedClassId !== null
               }
             />
-          </div>
-        </>
+          )}
+        </div>
       )}
 
       {readyBlockOpen && (
