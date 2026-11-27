@@ -59,8 +59,6 @@ describe('school-year calendar days (TICK-INFRA-017)', () => {
         { logAdminAction: jest.fn().mockResolvedValue(undefined) } as any,
         { assertReady: jest.fn() } as any,
         {} as any,
-        {} as any,
-        {} as any,
         {
           organization: { findUnique: jest.fn().mockResolvedValue(null) },
         } as any,
