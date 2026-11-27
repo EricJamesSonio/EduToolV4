@@ -34,10 +34,11 @@ let refreshPromise: Promise<string> | null = null;
 export function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
     refreshPromise = apiClient
-      .post<{ accessToken: string }>("/auth/refresh")
-      .then(({ data }) => {
-        useAuthStore.getState().setAccessToken(data.accessToken);
-        return data.accessToken;
+      .post<{ success: boolean; data: { accessToken: string } }>("/auth/refresh")
+      .then((res) => {
+        const { accessToken } = res.data.data;
+        useAuthStore.getState().setAccessToken(accessToken);
+        return accessToken;
       })
       .finally(() => {
         refreshPromise = null;
