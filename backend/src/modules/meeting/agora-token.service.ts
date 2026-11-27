@@ -28,6 +28,10 @@ export class AgoraTokenService {
     return parseInt(hash.slice(0, 8), 16) % 2 ** 31;
   }
 
+  uidFor(userId: string): number {
+    return this.userIdToUid(userId);
+  }
+
   async getToken(
     meetingId: string,
     orgId: string,
@@ -40,7 +44,10 @@ export class AgoraTokenService {
       throw new BadRequestException('Meeting has already ended.');
     }
 
-    // Educators always get in; students must be invited or enrolled
+    const isObserver = userRole === 'admin';
+
+    // Educators always get in; students must be invited or enrolled.
+    // Admins are org-scoped observers (subscribe-only token below).
     if (userRole === 'student') {
       const isInvited = await this.meetingRepo.isStudentInvited(
         meetingId,
@@ -68,7 +75,7 @@ export class AgoraTokenService {
       };
     }
 
-    const token = this.buildRtcToken(channel, uid);
+    const token = this.buildRtcToken(channel, uid, isObserver);
     return {
       token,
       channel,
@@ -82,7 +89,11 @@ export class AgoraTokenService {
   // Implements the Agora token algorithm directly without an SDK dependency.
   // Reference: https://docs.agora.io/en/video-calling/get-started/authentication-workflow
 
-  private buildRtcToken(channelName: string, uid: number): string {
+  private buildRtcToken(
+    channelName: string,
+    uid: number,
+    observer = false,
+  ): string {
     const expireTs = Math.floor(Date.now() / 1000) + 3600;
 
     return RtcTokenBuilder.buildTokenWithUid(
@@ -90,7 +101,7 @@ export class AgoraTokenService {
       this.appCert,
       channelName,
       uid,
-      RtcRole.PUBLISHER,
+      observer ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER,
       expireTs,
       expireTs,
     );

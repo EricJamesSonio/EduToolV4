@@ -8,8 +8,10 @@ import {
   StudentMeetingController,
 } from './meeting.controller';
 import { MeetingTokenController } from './meeting-token.controller';
+import { AdminMeetingController } from './admin-meeting.controller';
 
 import { MeetingService } from './meeting.service';
+import { AdminMeetingService } from './admin-meeting.service';
 import { MeetingRepository } from './meeting.repository';
 import { MeetingGateway } from './meeting.gateway';
 import { AgoraTokenService } from './agora-token.service';
@@ -42,9 +44,11 @@ import { GroupyCoreModule } from '../groupy/core/groupy-core.module';
     MeetingJoinController,
     StudentMeetingController,
     MeetingTokenController,
+    AdminMeetingController,
   ],
   providers: [
     MeetingService,
+    AdminMeetingService,
     MeetingRepository,
     MeetingGateway,
     AgoraTokenService,

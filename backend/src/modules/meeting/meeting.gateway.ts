@@ -253,6 +253,11 @@ export class MeetingGateway
       if (meeting.status === 'ended')
         return this.kick(client, 'Meeting has ended');
 
+      if (payload.role === 'admin') {
+        await this.attachObserver(client, meetingId, orgId, payload);
+        return;
+      }
+
       const isEducator =
         payload.role === 'educator' && meeting.educator_id === payload.sub;
 
@@ -492,6 +497,54 @@ export class MeetingGateway
     if (!entry) return null;
     return Math.max(0, Math.ceil((entry.endsAt - Date.now()) / 1000));
   }
+/** Participants currently inside a room (admin live view). */
+  getParticipants(meetingId: string) {
+    return this.rooms.get(meetingId)?.getParticipantList() ?? [];
+  }
+
+  /**
+   * Silent admin observer: joins the socket room to receive room events, but
+   * is never registered as a participant and never sets meetingId on the
+   * socket, so every inbound handler ignores it.
+   */
+  private async attachObserver(
+    client: Socket,
+    meetingId: string,
+    orgId: string,
+    payload: AuthPayload,
+  ) {
+    const rows = await this.db.meetingChatMessage.findMany({
+      where: { meeting_id: meetingId, org_id: orgId },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+
+    if (!client.connected) return;
+
+    client.data.observer = true;
+    await client.join(meetingId);
+
+    const room = this.rooms.get(meetingId);
+    const chatHistory: ChatMessage[] = rows.reverse().map((r) => ({
+      id: r.id,
+      senderId: r.sender_id,
+      senderName: r.sender_name,
+      message: r.message,
+      createdAt: r.created_at.toISOString(),
+    }));
+
+    client.emit('room:state', {
+      participants: room?.getParticipantList() ?? [],
+      chatHistory,
+      currentSlide: room?.currentSlide ?? 0,
+      isPresenting: room?.isPresenting ?? false,
+      presentationId: room?.presentationId,
+      selfUserId: payload.sub,
+    });
+
+    this.logger.log(`[${meetingId}] admin ${payload.sub} observing`);
+  }
+
 
   private async autoEndEmptyMeeting(meetingId: string, orgId: string) {
     // Someone rejoined while the timer was firing.
