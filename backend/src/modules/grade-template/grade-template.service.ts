@@ -476,8 +476,12 @@ export class GradeTemplateService {
           })
         : [],
     ]);
-    const educatorName = new Map(profiles.map((p) => [p.account_id, p.full_name]));
-    const sectionName = new Map(sections.map((s) => [s.id, s.name]));
+    const educatorName = new Map<string, string>(
+      profiles.map((p) => [p.account_id, p.full_name] as [string, string]),
+    );
+    const sectionName = new Map<string, string>(
+      sections.map((s) => [s.id, s.name] as [string, string]),
+    );
     const subByClass = new Map(submissions.map((s) => [s.class_id, s]));
 
     const rows = classes.map((c) => {
@@ -1131,8 +1135,12 @@ export class GradeTemplateService {
         : [],
     ]);
     return {
-      years: new Map(years.map((y) => [y.id, y.name])),
-      programs: new Map(programs.map((p) => [p.id, p.name])),
+      years: new Map<string, string>(
+        years.map((y) => [y.id, y.name] as [string, string]),
+      ),
+      programs: new Map<string, string>(
+        programs.map((p) => [p.id, p.name] as [string, string]),
+      ),
     };
   }
 
