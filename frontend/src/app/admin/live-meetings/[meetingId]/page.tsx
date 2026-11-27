@@ -35,19 +35,19 @@ export default function LiveMeetingWatchPage() {
 
   const [muted, setMuted] = useState(false);
   const authToken = useAuthStore.getState().accessToken ?? "";
-
   const socketToken = session ? authToken : "";
+
   const { connected, participants, chat, meetingEnded } = useMeetingSocket({
     meetingId,
-    token: meetingEnded_safe(socketToken),
+    token: socketToken,
   });
 
   const active = !!session && !meetingEnded;
 
   const { joined, remoteUsers, error } = useAgoraViewer({
-    appId: active ? session.appId : "",
-    channel: active ? session.channel : "",
-    token: active ? session.token : "",
+    appId: active ? (session?.appId ?? "") : "",
+    channel: active ? (session?.channel ?? "") : "",
+    token: active ? (session?.token ?? "") : "",
     uid: session?.uid ?? 0,
     audioMuted: muted,
   });
