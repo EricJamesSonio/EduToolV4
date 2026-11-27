@@ -433,7 +433,11 @@ export class AuthService {
       return;
     }
 
-    await this.authRepository.markSessionClosing(accountId, Date.now());
+    await this.authRepository.markSessionClosing(
+      accountId,
+      Date.now(),
+      session.hash,
+    );
   }
 
   async logout(accountId: string): Promise<void> {

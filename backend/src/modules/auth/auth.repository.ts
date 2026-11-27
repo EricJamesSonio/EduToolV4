@@ -145,7 +145,11 @@ export class AuthRepository {
    * Marks the session as "being left". Same read-modify-write pattern as
    * saveRefreshToken so the rest of metadata is preserved.
    */
-  async markSessionClosing(accountId: string, closingAt: number) {
+  async markSessionClosing(
+    accountId: string,
+    closingAt: number,
+    expectedHash: string,
+  ) {
     return this.db.$transaction(async (tx) => {
       const current = await tx.profile.findUnique({
         where: { account_id: accountId },
@@ -154,11 +158,16 @@ export class AuthRepository {
 
       if (!current) return null;
 
+      const currentMeta = toMetaObject(current.metadata);
+
+      // The session was rotated while this signal was being verified.
+      if (currentMeta.refreshToken !== expectedHash) return null;
+
       return tx.profile.update({
         where: { account_id: accountId },
         data: {
           metadata: {
-            ...toMetaObject(current.metadata),
+            ...currentMeta,
             sessionClosingAt: closingAt,
           },
         },
