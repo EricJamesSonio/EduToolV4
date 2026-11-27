@@ -8,6 +8,10 @@ export const envValidationSchema = Joi.object({
 
   DATABASE_URL: Joi.string().required(),
 
+  // Max connections held by this process's pg pool. Keep it low enough that
+  // (instances x DB_POOL_MAX) stays under the Postgres connection limit.
+  DB_POOL_MAX: Joi.number().integer().min(1).max(50).optional(),
+
   JWT_SECRET: Joi.string().required(),
   JWT_EXPIRES_IN: Joi.string().default('1d'),
 
