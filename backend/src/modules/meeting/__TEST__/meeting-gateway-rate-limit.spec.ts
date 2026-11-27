@@ -50,6 +50,7 @@ describe('MeetingGateway rate limiting + validation (Phase 2)', () => {
       {} as never,
       db as never,
       {} as never,
+      {} as never,
     );
     serverEmit = jest.fn();
     (gateway as unknown as { server: unknown }).server = {
