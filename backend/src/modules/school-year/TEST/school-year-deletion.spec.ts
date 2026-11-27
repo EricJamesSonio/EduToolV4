@@ -50,8 +50,6 @@ describe('SchoolYearService safe delete', () => {
       {} as any,
       audit as any,
       {} as any,
-      {} as any,
-      {} as any,
       programService as any,
       db as any,
     );
