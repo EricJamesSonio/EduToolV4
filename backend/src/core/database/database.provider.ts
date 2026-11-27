@@ -3,11 +3,25 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
+// Managed Postgres plans have a small connection ceiling, and every running
+// instance (rolling deploy, local dev against the same DB) opens its own pool.
+// Keep each pool small and let idle connections go.
+const DEFAULT_POOL_MAX = 5;
+const POOL_IDLE_TIMEOUT_MS = 10_000;
+const POOL_CONNECT_TIMEOUT_MS = 10_000;
+
+function resolvePoolMax(): number {
+  const parsed = Number.parseInt(process.env.DB_POOL_MAX ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_POOL_MAX;
+}
+
 @Injectable()
 export class DatabaseService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  private readonly pool: Pool;
+
   constructor() {
     // Docker/the containerized env talks to the DB over TLS but the remote
     // chain is self-signed for the managed Postgres. Opt-in (via env) to
@@ -56,6 +70,9 @@ export class DatabaseService
 
     const pool = new Pool({
       connectionString,
+      max: resolvePoolMax(),
+      idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
+      connectionTimeoutMillis: POOL_CONNECT_TIMEOUT_MS,
       ...(ssl ? { ssl } : {}),
     });
 
@@ -70,6 +87,8 @@ export class DatabaseService
       adapter,
       log: queryLogEnabled ? ['query', 'warn', 'error'] : ['warn', 'error'],
     });
+
+    this.pool = pool;
   }
 
   async onModuleInit() {
@@ -78,5 +97,14 @@ export class DatabaseService
 
   async onModuleDestroy() {
     await this.$disconnect();
+
+    // The driver adapter does not own the pool, so release its connections
+    // explicitly. Otherwise a replaced instance keeps its slots until the
+    // process dies.
+    try {
+      await this.pool.end();
+    } catch {
+      /* pool already closed */
+    }
   }
 }
