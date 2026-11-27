@@ -26,6 +26,7 @@ import {
   School,
   Inbox,
   LifeBuoy,
+  Video,
 } from "lucide-react";
 
 const GROUPS = [
@@ -70,6 +71,7 @@ const GROUPS = [
   {
     label: "System",
     items: [
+      { label: "Live Meetings", href: "/admin/live-meetings", icon: Video, registrarVisible: false },
       { label: "Grade Lock", href: "/admin/grade-lock", icon: Lock, registrarVisible: false },
       { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText, registrarVisible: false },
     ],
