@@ -19,7 +19,7 @@ export const useMeetings = (classId: string) => {
   return useAsyncQuery<Meeting[]>(
     queryKeys.educator.meetings.list(classId),
     () => meetingApi.getAll(classId),
-    { enabled: !!classId },
+    { enabled: !!classId, meta: { preset: "list", feature: "meetings" } },
   );
 };
 
@@ -31,7 +31,11 @@ export const useMeeting = (
   return useAsyncQuery<Meeting>(
     queryKeys.educator.meetings.detail(meetingId),
     () => meetingApi.getOne(classId, meetingId),
-    { enabled: !!classId && !!meetingId, refetchInterval: options?.refetchInterval },
+    {
+      enabled: !!classId && !!meetingId,
+      refetchInterval: options?.refetchInterval,
+      meta: { preset: "list", feature: "meetings" },
+    },
   );
 };
 
@@ -41,7 +45,7 @@ export const useEnrolledStudents = (
   return useAsyncQuery<EnrolledStudent[]>(
     queryKeys.educator.classes.students(classId),
     () => meetingApi.getEnrolledStudents(classId),
-    { enabled: !!classId },
+    { enabled: !!classId, meta: { preset: "list", feature: "meetings" } },
   );
 };
 
@@ -90,7 +94,7 @@ export const useMeetingToken = (meetingId: string) => {
   return useAsyncQuery<MeetingToken>(
     queryKeys.educator.meetings.token(meetingId),
     () => meetingApi.getToken(meetingId),
-    { enabled: !!meetingId },
+    { enabled: !!meetingId, meta: { preset: "list", feature: "meetings" } },
   );
 };
 

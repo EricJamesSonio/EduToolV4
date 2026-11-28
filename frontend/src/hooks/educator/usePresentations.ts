@@ -12,7 +12,7 @@ export function usePresentations(classId: string) {
   return useAsyncQuery<Presentation[]>(
     queryKeys.educator.presentations.list(classId),
     () => presentationApi.getAll(classId),
-    { enabled: !!classId },
+    { enabled: !!classId, meta: { preset: 'list' } },
   );
 }
 
