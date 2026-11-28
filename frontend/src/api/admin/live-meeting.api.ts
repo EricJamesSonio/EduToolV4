@@ -17,9 +17,13 @@ export const liveMeetingApi = {
     return data?.data ?? [];
   },
 
-  getToken: async (meetingId: string): Promise<LiveMeetingToken> => {
+  getToken: async (
+    meetingId: string,
+    mode: "watch" | "join" = "watch",
+  ): Promise<LiveMeetingToken> => {
     const { data } = await apiClient.get<ApiResponse<LiveMeetingToken>>(
       `/admin/meetings/${meetingId}/token`,
+      { params: { mode } },
     );
     return data.data;
   },
