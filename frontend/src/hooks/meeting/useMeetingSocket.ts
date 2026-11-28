@@ -188,7 +188,10 @@ export const useMeetingSocket = ({
       });
 
       socket.on("connect_error", (err) => {
-        console.error("Socket connect error:", err.message);
+        // Some networks and proxies block a direct websocket, so later
+        // attempts start with HTTP long-polling and upgrade when possible.
+        if (socket) socket.io.opts.transports = ["polling", "websocket"];
+        console.warn("Meeting socket could not connect, retrying:", err.message);
       });
 
       socket.on("error", (err: { message?: string }) => {
