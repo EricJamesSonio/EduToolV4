@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { AdminOnly, Roles } from '@/commons/decorators/roles.decorator';
@@ -22,7 +22,13 @@ export class AdminMeetingController {
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') adminId: string,
+    @Query('mode') mode?: string,
   ) {
-    return this.adminMeetingService.issueToken(id, orgId, adminId);
+    return this.adminMeetingService.issueToken(
+      id,
+      orgId,
+      adminId,
+      mode === 'join',
+    );
   }
 }

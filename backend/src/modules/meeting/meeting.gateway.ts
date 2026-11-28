@@ -253,9 +253,18 @@ export class MeetingGateway
       if (meeting.status === 'ended')
         return this.kick(client, 'Meeting has ended');
 
-      if (payload.role === 'admin') {
+      // Admins observe by default and only become participants on request.
+      const isAdminJoin =
+        payload.role === 'admin' &&
+        client.handshake.query?.adminMode === 'join';
+
+      if (payload.role === 'admin' && !isAdminJoin) {
         await this.attachObserver(client, meetingId, orgId, payload);
         return;
+      }
+
+      if (isAdminJoin && meeting.status !== 'active') {
+        return this.kick(client, 'Meeting is not live');
       }
 
       const isEducator =
@@ -278,7 +287,7 @@ export class MeetingGateway
         }),
       ]);
 
-      if (!isEducator && !invited) {
+      if (!isEducator && !invited && !isAdminJoin) {
         return this.kick(client, 'Not authorized for this meeting');
       }
 

@@ -60,12 +60,18 @@ export class AdminMeetingService {
       .filter((m) => m.participantCount > 0);
   }
 
-  async issueToken(meetingId: string, orgId: string, adminId: string) {
+  async issueToken(
+    meetingId: string,
+    orgId: string,
+    adminId: string,
+    join = false,
+  ) {
     const result = await this.agoraTokenService.getToken(
       meetingId,
       orgId,
       adminId,
       'admin',
+      join,
     );
 
     await this.auditLog.logActivityEvent({
@@ -74,7 +80,7 @@ export class AdminMeetingService {
       action: 'meeting_observed',
       entityType: 'meeting',
       entityId: meetingId,
-      metadata: { meetingId },
+      metadata: { meetingId, mode: join ? 'join' : 'watch' },
     });
 
     return result;

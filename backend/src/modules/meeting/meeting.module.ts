@@ -14,6 +14,7 @@ import { MeetingService } from './meeting.service';
 import { AdminMeetingService } from './admin-meeting.service';
 import { MeetingRepository } from './meeting.repository';
 import { MeetingGateway } from './meeting.gateway';
+import { MeetingPresenceGateway } from './meeting-presence.gateway';
 import { AgoraTokenService } from './agora-token.service';
 
 import { ClassModule } from '../class/class.module';
@@ -51,6 +52,7 @@ import { GroupyCoreModule } from '../groupy/core/groupy-core.module';
     AdminMeetingService,
     MeetingRepository,
     MeetingGateway,
+    MeetingPresenceGateway,
     AgoraTokenService,
     EnrollmentRepository,
   ],

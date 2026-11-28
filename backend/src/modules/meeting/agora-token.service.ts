@@ -37,6 +37,7 @@ export class AgoraTokenService {
     orgId: string,
     userId: string,
     userRole: string,
+    adminCanPublish = false,
   ) {
     const meeting = await this.meetingRepo.findById(meetingId, orgId);
     if (!meeting) throw new NotFoundException('Meeting not found.');
@@ -44,10 +45,10 @@ export class AgoraTokenService {
       throw new BadRequestException('Meeting has already ended.');
     }
 
-    const isObserver = userRole === 'admin';
+    const isObserver = userRole === 'admin' && !adminCanPublish;
 
     // Educators always get in; students must be invited or enrolled.
-    // Admins are org-scoped observers (subscribe-only token below).
+    // Admins are org-scoped: subscribe-only unless they choose to join.
     if (userRole === 'student') {
       const isInvited = await this.meetingRepo.isStudentInvited(
         meetingId,
