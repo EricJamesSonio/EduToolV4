@@ -43,6 +43,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${kodchasan.variable} ${jetbrainsMono.variable} ${plusJakartaSans.variable}`}
     >
       <body className="antialiased app-no-text-cursor">
