@@ -1,7 +1,8 @@
 "use client";
 
+import { Radio } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AsyncListState } from "@/components/shared/AsyncListState";
 import { LiveMeetingCard } from "@/components/admin/live-meeting/LiveMeetingCard";
 import { useLiveMeetings } from "@/hooks/admin/useLiveMeetings";
 
@@ -13,26 +14,28 @@ export default function LiveMeetingsPage() {
     <div className="space-y-6 p-6">
       <PageHeader
         title="Live Meetings"
-        description="Video meetings happening right now. Watch any of them without an invite."
+        description="Video meetings happening right now. Watch any of them or join in."
       />
 
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-        </div>
-      ) : list.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          No live meetings right now. This page refreshes automatically.
-        </div>
-      ) : (
+      <AsyncListState
+        isLoading={isLoading}
+        isError={!isLoading && !meetings}
+        isEmpty={list.length === 0}
+        errorTitle="We could not load live meetings"
+        errorDescription="Check your connection. This page keeps retrying automatically."
+        empty={{
+          icon: Radio,
+          title: "No live meetings right now",
+          description:
+            "Meetings show up here once someone is in the room. This page refreshes automatically.",
+        }}
+      >
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((meeting) => (
             <LiveMeetingCard key={meeting.id} meeting={meeting} />
           ))}
         </div>
-      )}
+      </AsyncListState>
     </div>
   );
 }
