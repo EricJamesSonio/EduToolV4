@@ -58,10 +58,12 @@ export function useMeetingAttendance(
   useEffect(() => {
     const now     = Date.now();
     const prevIds = prevIdsRef.current;
-    const currIds = new Set(participants.map((p) => p.userId));
+    // Admins who drop in are not part of class attendance.
+    const tracked = participants.filter((p) => p.role !== "admin");
+    const currIds = new Set(tracked.map((p) => p.userId));
 
     // ── Detect new joins ──────────────────────────────────────────────────
-    for (const p of participants) {
+    for (const p of tracked) {
       if (prevIds.has(p.userId)) continue; // was already here
 
       activeSessionsRef.current.set(p.userId, now);
@@ -81,7 +83,7 @@ export function useMeetingAttendance(
           next.set(p.userId, {
             userId:       p.userId,
             name:         p.name,
-            role:         p.role,
+            role:         p.role === "educator" ? "educator" : "student",
             totalSeconds: 0,
             sessions:     [{ joinedAt: now, leftAt: 0 }],
           });

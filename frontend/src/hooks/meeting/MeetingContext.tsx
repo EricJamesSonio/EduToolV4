@@ -1,11 +1,14 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
 import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
 import type { ILocalAudioTrack, ILocalVideoTrack, IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
-import type { MeetingParticipant, ChatMessage } from "@/types/meeting/socket.types";
+import type { MeetingParticipant, MeetingWatcher, ChatMessage } from "@/types/meeting/socket.types";
 import type { IncomingReaction, IncomingHandRaise } from "@/hooks/meeting/useMeetingSocket";
+
+type MeetingRole = "educator" | "student" | "admin";
 
 interface MeetingTokenData {
   token: string;
@@ -19,7 +22,7 @@ interface MeetingContextValue {
   isMinimized: boolean;
   meetingId: string;
   classId: string;
-  role: "educator" | "student";
+  role: MeetingRole;
   origin: "groupy" | "scheduled";
   joined: boolean;
   localAudio: ILocalAudioTrack | null;
@@ -30,6 +33,7 @@ interface MeetingContextValue {
   shareScreen: () => Promise<void>;
   connected: boolean;
   participants: MeetingParticipant[];
+  watchers: MeetingWatcher[];
   chat: ChatMessage[];
   currentSlide: number;
   isPresenting: boolean;
@@ -49,7 +53,7 @@ interface MeetingContextValue {
   joinMeeting: (params: {
     classId: string;
     meetingId: string;
-    role: "educator" | "student";
+    role: MeetingRole;
     tokenData: MeetingTokenData;
     authToken: string;
     /** Where the meeting was launched from — Groupy rooms return to the chat. */
@@ -74,7 +78,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   const [meetingParams, setMeetingParams] = useState<{
     classId: string;
     meetingId: string;
-    role: "educator" | "student";
+    role: MeetingRole;
     tokenData: MeetingTokenData;
     authToken: string;
     origin: "groupy" | "scheduled";
@@ -88,8 +92,9 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   };
 
   const socketProps = {
-    meetingId: meetingParams?.meetingId ?? "",
-    token:     meetingParams?.authToken ?? "",
+    meetingId:     meetingParams?.meetingId ?? "",
+    token:         meetingParams?.authToken ?? "",
+    asParticipant: meetingParams?.role === "admin",
   };
 
   const {
@@ -98,7 +103,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   } = useAgoraRTC(agoraProps);
 
   const {
-    connected, participants, chat, currentSlide, isPresenting, presentationId,
+    connected, participants, watchers, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
     changeSlide, startPresentation, stopPresentation,
     latestReaction,
@@ -109,6 +114,18 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     clearLatestReaction,
     clearLatestHandRaise,
   } = useMeetingSocket(socketProps);
+
+  // Tell the room once whenever an admin starts watching.
+  const announcedWatchersRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    for (const watcher of watchers) {
+      if (!announcedWatchersRef.current.has(watcher.userId)) {
+        toast.info(`${watcher.name} (admin) is watching`);
+      }
+    }
+    announcedWatchersRef.current = new Set(watchers.map((w) => w.userId));
+  }, [watchers]);
 
   // Clears the last received reaction / hand-raise. Called when a user
   // re-enters an already-running meeting so stale ephemeral events from a
@@ -121,7 +138,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   const joinMeeting = useCallback((params: {
     classId: string;
     meetingId: string;
-    role: "educator" | "student";
+    role: MeetingRole;
     tokenData: MeetingTokenData;
     authToken: string;
     origin?: "groupy" | "scheduled";
@@ -152,7 +169,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     joined, localAudio, localVideo, remoteUsers,
     toggleMic, toggleCamera, shareScreen,
 
-    connected, participants, chat, currentSlide, isPresenting, presentationId,
+    connected, participants, watchers, chat, currentSlide, isPresenting, presentationId,
 
     // Gate overlay values — null when not in a session so stale data never leaks
     latestReaction:  meetingParams ? latestReaction  : null,

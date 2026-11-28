@@ -7,12 +7,15 @@ import { refreshAccessToken } from "@/api/client";
 import { useAuthStore } from "@/store/auth.store";
 import type {
   MeetingParticipant,
+  MeetingWatcher,
   ChatMessage,
 } from "@/types/meeting/socket.types";
 
 interface UseMeetingSocketProps {
   meetingId: string;
   token: string;
+  /** Admins only: enter as a participant instead of an observer. */
+  asParticipant?: boolean;
 }
 
 export interface IncomingReaction {
@@ -44,6 +47,8 @@ interface UseMeetingSocketReturn {
   socket: Socket | null;
   connected: boolean;
   participants: MeetingParticipant[];
+  /** Admins who are visibly watching the room */
+  watchers: MeetingWatcher[];
   chat: ChatMessage[];
   currentSlide: number;
   isPresenting: boolean;
@@ -58,6 +63,8 @@ interface UseMeetingSocketReturn {
   meetingEnded: boolean;
   /** Reset the ended flag (used when leaving / starting a new meeting). */
   clearMeetingEnded: () => void;
+  /** Observer admins only: show or hide yourself as watching. */
+  setWatching: (visible: boolean) => void;
   sendChat: (message: string) => void;
   raiseHand: () => void;
   lowerHand: () => void;
@@ -74,11 +81,13 @@ interface UseMeetingSocketReturn {
 export const useMeetingSocket = ({
   meetingId,
   token,
+  asParticipant = false,
 }: UseMeetingSocketProps): UseMeetingSocketReturn => {
   const socketRef = useRef<Socket | null>(null);
 
   const [connected,        setConnected]        = useState(false);
   const [participants,     setParticipants]      = useState<MeetingParticipant[]>([]);
+  const [watchers,         setWatchers]          = useState<MeetingWatcher[]>([]);
   const [chat,             setChat]              = useState<ChatMessage[]>([]);
   const [currentSlide,     setCurrentSlide]      = useState(0);
   const [isPresenting,     setIsPresenting]      = useState(false);
@@ -113,6 +122,7 @@ export const useMeetingSocket = ({
     setRecentReactions([]);
     setLatestHandRaise(null);
     setMeetingEnded(false);
+    setWatchers([]);
     prevParticipantsRef.current = [];
     selfUserIdRef.current = null;
     readyRef.current = false;
@@ -140,7 +150,7 @@ export const useMeetingSocket = ({
         auth: (cb) => {
           cb({ token: useAuthStore.getState().accessToken || token });
         },
-        query: { meetingId },
+        query: asParticipant ? { meetingId, adminMode: "join" } : { meetingId },
         transports: ["websocket"],
         reconnection: true,
         reconnectionAttempts: Infinity,
@@ -208,9 +218,15 @@ export const useMeetingSocket = ({
 
           readyRef.current = true;
           setConnected(true);
+          socket?.emit("watchers:sync");
           flushPending();
         }
       );
+
+      socket.on("room:watchers", (data: { watchers: MeetingWatcher[] }) => {
+        if (!isActive) return;
+        setWatchers(data.watchers || []);
+      });
 
       socket.on(
         "room:participant_joined",
@@ -326,8 +342,9 @@ export const useMeetingSocket = ({
       readyRef.current = false;
       pendingRef.current = [];
       setConnected(false);
+      setWatchers([]);
     };
-  }, [meetingId, token]);
+  }, [meetingId, token, asParticipant]);
 
   // Emits right away when the room is ready, otherwise holds the event until
   // the server has registered us so it is never silently dropped.
@@ -341,6 +358,10 @@ export const useMeetingSocket = ({
     pendingRef.current.push({ event, payload });
     if (pendingRef.current.length > MAX_QUEUED_EMITS) pendingRef.current.shift();
   }, []);
+
+  const setWatching = useCallback((visible: boolean): void => {
+    emitSafe("observer:set_visibility", { visible });
+  }, [emitSafe]);
 
   const sendChat = useCallback((message: string): void => {
     emitSafe("chat:send", { message });
@@ -393,6 +414,7 @@ export const useMeetingSocket = ({
     socket: socketRef.current,
     connected,
     participants,
+    watchers,
     chat,
     currentSlide,
     isPresenting,
@@ -402,6 +424,7 @@ export const useMeetingSocket = ({
     latestHandRaise,
     meetingEnded,
     clearMeetingEnded,
+    setWatching,
     sendChat,
     raiseHand,
     lowerHand,
