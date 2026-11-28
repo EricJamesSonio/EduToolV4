@@ -3,13 +3,15 @@
 import { useEffect, useRef } from "react";
 import { VideoOff } from "lucide-react";
 import type { IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
+import { cn } from "@/lib/utils";
 
 interface LiveMeetingTileProps {
   user: IAgoraRTCRemoteUser;
   label: string;
+  className?: string;
 }
 
-export function LiveMeetingTile({ user, label }: LiveMeetingTileProps) {
+export function LiveMeetingTile({ user, label, className }: LiveMeetingTileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoTrack = user.videoTrack;
 
@@ -26,7 +28,12 @@ export function LiveMeetingTile({ user, label }: LiveMeetingTileProps) {
   }, [videoTrack]);
 
   return (
-    <div className="relative aspect-video overflow-hidden rounded-xl bg-zinc-900 shadow-sm ring-1 ring-border">
+    <div
+      className={cn(
+        "relative aspect-video overflow-hidden rounded-xl bg-zinc-900 shadow-sm ring-1 ring-border",
+        className,
+      )}
+    >
       <div ref={containerRef} className="absolute inset-0" />
 
       {!videoTrack && (
