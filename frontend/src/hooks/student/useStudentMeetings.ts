@@ -10,7 +10,11 @@ export const useStudentMeetings = (classId: string) => {
   return useAsyncQuery(
     queryKeys.student.meetings.list({ classId }),
     () => studentMeetingApi.getAll(classId),
-    { enabled: !!classId, refetchInterval: MEETING_REFRESH_MS },
+    {
+      enabled: !!classId,
+      refetchInterval: MEETING_REFRESH_MS,
+      meta: { preset: "list", feature: "meetings" },
+    },
   );
 };
 
@@ -18,7 +22,11 @@ export const useStudentMeeting = (classId: string, meetingId: string) => {
   return useAsyncQuery(
     queryKeys.student.meetings.detail(meetingId),
     () => studentMeetingApi.getOne(classId, meetingId),
-    { enabled: !!classId && !!meetingId, refetchInterval: MEETING_REFRESH_MS },
+    {
+      enabled: !!classId && !!meetingId,
+      refetchInterval: MEETING_REFRESH_MS,
+      meta: { preset: "list", feature: "meetings" },
+    },
   );
 };
 
@@ -35,6 +43,6 @@ export const useMeetingToken = (meetingId: string) => {
   return useAsyncQuery(
     ["student", "meetings", "token", meetingId],
     () => studentMeetingApi.getToken(meetingId),
-    { enabled: !!meetingId },
+    { enabled: !!meetingId, meta: { preset: "list", feature: "meetings" } },
   );
 };
