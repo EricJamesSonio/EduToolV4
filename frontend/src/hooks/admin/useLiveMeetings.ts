@@ -6,7 +6,7 @@ import type {
   LiveMeetingToken,
 } from "@/types/admin/live-meeting.types";
 
-const LIVE_MEETINGS_REFRESH_MS = 5_000;
+const LIVE_MEETINGS_REFRESH_MS = 10_000;
 
 const liveMeetingKeys = {
   list: () => [...adminQueryKeys.all, "liveMeetings", "list"] as const,
@@ -18,7 +18,13 @@ export const useLiveMeetings = () => {
   return useAsyncQuery<LiveMeeting[]>(
     liveMeetingKeys.list(),
     () => liveMeetingApi.getLive(),
-    { refetchInterval: LIVE_MEETINGS_REFRESH_MS },
+    {
+      meta: { preset: "realtime", feature: "liveMeetings" },
+      staleTime: LIVE_MEETINGS_REFRESH_MS,
+      refetchInterval: LIVE_MEETINGS_REFRESH_MS,
+      // The next poll is the retry, so failures do not stack extra requests.
+      retry: false,
+    },
   );
 };
 
@@ -26,6 +32,12 @@ export const useLiveMeetingToken = (meetingId: string) => {
   return useAsyncQuery<LiveMeetingToken>(
     liveMeetingKeys.token(meetingId),
     () => liveMeetingApi.getToken(meetingId),
-    { enabled: !!meetingId },
+    {
+      enabled: !!meetingId,
+      meta: { preset: "detail", feature: "liveMeetings" },
+      staleTime: 0,
+      gcTime: 0,
+      refetchOnReconnect: false,
+    },
   );
 };
