@@ -470,10 +470,13 @@ export function ParticipantsPanel({
   currentUserName,
   role,
   localVideo,
-}: ParticipantsPanelProps) {
+}: Omit<ParticipantsPanelProps, "role"> & {
+  role: "educator" | "student" | "admin";
+}) {
   const [contextMenu,      setContextMenu]      = useState<ContextMenu | null>(null);
   const [fullscreenTarget, setFullscreenTarget] = useState<Participant | null>(null);
   const [showGrid,         setShowGrid]         = useState(false);
+  const { watchers } = useMeeting();
 
   const list: Participant[] =
     currentUserId && !participants.some((p) => p.userId === currentUserId)
@@ -489,6 +492,9 @@ export function ParticipantsPanel({
       : participants;
 
   const othersCount = list.filter((p) => p.userId !== currentUserId).length;
+  const onlyWatching = watchers.filter(
+    (w) => !list.some((p) => p.userId === w.userId),
+  );
 
   const handleRightClick = useCallback(
     (e: React.MouseEvent, participant: Participant) => {
@@ -534,6 +540,26 @@ export function ParticipantsPanel({
             </div>
           );
         })}
+
+        {onlyWatching.length > 0 && (
+          <div className="space-y-1.5 border-t border-border pt-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Watching ({onlyWatching.length})
+            </p>
+            {onlyWatching.map((w) => (
+              <div
+                key={w.userId}
+                className="flex items-center gap-3 rounded-xl border border-dashed border-border px-3 py-2"
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full bg-accent" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{w.name}</p>
+                  <p className="text-[11px] text-muted-foreground">Admin is watching</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {othersCount === 0 && (
           <EmptyState

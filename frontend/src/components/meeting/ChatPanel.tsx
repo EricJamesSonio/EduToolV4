@@ -11,12 +11,14 @@ interface ChatPanelProps {
   messages: ChatMessage[];
   currentUserId: string;
   onSend: (message: string) => void;
+  readOnly?: boolean;
 }
 
 export function ChatPanel({
   messages,
   currentUserId,
   onSend,
+  readOnly = false,
 }: ChatPanelProps): React.JSX.Element {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -39,7 +41,11 @@ export function ChatPanel({
           <EmptyState
             icon={MessageSquare}
             title="No messages yet"
-            description="Say hello to start the conversation."
+            description={
+              readOnly
+                ? "Messages from the meeting will appear here."
+                : "Say hello to start the conversation."
+            }
             className="min-h-0 border-dashed bg-transparent py-8 md:min-h-0"
           />
         )}
@@ -74,23 +80,29 @@ export function ChatPanel({
         })}
         <div ref={bottomRef} />
       </div>
-      <div className="border-t border-border p-3 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Send a message..."
-          className="flex-1 text-sm bg-muted rounded-lg px-3 py-1.5 outline-none border border-border focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
-        />
-        <Button
-          size="sm"
-          onClick={handleSend}
-          disabled={!input.trim()}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          Send
-        </Button>
-      </div>
+      {readOnly ? (
+        <p className="border-t border-border p-3 text-center text-xs text-muted-foreground">
+          Join the meeting to send messages.
+        </p>
+      ) : (
+        <div className="border-t border-border p-3 flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Send a message..."
+            className="flex-1 text-sm bg-muted rounded-lg px-3 py-1.5 outline-none border border-border focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
+          />
+          <Button
+            size="sm"
+            onClick={handleSend}
+            disabled={!input.trim()}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            Send
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
